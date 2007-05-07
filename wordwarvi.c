@@ -9,12 +9,15 @@
 #define SCREEN_HEIGHT 600
 #define WORLDWIDTH (SCREEN_WIDTH * 40)
 
-#define ROUGHNESS (0.25)
+#define ROUGHNESS (0.10)
 #define MAXOBJS 4500
 #define NROCKETS 370 
-//#define NROCKETS 0 
+/* #define NROCKETS 0  */
 #define MAX_ROCKET_SPEED -32
 #define PLAYER_SPEED 8
+#define LINE_BREAK (-999)
+#define NBUILDINGS 20
+#define MAXBUILDING_WIDTH 7
 
 int toggle = 0;
 GdkColor whitecolor;
@@ -60,6 +63,14 @@ struct my_point_t player_ship_points[] = {
 	{ 24, 2 }, /* tip of nose */
 	{ 9, 0 }, /* front of hatch */
 	{ -3, -6 }, /* top of hatch */ 
+#if 0
+	{ LINE_BREAK, LINE_BREAK }, /* Just for testing */
+	{ -30, -20 },
+	{ 30, -20 },
+	{ 30, 20 },
+	{ -30, 20 },
+	{ -30, -20 },
+#endif
 };
 
 struct my_point_t rocket_points[] = {
@@ -92,6 +103,7 @@ struct game_obj_t {
 	int x, y;
 	int vx, vy;
 	int alive;
+	int otype;
 };
 
 struct terrain_t {
@@ -116,6 +128,25 @@ GdkGC *gc = NULL;
 GtkWidget *main_da;
 gint timer_tag;
 
+
+int randomn(int n)
+{
+	return (int) (((random() + 0.0) / (RAND_MAX + 0.0)) * (n + 0.0));
+}
+
+int randomab(int a, int b)
+{
+	int x, y;
+	if (a > b) {
+		x = b;
+		y = a;
+	} else {
+		x = a;
+		y = b;
+	}
+	return (int) (((random() + 0.0) / (RAND_MAX + 0.0)) * (y - x + 0.0)) + x;
+}
+
 void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
 
 void move_rocket(struct game_obj_t *o)
@@ -133,7 +164,7 @@ void move_rocket(struct game_obj_t *o)
 		}
 
 		if ((ydist*ydist + xdist*xdist) < 400) {
-			explode(o->x, o->y, o->vx, 1, 70, 150, 400);
+			explode(o->x, o->y, o->vx, 1, 70, 150, 20);
 			o->alive = 0;
 			return;
 		}
@@ -151,6 +182,11 @@ void move_player(struct game_obj_t *o)
 	o->x += o->vx;
 	o->y += o->vy;
 	explode(o->x-11, o->y, -7, 0, 7, 10, 9);
+}
+
+void no_move(struct game_obj_t *o)
+{
+	return;
 }
 
 void move_obj(struct game_obj_t *o)
@@ -239,6 +275,7 @@ void init_vects()
 void draw_objs(GtkWidget *w)
 {
 	int i, j, x1, y1, x2, y2;
+
 	for (i=0;i<MAXOBJS;i++) {
 		struct my_vect_obj *v = game_state.go[i].v;
 		struct game_obj_t *o = &game_state.go[i];
@@ -263,6 +300,8 @@ void draw_objs(GtkWidget *w)
 			printf("r");
 #endif
 		for (j=0;j<v->npoints-1;j++) {
+			if (v->p[j+1].x == LINE_BREAK) /* Break in the line segments. */
+				j+=2;
 			x1 = o->x + v->p[j].x - game_state.x;
 			y1 = o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
 			x2 = o->x + v->p[j+1].x - game_state.x; 
@@ -285,6 +324,7 @@ static void add_spark(int x, int y, int vx, int vy, int time)
 			g->vx = vx;
 			g->vy = vy;
 			g->v = &spark_vect;
+			g->otype = 's';
 			g->alive = time;
 			break;
 		}
@@ -346,7 +386,7 @@ void generate_terrain(struct terrain_t *t)
 {
 	t->npoints = TERRAIN_LENGTH;
 	t->x[0] = 0;
-	t->y[0] = 0;
+	t->y[0] = 100;
 	t->x[t->npoints-1] = WORLDWIDTH;
 	t->y[t->npoints-1] = t->y[0];
 
@@ -362,11 +402,112 @@ static void add_rockets(struct terrain_t *t)
 		xi = (int) (((0.0 + random()) / RAND_MAX) * (TERRAIN_LENGTH - 40) + 40);
 		g->move = move_rocket;
 		g->x = t->x[xi];
-		g->y = t->y[xi] - 5;
+		g->y = t->y[xi] - 7;
 		g->v = &rocket_vect;
 		g->vx = 0;
 		g->vy = 0;
+		g->otype = 'r';
 		g->alive = 1;
+	}
+}
+
+/* Insert the points in one list into the middle of another list */
+static void insert_points(struct my_point_t host_list[], int *nhost, 
+		struct my_point_t injection[], int ninject, 
+		int injection_point)
+{
+	/* make room for the injection */
+	memmove(&host_list[injection_point + ninject], 
+		&host_list[injection_point], 
+		ninject * sizeof(host_list[0]));
+
+	/* make the injection */
+	memcpy(&host_list[injection_point], &injection[0], (ninject * sizeof(injection[0])));
+	*nhost += ninject;
+}
+
+static void embellish_building(struct my_point_t *building, int *npoints)
+{
+	return;
+}
+
+int find_free_obj()
+{
+	int i;
+	for (i=0;i<MAXOBJS;i++)
+		if (!game_state.go[i].alive)
+			return i;
+	return -1;
+}
+
+
+static void add_building(struct terrain_t *t, int xi)
+{
+	int npoints = 0;
+	int height;
+	int width;
+	struct my_point_t scratch[1000];
+	struct my_point_t *building;
+	struct my_vect_obj *bvec; 
+	int objnum;
+	struct game_obj_t *o;
+	int i, x, y;
+
+	memset(scratch, 0, sizeof(scratch[0]) * 1000);
+	objnum = find_free_obj();
+	if (objnum == -1)
+		return;
+
+	height = randomab(50, 100);
+	width = randomab(1,MAXBUILDING_WIDTH);
+	scratch[0].x = t->x[xi];	
+	scratch[0].y = t->y[xi];	
+	scratch[1].x = scratch[0].x;
+	scratch[1].y = scratch[0].y - height;
+	scratch[2].x = t->x[xi+width];
+	scratch[2].y = scratch[1].y; /* make roof level, even if ground isn't. */
+	scratch[3].x = scratch[2].x;
+	scratch[3].y = t->y[xi+width];
+	npoints = 4;
+
+	y = scratch[1].y;
+	x = ((scratch[2].x - scratch[0].x) / 2) + scratch[0].x;
+
+	for (i=0;i<npoints;i++) {
+		scratch[i].x -= x;
+		scratch[i].y -= y;
+	}
+
+	embellish_building(scratch, &npoints);
+
+	building = malloc(sizeof(scratch[0]) * npoints);
+	bvec = malloc(sizeof(bvec));
+	if (building == NULL || bvec == NULL)
+		return;
+
+	memcpy(building, scratch, sizeof(scratch[0]) * npoints);
+	bvec->p = building;
+	bvec->npoints = npoints;
+
+	o = &game_state.go[objnum];
+	o->x = x;
+	o->y = y;
+	o->vx = 0;
+	o->vy = 0;
+	o->v = bvec;
+	o->move = no_move;
+	o->otype = 'b';
+	o->alive = 1;
+	printf("b, x=%d, y=%d\n", x, y);
+}
+
+static void add_buildings(struct terrain_t *t)
+{
+	int xi, i;
+
+	for (i=0;i<NBUILDINGS;i++) {
+		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		add_building(t, xi);
 	}
 }
 
@@ -558,6 +699,7 @@ int main(int argc, char *argv[])
 
     generate_terrain(&terrain);
     add_rockets(&terrain);
+    add_buildings(&terrain);
 
     gtk_widget_show (vbox);
     gtk_widget_show (main_da);
