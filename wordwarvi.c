@@ -16,12 +16,13 @@
 /* #define NROCKETS 0  */
 #define LAUNCH_DIST 500
 #define MAX_ROCKET_SPEED -32
-#define PLAYER_SPEED 10
+#define PLAYER_SPEED 8 
 #define LASER_SPEED 40
 #define LASER_PROXIMITY 300 /* square root of 300 */
 #define LINE_BREAK (-999)
 #define NBUILDINGS 40
 #define MAXBUILDING_WIDTH 7
+#define NFUELTANKS 20
 
 #define MAX_ALT 100
 #define MIN_ALT 50
@@ -50,6 +51,39 @@ struct my_point_t spark_points[] = {
 	{ 10, 0 },
 	{ 0, 0 },
 #endif
+};
+
+
+struct my_point_t fuel_points[] = {
+	{ -30, -10 },
+	{ 30, -10 },
+	{ 30, 30 },
+	{ -30, 30 },
+	{ -30, -10 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -25, 25 },
+	{ -25, -5 },
+	{ -15, -5 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -25, 15 },
+	{ -15, 15 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -10, -5 },
+	{ -10, 25 },
+	{ 0, 25 },
+	{ 0, -5 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 15, -5 },
+	{ 5, -5 },
+	{ 5, 25 },
+	{ 15, 25 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 5, 15 },
+	{ 10, 15 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 18, -25 },
+	{ 18, 25 },
+	{ 25, 25 },
 };
 
 struct my_point_t right_laser_beam_points[] = {
@@ -114,6 +148,7 @@ struct my_vect_obj player_vect;
 struct my_vect_obj rocket_vect;
 struct my_vect_obj spark_vect;
 struct my_vect_obj right_laser_vect;
+struct my_vect_obj fuel_vect;
 
 struct game_obj_t;
 typedef void obj_move_func(struct game_obj_t *o);
@@ -193,8 +228,12 @@ void remove_target(struct target_t *t)
 
 	for (i=target_head;i!=NULL;i=i->next) {
 		if (i == t) {
-			i->next->prev = i->prev;
-			i->prev->next = i->next;
+			if (i == target_head)
+				target_head = i->next;
+			if (i->next != NULL)
+				i->next->prev = i->prev;
+			if (i->prev != NULL)
+				i->prev->next = i->next;
 			i->next = NULL;
 			i->prev = NULL;
 			free(i);
@@ -324,7 +363,7 @@ void laser_move(struct game_obj_t *o)
 			continue;
 		if (t->o->otype == 'b') 
 			continue;
-		if (t->o->otype == 'r' && t->o->alive) {
+		if ((t->o->otype == 'r' || t->o->otype == 'f') && t->o->alive) {
 			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
 			// printf("dist2 = %d\n", dist2);
 			if (dist2 < LASER_PROXIMITY) { /* a hit */
@@ -410,6 +449,8 @@ void init_vects()
 	spark_vect.npoints = sizeof(spark_points) / sizeof(spark_points[0]);
 	right_laser_vect.p = right_laser_beam_points;
 	right_laser_vect.npoints = sizeof(right_laser_beam_points) / sizeof(right_laser_beam_points[0]);
+	fuel_vect.p = fuel_points;
+	fuel_vect.npoints = sizeof(fuel_points) / sizeof(fuel_points[0]);
 #if 0
 	player_vect.npoints = 4;
 	player_vect.p = malloc(sizeof(*player_vect.p) * player_vect.npoints);
@@ -800,6 +841,26 @@ static void add_buildings(struct terrain_t *t)
 	}
 }
 
+static void add_fuel(struct terrain_t *t)
+{
+	int xi, i, j;
+	struct game_obj_t *o;
+
+	for (i=0;i<NFUELTANKS;i++) {
+		j = find_free_obj();
+		o = &game_state.go[j];
+		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		o->x = t->x[xi];
+		o->y = t->y[xi]-30;
+		o->vx = 0;
+		o->vy = 0;
+		o->move = no_move;
+		o->target = add_target(o);
+		o->v = &fuel_vect;
+		o->otype = 'f';
+		o->alive = 1;
+	}
+}
 
 static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 {
@@ -994,6 +1055,7 @@ int main(int argc, char *argv[])
     generate_terrain(&terrain);
     add_rockets(&terrain);
     add_buildings(&terrain);
+	add_fuel(&terrain);
 
 	print_target_list();
 
