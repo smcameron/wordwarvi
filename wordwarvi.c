@@ -9,12 +9,12 @@
 #define SCREEN_HEIGHT 600
 #define WORLDWIDTH (SCREEN_WIDTH * 40)
 
-#define ROUGHNESS (0.15)
-#define MAXOBJS 1500
-// #define NROCKETS 70 
-#define NROCKETS 0 
-#define MAX_ROCKET_SPEED 0
-#define PLAYER_SPEED 2
+#define ROUGHNESS (0.25)
+#define MAXOBJS 4500
+#define NROCKETS 370 
+//#define NROCKETS 0 
+#define MAX_ROCKET_SPEED -32
+#define PLAYER_SPEED 8
 
 int toggle = 0;
 GdkColor whitecolor;
@@ -26,8 +26,11 @@ struct my_point_t {
 };
 
 struct my_point_t spark_points[] = {
-	{ 0, 0 },
-	{ 0, 1 },
+	{ -1,-1 },
+	{ -1, 1},
+	{ 1, 1 },
+	{ 1, -1 },
+	{ -1, -1 },
 #if 0
 	{ 0, 0 },
 	{ 0, 10 },
@@ -130,7 +133,7 @@ void move_rocket(struct game_obj_t *o)
 		}
 
 		if ((ydist*ydist + xdist*xdist) < 400) {
-			explode(o->x, o->y, o->vx, 1, 50, 150, 300);
+			explode(o->x, o->y, o->vx, 1, 70, 150, 400);
 			o->alive = 0;
 			return;
 		}
@@ -138,7 +141,7 @@ void move_rocket(struct game_obj_t *o)
 	o->x += o->vx;
 	o->y += o->vy;
 	if (o->vy != 0)
-		explode(o->x, o->y, 0, o->vy+17, 5, 10, 10);
+		explode(o->x, o->y, 0, 9, 8, 17, 13);
 	if (o->y < -2000)
 		o->alive = 0;
 }
@@ -147,7 +150,7 @@ void move_player(struct game_obj_t *o)
 {
 	o->x += o->vx;
 	o->y += o->vy;
-	explode(o->x-8, o->y, -10, 0, 5, 5, 5);
+	explode(o->x-11, o->y, -7, 0, 7, 10, 9);
 }
 
 void move_obj(struct game_obj_t *o)
@@ -163,11 +166,13 @@ void move_spark(struct game_obj_t *o)
 	if (!o->alive)
 		return;
 
+	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
 	o->x += o->vx;
 	o->y += o->vy;
 	o->alive--;
 	if (!o->alive)
 		return;
+	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
 	
 	if (o->vx > 0)
 		o->vx--;
@@ -180,7 +185,7 @@ void move_spark(struct game_obj_t *o)
 
 	if (o->vx == 0 && o->vy == 0)
 		o->alive = 0;
-	if (o->y > 2000 || o->y < -2000 || o->x > 2000 || o->x < -2000)
+	if (o->y > 2000 || o->y < -2000 || o->x > 2000+WORLDWIDTH || o->x < -2000)
 		o->alive = 0;
 }
 
@@ -284,7 +289,7 @@ static void add_spark(int x, int y, int vx, int vy, int time)
 			break;
 		}
 	}
-	if (i==MAXOBJS)
+	if (i>=MAXOBJS)
 		printf("no sparks left\n");
 }
 
@@ -354,7 +359,7 @@ static void add_rockets(struct terrain_t *t)
 
 	for (i=0;i<NROCKETS;i++) {
 		struct game_obj_t *g = &game_state.go[i+1];
-		xi = (int) (((0.0 + random()) / RAND_MAX) * TERRAIN_LENGTH);
+		xi = (int) (((0.0 + random()) / RAND_MAX) * (TERRAIN_LENGTH - 40) + 40);
 		g->move = move_rocket;
 		g->x = t->x[xi];
 		g->y = t->y[xi] - 5;
@@ -465,17 +470,18 @@ gint advance_game(gpointer data)
 	game_state.x += game_state.vx;
 	game_state.y += game_state.vy; 
 	for (i=0;i<MAXOBJS;i++) {
-		if (game_state.go[i].alive)
+		if (game_state.go[i].alive) {
+			// printf("%d ", i);
 			nalive++;
-		else
+		} else
 			ndead++;
 		if (game_state.go[i].alive && game_state.go[i].move != NULL)
 			game_state.go[i].move(&game_state.go[i]);
-		if (game_state.go[i].alive && game_state.go[i].move == NULL)
-			printf("NULL MOVE!\n");
+		// if (game_state.go[i].alive && game_state.go[i].move == NULL)
+			// printf("NULL MOVE!\n");
 	}
 	gtk_widget_queue_draw(main_da);
-	printf("ndead=%d, nalive=%d\n", ndead, nalive);
+	// printf("ndead=%d, nalive=%d\n", ndead, nalive);
 	gdk_threads_leave();
 	if (WORLDWIDTH - game_state.x < 100)
 		return FALSE;
