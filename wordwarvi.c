@@ -3,18 +3,20 @@
 #include <malloc.h>
 #include <gtk/gtk.h>
 #include <string.h>
+#include <sys/time.h>
 
-#define TERRAIN_LENGTH 1000
+#define TERRAIN_LENGTH 2000
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 600
 #define WORLDWIDTH (SCREEN_WIDTH * 40)
 
-#define ROUGHNESS (0.10)
+#define ROUGHNESS (0.30)
 #define MAXOBJS 4500
-#define NROCKETS 370 
+#define NROCKETS 170 
 /* #define NROCKETS 0  */
 #define MAX_ROCKET_SPEED -32
-#define PLAYER_SPEED 8
+#define PLAYER_SPEED 10
+#define LASER_SPEED 40
 #define LINE_BREAK (-999)
 #define NBUILDINGS 20
 #define MAXBUILDING_WIDTH 7
@@ -41,6 +43,17 @@ struct my_point_t spark_points[] = {
 	{ 10, 0 },
 	{ 0, 0 },
 #endif
+};
+
+struct my_point_t right_laser_beam_points[] = {
+	{ -100, 0 },
+	{ -80, 0 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -75, 0 },
+	{ -50, 0 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -45, 0 },
+	{ 0, 0 },
 };
 
 struct my_point_t player_ship_points[] = {
@@ -93,6 +106,7 @@ struct my_vect_obj {
 struct my_vect_obj player_vect;
 struct my_vect_obj rocket_vect;
 struct my_vect_obj spark_vect;
+struct my_vect_obj right_laser_vect;
 
 struct game_obj_t;
 typedef void obj_move_func(struct game_obj_t *o);
@@ -177,16 +191,68 @@ void move_rocket(struct game_obj_t *o)
 		o->alive = 0;
 }
 
+int find_free_obj();
+
+void laser_move(struct game_obj_t *o);
+
+void player_fire_right()
+{
+	int i;
+	struct game_obj_t *o, *p;
+
+	i = find_free_obj();
+	o = &game_state.go[i];
+	p = &game_state.go[0];
+
+	o->x = p->x+30;
+	o->y = p->y;
+	o->vx = p->vx + LASER_SPEED;
+	o->vy = 0;
+	o->v = &right_laser_vect;
+	o->move = laser_move;
+	o->otype = 'L';
+	o->alive = 20;
+}
+
 void move_player(struct game_obj_t *o)
 {
+	int i;
 	o->x += o->vx;
 	o->y += o->vy;
 	explode(o->x-11, o->y, -7, 0, 7, 10, 9);
+	for (i=0;i<TERRAIN_LENGTH;i++) {
+		if (terrain.x[i] - o->x > 100 && (terrain.x[i] - o->x) < 300) {
+			if (terrain.y[i] - o->y > 250) {
+				o->vy += 1;
+				if (o->vy > 9)
+				o->vy = 9;
+			} else if (terrain.y[i] - o->y < 200) {
+				o->vy -= 1;
+				if (o->vy < -9)
+				o->vy = -9;
+			} else if (o->vy > 0) o->vy--;
+			else if (o->vy < 0) o->vy++;
+			game_state.vy = o->vy;
+			break;
+		}
+	}
+	if (randomn(20) < 4)
+		player_fire_right();
+	
 }
 
 void no_move(struct game_obj_t *o)
 {
 	return;
+}
+
+void laser_move(struct game_obj_t *o)
+{
+	if (!o->alive)
+		return;
+	o->x += o->vx;
+	o->y += o->vy;
+	o->alive--;
 }
 
 void move_obj(struct game_obj_t *o)
@@ -254,6 +320,8 @@ void init_vects()
 	rocket_vect.npoints = sizeof(rocket_points) / sizeof(rocket_points[0]);
 	spark_vect.p = spark_points;
 	spark_vect.npoints = sizeof(spark_points) / sizeof(spark_points[0]);
+	right_laser_vect.p = right_laser_beam_points;
+	right_laser_vect.npoints = sizeof(right_laser_beam_points) / sizeof(right_laser_beam_points[0]);
 #if 0
 	player_vect.npoints = 4;
 	player_vect.p = malloc(sizeof(*player_vect.p) * player_vect.npoints);
@@ -419,15 +487,145 @@ static void insert_points(struct my_point_t host_list[], int *nhost,
 	/* make room for the injection */
 	memmove(&host_list[injection_point + ninject], 
 		&host_list[injection_point], 
-		ninject * sizeof(host_list[0]));
+		(*nhost - injection_point) * sizeof(host_list[0]));
 
 	/* make the injection */
 	memcpy(&host_list[injection_point], &injection[0], (ninject * sizeof(injection[0])));
 	*nhost += ninject;
 }
 
+static void embellish_roof(struct my_point_t *building, int *npoints, int left, int right);
+
+static void peak_roof(struct my_point_t *building, int *npoints, int left, int right)
+{
+	struct my_point_t p;
+	int height;
+	height = randomab(20,140);
+	height = (int) (height * (building[right].x-building[left].x) / 100.0);
+	if (height > 60)
+		height = 60;
+
+	p.x = ((building[right].x - building[left].x) / 2) + building[left].x;
+	p.y = building[right].y - height;
+
+	insert_points(building, npoints, &p, 1, right);
+	
+	return;
+}
+
+static void turret_roof(struct my_point_t *building, int *npoints, int left, int right)
+{
+	struct my_point_t p[8];
+	int height, indent, width;
+	int old_npoints;
+
+	width = randomab(5,30);
+	height = randomab(20,60);
+	indent = randomab(0,10);
+	height = (int) (height * (building[right].x-building[left].x) / 100.0);
+	indent = (int) (indent * (building[right].x-building[left].x) / 100.0);
+	width = (int) (width * (building[right].x-building[left].x) / 100.0);
+	
+	p[0].x = building[left].x - indent;
+	p[0].y = building[left].y - indent;
+
+	p[1].x = p[0].x;
+	p[1].y = p[0].y - height;
+
+	p[2].x = p[1].x + width;
+	p[2].y = p[1].y;
+
+	p[3].x = p[2].x;
+	p[3].y = p[0].y;
+
+	p[4].x = building[right].x - width + indent; 
+	p[4].y = p[3].y;
+
+	p[5].x = p[4].x; 
+	p[5].y = p[4].y - height;
+
+	p[6].x = p[5].x + width; 
+	p[6].y = p[5].y;
+
+	p[7].x = p[6].x; 
+	p[7].y = p[6].y + height;
+
+	insert_points(building, npoints, p, 8, right);
+	old_npoints = *npoints;
+
+	embellish_roof(building, npoints, left+2, left+3);
+
+	embellish_roof(building, npoints, left+6 + *npoints - old_npoints, left+7 + *npoints -old_npoints);
+	embellish_roof(building, npoints, left+4 + *npoints - old_npoints, left+5 + *npoints -old_npoints);
+
+	return;
+}
+
+static void indent_roof(struct my_point_t *building, int *npoints, int left, int right)
+{
+	struct my_point_t p[4];
+	int indent;
+	int height;
+	indent = randomab(5,25);
+	height = randomab(-20,30);
+
+	height = (int) (height * (building[right].x-building[left].x) / 100.0);
+	indent = (int) (indent * (building[right].x-building[left].x) / 100.0);
+	
+	p[0].x = building[left].x + indent;
+	p[0].y = building[left].y;
+
+	p[1].x = p[0].x;
+	p[1].y = building[left].y - height;
+	p[2].x = building[right].x - indent;
+	p[2].y = p[1].y;
+	p[3].x = p[2].x;
+	p[3].y = building[right].y;
+
+	insert_points(building, npoints, p, 4, right);
+	embellish_roof(building, npoints, left+4, left+5);
+	embellish_roof(building, npoints, left+2, left+3);
+
+	return;
+}
+
+static void addtower_roof(struct my_point_t *building, int *npoints, int left, int right)
+{
+
+	return;
+}
+
+static void crenellate_roof(struct my_point_t *building, int *npoints, int left, int right)
+{
+	return;
+}
+
+
+static void embellish_roof(struct my_point_t *building, int *npoints, int left, int right)
+{
+	int r = randomn(10);
+
+	switch (r) {
+		case 1: peak_roof(building, npoints, left, right);
+			break;
+		case 2:turret_roof(building, npoints, left, right);
+			break;
+		case 3:
+		case 4:
+		case 5: indent_roof(building, npoints, left, right);
+			break;
+		case 6: crenellate_roof(building, npoints, left, right);
+			break;
+		case 9: addtower_roof(building, npoints, left, right);
+			break;
+		default:
+			break;
+	}
+}
+
 static void embellish_building(struct my_point_t *building, int *npoints)
 {
+	embellish_roof(building, npoints, 1, 2);
 	return;
 }
 
@@ -519,6 +717,11 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	static int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
 	// int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
 
+	struct timeval tm;
+
+	gettimeofday(&tm, NULL);
+	srandom(tm.tv_usec);	
+	
 
 	sx1 = game_state.x - SCREEN_WIDTH / 3;
 	sx2 = game_state.x + 4*SCREEN_WIDTH/3;
