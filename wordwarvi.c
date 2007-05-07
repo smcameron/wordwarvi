@@ -33,17 +33,30 @@ static void destroy( GtkWidget *widget,
     gtk_main_quit ();
 }
 
+#define SCREEN_WIDTH 600
+#define SCREEN_HEIGHT 400
+
 int main( int   argc,
           char *argv[] )
 {
     /* GtkWidget is the storage type for widgets */
     GtkWidget *window;
     GtkWidget *button;
+    GtkWidget *vbox;
+    GtkWidget *main_da;
+
+	GdkColor whitecolor;
+	GdkColor bluecolor;
+	GdkColor blackcolor;
     
     /* This is called in all GTK applications. Arguments are parsed
      * from the command line and are returned to the application. */
     gtk_init (&argc, &argv);
-    
+   
+	gdk_color_parse("white", &whitecolor);
+	gdk_color_parse("blue", &bluecolor);
+	gdk_color_parse("black", &blackcolor);
+ 
     /* create a new window */
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
     
@@ -63,7 +76,11 @@ int main( int   argc,
     
     /* Sets the border width of the window. */
     gtk_container_set_border_width (GTK_CONTAINER (window), 10);
-    
+   
+    vbox = gtk_vbox_new(FALSE, 0); 
+	main_da = gtk_drawing_area_new();
+	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &whitecolor);
+
     /* Creates a new button with the label "Hello World". */
     button = gtk_button_new_with_label ("Hello World");
     
@@ -81,9 +98,19 @@ int main( int   argc,
                               G_OBJECT (window));
     
     /* This packs the button into the window (a gtk container). */
-    gtk_container_add (GTK_CONTAINER (window), button);
+    gtk_container_add(GTK_CONTAINER (vbox), main_da);
+    gtk_container_add (GTK_CONTAINER (vbox), button);
+    gtk_container_add (GTK_CONTAINER (window), vbox);
+
+	gtk_widget_set_size_request(main_da, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    gtk_box_pack_start(window, vbox, TRUE /* expand */, TRUE /* fill */, 2);
+    gtk_box_pack_start(vbox, main_da, TRUE /* expand */, FALSE /* fill */, 2);
+    gtk_box_pack_start(vbox, button, FALSE /* expand */, FALSE /* fill */, 2);
     
     /* The final step is to display this newly created widget. */
+    gtk_widget_show (vbox);
+    gtk_widget_show (main_da);
     gtk_widget_show (button);
     
     /* and the window */
