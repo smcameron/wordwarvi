@@ -1,13 +1,62 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <gtk/gtk.h>
 
-#define TERRAIN_LENGTH 2000
+#define TERRAIN_LENGTH 1000
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 600
 #define WORLDWIDTH (SCREEN_WIDTH * 40)
 
 #define ROUGHNESS (0.35)
+#define MAXOBJS 100
+
+struct my_point_t {
+	int x,y;
+};
+#if 1
+struct my_point_t player_ship_points[] = {
+	{ 9, 0 }, /* front of hatch */
+	{ 0,0 },
+	{ -3, -6 }, /* top of hatch */
+	{ -12, -12 },
+	{ -18, -12 },
+	{ -15, -4 }, /* bottom of tail */
+	{ -3, -4 }, /* bottom of tail */
+	{ -15, -4 }, /* bottom of tail */
+	{ -15, 3 }, /* back top of wing */
+	{ 0, 3 }, /* back top of wing */
+	{ -15, 3 }, /* back top of wing */
+	{ -18, 9 }, /* back bottom of wing */
+	{ -12, 9 }, /* back front of wing */
+	{ 0, 3 },
+	{ -6, 6 },
+	{ 20, 4 },
+	{ 24, 2 }, /* tip of nose */
+	{ 9, 0 }, /* front of hatch */
+	{ -3, -6 }, /* top of hatch */ 
+};
+#else
+struct my_point_t player_ship_points[] = {
+	{ 10, 0 },
+	{ -10, -10 },
+	{ -10, 10 },
+	{ 10, 0 },
+};
+#endif
+
+struct my_vect_obj {
+	int npoints;
+	struct my_point_t *p;	
+};
+
+struct my_vect_obj player_vect;
+
+struct game_obj_t {
+	struct my_vect_obj *v;
+	int x, y;
+	int vx, vy;
+};
 
 struct terrain_t {
 	int npoints;
@@ -19,13 +68,52 @@ struct game_state_t {
 	int x;
 	int y;
 	int last_x1, last_x2;
-	int velocity;
-} game_state = { 0, 0, 0, 0, 10 };
+	int vx;
+	int vy;
+	int nobjs;
+	struct game_obj_t go[MAXOBJS];
+} game_state = { 0, 0, 0, 0, 5, 0 };
 
+struct game_obj_t *player = &game_state.go[0];
 
 GdkGC *gc = NULL;
 GtkWidget *main_da;
 gint timer_tag;
+
+void init_vects()
+{
+	player_vect.p = player_ship_points;
+	player_vect.npoints = sizeof(player_ship_points) / sizeof(player_ship_points[0]);
+#if 0
+	player_vect.npoints = 4;
+	player_vect.p = malloc(sizeof(*player_vect.p) * player_vect.npoints);
+	player_vect.p[0].x = 10; player_vect.p[0].y = 0;
+	player_vect.p[1].x = -10; player_vect.p[1].y = -10;
+	player_vect.p[2].x = -10; player_vect.p[2].y = 10;
+	player_vect.p[3].x = 10; player_vect.p[3].y = 0;
+#endif
+	player->v = &player_vect;
+	player->x = 200;
+	player->y = 0;
+	player->vx = 5;
+	player->vy = 0;
+	game_state.nobjs = 1;
+}
+
+void draw_objs(GtkWidget *w)
+{
+	int i, j;
+	for (i=0;i<game_state.nobjs;i++) {
+		struct my_vect_obj *v = game_state.go[i].v;
+		struct game_obj_t *o = &game_state.go[i];
+
+		for (j=0;j<v->npoints-1;j++) {
+			gdk_draw_line(w->window, gc, o->x + v->p[j].x - game_state.x, o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2),  
+					 o->x + v->p[j+1].x - game_state.x, o->y + v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y);
+			
+		}
+	}
+}
 
 void perturb(int *value, int lower, int upper, double percent)
 {
@@ -94,6 +182,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	int sx1, sx2;
 	int zz = 0;
 
+
 	sx1 = game_state.x - SCREEN_WIDTH / 3;
 	sx2 = game_state.x + 4*SCREEN_WIDTH/3;
 	for (i=0;i<terrain.npoints-1;i++) { /* optimize this later */
@@ -101,16 +190,23 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 			continue;
 		if (terrain.x[i] > sx2 && terrain.x[i+1] > sx2) /* offscreen to the right */
 			continue;
-		if (zz < 20) {
-			if (game_state.y < terrain.y[i+1] - 150)
-				game_state.y += 3;
-			if (game_state.y > terrain.y[i+1] - 50)
-				game_state.y -= 3;
+		if (zz < 10) {
+				if (game_state.y < terrain.y[i+1] - 150) {
+					game_state.vy = 3; 
+					game_state.go[0].vy = 3;
+				} else if (game_state.y > terrain.y[i+1] - 50) {
+					game_state.vy = -3;
+					game_state.go[0].vy = -3;
+				} else {
+					game_state.vy = 0;
+					game_state.go[0].vy = 0;
+				}
 			zz++;
 		}
 		 gdk_draw_line(w->window, gc, terrain.x[i] - game_state.x, terrain.y[i]+(SCREEN_HEIGHT/2) - game_state.y,  
 					 terrain.x[i+1] - game_state.x, terrain.y[i+1]+(SCREEN_HEIGHT/2) - game_state.y);
 	}
+	draw_objs(w);
 	return 0;
 }
 
@@ -147,9 +243,19 @@ static void destroy( GtkWidget *widget,
     gtk_main_quit ();
 }
 
+void move_obj(struct game_obj_t *o)
+{
+	o->x += o->vx;
+	o->y += o->vy;
+}
+
 gint advance_game(gpointer data)
 {
-	game_state.x += game_state.velocity;
+	int i;
+	game_state.x += game_state.vx;
+	game_state.y += game_state.vy;
+	for (i=0;i<game_state.nobjs;i++)
+		move_obj(&game_state.go[i]);
 	gtk_widget_queue_draw(main_da);
 	if (WORLDWIDTH - game_state.x < 100)
 		return FALSE;
@@ -158,22 +264,19 @@ gint advance_game(gpointer data)
 }
 
 
-int main( int   argc,
-          char *argv[] )
+int main(int argc, char *argv[])
 {
-
-    /* GtkWidget is the storage type for widgets */
-    GtkWidget *window;
-    GtkWidget *button;
-    GtkWidget *vbox;
+	/* GtkWidget is the storage type for widgets */
+	GtkWidget *window;
+	GtkWidget *button;
+	GtkWidget *vbox;
 
 	GdkColor whitecolor;
 	GdkColor bluecolor;
 	GdkColor blackcolor;
-    
-    /* This is called in all GTK applications. Arguments are parsed
-     * from the command line and are returned to the application. */
-    gtk_init (&argc, &argv);
+
+	gtk_set_locale();
+	gtk_init (&argc, &argv);
    
 	gdk_color_parse("white", &whitecolor);
 	gdk_color_parse("blue", &bluecolor);
@@ -227,6 +330,7 @@ int main( int   argc,
     gtk_box_pack_start(GTK_BOX (vbox), main_da, TRUE /* expand */, FALSE /* fill */, 2);
     gtk_box_pack_start(GTK_BOX (vbox), button, FALSE /* expand */, FALSE /* fill */, 2);
     
+	init_vects();
     /* The final step is to display this newly created widget. */
     gtk_widget_show (vbox);
     gtk_widget_show (main_da);
