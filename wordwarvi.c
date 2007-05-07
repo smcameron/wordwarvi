@@ -10,11 +10,13 @@
 
 #define ROUGHNESS (0.35)
 #define MAXOBJS 100
+#define NROCKETS 70 
+#define MAX_ROCKET_SPEED -8
 
 struct my_point_t {
 	int x,y;
 };
-#if 1
+
 struct my_point_t player_ship_points[] = {
 	{ 9, 0 }, /* front of hatch */
 	{ 0,0 },
@@ -36,14 +38,18 @@ struct my_point_t player_ship_points[] = {
 	{ 9, 0 }, /* front of hatch */
 	{ -3, -6 }, /* top of hatch */ 
 };
-#else
-struct my_point_t player_ship_points[] = {
-	{ 10, 0 },
-	{ -10, -10 },
-	{ -10, 10 },
-	{ 10, 0 },
+
+struct my_point_t rocket_points[] = {
+	{ -2, 3 },
+	{ -4, 7 },
+	{ -2, 7 },
+	{ -2, -8 },
+	{ 0, -10 },
+	{ 2, -8 },
+	{ 2, 7},
+	{ 4, 7},
+	{ 2, 3}, 
 };
-#endif
 
 struct my_vect_obj {
 	int npoints;
@@ -51,11 +57,16 @@ struct my_vect_obj {
 };
 
 struct my_vect_obj player_vect;
+struct my_vect_obj rocket_vect;
+
+struct game_obj_t;
+typedef void obj_move_func(struct game_obj_t *o);
 
 struct game_obj_t {
 	struct my_vect_obj *v;
 	int x, y;
 	int vx, vy;
+	obj_move_func *move;
 };
 
 struct terrain_t {
@@ -80,10 +91,33 @@ GdkGC *gc = NULL;
 GtkWidget *main_da;
 gint timer_tag;
 
+void move_rocket(struct game_obj_t *o)
+{
+	int xdist, ydist;
+	xdist = abs(o->x - player->x);
+	if (xdist < 250) {
+		ydist = abs(o->y - player->y);
+		if (xdist <= ydist) {
+			if (o->vy > MAX_ROCKET_SPEED)
+				o->vy--;
+		}
+	}
+	o->x += o->vx;
+	o->y += o->vy;
+}
+
+void move_obj(struct game_obj_t *o)
+{
+	o->x += o->vx;
+	o->y += o->vy;
+}
+
 void init_vects()
 {
 	player_vect.p = player_ship_points;
 	player_vect.npoints = sizeof(player_ship_points) / sizeof(player_ship_points[0]);
+	rocket_vect.p = rocket_points;
+	rocket_vect.npoints = sizeof(rocket_points) / sizeof(rocket_points[0]);
 #if 0
 	player_vect.npoints = 4;
 	player_vect.p = malloc(sizeof(*player_vect.p) * player_vect.npoints);
@@ -97,6 +131,7 @@ void init_vects()
 	player->y = 0;
 	player->vx = 5;
 	player->vy = 0;
+	player->move = move_obj;
 	game_state.nobjs = 1;
 }
 
@@ -106,6 +141,15 @@ void draw_objs(GtkWidget *w)
 	for (i=0;i<game_state.nobjs;i++) {
 		struct my_vect_obj *v = game_state.go[i].v;
 		struct game_obj_t *o = &game_state.go[i];
+
+		if (o->x < (game_state.x - (SCREEN_WIDTH/3)))
+			continue;
+		if (o->x > (game_state.x + 4*(SCREEN_WIDTH/3)))
+			continue;
+		if (o->y < (game_state.y - (SCREEN_HEIGHT/2)))
+			continue;
+		if (o->y > (game_state.y + (SCREEN_HEIGHT/2)))
+			continue;
 
 		for (j=0;j<v->npoints-1;j++) {
 			gdk_draw_line(w->window, gc, o->x + v->p[j].x - game_state.x, o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2),  
@@ -175,22 +219,52 @@ void generate_terrain(struct terrain_t *t)
 	generate_sub_terrain(t, 0, t->npoints-1);
 }
 
+static void add_rockets(struct terrain_t *t)
+{
+	int i, xi;
+
+	for (i=0;i<NROCKETS;i++) {
+		xi = (int) (((0.0 + random()) / RAND_MAX) * TERRAIN_LENGTH);
+		game_state.go[i+1].x = t->x[xi];
+		game_state.go[i+1].y = t->y[xi] - 5;
+		game_state.go[i+1].v = &rocket_vect;
+		game_state.go[i+1].vx = 0;
+		game_state.go[i+1].vy = 0;
+		game_state.go[i+1].move = move_rocket;
+		game_state.nobjs++;
+	}
+}
+
 
 static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 {
 	int i;
 	int sx1, sx2;
+	static int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
 	int zz = 0;
 
 
 	sx1 = game_state.x - SCREEN_WIDTH / 3;
 	sx2 = game_state.x + 4*SCREEN_WIDTH/3;
-	for (i=0;i<terrain.npoints-1;i++) { /* optimize this later */
+
+
+	while (terrain.x[last_lowx] < sx1)
+		last_lowx++;
+	while (terrain.x[last_lowx] > sx1)
+		last_lowx--;
+	while (terrain.x[last_highx] > sx2)
+		last_highx--;
+	while (terrain.x[last_highx] < sx2)
+		last_highx++;
+
+	for (i=last_lowx;i<last_highx;i++) {
+#if 0
 		if (terrain.x[i] < sx1 && terrain.x[i+1] < sx1) /* offscreen to the left */
 			continue;
 		if (terrain.x[i] > sx2 && terrain.x[i+1] > sx2) /* offscreen to the right */
 			continue;
-		if (zz < 10) {
+
+		if (zz < 5) {
 				if (game_state.y < terrain.y[i+1] - 150) {
 					game_state.vy = 3; 
 					game_state.go[0].vy = 3;
@@ -202,8 +276,10 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 					game_state.go[0].vy = 0;
 				}
 			zz++;
+			printf(".\n");
 		}
-		 gdk_draw_line(w->window, gc, terrain.x[i] - game_state.x, terrain.y[i]+(SCREEN_HEIGHT/2) - game_state.y,  
+#endif
+		gdk_draw_line(w->window, gc, terrain.x[i] - game_state.x, terrain.y[i]+(SCREEN_HEIGHT/2) - game_state.y,  
 					 terrain.x[i+1] - game_state.x, terrain.y[i+1]+(SCREEN_HEIGHT/2) - game_state.y);
 	}
 	draw_objs(w);
@@ -243,11 +319,6 @@ static void destroy( GtkWidget *widget,
     gtk_main_quit ();
 }
 
-void move_obj(struct game_obj_t *o)
-{
-	o->x += o->vx;
-	o->y += o->vy;
-}
 
 gint advance_game(gpointer data)
 {
@@ -255,7 +326,7 @@ gint advance_game(gpointer data)
 	game_state.x += game_state.vx;
 	game_state.y += game_state.vy;
 	for (i=0;i<game_state.nobjs;i++)
-		move_obj(&game_state.go[i]);
+		game_state.go[i].move(&game_state.go[i]);
 	gtk_widget_queue_draw(main_da);
 	if (WORLDWIDTH - game_state.x < 100)
 		return FALSE;
@@ -337,6 +408,7 @@ int main(int argc, char *argv[])
     gtk_widget_show (button);
 
     generate_terrain(&terrain);
+    add_rockets(&terrain);
     
     /* and the window */
     gtk_widget_show (window);
