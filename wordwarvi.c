@@ -2,19 +2,39 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <gtk/gtk.h>
+#include <string.h>
 
 #define TERRAIN_LENGTH 1000
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 600
 #define WORLDWIDTH (SCREEN_WIDTH * 40)
 
-#define ROUGHNESS (0.35)
-#define MAXOBJS 100
-#define NROCKETS 70 
-#define MAX_ROCKET_SPEED -8
+#define ROUGHNESS (0.15)
+#define MAXOBJS 1500
+// #define NROCKETS 70 
+#define NROCKETS 0 
+#define MAX_ROCKET_SPEED 0
+#define PLAYER_SPEED 2
+
+int toggle = 0;
+GdkColor whitecolor;
+GdkColor bluecolor;
+GdkColor blackcolor;
 
 struct my_point_t {
 	int x,y;
+};
+
+struct my_point_t spark_points[] = {
+	{ 0, 0 },
+	{ 0, 1 },
+#if 0
+	{ 0, 0 },
+	{ 0, 10 },
+	{ 10, 10 },
+	{ 10, 0 },
+	{ 0, 0 },
+#endif
 };
 
 struct my_point_t player_ship_points[] = {
@@ -58,15 +78,17 @@ struct my_vect_obj {
 
 struct my_vect_obj player_vect;
 struct my_vect_obj rocket_vect;
+struct my_vect_obj spark_vect;
 
 struct game_obj_t;
 typedef void obj_move_func(struct game_obj_t *o);
 
 struct game_obj_t {
+	obj_move_func *move;
 	struct my_vect_obj *v;
 	int x, y;
 	int vx, vy;
-	obj_move_func *move;
+	int alive;
 };
 
 struct terrain_t {
@@ -83,7 +105,7 @@ struct game_state_t {
 	int vy;
 	int nobjs;
 	struct game_obj_t go[MAXOBJS];
-} game_state = { 0, 0, 0, 0, 5, 0 };
+} game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0 };
 
 struct game_obj_t *player = &game_state.go[0];
 
@@ -91,19 +113,41 @@ GdkGC *gc = NULL;
 GtkWidget *main_da;
 gint timer_tag;
 
+void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
+
 void move_rocket(struct game_obj_t *o)
 {
 	int xdist, ydist;
+	if (!o->alive)
+		return;
+
 	xdist = abs(o->x - player->x);
 	if (xdist < 250) {
-		ydist = abs(o->y - player->y);
-		if (xdist <= ydist) {
+		ydist = o->y - player->y;
+		if ((xdist <= ydist && ydist > 0) || o->vy != 0) {
 			if (o->vy > MAX_ROCKET_SPEED)
 				o->vy--;
+		}
+
+		if ((ydist*ydist + xdist*xdist) < 400) {
+			explode(o->x, o->y, o->vx, 1, 50, 150, 300);
+			o->alive = 0;
+			return;
 		}
 	}
 	o->x += o->vx;
 	o->y += o->vy;
+	if (o->vy != 0)
+		explode(o->x, o->y, 0, o->vy+17, 5, 10, 10);
+	if (o->y < -2000)
+		o->alive = 0;
+}
+
+void move_player(struct game_obj_t *o)
+{
+	o->x += o->vx;
+	o->y += o->vy;
+	explode(o->x-8, o->y, -10, 0, 5, 5, 5);
 }
 
 void move_obj(struct game_obj_t *o)
@@ -112,12 +156,63 @@ void move_obj(struct game_obj_t *o)
 	o->y += o->vy;
 }
 
+void move_spark(struct game_obj_t *o)
+{
+	if (o->alive < 0)
+		o->alive = 0;
+	if (!o->alive)
+		return;
+
+	o->x += o->vx;
+	o->y += o->vy;
+	o->alive--;
+	if (!o->alive)
+		return;
+	
+	if (o->vx > 0)
+		o->vx--;
+	else if (o->vx < 0)
+		o->vx++;
+	if (o->vy > 0)
+		o->vy--;
+	else if (o->vy < 0)
+		o->vy++;
+
+	if (o->vx == 0 && o->vy == 0)
+		o->alive = 0;
+	if (o->y > 2000 || o->y < -2000 || o->x > 2000 || o->x < -2000)
+		o->alive = 0;
+}
+
+static void add_spark(int x, int y, int vx, int vy, int time);
+
+void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
+{
+	int vx, vy, i;
+
+	for (i=0;i<nsparks;i++) {
+		vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivx));
+		vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivy));
+		add_spark(x, y, vx, vy, time); 
+		/* printf("%d,%d, v=%d,%d, time=%d\n", x,y, vx, vy, time); */
+	}
+}
+
 void init_vects()
 {
+	int i;
+
+	/* memset(&game_state.go[0], 0, sizeof(game_state.go[0])*MAXOBJS); */
+	for (i=0;i<MAXOBJS;i++) {
+		game_state.go[i].alive = 0;
+		game_state.go[i].move = move_obj;
+	}
 	player_vect.p = player_ship_points;
 	player_vect.npoints = sizeof(player_ship_points) / sizeof(player_ship_points[0]);
 	rocket_vect.p = rocket_points;
 	rocket_vect.npoints = sizeof(rocket_points) / sizeof(rocket_points[0]);
+	spark_vect.p = spark_points;
+	spark_vect.npoints = sizeof(spark_points) / sizeof(spark_points[0]);
 #if 0
 	player_vect.npoints = 4;
 	player_vect.p = malloc(sizeof(*player_vect.p) * player_vect.npoints);
@@ -126,37 +221,71 @@ void init_vects()
 	player_vect.p[2].x = -10; player_vect.p[2].y = 10;
 	player_vect.p[3].x = 10; player_vect.p[3].y = 0;
 #endif
+	player->move = move_player;
 	player->v = &player_vect;
 	player->x = 200;
-	player->y = 0;
-	player->vx = 5;
+	player->y = -100;
+	player->vx = PLAYER_SPEED;
 	player->vy = 0;
-	player->move = move_obj;
-	game_state.nobjs = 1;
+	player->alive = 1;
+	game_state.nobjs = MAXOBJS-1;
 }
 
 void draw_objs(GtkWidget *w)
 {
-	int i, j;
-	for (i=0;i<game_state.nobjs;i++) {
+	int i, j, x1, y1, x2, y2;
+	for (i=0;i<MAXOBJS;i++) {
 		struct my_vect_obj *v = game_state.go[i].v;
 		struct game_obj_t *o = &game_state.go[i];
+
+		if (!o->alive)
+			continue;
 
 		if (o->x < (game_state.x - (SCREEN_WIDTH/3)))
 			continue;
 		if (o->x > (game_state.x + 4*(SCREEN_WIDTH/3)))
 			continue;
-		if (o->y < (game_state.y - (SCREEN_HEIGHT/2)))
+		if (o->y < (game_state.y - (SCREEN_HEIGHT)))
 			continue;
-		if (o->y > (game_state.y + (SCREEN_HEIGHT/2)))
+		if (o->y > (game_state.y + (SCREEN_HEIGHT)))
 			continue;
-
+#if 0
+		if (o->v == &spark_vect)
+			printf("s");
+		if (o->v == &player_vect)
+			printf("p");
+		if (o->v == &rocket_vect)
+			printf("r");
+#endif
 		for (j=0;j<v->npoints-1;j++) {
-			gdk_draw_line(w->window, gc, o->x + v->p[j].x - game_state.x, o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2),  
-					 o->x + v->p[j+1].x - game_state.x, o->y + v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y);
-			
+			x1 = o->x + v->p[j].x - game_state.x;
+			y1 = o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
+			x2 = o->x + v->p[j+1].x - game_state.x; 
+			y2 = o->y + v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y;
+			gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
 		}
 	}
+}
+
+static void add_spark(int x, int y, int vx, int vy, int time)
+{
+	int i;
+	for (i=0;i<MAXOBJS;i++) {
+		struct game_obj_t *g = &game_state.go[i];
+		if (!g->alive) {
+			/* printf("i=%d\n", i); */
+			g->move = move_spark;
+			g->x = x;
+			g->y = y;
+			g->vx = vx;
+			g->vy = vy;
+			g->v = &spark_vect;
+			g->alive = time;
+			break;
+		}
+	}
+	if (i==MAXOBJS)
+		printf("no sparks left\n");
 }
 
 void perturb(int *value, int lower, int upper, double percent)
@@ -224,14 +353,15 @@ static void add_rockets(struct terrain_t *t)
 	int i, xi;
 
 	for (i=0;i<NROCKETS;i++) {
+		struct game_obj_t *g = &game_state.go[i+1];
 		xi = (int) (((0.0 + random()) / RAND_MAX) * TERRAIN_LENGTH);
-		game_state.go[i+1].x = t->x[xi];
-		game_state.go[i+1].y = t->y[xi] - 5;
-		game_state.go[i+1].v = &rocket_vect;
-		game_state.go[i+1].vx = 0;
-		game_state.go[i+1].vy = 0;
-		game_state.go[i+1].move = move_rocket;
-		game_state.nobjs++;
+		g->move = move_rocket;
+		g->x = t->x[xi];
+		g->y = t->y[xi] - 5;
+		g->v = &rocket_vect;
+		g->vx = 0;
+		g->vy = 0;
+		g->alive = 1;
 	}
 }
 
@@ -241,21 +371,24 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	int i;
 	int sx1, sx2;
 	static int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
-	int zz = 0;
+	// int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
 
 
 	sx1 = game_state.x - SCREEN_WIDTH / 3;
 	sx2 = game_state.x + 4*SCREEN_WIDTH/3;
 
 
-	while (terrain.x[last_lowx] < sx1)
+	while (terrain.x[last_lowx] < sx1 && last_lowx+1 < TERRAIN_LENGTH)
 		last_lowx++;
-	while (terrain.x[last_lowx] > sx1)
+	while (terrain.x[last_lowx] > sx1 && last_lowx > 0)
 		last_lowx--;
-	while (terrain.x[last_highx] > sx2)
+	while (terrain.x[last_highx] > sx2 && last_highx > 0)
 		last_highx--;
-	while (terrain.x[last_highx] < sx2)
+	while (terrain.x[last_highx] < sx2 && last_highx+1 < TERRAIN_LENGTH) {
 		last_highx++;
+	}
+
+	gdk_gc_set_foreground(gc, &bluecolor);
 
 	for (i=last_lowx;i<last_highx;i++) {
 #if 0
@@ -263,7 +396,8 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 			continue;
 		if (terrain.x[i] > sx2 && terrain.x[i+1] > sx2) /* offscreen to the right */
 			continue;
-
+#endif
+#if 0
 		if (zz < 5) {
 				if (game_state.y < terrain.y[i+1] - 150) {
 					game_state.vy = 3; 
@@ -282,6 +416,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		gdk_draw_line(w->window, gc, terrain.x[i] - game_state.x, terrain.y[i]+(SCREEN_HEIGHT/2) - game_state.y,  
 					 terrain.x[i+1] - game_state.x, terrain.y[i+1]+(SCREEN_HEIGHT/2) - game_state.y);
 	}
+	gdk_gc_set_foreground(gc, &blackcolor);
 	draw_objs(w);
 	return 0;
 }
@@ -322,12 +457,26 @@ static void destroy( GtkWidget *widget,
 
 gint advance_game(gpointer data)
 {
-	int i;
+	int i, ndead, nalive;
+
+	gdk_threads_enter();
+	ndead = 0;
+	nalive = 0;
 	game_state.x += game_state.vx;
-	game_state.y += game_state.vy;
-	for (i=0;i<game_state.nobjs;i++)
-		game_state.go[i].move(&game_state.go[i]);
+	game_state.y += game_state.vy; 
+	for (i=0;i<MAXOBJS;i++) {
+		if (game_state.go[i].alive)
+			nalive++;
+		else
+			ndead++;
+		if (game_state.go[i].alive && game_state.go[i].move != NULL)
+			game_state.go[i].move(&game_state.go[i]);
+		if (game_state.go[i].alive && game_state.go[i].move == NULL)
+			printf("NULL MOVE!\n");
+	}
 	gtk_widget_queue_draw(main_da);
+	printf("ndead=%d, nalive=%d\n", ndead, nalive);
+	gdk_threads_leave();
 	if (WORLDWIDTH - game_state.x < 100)
 		return FALSE;
 	else
@@ -342,9 +491,6 @@ int main(int argc, char *argv[])
 	GtkWidget *button;
 	GtkWidget *vbox;
 
-	GdkColor whitecolor;
-	GdkColor bluecolor;
-	GdkColor blackcolor;
 
 	gtk_set_locale();
 	gtk_init (&argc, &argv);
@@ -403,12 +549,13 @@ int main(int argc, char *argv[])
     
 	init_vects();
     /* The final step is to display this newly created widget. */
-    gtk_widget_show (vbox);
-    gtk_widget_show (main_da);
-    gtk_widget_show (button);
 
     generate_terrain(&terrain);
     add_rockets(&terrain);
+
+    gtk_widget_show (vbox);
+    gtk_widget_show (main_da);
+    gtk_widget_show (button);
     
     /* and the window */
     gtk_widget_show (window);
@@ -419,6 +566,9 @@ int main(int argc, char *argv[])
     /* All GTK applications must have a gtk_main(). Control ends here
      * and waits for an event to occur (like a key press or
      * mouse event). */
+
+    g_thread_init(NULL);
+    gdk_threads_init();
     gtk_main ();
     
     return 0;
