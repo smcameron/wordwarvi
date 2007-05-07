@@ -12,19 +12,26 @@
 
 #define ROUGHNESS (0.30)
 #define MAXOBJS 4500
-#define NROCKETS 170 
+#define NROCKETS 270 
 /* #define NROCKETS 0  */
+#define LAUNCH_DIST 500
 #define MAX_ROCKET_SPEED -32
 #define PLAYER_SPEED 10
 #define LASER_SPEED 40
+#define LASER_PROXIMITY 300 /* square root of 300 */
 #define LINE_BREAK (-999)
-#define NBUILDINGS 20
+#define NBUILDINGS 40
 #define MAXBUILDING_WIDTH 7
+
+#define MAX_ALT 100
+#define MIN_ALT 50
 
 int toggle = 0;
 GdkColor whitecolor;
 GdkColor bluecolor;
 GdkColor blackcolor;
+
+struct target_t;
 
 struct my_point_t {
 	int x,y;
@@ -114,11 +121,17 @@ typedef void obj_move_func(struct game_obj_t *o);
 struct game_obj_t {
 	obj_move_func *move;
 	struct my_vect_obj *v;
+	struct target_t *target;
 	int x, y;
 	int vx, vy;
 	int alive;
 	int otype;
 };
+
+struct target_t {
+	struct game_obj_t *o;
+	struct target_t *prev, *next;
+} *target_head = NULL;
 
 struct terrain_t {
 	int npoints;
@@ -142,6 +155,53 @@ GdkGC *gc = NULL;
 GtkWidget *main_da;
 gint timer_tag;
 
+struct target_t *add_target(struct game_obj_t *o)
+{
+	struct target_t *t;
+
+	t = malloc(sizeof(struct target_t));
+	if (t == NULL) {
+		printf("add target failed.\n");
+		return NULL;
+	}
+
+	t->o = o;
+	t->prev = NULL;
+	if (target_head == NULL) { 
+		target_head = t;
+		t->next = NULL;
+	} else {
+		t->next = target_head;
+		target_head->prev = t;
+		target_head = t;
+	}
+	return target_head;
+}
+
+void print_target_list()
+{
+	struct target_t *t;
+	printf("Targetlist:\n");
+	for (t=target_head; t != NULL;t=t->next) {
+		printf("%c: %d,%d\n", t->o->otype, t->o->x, t->o->y);
+	}
+	printf("end of list.\n");
+}
+void remove_target(struct target_t *t)
+{
+	struct target_t *i;
+
+	for (i=target_head;i!=NULL;i=i->next) {
+		if (i == t) {
+			i->next->prev = i->prev;
+			i->prev->next = i->next;
+			i->next = NULL;
+			i->prev = NULL;
+			free(i);
+			break;
+		}
+	}
+}
 
 int randomn(int n)
 {
@@ -170,7 +230,7 @@ void move_rocket(struct game_obj_t *o)
 		return;
 
 	xdist = abs(o->x - player->x);
-	if (xdist < 250) {
+	if (xdist < LAUNCH_DIST) {
 		ydist = o->y - player->y;
 		if ((xdist <= ydist && ydist > 0) || o->vy != 0) {
 			if (o->vy > MAX_ROCKET_SPEED)
@@ -180,6 +240,7 @@ void move_rocket(struct game_obj_t *o)
 		if ((ydist*ydist + xdist*xdist) < 400) {
 			explode(o->x, o->y, o->vx, 1, 70, 150, 20);
 			o->alive = 0;
+			remove_target(o->target);
 			return;
 		}
 	}
@@ -187,8 +248,10 @@ void move_rocket(struct game_obj_t *o)
 	o->y += o->vy;
 	if (o->vy != 0)
 		explode(o->x, o->y, 0, 9, 8, 17, 13);
-	if (o->y < -2000)
+	if (o->y < -2000) {
 		o->alive = 0;
+		remove_target(o->target);
+	}
 }
 
 int find_free_obj();
@@ -222,11 +285,11 @@ void move_player(struct game_obj_t *o)
 	explode(o->x-11, o->y, -7, 0, 7, 10, 9);
 	for (i=0;i<TERRAIN_LENGTH;i++) {
 		if (terrain.x[i] - o->x > 100 && (terrain.x[i] - o->x) < 300) {
-			if (terrain.y[i] - o->y > 250) {
+			if (terrain.y[i] - o->y > MAX_ALT) {
 				o->vy += 1;
 				if (o->vy > 9)
 				o->vy = 9;
-			} else if (terrain.y[i] - o->y < 200) {
+			} else if (terrain.y[i] - o->y < MIN_ALT) {
 				o->vy -= 1;
 				if (o->vy < -9)
 				o->vy = -9;
@@ -248,11 +311,36 @@ void no_move(struct game_obj_t *o)
 
 void laser_move(struct game_obj_t *o)
 {
+	struct target_t *t;
+	int dist2;
+
 	if (!o->alive)
 		return;
 	o->x += o->vx;
 	o->y += o->vy;
-	o->alive--;
+
+	for (t=target_head;t != NULL;t=t->next) {
+		if (t->o->otype == 'L')
+			continue;
+		if (t->o->otype == 'b') 
+			continue;
+		if (t->o->otype == 'r' && t->o->alive) {
+			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
+			// printf("dist2 = %d\n", dist2);
+			if (dist2 < LASER_PROXIMITY) { /* a hit */
+				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
+				t->o->alive = 0;
+				remove_target(t);
+				o->alive = 0;
+			}
+		}
+	}
+	if (o->alive)
+		o->alive--;
+	if (!o->alive) {
+		remove_target(o->target);
+		o->target = NULL;
+	}
 }
 
 void move_obj(struct game_obj_t *o)
@@ -336,6 +424,7 @@ void init_vects()
 	player->y = -100;
 	player->vx = PLAYER_SPEED;
 	player->vy = 0;
+	player->target = add_target(player);
 	player->alive = 1;
 	game_state.nobjs = MAXOBJS-1;
 }
@@ -475,6 +564,7 @@ static void add_rockets(struct terrain_t *t)
 		g->vx = 0;
 		g->vy = 0;
 		g->otype = 'r';
+		g->target = add_target(g);
 		g->alive = 1;
 	}
 }
@@ -519,7 +609,7 @@ static void turret_roof(struct my_point_t *building, int *npoints, int left, int
 	int height, indent, width;
 	int old_npoints;
 
-	width = randomab(5,30);
+	width = randomab(15,30);
 	height = randomab(20,60);
 	indent = randomab(0,10);
 	height = (int) (height * (building[right].x-building[left].x) / 100.0);
@@ -695,6 +785,7 @@ static void add_building(struct terrain_t *t, int xi)
 	o->v = bvec;
 	o->move = no_move;
 	o->otype = 'b';
+	o->target = add_target(o);
 	o->alive = 1;
 	printf("b, x=%d, y=%d\n", x, y);
 }
@@ -903,6 +994,8 @@ int main(int argc, char *argv[])
     generate_terrain(&terrain);
     add_rockets(&terrain);
     add_buildings(&terrain);
+
+	print_target_list();
 
     gtk_widget_show (vbox);
     gtk_widget_show (main_da);
