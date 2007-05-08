@@ -15,7 +15,9 @@
 
 #define ROUGHNESS (0.40)
 #define MAXOBJS 6500
-#define NROCKETS 270 
+#define NFLAK 70
+#define LASER_DAMAGE 5;
+#define NROCKETS 70 
 // #define NROCKETS 0
 #define LAUNCH_DIST 500
 #define MAX_ROCKET_SPEED -32
@@ -39,12 +41,13 @@
 /* Scoring stuff */
 #define ROCKET_SCORE 20
 #define BRIDGE_SCORE 5
+#define FLAK_SCORE 25
 
 int game_pause = 0;
 
 int toggle = 0;
 
-#define NCOLORS 7
+#define NCOLORS 8
 
 GdkColor huex[NCOLORS];
 
@@ -55,6 +58,7 @@ GdkColor huex[NCOLORS];
 #define YELLOW 4
 #define RED 5
 #define ORANGE 6
+#define CYAN 7
 
 
 
@@ -201,6 +205,18 @@ struct my_point_t bomb_points[] = {
 	{ 0, -3 },
 };
 
+struct my_point_t flak_points[] = {
+	{ -10, 5 },
+	{ -5, -3 },
+	{ 5, -3},
+	{ 10, 5 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -3, -3 },
+	{ -3, -5},
+	{ 3, -5},
+	{ 3, -3},
+};
+
 struct my_point_t rocket_points[] = {
 	{ -2, 3 },
 	{ -4, 7 },
@@ -238,6 +254,7 @@ struct my_vect_obj right_laser_vect;
 struct my_vect_obj fuel_vect;
 struct my_vect_obj bomb_vect;
 struct my_vect_obj bridge_vect;
+struct my_vect_obj flak_vect;
 
 struct game_obj_t;
 
@@ -257,6 +274,7 @@ struct game_obj_t {
 };
 
 GtkWidget *score_label;
+GtkWidget *bombs_label;
 
 struct target_t {
 	struct game_obj_t *o;
@@ -281,6 +299,7 @@ struct game_state_t {
 	int score;
 	int prev_score;
 	int nbombs;
+	int prev_bombs;
 	struct game_obj_t go[MAXOBJS];
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0 };
 
@@ -362,6 +381,67 @@ int randomab(int a, int b)
 
 void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
 
+void move_laserbolt(struct game_obj_t *o)
+{
+	int dy;
+	if (!o->alive)
+		return;
+	dy = (o->y - player->y);
+	if (dy < -1000) {
+		o->alive = 0;
+		return;
+	}
+	if (abs(dy) < 5 && abs(player->x - o->x) < 10) {
+		explode(o->x, o->y, o->vx, 1, 70, 20, 20);
+		game_state.health -= LASER_DAMAGE;
+		o->alive = 0;	
+	}
+	o->x += o->vx;
+	o->y += o->vy;
+	o->alive--;
+}
+
+static void add_laserbolt(int x, int y, int vx, int vy, int time);
+void move_flak(struct game_obj_t *o)
+{
+	int xdist;
+	int dx, dy, bx,by;
+	int x1, y1;
+	xdist = abs(o->x - player->x);
+	if (xdist < SCREEN_WIDTH && randomn(100) < 5) {
+		dx = player->x - o->x;
+		dy = player->y - o->y;
+
+		if (dy >= 0) {
+			if (player->x < o->x)
+				bx = -20;
+			else
+				bx = 20;
+			by = 0;
+		} else if (dx == 0) {
+			bx = -0;
+			by = -20;
+		} else if (abs(dx) > abs(dy)) {
+			if (player->x < o->x)
+				bx = -20;
+			else
+				bx = 20;
+			by = -abs((20*dy)/dx);
+		} else {
+			by = -20;
+			/* if (player->x < o->x)
+				bx = -20;
+			else
+				bx = 20; */
+			bx = (-20*dx)/dy;
+		}
+		x1 = o->x-5;
+		y1 = o->y-5;  
+		add_laserbolt(x1, y1, bx, by, 50);
+		add_laserbolt(x1+10, y1, bx, by, 50);
+	}
+}
+
 void move_rocket(struct game_obj_t *o)
 {
 	int xdist, ydist;
@@ -388,7 +468,7 @@ void move_rocket(struct game_obj_t *o)
 	o->y += o->vy;
 	if (o->vy != 0)
 		explode(o->x, o->y, 0, 9, 8, 7, 13);
-	if (o->y < -2000) {
+	if (o->y - player->y < -1000 && o->vy != 0) {
 		o->alive = 0;
 		remove_target(o->target);
 	}
@@ -452,7 +532,7 @@ void bomb_move(struct game_obj_t *o)
 			continue;
 		if (t->o->otype == 'b') 
 			continue;
-		if (t->o->otype == 'r' && t->o->alive) {
+		if ((t->o->otype == 'r' || t->o->otype == 'g') && t->o->alive) {
 			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
 			if (dist2 < LASER_PROXIMITY) { /* a hit */
 				game_state.score += ROCKET_SCORE;
@@ -536,6 +616,8 @@ void drop_bomb()
 	o->alive = 20;
 }
 
+static void add_debris(int x, int y, int vx, int vy, int r, struct game_obj_t **victim);
+void no_draw(struct game_obj_t *o, GtkWidget *w);
 void move_player(struct game_obj_t *o)
 {
 	int i;
@@ -552,15 +634,20 @@ void move_player(struct game_obj_t *o)
 		was_healthy = 1;
 	} else if (was_healthy) {
 		was_healthy = 0;
+		player->move = bridge_move;
 		explode(player->x, player->y, player->vx, player->vy, 90, 350, 30);
+		player->draw = no_draw;
+		add_debris(o->x, o->y, o->vx, o->vy, 20, &player);
 	} 
 	if (abs(o->vx) < 5 || game_state.health <= 0) {
 		o->vy+=1;
 		if (o->vy > MAX_VY)
 			o->vy = MAX_VY;
-		explode(o->x-(11 * game_state.direction), o->y, -(7*game_state.direction), 0, 7, 10, 9);
+		if (was_healthy)
+			explode(o->x-(11 * game_state.direction), o->y, -(7*game_state.direction), 0, 7, 10, 9);
 	} else
-		explode(o->x-(11 * game_state.direction), o->y, -((abs(o->vx)+7)*game_state.direction), 0, 10, 10, 9);
+		if (was_healthy)
+			explode(o->x-(11 * game_state.direction), o->y, -((abs(o->vx)+7)*game_state.direction), 0, 10, 10, 9);
 	if (game_state.direction == 1) {
 		if (player->x - game_state.x > SCREEN_WIDTH/3) {
 			/* going off screen to the right... rein back in */
@@ -691,7 +778,8 @@ void laser_move(struct game_obj_t *o)
 			continue;
 		if (t->o->otype == 'b') 
 			continue;
-		if ((t->o->otype == 'r' || t->o->otype == 'f') && t->o->alive) {
+		if ((t->o->otype == 'r' || t->o->otype == 'f' || t->o->otype == 'g') 
+			&& t->o->alive) {
 			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
 			// printf("dist2 = %d\n", dist2);
 			if (dist2 < LASER_PROXIMITY) { /* a hit */
@@ -764,7 +852,7 @@ void move_spark(struct game_obj_t *o)
 		o->alive = 0;
 		o->draw = NULL;
 	}
-	if (o->y > 2000 || o->y < -2000 || o->x > 2000+WORLDWIDTH || o->x < -2000) {
+	if (abs(o->y - player->y) > 2000 || o->x > 2000+WORLDWIDTH || o->x < -2000) {
 		o->alive = 0;
 		o->draw = NULL;
 	}
@@ -811,6 +899,8 @@ void init_vects()
 	bomb_vect.npoints = sizeof(bomb_points) / sizeof(bomb_points[0]);
 	bridge_vect.p = bridge_points;
 	bridge_vect.npoints = sizeof(bridge_points) / sizeof(bridge_points[0]);
+	flak_vect.p = flak_points;
+	flak_vect.npoints = sizeof(flak_points) / sizeof(flak_points[0]);
 #if 0
 	player_vect.npoints = 4;
 	player_vect.p = malloc(sizeof(*player_vect.p) * player_vect.npoints);
@@ -833,6 +923,67 @@ void init_vects()
 	game_state.score = 0;
 	game_state.prev_score = 0;
 	game_state.nbombs = NBOMBS;
+	game_state.prev_bombs = -1;
+}
+
+void no_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	return;
+}
+
+void draw_generic(struct game_obj_t *o, GtkWidget *w)
+{
+	int j;
+	int x1, y1, x2, y2;
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+	for (j=0;j<o->v->npoints-1;j++) {
+		if (o->v->p[j+1].x == LINE_BREAK) /* Break in the line segments. */
+			j+=2;
+		x1 = o->x + o->v->p[j].x - game_state.x;
+		y1 = o->y + o->v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
+		x2 = o->x + o->v->p[j+1].x - game_state.x; 
+		y2 = o->y + o->v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y;
+		gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+	}
+}
+
+void draw_flak(struct game_obj_t *o, GtkWidget *w)
+{
+	int dx, dy, bx,by;
+	int x1, y1;
+	draw_generic(o, w);
+
+	/* Draw the gun barrels... */
+	dx = player->x - o->x;
+	dy = player->y - o->y;
+
+	if (dy >= 0) {
+		if (player->x < o->x)
+			bx = -20;
+		else
+			bx = 20;
+		by = 0;
+	} else if (dx == 0) {
+		bx = -0;
+		by = -20;
+	} else if (abs(dx) > abs(dy)) {
+		if (player->x < o->x)
+			bx = -20;
+		else
+			bx = 20;
+		by = -abs((20*dy)/dx);
+	} else {
+		by = -20;
+		/* if (player->x < o->x)
+			bx = -20;
+		else
+			bx = 20; */
+		bx = (-20*dx)/dy;
+	}
+	x1 = o->x-5 - game_state.x;
+	y1 = o->y-5 - game_state.y + (SCREEN_HEIGHT/2);  
+	gdk_draw_line(w->window, gc, x1, y1, x1+bx, y1+by); 
+	gdk_draw_line(w->window, gc, x1+10, y1, x1+bx+6, y1+by); 
 }
 
 void draw_objs(GtkWidget *w)
@@ -876,6 +1027,26 @@ void draw_objs(GtkWidget *w)
 		} else
 			o->draw(o, w);
 	}
+}
+
+static void add_laserbolt(int x, int y, int vx, int vy, int time)
+{
+	int i;
+	struct game_obj_t *o;
+	i = find_free_obj();
+	if (i<0)
+		return;
+	o = &game_state.go[i];
+	o->move = move_laserbolt;
+	o->draw = draw_spark;
+	o->x = x;
+	o->y = y;
+	o->vx = vx;
+	o->vy = vy;
+	o->v = &spark_vect;
+	o->otype = 's';
+	o->color = CYAN;
+	o->alive = time;
 }
 
 static void add_spark(int x, int y, int vx, int vy, int time)
@@ -960,6 +1131,83 @@ void generate_terrain(struct terrain_t *t)
 	t->y[t->npoints-1] = t->y[0];
 
 	generate_sub_terrain(t, 0, t->npoints-1);
+}
+
+static struct my_vect_obj *make_debris_vect()
+{
+	int i, n;
+	struct my_point_t *p;
+	struct my_vect_obj *v;
+	
+	n = randomab(5,10);
+	v = (struct my_vect_obj *) malloc(sizeof(*v));
+	p = (struct my_point_t *) malloc(sizeof(*p) * n);
+	if (!v || !p) {
+		if (v)
+			free(v);
+		if (p)
+			free (p);
+		return NULL;
+	}
+
+	v->p = &p[0];
+	v->npoints = n;
+	
+	for (i=0;i<n;i++) {
+		p[i].x = randomn(20)-10;
+		p[i].y = randomn(10)-5;
+	}
+	return v;
+}
+
+static void add_debris(int x, int y, int vx, int vy, int r, struct game_obj_t **victim)
+{
+	int i, z; 
+	struct game_obj_t *o;
+
+	for (i=0;i<=12;i++) {
+		z = find_free_obj();
+		if (z < 0)
+			return;
+		o = &game_state.go[z];
+		o->x = x;
+		o->y = y;
+		o->move = bridge_move;
+		o->draw = draw_generic;
+		o->alive = 30;	
+		o->color = WHITE;
+		o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
+		o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));
+		o->v = make_debris_vect();
+		if (o->v == NULL)
+			o->draw = no_draw;
+		if (i==0)
+			*victim = o;
+	}
+}
+
+static void add_flak_guns(struct terrain_t *t)
+{
+	int i, xi, z;
+	struct game_obj_t *o;
+	for (i=0;i<NFLAK;i++) {
+		z = find_free_obj();
+		if (z < 0)
+			return;
+		o = &game_state.go[z];
+		xi = (int) (((0.0 + random()) / RAND_MAX) * (TERRAIN_LENGTH - 40) + 40);
+		o->move = move_flak;
+		o->draw = draw_flak;
+		o->x = t->x[xi];
+		o->y = t->y[xi] - 7;
+		o->v = &flak_vect;
+		o->vx = 0;
+		o->vy = 0;
+		o->otype = 'g';
+		o->color = GREEN;
+		o->target = add_target(o);
+		o->alive = 1;
+	}
 }
 
 static void add_rockets(struct terrain_t *t)
@@ -1126,9 +1374,75 @@ static void embellish_roof(struct my_point_t *building, int *npoints, int left, 
 	}
 }
 
+static void add_window(struct my_point_t *building, int *npoints, 
+		int x1, int y1, int x2, int y2)
+{
+	printf("aw: npoints = %p\n", npoints); fflush(stdout);
+	if (*npoints > 1000) {
+		printf("npoints = %d\n", *npoints); fflush(stdout);
+		return;
+	}
+	building[*npoints].x = LINE_BREAK; 
+	building[*npoints].y = LINE_BREAK; *npoints += 1;
+	building[*npoints].x = x1; 
+	building[*npoints].y = y1; *npoints += 1;
+	building[*npoints].x = x1; 
+	building[*npoints].y = y2; *npoints += 1;
+	building[*npoints].x = x2; 
+	building[*npoints].y = y2; *npoints += 1;
+	building[*npoints].x = x2; 
+	building[*npoints].y = y1; *npoints += 1;
+	building[*npoints].x = x1; 
+	building[*npoints].y = y1; *npoints += 1;
+}
+
+static void add_windows(struct my_point_t *building, int *npoints, 
+		int x1, int y1, int x2, int y2)
+{
+	int nwindows;
+	int xindent, yindent;
+	int spacing;
+	int width;
+	int i;
+
+	printf("aws: npoints = %p\n", npoints); fflush(stdout);
+	xindent = randomab(5, 20);
+	yindent = randomab(5, 20);
+	spacing = randomab(3, 15);
+	x2 -= xindent;
+	x1 += xindent;
+	y1 -= yindent;
+	y2 += yindent;
+	printf("add_windows, %d,%d  %d,%d\n", x1, y1, x2, y2);
+
+	if (x2 - x1 < 30)
+		return;
+	if (y1 - y2 < 20)
+		return;
+
+	nwindows = randomab(1, 5);
+	width = (x2-x1) / nwindows; 
+	printf("adding %d windows, *npoints = %d\n", nwindows, *npoints);
+	for (i=0;i<nwindows;i++) {
+		printf("Adding window -> %d, %d, %d, %d, npoints = %d\n",
+			x1 + (i*width), y1, x1 + (i+1)*width - spacing, y2, *npoints);
+		fflush(stdout);
+		add_window(building, npoints,
+			x1 + (i*(width)), y1, x1 + (i+1)*(width) - spacing, y2);
+	}
+	return;
+}
+
 static void embellish_building(struct my_point_t *building, int *npoints)
 {
+	int x1, y1, x2, y2;
+
+	x1 = building[0].x;
+	y1 = building[0].y;
+	x2 = building[2].x;
+	y2 = building[2].y;
 	embellish_roof(building, npoints, 1, 2);
+	add_windows(building, npoints, x1, y1, x2, y2);
 	return;
 }
 
@@ -1385,12 +1699,9 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	int i;
 	int sx1, sx2;
 	static int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
+	char score_str[100];
 	// int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
 
-	struct timeval tm;
-
-	gettimeofday(&tm, NULL);
-	srandom(tm.tv_usec);	
 	
 
 	sx1 = game_state.x - SCREEN_WIDTH / 3;
@@ -1442,10 +1753,14 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 			((SCREEN_WIDTH - 60) * game_state.health / 100), 30);
 	draw_objs(w);
 	if (game_state.prev_score != game_state.score) {
-		char score_str[100];
 		sprintf(score_str, "Score: %06d", game_state.score);
 		game_state.prev_score = game_state.score;
 		gtk_label_set_text(GTK_LABEL(score_label), score_str);
+	}
+	if (game_state.prev_bombs != game_state.nbombs) {
+		sprintf(score_str, "Bombs: %02d", game_state.nbombs);
+		game_state.prev_bombs = game_state.nbombs;
+		gtk_label_set_text(GTK_LABEL(bombs_label), score_str);
 	}
 
 	return 0;
@@ -1622,6 +1937,9 @@ int main(int argc, char *argv[])
 	GtkWidget *vbox;
 	int i;
 
+	struct timeval tm;
+	gettimeofday(&tm, NULL);
+	srandom(tm.tv_usec);	
 
 	gtk_set_locale();
 	gtk_init (&argc, &argv);
@@ -1633,6 +1951,7 @@ int main(int argc, char *argv[])
 	gdk_color_parse("yellow", &huex[YELLOW]);
 	gdk_color_parse("red", &huex[RED]);
 	gdk_color_parse("orange", &huex[ORANGE]);
+	gdk_color_parse("cyan", &huex[CYAN]);
  
     /* create a new window */
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -1663,6 +1982,7 @@ int main(int argc, char *argv[])
 
     button = gtk_button_new_with_label ("Quit");
     score_label = gtk_label_new("Score: 000000");
+    bombs_label = gtk_label_new("Bombs: 99");
     
     /* When the button receives the "clicked" signal, it will call the
      * function hello() passing it NULL as its argument.  The hello()
@@ -1683,6 +2003,7 @@ int main(int argc, char *argv[])
     gtk_box_pack_start(GTK_BOX (vbox), main_da, TRUE /* expand */, FALSE /* fill */, 2);
     gtk_box_pack_start(GTK_BOX (vbox), button, FALSE /* expand */, FALSE /* fill */, 2);
     gtk_box_pack_start(GTK_BOX (vbox), score_label, FALSE /* expand */, FALSE /* fill */, 2);
+    gtk_box_pack_start(GTK_BOX (vbox), bombs_label, FALSE /* expand */, FALSE /* fill */, 2);
     
 	init_vects();
 	
@@ -1695,6 +2016,7 @@ int main(int argc, char *argv[])
     add_buildings(&terrain);
 	add_fuel(&terrain);
 	add_bridges(&terrain);
+	    add_flak_guns(&terrain);
 
 	//print_target_list();
 
@@ -1709,12 +2031,13 @@ int main(int argc, char *argv[])
     gtk_widget_show (main_da);
     // gtk_widget_show (button);
     gtk_widget_show (score_label);
+    gtk_widget_show (bombs_label);
     
     /* and the window */
     gtk_widget_show (window);
 	gc = gdk_gc_new(GTK_WIDGET(main_da)->window);
 
-    timer_tag = g_timeout_add(42, advance_game, NULL);
+    timer_tag = g_timeout_add(30, advance_game, NULL);
     
     /* All GTK applications must have a gtk_main(). Control ends here
      * and waits for an event to occur (like a key press or
