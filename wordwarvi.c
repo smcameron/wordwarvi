@@ -13,10 +13,10 @@
 #define SCREEN_HEIGHT 600
 #define WORLDWIDTH (SCREEN_WIDTH * 40)
 
-#define ROUGHNESS (0.37)
-#define MAXOBJS 4500
+#define ROUGHNESS (0.40)
+#define MAXOBJS 6500
 #define NROCKETS 270 
-/* #define NROCKETS 0  */
+// #define NROCKETS 0
 #define LAUNCH_DIST 500
 #define MAX_ROCKET_SPEED -32
 #define PLAYER_SPEED 8 
@@ -24,15 +24,19 @@
 #define MAX_VY 25
 #define LASER_SPEED 40
 #define LASER_PROXIMITY 300 /* square root of 300 */
-#define BOMB_PROXIMITY 30000 /* square root of 30000 */
+#define BOMB_PROXIMITY 10000 /* square root of 30000 */
+#define BOMB_X_PROXIMITY 100
 #define LINE_BREAK (-999)
 #define NBUILDINGS 40
+#define NBRIDGES 7
 #define MAXBUILDING_WIDTH 7
-#define NFUELTANKS 20
+#define NFUELTANKS 0
 #define BOMB_SPEED 10
-
+#define NBOMBS 100
 #define MAX_ALT 100
 #define MIN_ALT 50
+
+int game_pause = 0;
 
 int toggle = 0;
 GdkColor whitecolor;
@@ -194,6 +198,18 @@ struct my_point_t rocket_points[] = {
 	{ 2, 3}, 
 };
 
+struct my_point_t bridge_points[] = {  /* square with an x through it, 8x8 */
+	{ -4, -4 },
+	{ -4, 4 },
+	{ 4, 4 },
+	{ -4, -4 },
+	{ 4, -4 },
+	{ -4, 4 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 4, -4 },
+	{ 4, 4 },
+};
+
 struct my_vect_obj {
 	int npoints;
 	struct my_point_t *p;	
@@ -206,6 +222,7 @@ struct my_vect_obj spark_vect;
 struct my_vect_obj right_laser_vect;
 struct my_vect_obj fuel_vect;
 struct my_vect_obj bomb_vect;
+struct my_vect_obj bridge_vect;
 
 struct game_obj_t;
 typedef void obj_move_func(struct game_obj_t *o);
@@ -347,7 +364,7 @@ void move_rocket(struct game_obj_t *o)
 	o->x += o->vx;
 	o->y += o->vy;
 	if (o->vy != 0)
-		explode(o->x, o->y, 0, 9, 8, 17, 13);
+		explode(o->x, o->y, 0, 9, 8, 7, 13);
 	if (o->y < -2000) {
 		o->alive = 0;
 		remove_target(o->target);
@@ -391,6 +408,8 @@ int interpolate(int x, int x1, int y1, int x2, int y2)
 		return (x - x1) * (y2 - y1) / (x2 -x1) + y1;
 }
 
+void bridge_move(struct game_obj_t *o);
+
 void bomb_move(struct game_obj_t *o)
 {
 	struct target_t *t;
@@ -413,7 +432,9 @@ void bomb_move(struct game_obj_t *o)
 			if (dist2 < LASER_PROXIMITY) { /* a hit */
 				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 				t->o->alive = 0;
-				remove_target(t);
+				remove_target(t); /* BUG: Instead of remove here.. */
+						  /* Add to list to be removed later */
+						  /* othewise we disturb the for loop */
 				o->alive = 0;
 			}
 		}
@@ -440,6 +461,16 @@ void bomb_move(struct game_obj_t *o)
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 					t->o->alive = 0;
 					remove_target(t); /* make cause skipping target */
+				}
+			}
+			if (t->o->otype == 'T') { /* Bridge */
+				// dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
+				if (abs(o->x - t->o->x) < BOMB_X_PROXIMITY) { /* a hit */
+					/* "+=" instead of "=" in case multiple bombs */
+					t->o->vx += ((t->o->x < o->x) ? -1 : 1) * randomn(6);
+					t->o->vy += ((t->o->y < o->y) ? -1 : 1) * randomn(6);
+					t->o->move = bridge_move;
+					t->o->alive = 20;
 				}
 			}
 		}
@@ -572,6 +603,44 @@ void move_player(struct game_obj_t *o)
 #endif
 }
 
+void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
+{
+	int i;
+	int deepest;
+	int slope;
+	o->x += o->vx;
+	o->y += o->vy;
+	o->vy++;
+	if (o->alive >1)
+		o->alive--;
+
+	/* Detect smashing into the ground */
+	deepest = 64000;
+	for (i=0;i<TERRAIN_LENGTH-1;i++) {
+		if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
+			deepest = interpolate(o->x, terrain.x[i], terrain.y[i],
+					terrain.x[i+1], terrain.y[i+1]);
+			slope = (100*(terrain.y[i+1] - terrain.y[i])) / 
+					(terrain.x[i+1] - terrain.x[i]);
+			break;
+		}
+	}
+	if (deepest != 64000 && o->y > deepest) {
+		o->y = deepest-2;
+		o->vx = 0;
+		o->vy = 0;
+		if (slope > 25 && o->alive > 1) {
+			o->vx = 3;
+			o->vy += 1;
+		} else if (slope < -25 && o->alive > 1) {
+			o->vx = -3;
+			o->vy += 1;
+		}
+		if (o->alive == 1) 
+			o->move = NULL;
+	}
+}
+
 void no_move(struct game_obj_t *o)
 {
 	return;
@@ -686,6 +755,8 @@ void init_vects()
 	fuel_vect.npoints = sizeof(fuel_points) / sizeof(fuel_points[0]);
 	bomb_vect.p = bomb_points;
 	bomb_vect.npoints = sizeof(bomb_points) / sizeof(bomb_points[0]);
+	bridge_vect.p = bridge_points;
+	bridge_vect.npoints = sizeof(bridge_points) / sizeof(bridge_points[0]);
 #if 0
 	player_vect.npoints = 4;
 	player_vect.p = malloc(sizeof(*player_vect.p) * player_vect.npoints);
@@ -704,8 +775,8 @@ void init_vects()
 	player->target = add_target(player);
 	player->alive = 1;
 	game_state.nobjs = MAXOBJS-1;
-	game_state.health = 100;
-	game_state.nbombs = 20;
+	game_state.health = 1000;
+	game_state.nbombs = NBOMBS;
 }
 
 void draw_objs(GtkWidget *w)
@@ -1079,6 +1150,149 @@ static void add_buildings(struct terrain_t *t)
 	}
 }
 
+static int find_dip(struct terrain_t *t, int n, int *px1, int *px2, int minlength)
+{
+	/*	Find the nth dip in the terrain, over which we might put a bridge. */
+
+	int i, j, x1, x2, found, highest, lowest;
+	printf("top of find_dip, n=%d\n", n);
+
+	found=0;
+	x1 = 0;
+	for (i=0;i<n;i++) {
+		for (;x1<TERRAIN_LENGTH-100;x1++) {
+			for (x2=x1+5; t->x[x2] - t->x[x1] < minlength; x2++)
+				/* do nothing in body of for loop */ 
+				;
+			highest = 60000; /* highest altitude, lowest y value */
+			lowest = -1; /* lowest altitude, highest y value */
+			
+			for (j=x1+1; j<x2-1;j++) {
+				if (t->y[j] < highest)
+					highest = t->y[j];
+				if (t->y[j] > lowest)
+					lowest = t->y[j];
+			}
+
+			/* Lowest point between x1,x2 must be at least 100 units deep */
+			if (lowest - t->y[x1] < 100 || lowest - t->y[x2] < 100)
+				continue; /* not a dip */
+
+			/* highest point between x1,x2 must be lower than both */
+			if (t->y[x1] >= highest || t->y[x2] >= highest)
+				continue; /* not a dip */
+	
+			printf("found a dip x1=%d, x2=%d.\n", x1, x2);
+			break;
+		}
+		if (x1 >= TERRAIN_LENGTH-100)
+			break;
+		found++;
+		if (found == n)
+			break;
+		x1 = x2;
+	}
+	printf("found %d dips.\n", found);
+	if (found == n) {
+		*px1 = x1;
+		*px2 = x2;
+		return 0;
+	}
+	return -1;
+}
+
+static void add_bridge_piece(int x, int y)
+{
+	/* adds a small piece of a bridge, like a lego */
+	int j;
+	struct game_obj_t *o;
+
+	j = find_free_obj();
+	if (j == -1)
+		return;
+	o = &game_state.go[j];
+	o->x = x;
+	o->y = y; 
+	o->vx = 0;
+	o->vy = 0;
+	o->move = no_move;
+	o->target = add_target(o);
+	o->v = &bridge_vect;
+	o->otype = 'T';
+	o->alive = 1;
+}
+
+static void add_bridge_column(struct terrain_t *t, 
+	int rx, int ry,  /* real coords */
+	int x1, int x2) /* index into terrain */
+{
+	int i, terminal_y;
+	i = x1;
+
+	printf("add_bridge_column, rx =%d, ry=%d, x1 = %d, x2=%d\n", rx, ry, x1, x2);
+	while (t->x[i] <= rx && i <= x2)
+		i++;
+	if (i>x2)  /* we're at the rightmost end of the bridge, that is, done. */
+		return;
+
+	terminal_y = interpolate(rx, t->x[i-1], t->y[i-1], t->x[i], t->y[i]);
+	printf("term_y = %d, intr(%d, %d, %d, %d, %d)\n", 
+		terminal_y, rx, t->y[i-1], t->x[i-1], t->y[i], t->x[i]);
+
+	if (ry > terminal_y) /* shouldn't happen... */
+		return;
+
+	do {
+		add_bridge_piece(rx, ry);
+		ry += 8;
+	} while (ry <= terminal_y);
+	return;
+}
+
+static void add_bridge(struct terrain_t *t, int x1, int x2)
+{
+	int x, y;
+	int rx1, rx2, ry1, ry2;
+
+	ry1 = t->y[x1], 
+	rx1 = t->x[x1], 
+	ry2 = t->y[x2], 
+	rx2 = t->x[x2], 
+
+	/* Make the bridge span */
+	x = rx1 - (rx1 % 40);
+	while (x < rx2) {
+		y = interpolate(x, rx1, ry1, rx2, ry2); 
+		add_bridge_piece(x, y);
+		if ((x % 40) == 32) {
+			add_bridge_column(t, x, y+8, x1, x2);
+		}
+		x += 8;
+	}
+}
+
+static void add_bridges(struct terrain_t *t)
+{
+	int i, n;
+	int x1, x2;
+
+	for (i=0;i<NBRIDGES;i++) {
+		n = find_dip(t, i+1, &x1, &x2, 600);
+		if (n != 0) 
+			n = find_dip(t, i+1, &x1, &x2, 500);
+		if (n != 0)
+			n = find_dip(t, i+1, &x1, &x2, 400);
+		if (n != 0)
+			n = find_dip(t, i+1, &x1, &x2, 300);
+		if (n != 0)
+			n = find_dip(t, i+1, &x1, &x2, 200);
+		if (n == 0)
+			add_bridge(t, x1, x2);
+		else
+			break;
+	}
+}
+
 static void add_fuel(struct terrain_t *t)
 {
 	int xi, i, j;
@@ -1165,6 +1379,11 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 
 	return 0;
 }
+static void do_game_pause( GtkWidget *widget,
+                   gpointer   data )
+{
+	game_pause = 1;
+}
 
 /* This is a callback function. The data arguments are ignored
  * in this example. More on callbacks below. */
@@ -1210,6 +1429,10 @@ gint advance_game(gpointer data)
 	nalive = 0;
 	game_state.x += game_state.vx;
 	game_state.y += game_state.vy; 
+
+	if (game_pause == 1)
+		return TRUE;
+
 	for (i=0;i<MAXOBJS;i++) {
 		if (game_state.go[i].alive) {
 			// printf("%d ", i);
@@ -1300,6 +1523,9 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 			return TRUE;
 		drop_bomb();
 		return TRUE;
+	case GDK_p:
+		do_game_pause(widget, NULL);
+		return TRUE;	
 	default:
 		break;
 	}
@@ -1387,8 +1613,9 @@ int main(int argc, char *argv[])
     add_rockets(&terrain);
     add_buildings(&terrain);
 	add_fuel(&terrain);
+	add_bridges(&terrain);
 
-	print_target_list();
+	//print_target_list();
 
     gtk_widget_show (vbox);
     gtk_widget_show (main_da);
@@ -1398,7 +1625,7 @@ int main(int argc, char *argv[])
     gtk_widget_show (window);
 	gc = gdk_gc_new(GTK_WIDGET(main_da)->window);
 
-    timer_tag = g_timeout_add(30, advance_game, NULL);
+    timer_tag = g_timeout_add(42, advance_game, NULL);
     
     /* All GTK applications must have a gtk_main(). Control ends here
      * and waits for an event to occur (like a key press or
