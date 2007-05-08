@@ -1127,13 +1127,31 @@ int interpolate(int x, int x1, int y1, int x2, int y2)
 		return (x - x1) * (y2 - y1) / (x2 -x1) + y1;
 }
 
+#define GROUND_OOPS 64000
+int ground_level(int x)
+{
+	/* Find the level of the ground at position x */
+	int deepest, i;
+
+	/* Detect smashing into the ground */
+	deepest = GROUND_OOPS;
+	for (i=0;i<TERRAIN_LENGTH-1;i++) {
+		if (x >= terrain.x[i] && x < terrain.x[i+1]) {
+			deepest = interpolate(x, terrain.x[i], terrain.y[i],
+					terrain.x[i+1], terrain.y[i+1]);
+			break;
+		}
+	}
+	return deepest;
+}
+
 void bridge_move(struct game_obj_t *o);
 void no_move(struct game_obj_t *o);
 
 void bomb_move(struct game_obj_t *o)
 {
 	struct target_t *t;
-	int i, deepest;
+	int deepest;
 	int dist2;
 
 	if (!o->alive)
@@ -1163,15 +1181,8 @@ void bomb_move(struct game_obj_t *o)
 	}
 
 	/* Detect smashing into the ground */
-	deepest = 64000;
-	for (i=0;i<TERRAIN_LENGTH-1;i++) {
-		if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
-			deepest = interpolate(o->x, terrain.x[i], terrain.y[i],
-					terrain.x[i+1], terrain.y[i+1]);
-			break;
-		}
-	}
-	if (deepest != 64000 && o->y > deepest) {
+	deepest = ground_level(o->x);
+	if (deepest != GROUND_OOPS && o->y > deepest) {
 		o->alive = 0;
 		add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, 1, 90, 150, 20);
@@ -1214,7 +1225,7 @@ void bomb_move(struct game_obj_t *o)
 
 void chaff_move(struct game_obj_t *o)
 {
-	int i, deepest;
+	int deepest;
 
 	if (!o->alive)
 		return;
@@ -1230,15 +1241,8 @@ void chaff_move(struct game_obj_t *o)
 
 	explode(o->x, o->y, 0, 0, 10, 7, 19);
 	/* Detect smashing into the ground */
-	deepest = 64000;
-	for (i=0;i<TERRAIN_LENGTH-1;i++) {
-		if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
-			deepest = interpolate(o->x, terrain.x[i], terrain.y[i],
-					terrain.x[i+1], terrain.y[i+1]);
-			break;
-		}
-	}
-	if (deepest != 64000 && o->y > deepest) {
+	deepest = ground_level(o->x);
+	if (deepest != GROUND_OOPS && o->y > deepest) {
 		o->alive = 0;
 	}
 	if (!o->alive) {
@@ -1386,15 +1390,8 @@ void move_player(struct game_obj_t *o)
 		game_state.vy = player->vy;
 
 	/* Detect smashing into the ground */
-	deepest = 64000;
-	for (i=0;i<TERRAIN_LENGTH-1;i++) {
-		if (player->x >= terrain.x[i] && player->x < terrain.x[i+1]) {
-			deepest = interpolate(player->x, terrain.x[i], terrain.y[i],
-					terrain.x[i+1], terrain.y[i+1]);
-			break;
-		}
-	}
-	if (deepest != 64000 && player->y > deepest) {
+	deepest = ground_level(player->x);
+	if (deepest != GROUND_OOPS && player->y > deepest) {
 		player->y = deepest - 5;
 		if (abs(player->vy) > 7) 
 			player->vy = -0.65 * abs(player->vy);
@@ -1676,7 +1673,6 @@ static void add_missile(int x, int y, int vx, int vy,
 void balloon_move(struct game_obj_t *o)
 {
 	int deepest;
-	int i;
 
 	o->x += o->vx;
 	o->y += o->vy;
@@ -1686,17 +1682,10 @@ void balloon_move(struct game_obj_t *o)
 		o->vy = randomab(1, 3) - 2;
 	}
 
-	deepest = 64000;
-	for (i=0;i<TERRAIN_LENGTH-1;i++) {
-		if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
-			deepest = interpolate(o->x, terrain.x[i], terrain.y[i],
-					terrain.x[i+1], terrain.y[i+1]);
-			break;
-		}
-	}
-	if (deepest != 64000 && o->y > deepest - MIN_BALLOON_HEIGHT)
+	deepest = ground_level(o->x);
+	if (deepest != GROUND_OOPS && o->y > deepest - MIN_BALLOON_HEIGHT)
 		o->vy = -1;
-	else if (deepest != 64000 && o->y < deepest - MAX_BALLOON_HEIGHT)
+	else if (deepest != GROUND_OOPS && o->y < deepest - MAX_BALLOON_HEIGHT)
 		o->vy = 1;
 }
 
@@ -3067,7 +3056,9 @@ void timer_expired()
 		gotoxy(x,yline++);
 		gameprint("               and Marty Kiel");
 		gotoxy(x,yline++);
-		gameprint("Sound effects: Various people.");
+		gameprint("Sound effects: Freesound users:");
+		gotoxy(x,yline++);
+		gameprint("   dobroide, inferno and oniwe");
 		gotoxy(x,yline++);
 		timer_event = CREDITS2_EVENT;
 		next_timer = timer + 100;
