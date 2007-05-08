@@ -49,7 +49,21 @@
 
 int game_pause = 0;
 int attract_mode = 0;
+int credits = 0;
 int toggle = 0;
+int timer = 0;
+int next_timer = 0;
+int timer_event = 0;
+#define BLINK_EVENT 1
+#define READY_EVENT 2
+#define SET_EVENT 3
+#define GO_EVENT 4
+#define BLANK_EVENT 5
+#define GAME_OVER_EVENT 6
+#define BLANK_GAME_OVER_1_EVENT 7
+#define INSERT_COIN_EVENT 8
+#define BLANK_GAME_OVER_2_EVENT 9
+#define GAME_ENDED_EVENT 10
 
 #define NCOLORS 8
 
@@ -89,11 +103,123 @@ struct level_parameters_t {
 	SMALL_SCALE_ROUGHNESS,
 };
 
+/**** LETTERS and stuff *****/
+
+
+typedef unsigned char stroke_t;
+
+/**************************
+
+	Here's how this works, there's a 3x7 grid. on which the
+	letters are drawn.  You list the sequence of strokes.
+	Use 21 to lift the pen, 99 to mark the end.
+
+	Inspired by Hofstadters' Creative Concepts and Creative Analogies.
+
+                               letter 'A'    can be compactly represented by:
+
+		0   1   2      *   *   *    { 6, 8, 14, 12, 9, 11, 99 }
+
+                3   4   5      *   *   *
+
+                6   7   8      *---*---*
+                                       |
+                9  10  11      *---*---*
+                               |       |
+               12  13  14      *---*---*
+
+               15  16  17      *   *   *
+
+               18  19  20      *   *   *
+
+The grid numbers can be decoded into (x,y) coords like:
+
+	x = ((n % 3) * xscale);
+	y = (x/3) * yscale;     // truncating division.
+
+***************************/
+
+stroke_t glyph_colon[] = { 6, 7, 21, 12, 13, 99 };
+stroke_t glyph_leftparen[] = { 2, 4, 10, 14,99 };
+stroke_t glyph_rightparen[] = { 0, 4, 10, 12,99 };
+stroke_t glyph_space[] = { 99 };
+stroke_t glyph_plus[] = { 6, 8, 21, 7, 13, 99 };
+stroke_t glyph_dash[] = { 6, 8, 99 };
+stroke_t glyph_0[] = { 12, 0, 2, 14, 12, 2, 99 };
+stroke_t glyph_9[] = { 8, 6, 0, 2, 14, 99 };
+stroke_t glyph_8[] = { 0, 2, 14, 12, 0, 21, 6, 8, 99 };
+stroke_t glyph_7[] = { 0, 2, 12, 99 };
+stroke_t glyph_6[] = { 2, 0, 12, 14, 8, 6, 99 };
+stroke_t glyph_5[] = { 2, 0, 6, 8, 14, 12, 99 };
+stroke_t glyph_4[] = { 0, 6, 8, 21, 2, 14, 99 };
+stroke_t glyph_3[] = { 0, 2, 14, 12, 21, 6, 8, 99 };
+stroke_t glyph_2[] = { 0, 2, 5, 9, 12, 14, 99 };
+stroke_t glyph_1[] = { 1, 13, 99 };
+stroke_t glyph_comma[] = { 13, 16, 99 };
+stroke_t glyph_period[] = { 12, 13, 99 };
+stroke_t glyph_z[] = { 6, 8, 12, 14, 99 };
+stroke_t glyph_y[] = { 6, 12, 14, 21, 8, 17, 19, 18,  99};
+stroke_t glyph_x[] = { 12, 8, 21, 6, 14, 99 };
+stroke_t glyph_w[] = { 6, 12, 14, 8, 21, 7, 13, 99 };
+stroke_t glyph_v[] = { 6, 13, 8, 99 };
+stroke_t glyph_u[] = { 6, 12, 14, 8, 99 };
+stroke_t glyph_t[] = { 14, 13, 4, 21, 6, 8, 99 };
+stroke_t glyph_s[] = { 8, 6, 9, 11, 14,12, 99 };
+
+stroke_t glyph_a[] = { 6, 8, 14, 12, 9, 11, 99 };
+stroke_t glyph_b[] = { 0, 12, 14, 8, 6, 99 };
+stroke_t glyph_c[] = { 8, 6, 12, 14, 99 };
+stroke_t glyph_d[] = { 8, 6, 12, 14, 2, 99 };
+stroke_t glyph_e[] = { 9, 11, 8, 6, 12, 14, 99 };
+stroke_t glyph_f[] = { 13, 1, 2, 21, 6, 8, 99 };
+stroke_t glyph_g[] = { 11, 12, 6, 8, 20, 18, 99 };
+stroke_t glyph_h[] = { 0, 12, 21, 6, 8, 14, 99 };
+stroke_t glyph_i[] = { 13, 7, 21, 4, 2, 99 };
+stroke_t glyph_j[] = { 18, 16, 7, 21, 4, 2, 99 };
+stroke_t glyph_k[] = { 0, 12, 21, 6, 7, 11, 14, 21, 7, 5, 99 };
+stroke_t glyph_l[] = { 1, 13, 99 };
+stroke_t glyph_m[] = { 12, 6, 8, 14, 21, 7, 13, 99 };
+stroke_t glyph_n[] = { 12, 6, 7, 13, 99 };
+stroke_t glyph_o[] = { 12, 6, 8, 14, 12, 99 };
+stroke_t glyph_p[] = { 18, 6, 8, 14, 12, 99 };
+stroke_t glyph_q[] = { 14, 12, 6, 8, 20, 99 };
+stroke_t glyph_r[] = { 12, 6, 21, 9,7,8,99 };
+
+
+
 struct target_t;
 
 struct my_point_t {
 	int x,y;
 };
+
+struct my_point_t decode_glyph[] = {
+	{ 0, -4 },
+	{ 1, -4 },
+	{ 2, -4 },
+	{ 0, -3 },
+	{ 1, -3 },
+	{ 2, -3 },
+	{ 0, -2 },
+	{ 1, -2 },
+	{ 2, -2 },
+	{ 0, -1 },
+	{ 1, -1 },
+	{ 2, -1 },
+	{ 0, -0 },
+	{ 1, -0 },
+	{ 2, -0 },
+	{ 0, 1 },
+	{ 1, 1 },
+	{ 2, 1 },
+	{ 0, 2 },
+	{ 1, 2 },
+	{ 2, 2 },
+	{ 0, 3 },
+	{ 1, 3 },
+	{ 2, 3 },
+};
+/**** end of LETTERS and stuff */
 
 struct my_point_t spark_points[] = {
 	{ -1,-1 },
@@ -109,7 +235,6 @@ struct my_point_t spark_points[] = {
 	{ 0, 0 },
 #endif
 };
-
 
 struct my_point_t fuel_points[] = {
 	{ -30, -10 },
@@ -283,6 +408,68 @@ struct my_vect_obj bomb_vect;
 struct my_vect_obj bridge_vect;
 struct my_vect_obj flak_vect;
 
+struct my_vect_obj **gamefont[2];
+#define BIG_FONT 0
+#define SMALL_FONT 1
+#define BIG_FONT_SCALE 14 
+#define SMALL_FONT_SCALE 5 
+#define BIG_LETTER_SPACING (10)
+#define SMALL_LETTER_SPACING (5)
+#define MAXTEXTLINES 20
+int current_color = WHITE;
+int current_font = BIG_FONT;
+int cursorx = 0;
+int cursory = 0;
+int livecursorx = 0;
+int livecursory = 0;
+int font_scale[2] = { BIG_FONT_SCALE, SMALL_FONT_SCALE };
+int letter_spacing[2] = { BIG_LETTER_SPACING, SMALL_LETTER_SPACING };
+
+int ntextlines = 0;
+struct text_line_t {
+	int x, y, font;
+	char string[80];
+} textline[20];
+
+/* text line entries are just fixed... */
+#define GAME_OVER 1
+#define CREDITS 0
+
+void set_font(int fontnumber)
+{
+	current_font = fontnumber;
+}
+
+void gotoxy(int x, int y)
+{
+	cursorx = (x+1) * font_scale[current_font]*3;
+	cursory = (y+1) * font_scale[current_font]*7;
+}
+
+void cleartext()
+{
+	ntextlines = 0;
+}
+
+void gameprint(char *s)
+{
+	int n;
+
+	/* printf("Printing '%s'\n", s); */
+	n = ntextlines;
+	if (n>=MAXTEXTLINES)
+		n = 0;
+	textline[n].x = cursorx;
+	textline[n].y = cursory;
+	textline[n].font = current_font;
+	strcpy(textline[n].string, s);
+	ntextlines++;
+	if (ntextlines >=MAXTEXTLINES)
+		ntextlines = MAXTEXTLINES-1;
+}
+
+int current_font_scale = BIG_FONT_SCALE;
+
 struct game_obj_t;
 
 typedef void obj_move_func(struct game_obj_t *o);
@@ -320,6 +507,7 @@ struct game_state_t {
 	int last_x1, last_x2;
 	int vx;
 	int vy;
+	int lives;
 	int nobjs;
 	int direction;
 	int health;
@@ -328,7 +516,7 @@ struct game_state_t {
 	int nbombs;
 	int prev_bombs;
 	struct game_obj_t go[MAXOBJS];
-} game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0 };
+} game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
 
 struct game_obj_t *player = &game_state.go[0];
 
@@ -665,6 +853,20 @@ void move_player(struct game_obj_t *o)
 		explode(player->x, player->y, player->vx, player->vy, 90, 350, 30);
 		player->draw = no_draw;
 		add_debris(o->x, o->y, o->vx, o->vy, 20, &player);
+		printf("decrementing lives %d.\n", game_state.lives);
+		game_state.lives--;
+		sprintf(textline[CREDITS].string, "credits: %d lives: %d", 
+			credits, game_state.lives);
+		if (game_state.lives <= 0) {
+			credits--;
+			if (credits <= 0) {
+				timer_event = GAME_ENDED_EVENT;
+				next_timer = timer + 30;
+			}
+		} else {
+			next_timer = timer + 30;
+			timer_event = READY_EVENT;
+		}
 	} 
 	if (abs(o->vx) < 5 || game_state.health <= 0) {
 		o->vy+=1;
@@ -899,6 +1101,100 @@ void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
 	}
 }
 
+struct my_vect_obj *prerender_glyph(stroke_t g[], int xscale, int yscale)
+{
+	int i, x, y;
+	int npoints = 0;
+	struct my_point_t scratch[100];
+	struct my_vect_obj *v;
+
+	printf("Prerendering glyph..\n");
+
+	for (i=0;g[i] != 99;i++) {
+		if (g[i] == 21) {
+			printf("LINE_BREAK\n");
+			x = LINE_BREAK;
+			y = LINE_BREAK;
+		} else {
+			// x = ((g[i] % 3) * xscale);
+			// y = ((g[i]/3)-4) * yscale ;     // truncating division.
+			x = decode_glyph[g[i]].x * xscale;
+			y = decode_glyph[g[i]].y * yscale;
+			printf("x=%d, y=%d\n", x,y);
+		}
+		scratch[npoints].x = x;
+		scratch[npoints].y = y;
+		npoints++;
+	}
+
+	v = (struct my_vect_obj *) malloc(sizeof(struct my_vect_obj));
+	v->npoints = npoints;
+	if (npoints != 0) {
+		v->p = (struct my_point_t *) malloc(sizeof(struct my_point_t) * npoints);
+		memcpy(v->p, scratch, sizeof(struct my_point_t) * npoints);
+	} else
+		v->p = NULL;
+	return v;
+}
+
+int make_font(struct my_vect_obj ***font, int xscale, int yscale) 
+{
+	struct my_vect_obj **v;
+
+	v = malloc(sizeof(**v) * 256);
+	if (!v) {
+		if (v) free(v);
+		return -1;
+	}
+	memset(v, 0, sizeof(**v) * 256);
+	v[':'] = prerender_glyph(glyph_colon, xscale, yscale);
+	v['('] = prerender_glyph(glyph_leftparen, xscale, yscale);
+	v[')'] = prerender_glyph(glyph_rightparen, xscale, yscale);
+	v['a'] = prerender_glyph(glyph_a, xscale, yscale);
+	v[' '] = prerender_glyph(glyph_space, xscale, yscale);
+	v['b'] = prerender_glyph(glyph_b, xscale, yscale);
+	v['c'] = prerender_glyph(glyph_c, xscale, yscale);
+	v['d'] = prerender_glyph(glyph_d, xscale, yscale);
+	v['e'] = prerender_glyph(glyph_e, xscale, yscale);
+	v['f'] = prerender_glyph(glyph_f, xscale, yscale);
+	v['g'] = prerender_glyph(glyph_g, xscale, yscale);
+	v['h'] = prerender_glyph(glyph_h, xscale, yscale);
+	v['i'] = prerender_glyph(glyph_i, xscale, yscale);
+	v['j'] = prerender_glyph(glyph_j, xscale, yscale);
+	v['k'] = prerender_glyph(glyph_k, xscale, yscale);
+	v['l'] = prerender_glyph(glyph_l, xscale, yscale);
+	v['m'] = prerender_glyph(glyph_m, xscale, yscale);
+	v['n'] = prerender_glyph(glyph_n, xscale, yscale);
+	v['o'] = prerender_glyph(glyph_o, xscale, yscale);
+	v['p'] = prerender_glyph(glyph_p, xscale, yscale);
+	v['q'] = prerender_glyph(glyph_q, xscale, yscale);
+	v['r'] = prerender_glyph(glyph_r, xscale, yscale);
+	v['s'] = prerender_glyph(glyph_s, xscale, yscale);
+	v['t'] = prerender_glyph(glyph_t, xscale, yscale);
+	v['u'] = prerender_glyph(glyph_u, xscale, yscale);
+	v['v'] = prerender_glyph(glyph_v, xscale, yscale);
+	v['w'] = prerender_glyph(glyph_w, xscale, yscale);
+	v['x'] = prerender_glyph(glyph_x, xscale, yscale);
+	v['y'] = prerender_glyph(glyph_y, xscale, yscale);
+	v['z'] = prerender_glyph(glyph_z, xscale, yscale);
+	v['0'] = prerender_glyph(glyph_0, xscale, yscale);
+	v['1'] = prerender_glyph(glyph_1, xscale, yscale);
+	v['2'] = prerender_glyph(glyph_2, xscale, yscale);
+	v['3'] = prerender_glyph(glyph_3, xscale, yscale);
+	v['4'] = prerender_glyph(glyph_4, xscale, yscale);
+	v['5'] = prerender_glyph(glyph_5, xscale, yscale);
+	v['6'] = prerender_glyph(glyph_6, xscale, yscale);
+	v['7'] = prerender_glyph(glyph_7, xscale, yscale);
+	v['8'] = prerender_glyph(glyph_8, xscale, yscale);
+	v['9'] = prerender_glyph(glyph_9, xscale, yscale);
+	v['-'] = prerender_glyph(glyph_dash, xscale, yscale);
+	v['+'] = prerender_glyph(glyph_plus, xscale, yscale);
+	v[','] = prerender_glyph(glyph_comma, xscale, yscale);
+	v['.'] = prerender_glyph(glyph_period, xscale, yscale);
+	*font = v;
+	return 0;
+}
+
 void init_vects()
 {
 	int i;
@@ -924,6 +1220,10 @@ void init_vects()
 	bridge_vect.npoints = sizeof(bridge_points) / sizeof(bridge_points[0]);
 	flak_vect.p = flak_points;
 	flak_vect.npoints = sizeof(flak_points) / sizeof(flak_points[0]);
+
+	make_font(&gamefont[BIG_FONT], font_scale[BIG_FONT], font_scale[BIG_FONT]);
+	make_font(&gamefont[SMALL_FONT], font_scale[SMALL_FONT], font_scale[SMALL_FONT]);
+	set_font(BIG_FONT);
 }
 
 void no_draw(struct game_obj_t *o, GtkWidget *w)
@@ -1026,6 +1326,61 @@ void draw_objs(GtkWidget *w)
 			}
 		} else
 			o->draw(o, w);
+	}
+}
+
+static void draw_letter(GtkWidget *w, struct my_vect_obj **font, unsigned char letter)
+{
+	int i, x1, y1, x2, y2;
+
+	if (letter == ' ') {
+		livecursorx += font_scale[current_font]*2 + letter_spacing[current_font];
+		return;
+	}
+	if (letter == '\n') {
+		livecursorx = font_scale[current_font];
+		livecursory += font_scale[current_font];
+		return;
+	}
+	if (font[letter] == NULL) {
+		return;
+	}
+
+	for (i=0;i<font[letter]->npoints-1;i++) {
+		if (font[letter]->p[i+1].x == LINE_BREAK)
+			i+=2;
+		x1 = font[letter]->p[i].x;
+		x1 = livecursorx + x1;
+		y1 = livecursory + font[letter]->p[i].y;
+		x2 = livecursorx + font[letter]->p[i+1].x;
+		y2 = livecursory + font[letter]->p[i+1].y;
+		gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+	}
+	livecursorx += font_scale[current_font]*2 + letter_spacing[current_font];
+}
+
+static void draw_string(GtkWidget *w, unsigned char *s) 
+{
+
+	char *i;
+
+	for (i=s;*i;i++)
+		draw_letter(w, gamefont[current_font], *i);  
+}
+
+static void draw_strings(GtkWidget *w)
+{
+	int i;
+
+	gdk_gc_set_foreground(gc, &huex[WHITE]); //&huex[current_color]);
+	for (i=0;i<ntextlines;i++) {
+		/* printf("Drawing '%s' color=%d, x=%d, y=%d\n", 
+			textline[i].string, current_color, 
+			textline[i].x, textline[i].y); */
+		livecursorx = textline[i].x;
+		livecursory = textline[i].y;
+		set_font(textline[i].font);
+		draw_string(w, textline[i].string);
 	}
 }
 
@@ -1701,6 +2056,8 @@ static void add_fuel(struct terrain_t *t)
 	}
 }
 
+static void draw_strings(GtkWidget *w);
+
 static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 {
 	int i;
@@ -1759,6 +2116,8 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		gdk_draw_rectangle(w->window, gc, TRUE, 30, 30, 
 			((SCREEN_WIDTH - 60) * game_state.health / 100), 30);
 	draw_objs(w);
+	draw_strings(w);
+
 	if (game_state.prev_score != game_state.score) {
 		sprintf(score_str, "Score: %06d", game_state.score);
 		game_state.prev_score = game_state.score;
@@ -1815,6 +2174,79 @@ static void destroy( GtkWidget *widget,
     gtk_main_quit ();
 }
 
+void game_ended();
+void start_level();
+void timer_expired()
+{
+
+	printf("timer expired, %d\n", timer_event);
+	switch (timer_event) {
+	case BLINK_EVENT:
+		if (credits >= 1) {
+			next_timer = timer + 1;
+			timer_event = GAME_ENDED_EVENT;
+			break;
+		}
+		timer_event = BLANK_GAME_OVER_1_EVENT;
+		next_timer = timer + 20;
+		strcpy(textline[GAME_OVER].string, "game over");
+		break;
+	case BLANK_GAME_OVER_1_EVENT:
+		timer_event = INSERT_COIN_EVENT;
+		next_timer = timer + 20;
+		strcpy(textline[GAME_OVER].string, "");
+		break;
+	case INSERT_COIN_EVENT:
+		timer_event = BLANK_GAME_OVER_2_EVENT;
+		next_timer = timer + 20;
+		strcpy(textline[GAME_OVER].string, "insert coin");
+		break;
+	case BLANK_GAME_OVER_2_EVENT:
+		timer_event = BLINK_EVENT;
+		next_timer = timer + 20;
+		strcpy(textline[GAME_OVER].string, "");
+		break;
+	case READY_EVENT:
+		start_level();
+		strcpy(textline[GAME_OVER].string, "ready");
+		next_timer += 30;
+		timer_event = SET_EVENT;
+		ntextlines = 2;
+		game_state.x = 0;
+		game_state.y = 0;
+		game_state.vy = 0;
+		game_state.vx = 0;
+		break;
+	case SET_EVENT:
+		strcpy(textline[GAME_OVER].string, "set");
+		next_timer += 30;
+		timer_event = GO_EVENT;
+		break;
+	case GO_EVENT:
+		strcpy(textline[GAME_OVER].string, "go");
+		next_timer += 30;
+		timer_event = BLANK_EVENT;
+		break;
+	case BLANK_EVENT:
+		ntextlines = 1;
+		game_state.vx = PLAYER_SPEED;
+		break;
+	case GAME_ENDED_EVENT:
+		next_timer = timer + 1;
+		if (credits <= 0) {
+			timer_event = BLINK_EVENT;
+			strcpy(textline[GAME_OVER].string, "game over");
+			ntextlines = 4;
+		} else {
+			timer_event = READY_EVENT; 
+			ntextlines = 2;
+		}
+		game_ended();
+		break;
+	default: 
+		break;
+	}
+}
 
 gint advance_game(gpointer data)
 {
@@ -1825,6 +2257,10 @@ gint advance_game(gpointer data)
 	nalive = 0;
 	game_state.x += game_state.vx;
 	game_state.y += game_state.vy; 
+
+	timer++;
+	if (timer == next_timer)
+		timer_expired();
 
 	if (game_pause == 1)
 		return TRUE;
@@ -1849,6 +2285,43 @@ gint advance_game(gpointer data)
 		return TRUE;
 }
 
+void setup_text()
+{
+	cleartext();
+	set_font(SMALL_FONT);
+	gotoxy(0,0);
+	gameprint("credits: 0");
+	set_font(BIG_FONT);
+	gotoxy(4,3);
+	gameprint("insert coin\n");
+	gotoxy(4,0);
+	gameprint("descrambler\n");
+	set_font(SMALL_FONT);
+	gotoxy(13,15);
+	gameprint("(c) 2007 stephen cameron\n");
+	timer_event = BLINK_EVENT;
+	next_timer = timer + 30;
+#if 0
+	gotoxy(1,6);
+	gameprint("abcdefghijklmn");
+	gotoxy(1,7);
+	gameprint("opqrstuvwxyz");
+	gotoxy(1,8);
+	gameprint("0123456789,.+-");
+#endif
+}
+
+
+void initialize_game_state_new_level()
+{
+	game_state.lives = 3;
+	game_state.score = 0;
+	game_state.prev_score = 0;
+	game_state.health = 100;
+	game_state.nbombs = level.nbombs;
+	game_state.prev_bombs = -1;
+}
+
 void start_level()
 {
 	int i;
@@ -1858,7 +2331,7 @@ void start_level()
 		game_state.go[i].alive = 0;
 		game_state.go[i].move = move_obj;
 	}
-	memset(&game_state, 0, sizeof(game_state));
+	memset(&game_state.go[0], 0, sizeof(game_state.go));
 
 	game_state.direction = 1;
 	player->move = move_player;
@@ -1869,12 +2342,12 @@ void start_level()
 	player->vy = 0;
 	player->target = add_target(player);
 	player->alive = 1;
-	game_state.nobjs = MAXOBJS-1;
 	game_state.health = 100;
-	game_state.score = 0;
-	game_state.prev_score = 0;
 	game_state.nbombs = level.nbombs;
 	game_state.prev_bombs = -1;
+	game_state.nobjs = MAXOBJS-1;
+	game_state.x = 0;
+	game_state.y = 0;
 
 	srandom(level.random_seed);
 	generate_terrain(&terrain);
@@ -1883,6 +2356,27 @@ void start_level()
 	add_fuel(&terrain);
 	add_bridges(&terrain);
 	add_flak_guns(&terrain);
+
+	if (credits == 0)
+		setup_text();
+
+}
+
+void game_ended()
+{
+	initialize_game_state_new_level();
+	level.random_seed = 31415927,
+	level.nrockets = NROCKETS;
+	level.nbridges = NBRIDGES;
+	level.nflak = NFLAK;
+	level.nfueltanks = NFUELTANKS;
+	level.nbuildings = NBUILDINGS;
+	level.nbombs = NBOMBS;
+	level.laser_fire_chance = LASER_FIRE_CHANCE;
+	level.large_scale_roughness = LARGE_SCALE_ROUGHNESS;
+	level.small_scale_roughness = SMALL_SCALE_ROUGHNESS;;
+	start_level();
+	
 }
 
 void advance_level()
@@ -1908,6 +2402,7 @@ void advance_level()
 	if (level.laser_fire_chance > 10)
 		level.laser_fire_chance = 10;
 
+	initialize_game_state_new_level();
 	start_level();
 }
 
@@ -1923,9 +2418,23 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 #endif
 	switch (event->keyval)
 	{
-	case GDK_q:
+	case GDK_9:
+		game_state.health = -1;
+		return TRUE;
+	case GDK_Escape:
 		destroy_event(widget, NULL);
 		return TRUE;	
+	case GDK_q:
+		credits++;
+		if (credits == 1) {
+			initialize_game_state_new_level();
+			ntextlines = 1;
+			start_level();
+			timer_event = READY_EVENT;
+			next_timer = timer+1;
+		}
+		sprintf(textline[CREDITS].string, "credits: %d lives: %d", credits, game_state.lives);
+		return TRUE;
 #if 0
 	case GDK_Home:
 		printf("The Home key was pressed.\n");
@@ -2097,6 +2606,7 @@ int main(int argc, char *argv[])
 	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &huex[BLACK]);
 
 
+	initialize_game_state_new_level();
 	start_level();
 
     gtk_widget_show (vbox);
