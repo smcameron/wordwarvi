@@ -40,6 +40,7 @@
 #define NBOMBS 100
 #define MAX_ALT 100
 #define MIN_ALT 50
+#define MAXHEALTH 100
 
 /* Scoring stuff */
 #define ROCKET_SCORE 20
@@ -64,6 +65,7 @@ int timer_event = 0;
 #define INSERT_COIN_EVENT 8
 #define BLANK_GAME_OVER_2_EVENT 9
 #define GAME_ENDED_EVENT 10
+#define GAME_ENDED_EVENT_2 11
 
 #define NCOLORS 8
 
@@ -139,6 +141,8 @@ The grid numbers can be decoded into (x,y) coords like:
 
 ***************************/
 
+stroke_t glyph_que[] = { 13, 10, 21, 7, 5, 2, 0, 3, 99 };
+stroke_t glyph_bang[] = { 10, 13, 21, 1, 7, 99};
 stroke_t glyph_colon[] = { 6, 7, 21, 12, 13, 99 };
 stroke_t glyph_leftparen[] = { 2, 4, 10, 14,99 };
 stroke_t glyph_rightparen[] = { 0, 4, 10, 12,99 };
@@ -702,6 +706,10 @@ void player_fire_laser()
 	o = &game_state.go[i];
 	p = &game_state.go[0];
 
+	if (p != player) {
+		printf("p != player!\n");
+	} 
+
 	o->x = p->x+(30 * game_state.direction);
 	o->y = p->y;
 	o->vx = p->vx + LASER_SPEED * game_state.direction;
@@ -842,9 +850,9 @@ void move_player(struct game_obj_t *o)
 	o->y += o->vy;
 
 	if (game_state.health > 0) {
-		if (o->vy > 0) /* damp y velocity. */
+		if (credits > 0 && o->vy > 0) /* damp y velocity. */
 			o->vy--;
-		if (o->vy < 0)
+		if (credits > 0 && o->vy < 0)
 			o->vy++;
 		was_healthy = 1;
 	} else if (was_healthy) {
@@ -857,10 +865,15 @@ void move_player(struct game_obj_t *o)
 		game_state.lives--;
 		sprintf(textline[CREDITS].string, "credits: %d lives: %d", 
 			credits, game_state.lives);
-		if (game_state.lives <= 0) {
-			credits--;
+		if (game_state.lives <= 0 || credits <= 0) {
+			if (credits > 0) 
+				credits--;
 			if (credits <= 0) {
 				timer_event = GAME_ENDED_EVENT;
+				next_timer = timer + 30;
+			} else {
+				timer_event = READY_EVENT;
+				game_state.lives = 3;
 				next_timer = timer + 30;
 			}
 		} else {
@@ -927,26 +940,33 @@ void move_player(struct game_obj_t *o)
 			game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 		}
 	}
-#if 0
-	for (i=0;i<TERRAIN_LENGTH;i++) {
-		if (terrain.x[i] - o->x > 100 && (terrain.x[i] - o->x) < 300) {
-			if (terrain.y[i] - o->y > MAX_ALT) {
-				o->vy += 1;
-				if (o->vy > 9)
-				o->vy = 9;
-			} else if (terrain.y[i] - o->y < MIN_ALT) {
-				o->vy -= 1;
-				if (o->vy < -9)
-				o->vy = -9;
-			} else if (o->vy > 0) o->vy--;
-			else if (o->vy < 0) o->vy++;
-			game_state.vy = o->vy;
-			break;
+
+	/* Autopilot, "attract mode", if credits <= 0 */
+	if (credits <= 0) {
+		for (i=0;i<TERRAIN_LENGTH;i++) {
+			if (terrain.x[i] - player->x > 100 && (terrain.x[i] - player->x) < 300) {
+				if (terrain.y[i] - player->y > MAX_ALT) {
+					player->vy += 1;
+					if (player->vy > 9)
+						player->vy = 9;
+				} else if (terrain.y[i] - player->y < MIN_ALT) {
+					player->vy -= 1;
+					if (player->vy < -9)
+					player->vy = -9;
+				} else if (player->vy > 0) player->vy--;
+				else if (player->vy < 0) player->vy++;
+				game_state.vy = player->vy;
+				break;
+			}
+			if (player->vx < PLAYER_SPEED)
+				player->vx++; 
 		}
+		if (randomn(20) < 4)
+			player_fire_laser();
+		if (randomn(100) < 2)
+			drop_bomb();
 	}
-	if (randomn(20) < 4)
-		player_fire_laser();
-#endif
+	/* End attract mode */
 }
 
 void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
@@ -1147,6 +1167,8 @@ int make_font(struct my_vect_obj ***font, int xscale, int yscale)
 		return -1;
 	}
 	memset(v, 0, sizeof(**v) * 256);
+	v['!'] = prerender_glyph(glyph_bang, xscale, yscale);
+	v['?'] = prerender_glyph(glyph_que, xscale, yscale);
 	v[':'] = prerender_glyph(glyph_colon, xscale, yscale);
 	v['('] = prerender_glyph(glyph_leftparen, xscale, yscale);
 	v[')'] = prerender_glyph(glyph_rightparen, xscale, yscale);
@@ -2113,8 +2135,8 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	/* draw health bar */
 
 	if (game_state.health > 0)
-		gdk_draw_rectangle(w->window, gc, TRUE, 30, 30, 
-			((SCREEN_WIDTH - 60) * game_state.health / 100), 30);
+		gdk_draw_rectangle(w->window, gc, TRUE, 10, 10, 
+			((SCREEN_WIDTH - 20) * game_state.health / 100), 30);
 	draw_objs(w);
 	draw_strings(w);
 
@@ -2189,7 +2211,7 @@ void timer_expired()
 		}
 		timer_event = BLANK_GAME_OVER_1_EVENT;
 		next_timer = timer + 20;
-		strcpy(textline[GAME_OVER].string, "game over");
+		strcpy(textline[GAME_OVER].string, " game over");
 		break;
 	case BLANK_GAME_OVER_1_EVENT:
 		timer_event = INSERT_COIN_EVENT;
@@ -2208,7 +2230,9 @@ void timer_expired()
 		break;
 	case READY_EVENT:
 		start_level();
-		strcpy(textline[GAME_OVER].string, "ready");
+		sprintf(textline[CREDITS].string, "credits: %d lives: %d", 
+			credits, game_state.lives);
+		strcpy(textline[GAME_OVER].string, "ready...");
 		next_timer += 30;
 		timer_event = SET_EVENT;
 		ntextlines = 2;
@@ -2218,12 +2242,12 @@ void timer_expired()
 		game_state.vx = 0;
 		break;
 	case SET_EVENT:
-		strcpy(textline[GAME_OVER].string, "set");
+		strcpy(textline[GAME_OVER].string, "set...");
 		next_timer += 30;
 		timer_event = GO_EVENT;
 		break;
 	case GO_EVENT:
-		strcpy(textline[GAME_OVER].string, "go");
+		strcpy(textline[GAME_OVER].string, "prepare to die!");
 		next_timer += 30;
 		timer_event = BLANK_EVENT;
 		break;
@@ -2232,11 +2256,27 @@ void timer_expired()
 		game_state.vx = PLAYER_SPEED;
 		break;
 	case GAME_ENDED_EVENT:
+		timer_event = GAME_ENDED_EVENT_2;
+		next_timer = timer + 30;
+		if (credits <= 0) {
+			strcpy(textline[GAME_OVER+1].string, "where is your");
+			strcpy(textline[GAME_OVER].string, "god now???");
+			ntextlines = 4;
+			next_timer = timer + 120;
+		} else {
+			strcpy(textline[GAME_OVER].string, "");
+			timer_event = GAME_ENDED_EVENT_2;
+			ntextlines = 2;
+		}
+		break;
+	case GAME_ENDED_EVENT_2:
 		next_timer = timer + 1;
 		if (credits <= 0) {
 			timer_event = BLINK_EVENT;
-			strcpy(textline[GAME_OVER].string, "game over");
+			strcpy(textline[GAME_OVER].string, "where is your");
+			strcpy(textline[GAME_OVER+1].string, "god now???");
 			ntextlines = 4;
+			next_timer = timer + 60;
 		} else {
 			timer_event = READY_EVENT; 
 			ntextlines = 2;
@@ -2290,11 +2330,11 @@ void setup_text()
 	cleartext();
 	set_font(SMALL_FONT);
 	gotoxy(0,0);
-	gameprint("credits: 0");
+	gameprint("credits: 0 lives: 3");
 	set_font(BIG_FONT);
 	gotoxy(4,3);
-	gameprint("insert coin\n");
-	gotoxy(4,0);
+	gameprint(" game over\n");
+	gotoxy(4,2);
 	gameprint("descrambler\n");
 	set_font(SMALL_FONT);
 	gotoxy(13,15);
@@ -2311,13 +2351,12 @@ void setup_text()
 #endif
 }
 
-
 void initialize_game_state_new_level()
 {
 	game_state.lives = 3;
 	game_state.score = 0;
 	game_state.prev_score = 0;
-	game_state.health = 100;
+	game_state.health = MAXHEALTH;
 	game_state.nbombs = level.nbombs;
 	game_state.prev_bombs = -1;
 }
@@ -2334,6 +2373,8 @@ void start_level()
 	memset(&game_state.go[0], 0, sizeof(game_state.go));
 
 	game_state.direction = 1;
+	player = &game_state.go[0];
+	player->draw = NULL;
 	player->move = move_player;
 	player->v = (game_state.direction == 1) ? &player_vect : &left_player_vect;
 	player->x = 200;
@@ -2342,7 +2383,7 @@ void start_level()
 	player->vy = 0;
 	player->target = add_target(player);
 	player->alive = 1;
-	game_state.health = 100;
+	game_state.health = MAXHEALTH;
 	game_state.nbombs = level.nbombs;
 	game_state.prev_bombs = -1;
 	game_state.nobjs = MAXOBJS-1;
@@ -2362,21 +2403,34 @@ void start_level()
 
 }
 
-void game_ended()
+void init_levels_to_beginning()
 {
-	initialize_game_state_new_level();
-	level.random_seed = 31415927,
 	level.nrockets = NROCKETS;
 	level.nbridges = NBRIDGES;
 	level.nflak = NFLAK;
 	level.nfueltanks = NFUELTANKS;
 	level.nbuildings = NBUILDINGS;
 	level.nbombs = NBOMBS;
-	level.laser_fire_chance = LASER_FIRE_CHANCE;
-	level.large_scale_roughness = LARGE_SCALE_ROUGHNESS;
-	level.small_scale_roughness = SMALL_SCALE_ROUGHNESS;;
+	if (credits > 0) {
+		level.random_seed = 31415927;
+		level.laser_fire_chance = LASER_FIRE_CHANCE;
+		level.large_scale_roughness = LARGE_SCALE_ROUGHNESS;
+		level.small_scale_roughness = SMALL_SCALE_ROUGHNESS;;
+	} else {
+		level.random_seed = random();
+		level.laser_fire_chance = LASER_FIRE_CHANCE;
+		level.large_scale_roughness = LARGE_SCALE_ROUGHNESS;
+		level.small_scale_roughness = 0.45;
+		level.nflak = NFLAK + 20;
+		level.nrockets = NROCKETS + 20;
+	}
+}
+
+void game_ended()
+{
+	init_levels_to_beginning();
+	initialize_game_state_new_level();
 	start_level();
-	
 }
 
 void advance_level()
@@ -2419,7 +2473,8 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 	switch (event->keyval)
 	{
 	case GDK_9:
-		game_state.health = -1;
+		if (credits > 0)
+			game_state.health = -1;
 		return TRUE;
 	case GDK_Escape:
 		destroy_event(widget, NULL);
@@ -2427,9 +2482,11 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 	case GDK_q:
 		credits++;
 		if (credits == 1) {
-			initialize_game_state_new_level();
 			ntextlines = 1;
-			start_level();
+			game_ended();
+			/* initialize_game_state_new_level();
+			init_levels_to_beginning();
+			start_level(); */
 			timer_event = READY_EVENT;
 			next_timer = timer+1;
 		}
@@ -2441,17 +2498,17 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		return TRUE;
 #endif
 	case GDK_Down:
-		if (player->vy < MAX_VY && game_state.health > 0)
+		if (player->vy < MAX_VY && game_state.health > 0 && credits > 0)
 			player->vy += 4;
 		return TRUE;
 	case GDK_Up:
-		if (player->vy > -MAX_VY && game_state.health > 0)
+		if (player->vy > -MAX_VY && game_state.health > 0 && credits > 0)
 			player->vy -= 4;
 		return TRUE;
 	case GDK_Right:
 	case GDK_period:
 	case GDK_greater:
-		if (game_state.health <= 0)
+		if (game_state.health <= 0 || credits <= 0)
 			return TRUE;
 		if (game_state.direction != 1) {
 			game_state.direction = 1;
@@ -2463,7 +2520,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 	case GDK_Left:
 	case GDK_comma:
 	case GDK_less:
-		if (game_state.health <= 0)
+		if (game_state.health <= 0 || credits <= 0)
 			return TRUE;
 		if (game_state.direction != -1) {
 			player->vx = player->vx / 2;
@@ -2474,30 +2531,36 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		return TRUE;
 	case GDK_space:
 	case GDK_z:
-		if (game_state.health <= 0)
+		if (game_state.health <= 0 || credits <= 0)
 			return TRUE;
 		player_fire_laser();
 		return TRUE;
 		break;	
 	case GDK_x:
-		if (game_state.health <= 0)
+		if (game_state.health <= 0 || credits <= 0)
 			return TRUE;
 		if (abs(player->vx + game_state.direction) < MAX_VX)
 			player->vx += game_state.direction;
 		return TRUE;
-	case GDK_b: if (game_state.health <= 0)
+	case GDK_b: if (game_state.health <= 0 || credits <= 0)
 			return TRUE;
 		drop_bomb();
 		return TRUE;
 	case GDK_p:
+		if (game_state.health <= 0 || credits <= 0)
+			return TRUE;
 		do_game_pause(widget, NULL);
-		return TRUE;	
+		return TRUE;
+#if 1
+/* These two just for testing... */
 	case GDK_R:
 		start_level();
 		break;
 	case GDK_A:
 		advance_level();
 		break;
+/* The above 2 just for testing */
+#endif
 	default:
 		break;
 	}
