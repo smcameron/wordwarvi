@@ -13,7 +13,7 @@
 #define SCREEN_HEIGHT 600
 #define WORLDWIDTH (SCREEN_WIDTH * 40)
 
-#define ROUGHNESS (0.30)
+#define ROUGHNESS (0.37)
 #define MAXOBJS 4500
 #define NROCKETS 270 
 /* #define NROCKETS 0  */
@@ -24,10 +24,12 @@
 #define MAX_VY 25
 #define LASER_SPEED 40
 #define LASER_PROXIMITY 300 /* square root of 300 */
+#define BOMB_PROXIMITY 30000 /* square root of 30000 */
 #define LINE_BREAK (-999)
 #define NBUILDINGS 40
 #define MAXBUILDING_WIDTH 7
 #define NFUELTANKS 20
+#define BOMB_SPEED 10
 
 #define MAX_ALT 100
 #define MIN_ALT 50
@@ -163,6 +165,23 @@ struct my_point_t left_player_ship_points[] = {
 #endif
 };
 
+struct my_point_t bomb_points[] = {
+	{ -2, -6 },
+	{ 2, -6 },
+	{ 2, -4 },
+	{ 0, -3 },
+	{ -2, -4 },
+	{ -2, -6 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 0, -3 },
+	{ 2, -1 },
+	{ 2, 8 },
+	{ 0, 9 },
+	{ -2, 8 },
+	{ -2, -1 },
+	{ 0, -3 },
+};
+
 struct my_point_t rocket_points[] = {
 	{ -2, 3 },
 	{ -4, 7 },
@@ -186,6 +205,7 @@ struct my_vect_obj rocket_vect;
 struct my_vect_obj spark_vect;
 struct my_vect_obj right_laser_vect;
 struct my_vect_obj fuel_vect;
+struct my_vect_obj bomb_vect;
 
 struct game_obj_t;
 typedef void obj_move_func(struct game_obj_t *o);
@@ -220,6 +240,7 @@ struct game_state_t {
 	int nobjs;
 	int direction;
 	int health;
+	int nbombs;
 	struct game_obj_t go[MAXOBJS];
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0 };
 
@@ -370,6 +391,90 @@ int interpolate(int x, int x1, int y1, int x2, int y2)
 		return (x - x1) * (y2 - y1) / (x2 -x1) + y1;
 }
 
+void bomb_move(struct game_obj_t *o)
+{
+	struct target_t *t;
+	int i, deepest;
+	int dist2;
+
+	if (!o->alive)
+		return;
+	o->x += o->vx;
+	o->y += o->vy;
+	o->vy++;
+
+	for (t=target_head;t != NULL;t=t->next) {
+		if (t->o->otype == 'L')
+			continue;
+		if (t->o->otype == 'b') 
+			continue;
+		if (t->o->otype == 'r' && t->o->alive) {
+			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
+			if (dist2 < LASER_PROXIMITY) { /* a hit */
+				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
+				t->o->alive = 0;
+				remove_target(t);
+				o->alive = 0;
+			}
+		}
+	}
+
+	/* Detect smashing into the ground */
+	deepest = 64000;
+	for (i=0;i<TERRAIN_LENGTH-1;i++) {
+		if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
+			deepest = interpolate(o->x, terrain.x[i], terrain.y[i],
+					terrain.x[i+1], terrain.y[i+1]);
+			break;
+		}
+	}
+	if (deepest != 64000 && o->y > deepest) {
+		o->alive = 0;
+		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
+		/* find nearby targets */
+		for (t=target_head;t != NULL;t=t->next) {
+			if ((t->o->otype == 'r' || t->o->otype == 'f') && t->o->alive) {
+				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
+						(o->y - t->o->y)*(o->y - t->o->y);
+				if (dist2 < BOMB_PROXIMITY) { /* a hit */
+					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
+					t->o->alive = 0;
+					remove_target(t); /* make cause skipping target */
+				}
+			}
+		}
+	}
+	if (!o->alive) {
+		remove_target(o->target);
+		o->target = NULL;
+	}
+}
+
+void drop_bomb()
+{
+	int i;
+	struct game_obj_t *o;
+
+	if (game_state.nbombs == 0)
+		return;
+	game_state.nbombs--;
+	
+	i = find_free_obj();
+	if (i < 0)
+		return;
+
+	o = &game_state.go[i];
+	o->x = player->x+(5 * game_state.direction);
+	o->y = player->y;
+	o->vx = player->vx + BOMB_SPEED * game_state.direction;
+	o->vy = player->vy;;
+	o->v = &bomb_vect;
+	o->move = bomb_move;
+	o->otype = 'B';
+	o->target = add_target(o);
+	o->alive = 20;
+}
+
 void move_player(struct game_obj_t *o)
 {
 	int i;
@@ -442,7 +547,7 @@ void move_player(struct game_obj_t *o)
 		}
 		if (abs(player->vx) > 5 || abs(player->vy) > 5) {
 			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
-			game_state.health -= 4;
+			game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 		}
 	}
 #if 0
@@ -579,6 +684,8 @@ void init_vects()
 	right_laser_vect.npoints = sizeof(right_laser_beam_points) / sizeof(right_laser_beam_points[0]);
 	fuel_vect.p = fuel_points;
 	fuel_vect.npoints = sizeof(fuel_points) / sizeof(fuel_points[0]);
+	bomb_vect.p = bomb_points;
+	bomb_vect.npoints = sizeof(bomb_points) / sizeof(bomb_points[0]);
 #if 0
 	player_vect.npoints = 4;
 	player_vect.p = malloc(sizeof(*player_vect.p) * player_vect.npoints);
@@ -598,6 +705,7 @@ void init_vects()
 	player->alive = 1;
 	game_state.nobjs = MAXOBJS-1;
 	game_state.health = 100;
+	game_state.nbombs = 20;
 }
 
 void draw_objs(GtkWidget *w)
@@ -875,7 +983,7 @@ static void embellish_roof(struct my_point_t *building, int *npoints, int left, 
 		case 4:
 		case 5: indent_roof(building, npoints, left, right);
 			break;
-		case 6: crenellate_roof(building, npoints, left, right);
+		case 8: crenellate_roof(building, npoints, left, right);
 			break;
 		case 9: addtower_roof(building, npoints, left, right);
 			break;
@@ -1187,6 +1295,10 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 			return TRUE;
 		if (abs(player->vx + game_state.direction) < MAX_VX)
 			player->vx += game_state.direction;
+		return TRUE;
+	case GDK_b: if (game_state.health <= 0)
+			return TRUE;
+		drop_bomb();
 		return TRUE;
 	default:
 		break;
