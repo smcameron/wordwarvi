@@ -5,6 +5,9 @@
 #include <string.h>
 #include <sys/time.h>
 
+#include <gdk/gdkkeysyms.h>
+
+
 #define TERRAIN_LENGTH 2000
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 600
@@ -17,6 +20,8 @@
 #define LAUNCH_DIST 500
 #define MAX_ROCKET_SPEED -32
 #define PLAYER_SPEED 8 
+#define MAX_VX 15
+#define MAX_VY 25
 #define LASER_SPEED 40
 #define LASER_PROXIMITY 300 /* square root of 300 */
 #define LINE_BREAK (-999)
@@ -127,6 +132,37 @@ struct my_point_t player_ship_points[] = {
 #endif
 };
 
+struct my_point_t left_player_ship_points[] = {
+	/* Data is reversed algorithmically */
+	{ 9, 0 }, /* front of hatch */
+	{ 0,0 },
+	{ -3, -6 }, /* top of hatch */
+	{ -12, -12 },
+	{ -18, -12 },
+	{ -15, -4 }, /* bottom of tail */
+	{ -3, -4 }, /* bottom of tail */
+	{ -15, -4 }, /* bottom of tail */
+	{ -15, 3 }, /* back top of wing */
+	{ 0, 3 }, /* back top of wing */
+	{ -15, 3 }, /* back top of wing */
+	{ -18, 9 }, /* back bottom of wing */
+	{ -12, 9 }, /* back front of wing */
+	{ 0, 3 },
+	{ -6, 6 },
+	{ 20, 4 },
+	{ 24, 2 }, /* tip of nose */
+	{ 9, 0 }, /* front of hatch */
+	{ -3, -6 }, /* top of hatch */ 
+#if 0
+	{ LINE_BREAK, LINE_BREAK }, /* Just for testing */
+	{ -30, -20 },
+	{ 30, -20 },
+	{ 30, 20 },
+	{ -30, 20 },
+	{ -30, -20 },
+#endif
+};
+
 struct my_point_t rocket_points[] = {
 	{ -2, 3 },
 	{ -4, 7 },
@@ -145,6 +181,7 @@ struct my_vect_obj {
 };
 
 struct my_vect_obj player_vect;
+struct my_vect_obj left_player_vect;
 struct my_vect_obj rocket_vect;
 struct my_vect_obj spark_vect;
 struct my_vect_obj right_laser_vect;
@@ -181,6 +218,8 @@ struct game_state_t {
 	int vx;
 	int vy;
 	int nobjs;
+	int direction;
+	int health;
 	struct game_obj_t go[MAXOBJS];
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0 };
 
@@ -279,6 +318,7 @@ void move_rocket(struct game_obj_t *o)
 		if ((ydist*ydist + xdist*xdist) < 400) {
 			explode(o->x, o->y, o->vx, 1, 70, 150, 20);
 			o->alive = 0;
+			game_state.health -= 20;
 			remove_target(o->target);
 			return;
 		}
@@ -297,7 +337,7 @@ int find_free_obj();
 
 void laser_move(struct game_obj_t *o);
 
-void player_fire_right()
+void player_fire_laser()
 {
 	int i;
 	struct game_obj_t *o, *p;
@@ -306,9 +346,9 @@ void player_fire_right()
 	o = &game_state.go[i];
 	p = &game_state.go[0];
 
-	o->x = p->x+30;
+	o->x = p->x+(30 * game_state.direction);
 	o->y = p->y;
-	o->vx = p->vx + LASER_SPEED;
+	o->vx = p->vx + LASER_SPEED * game_state.direction;
 	o->vy = 0;
 	o->v = &right_laser_vect;
 	o->move = laser_move;
@@ -316,12 +356,96 @@ void player_fire_right()
 	o->alive = 20;
 }
 
+int interpolate(int x, int x1, int y1, int x2, int y2)
+{
+	/* return corresponding y on line x1,y1,x2,y2 for value x */
+	/*
+		(y2 -y1)/(x2 - x1) = (y - y1) / (x - x1)
+		(x -x1) * (y2 -y1)/(x2 -x1) = y - y1
+		y = (x - x1) * (y2 - y1) / (x2 -x1) + y1;
+	*/
+	if (x2 == x1)
+		return y1;
+	else
+		return (x - x1) * (y2 - y1) / (x2 -x1) + y1;
+}
+
 void move_player(struct game_obj_t *o)
 {
 	int i;
+	int deepest;
+	static int was_healthy = 1;
 	o->x += o->vx;
 	o->y += o->vy;
-	explode(o->x-11, o->y, -7, 0, 7, 10, 9);
+
+	if (game_state.health > 0) {
+		if (o->vy > 0) /* damp y velocity. */
+			o->vy--;
+		if (o->vy < 0)
+			o->vy++;
+		was_healthy = 1;
+	} else if (was_healthy) {
+		was_healthy = 0;
+		explode(player->x, player->y, player->vx, player->vy, 90, 350, 30);
+	} 
+	if (abs(o->vx) < 5 || game_state.health <= 0) {
+		o->vy+=1;
+		if (o->vy > MAX_VY)
+			o->vy = MAX_VY;
+		explode(o->x-(11 * game_state.direction), o->y, -(3*game_state.direction), 0, 7, 10, 9);
+	} else
+		explode(o->x-(11 * game_state.direction), o->y, -(12*game_state.direction), 0, 7, 10, 9);
+	if (game_state.direction == 1) {
+		if (player->x - game_state.x > SCREEN_WIDTH/3) {
+			/* going off screen to the right... rein back in */
+			/* game_state.x = player->x - 2*SCREEN_WIDTH/3; */
+			game_state.vx = player->vx + 7;
+		} else {
+			game_state.x = player->x - SCREEN_WIDTH/3;
+			game_state.vx = player->vx;
+		}
+	} else {
+		if (player->x - game_state.x < 2*SCREEN_WIDTH/3) {
+		/* going off screen to the left... rein back in */
+			game_state.vx = player->vx - 7;
+		} else {
+			game_state.x = player->x - 2*SCREEN_WIDTH/3;
+			game_state.vx = player->vx;
+		}
+	}
+
+	if (player->y - game_state.y > 2*SCREEN_HEIGHT/6) {
+		game_state.vy = player->vy + 7;
+	} else if (player->y - game_state.y < -SCREEN_HEIGHT/6) {
+		game_state.vy = player->vy - 7;
+	} else
+		game_state.vy = player->vy;
+
+	/* Detect smashing into the ground */
+	deepest = 64000;
+	for (i=0;i<TERRAIN_LENGTH-1;i++) {
+		if (player->x >= terrain.x[i] && player->x < terrain.x[i+1]) {
+			deepest = interpolate(player->x, terrain.x[i], terrain.y[i],
+					terrain.x[i+1], terrain.y[i+1]);
+			break;
+		}
+	}
+	if (deepest != 64000 && player->y > deepest) {
+		player->y = deepest - 5;
+		if (abs(player->vy) > 7) 
+			player->vy = -0.65 * abs(player->vy);
+		else
+			player->vy = 0;
+		player->vx = 0.65 * player->vx;
+		if (player->vy < -15) {
+			player->vy = -15;
+		}
+		if (abs(player->vx) > 5 || abs(player->vy) > 5) {
+			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
+			game_state.health -= 4;
+		}
+	}
+#if 0
 	for (i=0;i<TERRAIN_LENGTH;i++) {
 		if (terrain.x[i] - o->x > 100 && (terrain.x[i] - o->x) < 300) {
 			if (terrain.y[i] - o->y > MAX_ALT) {
@@ -339,8 +463,8 @@ void move_player(struct game_obj_t *o)
 		}
 	}
 	if (randomn(20) < 4)
-		player_fire_right();
-	
+		player_fire_laser();
+#endif
 }
 
 void no_move(struct game_obj_t *o)
@@ -443,6 +567,10 @@ void init_vects()
 	}
 	player_vect.p = player_ship_points;
 	player_vect.npoints = sizeof(player_ship_points) / sizeof(player_ship_points[0]);
+	left_player_vect.p = left_player_ship_points;
+	left_player_vect.npoints = sizeof(left_player_ship_points) / sizeof(left_player_ship_points[0]);
+	for (i=0;i<left_player_vect.npoints;i++)
+		left_player_ship_points[i].x *= -1;
 	rocket_vect.p = rocket_points;
 	rocket_vect.npoints = sizeof(rocket_points) / sizeof(rocket_points[0]);
 	spark_vect.p = spark_points;
@@ -459,8 +587,9 @@ void init_vects()
 	player_vect.p[2].x = -10; player_vect.p[2].y = 10;
 	player_vect.p[3].x = 10; player_vect.p[3].y = 0;
 #endif
+	game_state.direction = 1;
 	player->move = move_player;
-	player->v = &player_vect;
+	player->v = (game_state.direction == 1) ? &player_vect : &left_player_vect;
 	player->x = 200;
 	player->y = -100;
 	player->vx = PLAYER_SPEED;
@@ -468,6 +597,7 @@ void init_vects()
 	player->target = add_target(player);
 	player->alive = 1;
 	game_state.nobjs = MAXOBJS-1;
+	game_state.health = 100;
 }
 
 void draw_objs(GtkWidget *w)
@@ -917,17 +1047,24 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		gdk_draw_line(w->window, gc, terrain.x[i] - game_state.x, terrain.y[i]+(SCREEN_HEIGHT/2) - game_state.y,  
 					 terrain.x[i+1] - game_state.x, terrain.y[i+1]+(SCREEN_HEIGHT/2) - game_state.y);
 	}
+	/* draw health bar */
+
+	if (game_state.health > 0)
+		gdk_draw_rectangle(w->window, gc, TRUE, 30, 30, 
+			((SCREEN_WIDTH - 60) * game_state.health / 100), 30);
 	gdk_gc_set_foreground(gc, &blackcolor);
 	draw_objs(w);
+
 	return 0;
 }
 
 /* This is a callback function. The data arguments are ignored
  * in this example. More on callbacks below. */
-static void hello( GtkWidget *widget,
+static void destroy_event( GtkWidget *widget,
                    gpointer   data )
 {
     g_print ("Bye bye.\n");
+	exit(1); /* bad form to call exit here... */
 }
 
 static gboolean delete_event( GtkWidget *widget,
@@ -986,6 +1123,85 @@ gint advance_game(gpointer data)
 }
 
 
+static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
+{
+	/* char *x = (char *) data; */
+#if 0
+	if (event->length > 0)
+		printf("The key event's string is `%s'\n", event->string);
+
+	printf("The name of this keysym is `%s'\n", 
+		gdk_keyval_name(event->keyval));
+#endif
+	switch (event->keyval)
+	{
+	case GDK_q:
+		destroy_event(widget, NULL);
+		return TRUE;	
+#if 0
+	case GDK_Home:
+		printf("The Home key was pressed.\n");
+		return TRUE;
+#endif
+	case GDK_Down:
+		if (player->vy < MAX_VY && game_state.health > 0)
+			player->vy += 4;
+		return TRUE;
+	case GDK_Up:
+		if (player->vy > -MAX_VY && game_state.health > 0)
+			player->vy -= 4;
+		return TRUE;
+	case GDK_Right:
+	case GDK_period:
+	case GDK_greater:
+		if (game_state.health <= 0)
+			return TRUE;
+		if (game_state.direction != 1) {
+			game_state.direction = 1;
+			player->vx = player->vx / 2;
+			player->v = &player_vect;
+		} else if (abs(player->vx + game_state.direction) < MAX_VX)
+				player->vx += game_state.direction;
+		return TRUE;
+	case GDK_Left:
+	case GDK_comma:
+	case GDK_less:
+		if (game_state.health <= 0)
+			return TRUE;
+		if (game_state.direction != -1) {
+			player->vx = player->vx / 2;
+			game_state.direction = -1;
+			player->v = &left_player_vect;
+		} else if (abs(player->vx + game_state.direction) < MAX_VX)
+				player->vx += game_state.direction;
+		return TRUE;
+	case GDK_space:
+	case GDK_z:
+		if (game_state.health <= 0)
+			return TRUE;
+		player_fire_laser();
+		return TRUE;
+		break;	
+	case GDK_x:
+		if (game_state.health <= 0)
+			return TRUE;
+		if (abs(player->vx + game_state.direction) < MAX_VX)
+			player->vx += game_state.direction;
+		return TRUE;
+	default:
+		break;
+	}
+
+#if 0
+	printf("Keypress: GDK_%s\n", gdk_keyval_name(event->keyval));
+	if (gdk_keyval_is_lower(event->keyval)) {
+		printf("A non-uppercase key was pressed.\n");
+	} else if (gdk_keyval_is_upper(event->keyval)) {
+		printf("An uppercase letter was pressed.\n");
+	}
+#endif
+	return FALSE;
+}
 int main(int argc, char *argv[])
 {
 	/* GtkWidget is the storage type for widgets */
@@ -1034,7 +1250,7 @@ int main(int argc, char *argv[])
      * function hello() passing it NULL as its argument.  The hello()
      * function is defined above. */
     g_signal_connect (G_OBJECT (button), "clicked",
-		      G_CALLBACK (hello), NULL);
+		      G_CALLBACK (destroy_event), NULL);
     
     /* This will cause the window to be destroyed by calling
      * gtk_widget_destroy(window) when "clicked".  Again, the destroy
@@ -1050,7 +1266,10 @@ int main(int argc, char *argv[])
     gtk_box_pack_start(GTK_BOX (vbox), button, FALSE /* expand */, FALSE /* fill */, 2);
     
 	init_vects();
-    /* The final step is to display this newly created widget. */
+	
+	g_signal_connect(G_OBJECT (window), "key_press_event",
+		G_CALLBACK (key_press_cb), "window");
+
 
     generate_terrain(&terrain);
     add_rockets(&terrain);
