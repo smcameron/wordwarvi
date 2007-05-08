@@ -21,7 +21,9 @@
 #define NCLIPS (16)
 #define MAX_CONCURRENT_SOUNDS (16)
 #define CLIPLEN (12100) 
-int add_sound(int which_sound);
+int add_sound(int which_sound, int which_slot);
+#define ANY_SLOT (-1)
+#define MUSIC_SLOT (0)
 
 #define PLAYER_LASER_SOUND 0
 #define BOMB_IMPACT_SOUND 1
@@ -30,6 +32,9 @@ int add_sound(int which_sound);
 #define LARGE_EXPLOSION_SOUND 4
 #define ROCKET_EXPLOSION_SOUND 5
 #define LASER_EXPLOSION_SOUND 6
+#define GROUND_SMACK_SOUND 7
+#define INSERT_COIN_SOUND 8
+#define MUSIC_SOUND 9
 
 /* ...End of audio stuff */
 
@@ -96,6 +101,10 @@ int timer_event = 0;
 #define BLANK_GAME_OVER_2_EVENT 9
 #define GAME_ENDED_EVENT 10
 #define GAME_ENDED_EVENT_2 11
+#define CREDITS1_EVENT 12
+#define CREDITS2_EVENT 13
+#define INTRO1_EVENT 14
+#define INTRO2_EVENT 15
 
 #define NCOLORS 8
 
@@ -163,14 +172,36 @@ typedef unsigned char stroke_t;
                15  16  17      *   *   *
 
                18  19  20      *   *   *
-
 The grid numbers can be decoded into (x,y) coords like:
-
 	x = ((n % 3) * xscale);
 	y = (x/3) * yscale;     // truncating division.
-
 ***************************/
-
+stroke_t glyph_Z[] = { 0, 2, 12, 14, 99 };
+stroke_t glyph_Y[] = { 0, 7, 2, 21, 7, 13, 99 };
+stroke_t glyph_X[] = { 0, 14, 21, 12, 2, 99 };
+stroke_t glyph_W[] = { 0, 12, 10, 14, 2, 21, 10, 1, 99 };
+stroke_t glyph_V[] = { 0, 13, 2, 99 };
+stroke_t glyph_U[] = { 0, 9, 13, 11, 2, 99 };
+stroke_t glyph_T[] = { 13, 1, 21, 0, 2, 99 };
+stroke_t glyph_S[] = { 9, 13, 11, 3, 1, 5, 99 };
+stroke_t glyph_R[] = { 12, 0, 1, 5, 7, 6, 21, 7, 14, 99 };
+stroke_t glyph_Q[] = { 13, 9, 3, 1, 5, 11, 13, 21, 10, 14, 99 };
+stroke_t glyph_P[] = { 12, 0, 1, 5, 7, 6, 99 };
+stroke_t glyph_O[] = { 13, 9, 3, 1, 5, 11, 13, 99 };
+stroke_t glyph_N[] = { 12, 0, 14, 2, 99 };
+stroke_t glyph_M[] = { 12, 0, 4, 2, 14, 99 };
+stroke_t glyph_L[] = { 0, 12, 14, 99};
+stroke_t glyph_K[] = { 0, 12, 21, 6, 7, 11, 14, 21, 7, 5, 2, 99};
+stroke_t glyph_J[] = { 9, 13, 11, 2, 99}; 
+stroke_t glyph_I[] = { 12, 14, 21, 13, 1, 21, 0, 2, 99 }; 
+stroke_t glyph_H[] = { 0, 12, 21, 2, 17, 21, 6, 8, 99 };
+stroke_t glyph_G[] = { 7, 8, 11, 13, 9, 3, 1, 5, 99 };
+stroke_t glyph_F[] = { 12, 0, 2, 21, 8, 7, 99 };
+stroke_t glyph_E[] = { 14, 12, 0, 2, 21, 8, 7, 99 };
+stroke_t glyph_D[] = { 12, 13, 11, 5, 1, 0, 12, 99 };
+stroke_t glyph_C[] = { 11, 13, 9, 3, 1, 5, 99 };
+stroke_t glyph_B[] = { 0, 12, 13, 11, 5, 1, 0, 21, 6, 8, 99 };
+stroke_t glyph_A[] = { 12, 3, 0, 5, 14, 21, 8, 6, 99 };
 stroke_t glyph_que[] = { 13, 10, 21, 7, 5, 2, 0, 3, 99 };
 stroke_t glyph_bang[] = { 10, 13, 21, 1, 7, 99};
 stroke_t glyph_colon[] = { 6, 7, 21, 12, 13, 99 };
@@ -542,6 +573,9 @@ struct text_line_t {
 	char string[80];
 } textline[20];
 
+#define FINAL_MSG1 "Where is your"
+#define FINAL_MSG2 "editor now???"
+
 /* text line entries are just fixed... */
 #define GAME_OVER 1
 #define CREDITS 0
@@ -719,7 +753,7 @@ void move_laserbolt(struct game_obj_t *o)
 	}
 	if (abs(dy) < 9 && abs(player->x - o->x) < 15) {
 		explode(o->x, o->y, o->vx, 1, 70, 20, 20);
-		add_sound(LASER_EXPLOSION_SOUND);
+		add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 		game_state.health -= LASER_DAMAGE;
 		o->alive = 0;	
 	}
@@ -739,7 +773,7 @@ void move_flak(struct game_obj_t *o)
 		dx = player->x+LASERLEAD*player->vx - o->x;
 		dy = player->y+LASERLEAD*player->vy - o->y;
 
-		add_sound(FLAK_FIRE_SOUND);
+		add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
 		if (dy >= 0) {
 			if (player->x+player->vx*LASERLEAD < o->x)
 				bx = -20;
@@ -781,13 +815,13 @@ void move_rocket(struct game_obj_t *o)
 		ydist = o->y - player->y;
 		if ((xdist <= ydist && ydist > 0) || o->vy != 0) {
 			if (o->vy == 0)
-				add_sound(ROCKET_LAUNCH_SOUND);
+				add_sound(ROCKET_LAUNCH_SOUND, ANY_SLOT);
 			if (o->vy > MAX_ROCKET_SPEED)
 				o->vy--;
 		}
 
 		if ((ydist*ydist + xdist*xdist) < 400) {
-			add_sound(ROCKET_EXPLOSION_SOUND);
+			add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 			explode(o->x, o->y, o->vx, 1, 70, 150, 20);
 			o->alive = 0;
 			game_state.health -= 20;
@@ -831,7 +865,7 @@ void player_fire_laser()
 	o->otype = 'L';
 	o->color = GREEN;
 	o->alive = 20;
-	add_sound(PLAYER_LASER_SOUND);
+	add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
 }
 
 int interpolate(int x, int x1, int y1, int x2, int y2)
@@ -872,7 +906,7 @@ void bomb_move(struct game_obj_t *o)
 			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
 			if (dist2 < LASER_PROXIMITY) { /* a hit */
 				game_state.score += ROCKET_SCORE;
-				add_sound(BOMB_IMPACT_SOUND);
+				add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 				t->o->alive = 0;
 				remove_target(t); /* BUG: Instead of remove here.. */
@@ -894,7 +928,7 @@ void bomb_move(struct game_obj_t *o)
 	}
 	if (deepest != 64000 && o->y > deepest) {
 		o->alive = 0;
-		add_sound(BOMB_IMPACT_SOUND);
+		add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, 1, 90, 150, 20);
 		/* find nearby targets */
 		for (t=target_head;t != NULL;t=t->next) {
@@ -976,10 +1010,10 @@ void move_player(struct game_obj_t *o)
 		explode(player->x, player->y, player->vx, player->vy, 90, 350, 30);
 		player->draw = no_draw;
 		add_debris(o->x, o->y, o->vx, o->vy, 20, &player);
-		add_sound(LARGE_EXPLOSION_SOUND);
+		add_sound(LARGE_EXPLOSION_SOUND, ANY_SLOT);
 		printf("decrementing lives %d.\n", game_state.lives);
 		game_state.lives--;
-		sprintf(textline[CREDITS].string, "credits: %d lives: %d", 
+		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d", 
 			credits, game_state.lives);
 		if (game_state.lives <= 0 || credits <= 0) {
 			if (credits > 0) 
@@ -1052,6 +1086,7 @@ void move_player(struct game_obj_t *o)
 			player->vy = -15;
 		}
 		if (abs(player->vx) > 5 || abs(player->vy) > 5) {
+			add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
 			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 			game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 		}
@@ -1150,7 +1185,7 @@ void laser_move(struct game_obj_t *o)
 			if (dist2 < LASER_PROXIMITY) { /* a hit */
 				if (t->o->otype == 'r')
 					game_state.score += ROCKET_SCORE;
-				add_sound(LASER_EXPLOSION_SOUND);
+				add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 				t->o->alive = 0;
 				remove_target(t);
@@ -1318,6 +1353,32 @@ int make_font(struct my_vect_obj ***font, int xscale, int yscale)
 		return -1;
 	}
 	memset(v, 0, sizeof(**v) * 256);
+	v['A'] = prerender_glyph(glyph_A, xscale, yscale);
+	v['B'] = prerender_glyph(glyph_B, xscale, yscale);
+	v['C'] = prerender_glyph(glyph_C, xscale, yscale);
+	v['D'] = prerender_glyph(glyph_D, xscale, yscale);
+	v['E'] = prerender_glyph(glyph_E, xscale, yscale);
+	v['F'] = prerender_glyph(glyph_F, xscale, yscale);
+	v['G'] = prerender_glyph(glyph_G, xscale, yscale);
+	v['H'] = prerender_glyph(glyph_H, xscale, yscale);
+	v['I'] = prerender_glyph(glyph_I, xscale, yscale);
+	v['J'] = prerender_glyph(glyph_J, xscale, yscale);
+	v['K'] = prerender_glyph(glyph_K, xscale, yscale);
+	v['L'] = prerender_glyph(glyph_L, xscale, yscale);
+	v['M'] = prerender_glyph(glyph_M, xscale, yscale);
+	v['N'] = prerender_glyph(glyph_N, xscale, yscale);
+	v['O'] = prerender_glyph(glyph_O, xscale, yscale);
+	v['P'] = prerender_glyph(glyph_P, xscale, yscale);
+	v['Q'] = prerender_glyph(glyph_Q, xscale, yscale);
+	v['R'] = prerender_glyph(glyph_R, xscale, yscale);
+	v['S'] = prerender_glyph(glyph_S, xscale, yscale);
+	v['T'] = prerender_glyph(glyph_T, xscale, yscale);
+	v['U'] = prerender_glyph(glyph_U, xscale, yscale);
+	v['V'] = prerender_glyph(glyph_V, xscale, yscale);
+	v['W'] = prerender_glyph(glyph_W, xscale, yscale);
+	v['X'] = prerender_glyph(glyph_X, xscale, yscale);
+	v['Y'] = prerender_glyph(glyph_Y, xscale, yscale);
+	v['Z'] = prerender_glyph(glyph_Z, xscale, yscale);
 	v['!'] = prerender_glyph(glyph_bang, xscale, yscale);
 	v['?'] = prerender_glyph(glyph_que, xscale, yscale);
 	v[':'] = prerender_glyph(glyph_colon, xscale, yscale);
@@ -2401,22 +2462,28 @@ static void destroy( GtkWidget *widget,
     gtk_main_quit ();
 }
 
+void setup_text();
 void game_ended();
 void start_level();
 void timer_expired()
 {
+	static int game_over_count = 0;
 
 	printf("timer expired, %d\n", timer_event);
 	switch (timer_event) {
 	case BLINK_EVENT:
+		setup_text();
 		if (credits >= 1) {
+			game_over_count = 0;
 			next_timer = timer + 1;
 			timer_event = GAME_ENDED_EVENT;
+			strcpy(textline[GAME_OVER].string, " Game Over");
 			break;
 		}
+		game_over_count++;
 		timer_event = BLANK_GAME_OVER_1_EVENT;
 		next_timer = timer + 20;
-		strcpy(textline[GAME_OVER].string, " game over");
+		strcpy(textline[GAME_OVER].string, " Game Over");
 		break;
 	case BLANK_GAME_OVER_1_EVENT:
 		timer_event = INSERT_COIN_EVENT;
@@ -2426,18 +2493,88 @@ void timer_expired()
 	case INSERT_COIN_EVENT:
 		timer_event = BLANK_GAME_OVER_2_EVENT;
 		next_timer = timer + 20;
-		strcpy(textline[GAME_OVER].string, "insert coin");
+		strcpy(textline[GAME_OVER].string, "Insert Coin");
 		break;
 	case BLANK_GAME_OVER_2_EVENT:
-		timer_event = BLINK_EVENT;
+		if (game_over_count == 3) {
+			if (randomn(10) < 5)
+				timer_event = CREDITS1_EVENT;
+			else
+				timer_event = INTRO1_EVENT;
+		} else
+			timer_event = BLINK_EVENT;
 		next_timer = timer + 20;
 		strcpy(textline[GAME_OVER].string, "");
 		break;
+	case CREDITS1_EVENT: {
+		int yline = 7;
+		int x = 12;
+		ntextlines = 1;
+		set_font(SMALL_FONT);
+		gotoxy(x,yline++);
+		gameprint("Credits:");
+		gotoxy(x,yline++);
+		gameprint("Programming:   Stephen Cameron");
+		gotoxy(x,yline++);
+		gameprint("Game design:   Stephen Cameron");
+		gotoxy(x,yline++);
+		gameprint("Music:         Stephen Cameron");
+		gotoxy(x,yline++);
+		gameprint("               and Marty Kiel");
+		gotoxy(x,yline++);
+		gameprint("Sound effects: freesound users");
+		gotoxy(x,yline++);
+		gameprint("      inferno, dobroide, oniwe ");
+		gotoxy(x,yline++);
+		gameprint("(See sounds/Attribution.txt");
+		gotoxy(x,yline++);
+		timer_event = CREDITS2_EVENT;
+		next_timer = timer + 100;
+		game_over_count = 0;
+		break;
+		}
+	case CREDITS2_EVENT:
+		ntextlines = 1;
+		setup_text();
+		timer_event = BLINK_EVENT;
+		timer_event = BLANK_GAME_OVER_1_EVENT;
+		next_timer = timer + 1;
+		break;
+
+	case INTRO1_EVENT: {
+		int yline = 7;
+		int x = 12;
+		ntextlines = 1;
+		set_font(SMALL_FONT);
+		gotoxy(x,yline++);
+		gameprint("In the beginning, there was ed."); gotoxy(x,yline++);
+		gameprint("Ed is the standard text editor."); gotoxy(x,yline++);
+		gameprint("Then there was vi, and it was good."); gotoxy(x,yline++);
+		gameprint("Then came emacs, and disharmony."); gotoxy(x,yline++);
+		gameprint("Your mission is to traverse core"); gotoxy(x,yline++);
+		gameprint("memory and rid the host of emacs."); gotoxy(x,yline++);
+		gameprint("It will not be an easy mission, as"); gotoxy(x,yline++);
+		gameprint("there are many emacs friendly"); gotoxy(x, yline++);
+		gameprint("processes."); gotoxy(x,yline++);
+		timer_event = INTRO2_EVENT;
+		next_timer = timer + 350;
+		game_over_count = 0;
+		break;
+		}
+	case INTRO2_EVENT: {
+		ntextlines = 1;
+		setup_text();
+		timer_event = BLINK_EVENT;
+		timer_event = BLANK_GAME_OVER_1_EVENT;
+		next_timer = timer + 1;
+		break;
+		}
 	case READY_EVENT:
 		start_level();
-		sprintf(textline[CREDITS].string, "credits: %d lives: %d", 
+		add_sound(MUSIC_SOUND, MUSIC_SLOT);
+		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d", 
 			credits, game_state.lives);
-		strcpy(textline[GAME_OVER].string, "ready...");
+		strcpy(textline[GAME_OVER].string, "Ready...");
 		next_timer += 30;
 		timer_event = SET_EVENT;
 		ntextlines = 2;
@@ -2447,12 +2584,12 @@ void timer_expired()
 		game_state.vx = 0;
 		break;
 	case SET_EVENT:
-		strcpy(textline[GAME_OVER].string, "set...");
+		strcpy(textline[GAME_OVER].string, "Set...");
 		next_timer += 30;
 		timer_event = GO_EVENT;
 		break;
 	case GO_EVENT:
-		strcpy(textline[GAME_OVER].string, "prepare to die!");
+		strcpy(textline[GAME_OVER].string, "Prepare to die!");
 		next_timer += 30;
 		timer_event = BLANK_EVENT;
 		break;
@@ -2464,8 +2601,11 @@ void timer_expired()
 		timer_event = GAME_ENDED_EVENT_2;
 		next_timer = timer + 30;
 		if (credits <= 0) {
-			strcpy(textline[GAME_OVER+1].string, "where is your");
-			strcpy(textline[GAME_OVER].string, "god now???");
+			setup_text();
+			timer_event = GAME_ENDED_EVENT_2;
+			next_timer = timer + 30;
+			strcpy(textline[GAME_OVER+1].string, FINAL_MSG1);
+			strcpy(textline[GAME_OVER].string, FINAL_MSG2);
 			ntextlines = 4;
 			next_timer = timer + 120;
 		} else {
@@ -2477,9 +2617,10 @@ void timer_expired()
 	case GAME_ENDED_EVENT_2:
 		next_timer = timer + 1;
 		if (credits <= 0) {
+			game_ended();
 			timer_event = BLINK_EVENT;
-			strcpy(textline[GAME_OVER].string, "where is your");
-			strcpy(textline[GAME_OVER+1].string, "god now???");
+			strcpy(textline[GAME_OVER].string, FINAL_MSG1);
+			strcpy(textline[GAME_OVER+1].string, FINAL_MSG2);
 			ntextlines = 4;
 			next_timer = timer + 60;
 		} else {
@@ -2535,15 +2676,15 @@ void setup_text()
 	cleartext();
 	set_font(SMALL_FONT);
 	gotoxy(0,0);
-	gameprint("credits: 0 lives: 3");
+	gameprint("Credits: 0 Lives: 3");
 	set_font(BIG_FONT);
 	gotoxy(4,3);
-	gameprint(" game over\n");
+	gameprint(" Game Over\n");
 	gotoxy(4,2);
-	gameprint("descrambler\n");
+	gameprint("Word War vi\n");
 	set_font(SMALL_FONT);
 	gotoxy(13,15);
-	gameprint("(c) 2007 stephen cameron\n");
+	gameprint("(c) 2007 Stephen Cameron\n");
 	timer_event = BLINK_EVENT;
 	next_timer = timer + 30;
 #if 0
@@ -2640,6 +2781,7 @@ void game_ended()
 	start_level();
 }
 
+void cancel_sound(int queue_entry);
 void advance_level()
 {
 	/* This is harsh. */
@@ -2687,9 +2829,11 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		destroy_event(widget, NULL);
 		return TRUE;	
 	case GDK_q:
-		// add_sound(QUARTER);
+		add_sound(INSERT_COIN_SOUND, ANY_SLOT);
 		credits++;
 		if (credits == 1) {
+			cancel_sound(MUSIC_SLOT);
+			sleep(2);
 			ntextlines = 1;
 			game_ended();
 			/* initialize_game_state_new_level();
@@ -2698,7 +2842,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 			timer_event = READY_EVENT;
 			next_timer = timer+1;
 		}
-		sprintf(textline[CREDITS].string, "credits: %d lives: %d", credits, game_state.lives);
+		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d", credits, game_state.lives);
 		return TRUE;
 #if 0
 	case GDK_Home:
@@ -2896,6 +3040,9 @@ int init_clips()
 	read_clip(LARGE_EXPLOSION_SOUND, "sounds/18384_inferno_largex.wav");
 	read_clip(ROCKET_EXPLOSION_SOUND, "sounds/9679__dobroide__firecracker.04_modified.wav");
 	read_clip(LASER_EXPLOSION_SOUND, "sounds/18399_inferno_stormplas.wav");
+	read_clip(GROUND_SMACK_SOUND, "sounds/ground_smack.wav");
+	read_clip(INSERT_COIN_SOUND, "sounds/us_quarter.wav");
+	read_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.wav");
 
 	return 0;
 }
@@ -2930,7 +3077,7 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 			}
 			output += audio_queue[j].sample[sample];
 		}
-		*out++ = (float) (output / count);
+		*out++ = (float) output / 2; /* (output / count); */
         }
 	for (i=0;i<NCLIPS;i++) {
 		if (!audio_queue[i].active)
@@ -3019,10 +3166,23 @@ error:
 	return;
 }
 
-int add_sound(int which_sound)
+int add_sound(int which_sound, int which_slot)
 {
 	int i;
-	for (i=0;i<MAX_CONCURRENT_SOUNDS;i++) {
+
+	if (which_slot != ANY_SLOT) {
+		if (audio_queue[which_slot].active)
+			audio_queue[which_slot].active = 0;
+		audio_queue[which_slot].pos = 0;
+		audio_queue[which_slot].nsamples = 0;
+		/* would like to put a memory barrier here. */
+		audio_queue[which_slot].sample = clip[which_sound].sample;
+		audio_queue[which_slot].nsamples = clip[which_sound].nsamples;
+		/* would like to put a memory barrier here. */
+		audio_queue[which_slot].active = 1;
+		return which_slot;
+	}
+	for (i=1;i<MAX_CONCURRENT_SOUNDS;i++) {
 		if (audio_queue[i].active == 0) {
 			audio_queue[i].nsamples = clip[which_sound].nsamples;
 			audio_queue[i].pos = 0;

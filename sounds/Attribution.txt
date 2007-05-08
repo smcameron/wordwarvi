@@ -15,4 +15,29 @@ See: http://creativecommons.org/licenses/sampling+/1.0/
             (I modified the file slightly, to make it louder, noisier, etc.)
 	By inferno (http://freesound.iua.upf.edu/usersViewSingle.php?id=71614)
 	    1094_inferno_unitFXsound.zip (http://freesound.iua.upf.edu/packsViewSingle.php?id=1094)
+	By oniwe (http://freesound.iua.upf.edu/usersViewSingle.php?id=193786)
+             http://freesound.iua.upf.edu/samplesViewSingle.php?id=32871
+             (used in creation of ground_smack.wav) 
+
+* ground_smack.wav is a combination of something I recorded
+  (hammer banging on metal pipes) and something recorded by 
+  freesound user oniwe, this:
+  http://freesound.iua.upf.edu/samplesViewSingle.php?id=32871
+  "stones falling in quarry binaural.wav".  ground_smack.wav
+  is licensed under Creative Commons Sampling Plus 1.0 License.
+  oniwe is http://freesound.iua.upf.edu/usersViewSingle.php?id=193786
+
+* us_quarter.wav is something I (Stephen M. Cameron) 
+  recorded (quarter dropping into a metal can
+  full of quarters)  It is licensed under 
+  the Creative Commons Sampling Plus 1.0 License.
+
+* lucky13-steve-mono-mix.wav is composed and recorded
+  by me (Stephen M. Cameron) and Marty Kiel.  I did the
+  guitar, Marty did the synth and drums.  It is 
+  licensed under the Creative Commons Attribution 2.0 license
+  http://creativecommons.org/licenses/by/2.0/
+  (Note, this is different than the other audio clips.)
+
+
 
