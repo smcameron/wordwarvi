@@ -36,12 +36,27 @@
 #define MAX_ALT 100
 #define MIN_ALT 50
 
+/* Scoring stuff */
+#define ROCKET_SCORE 20
+#define BRIDGE_SCORE 5
+
 int game_pause = 0;
 
 int toggle = 0;
-GdkColor whitecolor;
-GdkColor bluecolor;
-GdkColor blackcolor;
+
+#define NCOLORS 7
+
+GdkColor huex[NCOLORS];
+
+#define WHITE 0
+#define BLUE 1
+#define BLACK 2
+#define GREEN 3
+#define YELLOW 4
+#define RED 5
+#define ORANGE 6
+
+
 
 struct target_t;
 
@@ -225,17 +240,23 @@ struct my_vect_obj bomb_vect;
 struct my_vect_obj bridge_vect;
 
 struct game_obj_t;
+
 typedef void obj_move_func(struct game_obj_t *o);
+typedef void obj_draw_func(struct game_obj_t *o, GtkWidget *w);
 
 struct game_obj_t {
 	obj_move_func *move;
+	obj_draw_func *draw;
 	struct my_vect_obj *v;
 	struct target_t *target;
 	int x, y;
 	int vx, vy;
+	int color;
 	int alive;
 	int otype;
 };
+
+GtkWidget *score_label;
 
 struct target_t {
 	struct game_obj_t *o;
@@ -257,6 +278,8 @@ struct game_state_t {
 	int nobjs;
 	int direction;
 	int health;
+	int score;
+	int prev_score;
 	int nbombs;
 	struct game_obj_t go[MAXOBJS];
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0 };
@@ -391,6 +414,7 @@ void player_fire_laser()
 	o->v = &right_laser_vect;
 	o->move = laser_move;
 	o->otype = 'L';
+	o->color = GREEN;
 	o->alive = 20;
 }
 
@@ -409,6 +433,7 @@ int interpolate(int x, int x1, int y1, int x2, int y2)
 }
 
 void bridge_move(struct game_obj_t *o);
+void no_move(struct game_obj_t *o);
 
 void bomb_move(struct game_obj_t *o)
 {
@@ -430,6 +455,7 @@ void bomb_move(struct game_obj_t *o)
 		if (t->o->otype == 'r' && t->o->alive) {
 			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
 			if (dist2 < LASER_PROXIMITY) { /* a hit */
+				game_state.score += ROCKET_SCORE;
 				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 				t->o->alive = 0;
 				remove_target(t); /* BUG: Instead of remove here.. */
@@ -451,13 +477,14 @@ void bomb_move(struct game_obj_t *o)
 	}
 	if (deepest != 64000 && o->y > deepest) {
 		o->alive = 0;
-		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
+		explode(o->x, o->y, o->vx, 1, 90, 150, 20);
 		/* find nearby targets */
 		for (t=target_head;t != NULL;t=t->next) {
 			if ((t->o->otype == 'r' || t->o->otype == 'f') && t->o->alive) {
 				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
 						(o->y - t->o->y)*(o->y - t->o->y);
 				if (dist2 < BOMB_PROXIMITY) { /* a hit */
+					game_state.score += ROCKET_SCORE;
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 					t->o->alive = 0;
 					remove_target(t); /* make cause skipping target */
@@ -467,6 +494,8 @@ void bomb_move(struct game_obj_t *o)
 				// dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
 				if (abs(o->x - t->o->x) < BOMB_X_PROXIMITY) { /* a hit */
 					/* "+=" instead of "=" in case multiple bombs */
+					if (t->o->move == no_move) /* only get the points once. */
+						game_state.score += BRIDGE_SCORE;
 					t->o->vx += ((t->o->x < o->x) ? -1 : 1) * randomn(6);
 					t->o->vy += ((t->o->y < o->y) ? -1 : 1) * randomn(6);
 					t->o->move = bridge_move;
@@ -503,6 +532,7 @@ void drop_bomb()
 	o->move = bomb_move;
 	o->otype = 'B';
 	o->target = add_target(o);
+	o->color = ORANGE;
 	o->alive = 20;
 }
 
@@ -528,9 +558,9 @@ void move_player(struct game_obj_t *o)
 		o->vy+=1;
 		if (o->vy > MAX_VY)
 			o->vy = MAX_VY;
-		explode(o->x-(11 * game_state.direction), o->y, -(3*game_state.direction), 0, 7, 10, 9);
+		explode(o->x-(11 * game_state.direction), o->y, -(7*game_state.direction), 0, 7, 10, 9);
 	} else
-		explode(o->x-(11 * game_state.direction), o->y, -(12*game_state.direction), 0, 7, 10, 9);
+		explode(o->x-(11 * game_state.direction), o->y, -((abs(o->vx)+7)*game_state.direction), 0, 10, 10, 9);
 	if (game_state.direction == 1) {
 		if (player->x - game_state.x > SCREEN_WIDTH/3) {
 			/* going off screen to the right... rein back in */
@@ -665,6 +695,8 @@ void laser_move(struct game_obj_t *o)
 			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
 			// printf("dist2 = %d\n", dist2);
 			if (dist2 < LASER_PROXIMITY) { /* a hit */
+				if (t->o->otype == 'r')
+					game_state.score += ROCKET_SCORE;
 				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 				t->o->alive = 0;
 				remove_target(t);
@@ -686,19 +718,37 @@ void move_obj(struct game_obj_t *o)
 	o->y += o->vy;
 }
 
+void draw_spark(struct game_obj_t *o, GtkWidget *w)
+{
+	int x1, y1, x2, y2;
+
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+	x1 = o->x - o->vx - game_state.x;
+	y1 = o->y - o->vy - game_state.y + (SCREEN_HEIGHT/2);  
+	x2 = o->x - game_state.x; 
+	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
+	gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+}
+
 void move_spark(struct game_obj_t *o)
 {
-	if (o->alive < 0)
+	if (o->alive < 0) {
 		o->alive = 0;
-	if (!o->alive)
+		o->draw = NULL;
+	}
+	if (!o->alive) {
+		o->draw = NULL;
 		return;
+	}
 
 	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
 	o->x += o->vx;
 	o->y += o->vy;
 	o->alive--;
-	if (!o->alive)
+	if (!o->alive) {
+		o->draw = NULL;
 		return;
+	}
 	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
 	
 	if (o->vx > 0)
@@ -710,10 +760,14 @@ void move_spark(struct game_obj_t *o)
 	else if (o->vy < 0)
 		o->vy++;
 
-	if (o->vx == 0 && o->vy == 0)
+	if (o->vx == 0 && o->vy == 0) {
 		o->alive = 0;
-	if (o->y > 2000 || o->y < -2000 || o->x > 2000+WORLDWIDTH || o->x < -2000)
+		o->draw = NULL;
+	}
+	if (o->y > 2000 || o->y < -2000 || o->x > 2000+WORLDWIDTH || o->x < -2000) {
 		o->alive = 0;
+		o->draw = NULL;
+	}
 }
 
 static void add_spark(int x, int y, int vx, int vy, int time);
@@ -775,7 +829,9 @@ void init_vects()
 	player->target = add_target(player);
 	player->alive = 1;
 	game_state.nobjs = MAXOBJS-1;
-	game_state.health = 1000;
+	game_state.health = 100;
+	game_state.score = 0;
+	game_state.prev_score = 0;
 	game_state.nbombs = NBOMBS;
 }
 
@@ -806,15 +862,19 @@ void draw_objs(GtkWidget *w)
 		if (o->v == &rocket_vect)
 			printf("r");
 #endif
-		for (j=0;j<v->npoints-1;j++) {
-			if (v->p[j+1].x == LINE_BREAK) /* Break in the line segments. */
-				j+=2;
-			x1 = o->x + v->p[j].x - game_state.x;
-			y1 = o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
-			x2 = o->x + v->p[j+1].x - game_state.x; 
-			y2 = o->y + v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y;
-			gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
-		}
+		if (o->draw == NULL) {
+			gdk_gc_set_foreground(gc, &huex[o->color]);
+			for (j=0;j<v->npoints-1;j++) {
+				if (v->p[j+1].x == LINE_BREAK) /* Break in the line segments. */
+					j+=2;
+				x1 = o->x + v->p[j].x - game_state.x;
+				y1 = o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
+				x2 = o->x + v->p[j+1].x - game_state.x; 
+				y2 = o->y + v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y;
+				gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+			}
+		} else
+			o->draw(o, w);
 	}
 }
 
@@ -826,12 +886,14 @@ static void add_spark(int x, int y, int vx, int vy, int time)
 		if (!g->alive) {
 			/* printf("i=%d\n", i); */
 			g->move = move_spark;
+			g->draw = draw_spark;
 			g->x = x;
 			g->y = y;
 			g->vx = vx;
 			g->vy = vy;
 			g->v = &spark_vect;
 			g->otype = 's';
+			g->color = YELLOW;
 			g->alive = time;
 			break;
 		}
@@ -914,6 +976,7 @@ static void add_rockets(struct terrain_t *t)
 		g->vx = 0;
 		g->vy = 0;
 		g->otype = 'r';
+		g->color = WHITE;
 		g->target = add_target(g);
 		g->alive = 1;
 	}
@@ -1136,6 +1199,7 @@ static void add_building(struct terrain_t *t, int xi)
 	o->move = no_move;
 	o->otype = 'b';
 	o->target = add_target(o);
+	o->color = BLUE;
 	o->alive = 1;
 	printf("b, x=%d, y=%d\n", x, y);
 }
@@ -1218,6 +1282,7 @@ static void add_bridge_piece(int x, int y)
 	o->move = no_move;
 	o->target = add_target(o);
 	o->v = &bridge_vect;
+	o->color = RED;
 	o->otype = 'T';
 	o->alive = 1;
 }
@@ -1307,6 +1372,7 @@ static void add_fuel(struct terrain_t *t)
 		o->vx = 0;
 		o->vy = 0;
 		o->move = no_move;
+		o->color = ORANGE;
 		o->target = add_target(o);
 		o->v = &fuel_vect;
 		o->otype = 'f';
@@ -1341,7 +1407,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		last_highx++;
 	}
 
-	gdk_gc_set_foreground(gc, &bluecolor);
+	gdk_gc_set_foreground(gc, &huex[RED]);
 
 	for (i=last_lowx;i<last_highx;i++) {
 #if 0
@@ -1374,15 +1440,23 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	if (game_state.health > 0)
 		gdk_draw_rectangle(w->window, gc, TRUE, 30, 30, 
 			((SCREEN_WIDTH - 60) * game_state.health / 100), 30);
-	gdk_gc_set_foreground(gc, &blackcolor);
 	draw_objs(w);
+	if (game_state.prev_score != game_state.score) {
+		char score_str[100];
+		sprintf(score_str, "Score: %06d", game_state.score);
+		game_state.prev_score = game_state.score;
+		gtk_label_set_text(GTK_LABEL(score_label), score_str);
+	}
 
 	return 0;
 }
 static void do_game_pause( GtkWidget *widget,
                    gpointer   data )
 {
-	game_pause = 1;
+	if (game_pause)
+		game_pause = 0;
+	else
+		game_pause = 1;
 }
 
 /* This is a callback function. The data arguments are ignored
@@ -1546,14 +1620,19 @@ int main(int argc, char *argv[])
 	GtkWidget *window;
 	GtkWidget *button;
 	GtkWidget *vbox;
+	int i;
 
 
 	gtk_set_locale();
 	gtk_init (&argc, &argv);
    
-	gdk_color_parse("white", &whitecolor);
-	gdk_color_parse("blue", &bluecolor);
-	gdk_color_parse("black", &blackcolor);
+	gdk_color_parse("white", &huex[WHITE]);
+	gdk_color_parse("blue", &huex[BLUE]);
+	gdk_color_parse("black", &huex[BLACK]);
+	gdk_color_parse("green", &huex[GREEN]);
+	gdk_color_parse("yellow", &huex[YELLOW]);
+	gdk_color_parse("red", &huex[RED]);
+	gdk_color_parse("orange", &huex[ORANGE]);
  
     /* create a new window */
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -1577,12 +1656,13 @@ int main(int argc, char *argv[])
    
 	vbox = gtk_vbox_new(FALSE, 0); 
 	main_da = gtk_drawing_area_new();
-	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &whitecolor);
+	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &huex[WHITE]);
 	gtk_widget_set_size_request(main_da, SCREEN_WIDTH, SCREEN_HEIGHT);
 
 	g_signal_connect(G_OBJECT (main_da), "expose_event", G_CALLBACK (main_da_expose), NULL);
 
     button = gtk_button_new_with_label ("Quit");
+    score_label = gtk_label_new("Score: 000000");
     
     /* When the button receives the "clicked" signal, it will call the
      * function hello() passing it NULL as its argument.  The hello()
@@ -1602,6 +1682,7 @@ int main(int argc, char *argv[])
 
     gtk_box_pack_start(GTK_BOX (vbox), main_da, TRUE /* expand */, FALSE /* fill */, 2);
     gtk_box_pack_start(GTK_BOX (vbox), button, FALSE /* expand */, FALSE /* fill */, 2);
+    gtk_box_pack_start(GTK_BOX (vbox), score_label, FALSE /* expand */, FALSE /* fill */, 2);
     
 	init_vects();
 	
@@ -1617,9 +1698,17 @@ int main(int argc, char *argv[])
 
 	//print_target_list();
 
+	for (i=0;i<NCOLORS;i++)
+		gdk_colormap_alloc_color(gtk_widget_get_colormap(main_da), &huex[i], FALSE, FALSE);
+	gdk_gc_set_foreground(gc, &huex[BLUE]);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &huex[BLACK]);
+
+
     gtk_widget_show (vbox);
     gtk_widget_show (main_da);
-    gtk_widget_show (button);
+    // gtk_widget_show (button);
+    gtk_widget_show (score_label);
     
     /* and the window */
     gtk_widget_show (window);
