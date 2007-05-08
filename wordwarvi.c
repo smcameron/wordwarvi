@@ -4,6 +4,7 @@
 #include <gtk/gtk.h>
 #include <string.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include <gdk/gdkkeysyms.h>
 
@@ -35,14 +36,18 @@ int add_sound(int which_sound, int which_slot);
 #define GROUND_SMACK_SOUND 7
 #define INSERT_COIN_SOUND 8
 #define MUSIC_SOUND 9
+#define SAM_LAUNCH_SOUND 10 
+#define NHUMANOIDS 4
+#define HUMANOID_PICKUP_SOUND 8 /* FIXME, this will do for now */
 
 /* ...End of audio stuff */
 
 
-#define TERRAIN_LENGTH 2000
+#define TERRAIN_LENGTH 1000
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 600
 #define WORLDWIDTH (SCREEN_WIDTH * 40)
+#define KERNEL_Y_BOUNDARY (-1000)
 
 #define LARGE_SCALE_ROUGHNESS (0.03)
 #define SMALL_SCALE_ROUGHNESS (0.09)
@@ -53,6 +58,8 @@ int add_sound(int which_sound, int which_slot);
 // #define NROCKETS 0
 #define LAUNCH_DIST 500
 #define MAX_ROCKET_SPEED -32
+#define SAM_LAUNCH_DIST 300
+#define SAM_LAUNCH_CHANCE 15 
 #define PLAYER_SPEED 8 
 #define MAX_VX 15
 #define MAX_VY 25
@@ -65,17 +72,23 @@ int add_sound(int which_sound, int which_slot);
 #define LINE_BREAK (-999)
 #define NBUILDINGS 40
 #define NBRIDGES 7
-#define MAXBUILDING_WIDTH 7
+#define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
+#define NSAMS 5
 #define BOMB_SPEED 10
 #define NBOMBS 100
 #define MAX_ALT 100
 #define MIN_ALT 50
 #define MAXHEALTH 100
-#define NAIRSHIPS 1
-#define NBALLOONS 1 
-#define MAX_BALLOON_HEIGHT 100
+#define NAIRSHIPS 3
+#define NBALLOONS 3 
+#define MAX_BALLOON_HEIGHT 300
 #define MIN_BALLOON_HEIGHT 50
+#define MAX_MISSILE_VELOCITY 12 
+#define MISSILE_DAMAGE 20
+#define MISSILE_PROXIMITY 10
+#define HUMANOID_PICKUP_SCORE 100
+#define HUMANOID_DIST 10
 
 /* Scoring stuff */
 #define ROCKET_SCORE 20
@@ -126,6 +139,8 @@ struct level_parameters_t {
 	int nbridges;
 	int nflak;
 	int nfueltanks;
+	int nsams;
+	int nhumanoids;
 	int nbuildings;
 	int nbombs;
 	int laser_fire_chance;
@@ -137,6 +152,8 @@ struct level_parameters_t {
 	NBRIDGES,
 	NFLAK,
 	NFUELTANKS,
+	NSAMS,
+	NHUMANOIDS,
 	NBUILDINGS,
 	NBOMBS,
 	LASER_FIRE_CHANCE,
@@ -194,14 +211,15 @@ stroke_t glyph_L[] = { 0, 12, 14, 99};
 stroke_t glyph_K[] = { 0, 12, 21, 6, 7, 11, 14, 21, 7, 5, 2, 99};
 stroke_t glyph_J[] = { 9, 13, 11, 2, 99}; 
 stroke_t glyph_I[] = { 12, 14, 21, 13, 1, 21, 0, 2, 99 }; 
-stroke_t glyph_H[] = { 0, 12, 21, 2, 17, 21, 6, 8, 99 };
+stroke_t glyph_H[] = { 0, 12, 21, 2, 14, 21, 6, 8, 99 };
 stroke_t glyph_G[] = { 7, 8, 11, 13, 9, 3, 1, 5, 99 };
 stroke_t glyph_F[] = { 12, 0, 2, 21, 8, 7, 99 };
-stroke_t glyph_E[] = { 14, 12, 0, 2, 21, 8, 7, 99 };
+stroke_t glyph_E[] = { 14, 12, 0, 2, 21, 6, 7, 99 };
 stroke_t glyph_D[] = { 12, 13, 11, 5, 1, 0, 12, 99 };
 stroke_t glyph_C[] = { 11, 13, 9, 3, 1, 5, 99 };
 stroke_t glyph_B[] = { 0, 12, 13, 11, 5, 1, 0, 21, 6, 8, 99 };
 stroke_t glyph_A[] = { 12, 3, 0, 5, 14, 21, 8, 6, 99 };
+stroke_t glyph_slash[] = { 12, 2, 99 };
 stroke_t glyph_que[] = { 13, 10, 21, 7, 5, 2, 0, 3, 99 };
 stroke_t glyph_bang[] = { 10, 13, 21, 1, 7, 99};
 stroke_t glyph_colon[] = { 6, 7, 21, 12, 13, 99 };
@@ -258,6 +276,7 @@ struct my_point_t {
 	int x,y;
 };
 
+
 struct my_point_t decode_glyph[] = {
 	{ 0, -4 },
 	{ 1, -4 },
@@ -285,6 +304,78 @@ struct my_point_t decode_glyph[] = {
 	{ 2, 3 },
 };
 /**** end of LETTERS and stuff */
+
+#define MAX_VELOCITY_TO_COMPUTE 20 
+#define V_MAGNITUDE (20.0)
+struct my_point_t vxy_2_dxy[MAX_VELOCITY_TO_COMPUTE+1][MAX_VELOCITY_TO_COMPUTE+1];
+
+struct my_point_t humanoid_points[] = {
+	{ -5, 0 },
+	{ -3, -5 },
+	{ 3, -5, },
+	{ 3, 0 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 3, -5 },
+	{ 3, -9 },
+	{ 1, -9 },
+	{ 1, -12 },
+	{ -1, -12 },
+	{ -1, -9 },
+	{ -3, -9 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 6, -5 },
+	{ 3, -9 },
+	{ -3, -9 },
+	{ -6, -5 },
+};
+
+struct my_point_t SAM_station_points[] = {
+	{ -5, 0 },   /* Bottom base */
+	{ -5, -10 },
+	{ 5, 0 },
+	{ 5, -10 },
+	{ -5, 0 },
+	{ 5, 0 }, 	
+	{ LINE_BREAK, LINE_BREAK },
+	{ -5, -10 },   /* middle base */
+	{ -5, -20 },
+	{ 5, -10 },
+	{ 5, -20 },
+	{ -5, -10 },
+	{ 5, -10 }, 	
+	{ LINE_BREAK, LINE_BREAK },
+	{ -5, -20 },   /* Top base */
+	{ -5, -30 },
+	{ 5, -20 },
+	{ 5, -30 },
+	{ -5, -20 },
+	{ 5, -20 }, 	
+	{ LINE_BREAK, LINE_BREAK },
+	{ -5, -30 },
+	{ 5, -30 }, 	
+	{ LINE_BREAK, LINE_BREAK },
+	{ -3, -30 }, /* Base of radar */
+	{ 0, -35, },
+	{ 3, -30 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 0, -35, }, /* Radar dish */
+	{ 10, -45 },
+	{ 13, -59 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 0, -35, }, /* Radar dish */
+	{ -10, -25, },
+	{ -25, -22, },
+	{ 13, -59 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 0, -35, }, /* Radar dish */
+	{ -15, -50, }, /* Radar dish */
+	{ LINE_BREAK, LINE_BREAK },
+	{ 20, 0 }, /* Little building */
+	{ 20, -50 },
+	{ 30, -50 },
+	{ 30, 0 },
+
+};
 
 struct my_point_t airship_points[] = {
 	{ -70, -50 }, /* tip of nose */
@@ -449,6 +540,42 @@ struct my_point_t player_ship_points[] = {
 #endif
 };
 
+struct my_point_t socket_points[] = {
+	{ 9, 0 }, /* front of hatch */
+	{ -3, -6 }, /* top of hatch */
+	{ -12, -12 },
+	{ -18, -12 },
+	{ -15, -4 }, /* bottom of tail */
+	// { -3, -4 }, /* bottom of tail */
+	// { -15, -4 }, /* bottom of tail */
+	{ -15, 3 }, /* back top of wing */
+	//{ 0, 3 }, /* back top of wing */
+	//{ -15, 3 }, /* back top of wing */
+	{ -18, 9 }, /* back bottom of wing */
+	{ -12, 9 }, /* back front of wing */
+	// { LINE_BREAK, LINE_BREAK },
+	// { 0, 3 },
+	{ -6, 6 },
+	{ 20, 4 },
+	{ 24, 2 }, /* tip of nose */
+	{ 9, 0 }, /* front of hatch */
+	{ LINE_BREAK, LINE_BREAK },
+	{ -30, -25 },
+	{ 30, -25 },
+	{ 30, 25 },
+	{ -30, 25 },
+	{ -30, -25 },
+	// { -3, -6 }, /* top of hatch */ 
+#if 0
+	{ LINE_BREAK, LINE_BREAK }, /* Just for testing */
+	{ -30, -20 },
+	{ 30, -20 },
+	{ 30, 20 },
+	{ -30, 20 },
+	{ -30, -20 },
+#endif
+};
+
 struct my_point_t left_player_ship_points[] = {
 	/* Data is reversed algorithmically */
 	{ 9, 0 }, /* front of hatch */
@@ -549,6 +676,9 @@ struct my_vect_obj bridge_vect;
 struct my_vect_obj flak_vect;
 struct my_vect_obj airship_vect;
 struct my_vect_obj balloon_vect;
+struct my_vect_obj SAM_station_vect;
+struct my_vect_obj humanoid_vect;
+struct my_vect_obj socket_vect;
 
 struct my_vect_obj **gamefont[2];
 #define BIG_FONT 0
@@ -579,6 +709,47 @@ struct text_line_t {
 /* text line entries are just fixed... */
 #define GAME_OVER 1
 #define CREDITS 0
+
+void init_vxy_2_dxy()
+{
+	int x, y;
+	double dx, dy, angle;
+
+	/* Given a velocity, (vx, vy), precompute offsets */
+	/* for a fixed magnitude */
+
+	for (x=0;x<=MAX_VELOCITY_TO_COMPUTE;x++) {
+		for (y=0;y<=MAX_VELOCITY_TO_COMPUTE;y++) {
+			if (x == 0) {
+				vxy_2_dxy[x][y].y = 
+					((double) y / (double) MAX_VELOCITY_TO_COMPUTE) * V_MAGNITUDE;
+				vxy_2_dxy[x][y].x = 0;
+				continue;
+			}
+			dx = x;
+			dy = y;
+			angle = atan(dy/dx);
+			dx = cos(angle) * V_MAGNITUDE;
+			dy = -sin(angle) * V_MAGNITUDE;
+			vxy_2_dxy[x][y].x = (int) dx;
+			vxy_2_dxy[x][y].y = (int) dy;
+		}
+	}
+}
+
+static inline int dx_from_vxy(int vx, int vy) 
+{
+	if ((abs(vx) > MAX_VELOCITY_TO_COMPUTE) || (abs(vy) > MAX_VELOCITY_TO_COMPUTE))
+		return 0;
+	return (vx < 0) ?  -vxy_2_dxy[abs(vx)][abs(vy)].x : vxy_2_dxy[abs(vx)][abs(vy)].x;
+}
+
+static inline int dy_from_vxy(int vx, int vy) 
+{
+	if ((abs(vx) > MAX_VELOCITY_TO_COMPUTE) || (abs(vy) > MAX_VELOCITY_TO_COMPUTE))
+		return 0;
+	return (vy < 0) ?  -vxy_2_dxy[abs(vx)][abs(vy)].y : vxy_2_dxy[abs(vx)][abs(vy)].y;
+}
 
 void set_font(int fontnumber)
 {
@@ -630,6 +801,7 @@ struct game_obj_t {
 	int color;
 	int alive;
 	int otype;
+	struct game_obj_t *bullseye;
 };
 
 GtkWidget *score_label;
@@ -660,6 +832,7 @@ struct game_state_t {
 	int prev_score;
 	int nbombs;
 	int prev_bombs;
+	int humanoids;
 	struct game_obj_t go[MAXOBJS];
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
 
@@ -804,6 +977,9 @@ void move_flak(struct game_obj_t *o)
 	}
 }
 
+static void add_missile(int x, int y, int vx, int vy, 
+	int time, int color, struct game_obj_t *bullseye);
+
 void move_rocket(struct game_obj_t *o)
 {
 	int xdist, ydist;
@@ -836,6 +1012,55 @@ void move_rocket(struct game_obj_t *o)
 	if (o->y - player->y < -1000 && o->vy != 0) {
 		o->alive = 0;
 		remove_target(o->target);
+	}
+}
+
+void sam_move(struct game_obj_t *o)
+{
+	int xdist, ydist;
+	if (!o->alive)
+		return;
+
+	xdist = abs(o->x - player->x);
+	if (xdist < SAM_LAUNCH_DIST) {
+		ydist = o->y - player->y;
+		if (ydist > 0 && randomn(1000) < SAM_LAUNCH_CHANCE) {
+			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			add_missile(o->x+20, o->y-30, 0, 0, 300, GREEN, player);
+		}
+	}
+}
+
+void humanoid_move(struct game_obj_t *o)
+{
+	int xdist, ydist;
+	if (!o->alive)
+		return;
+
+	xdist = abs(o->x - player->x);
+	ydist = abs(o->y - player->y);
+	if (xdist < HUMANOID_DIST && ydist < HUMANOID_DIST) {
+		add_sound(HUMANOID_PICKUP_SOUND, ANY_SLOT);
+		o->x = -1000; /* take him off screen. */
+		o->y = -1000;
+		game_state.score += HUMANOID_PICKUP_SCORE;
+		game_state.humanoids++;
+	}
+}
+
+void advance_level();
+void socket_move(struct game_obj_t *o)
+{
+	int xdist, ydist;
+	if (!o->alive)
+		return;
+
+	xdist = abs(o->x - player->x);
+	ydist = abs(o->y - player->y);
+	/* HUMANOID_DIST is close enough */
+	if (xdist < HUMANOID_DIST && ydist < HUMANOID_DIST) {
+		add_sound(HUMANOID_PICKUP_SOUND, ANY_SLOT);
+		advance_level();
 	}
 }
 
@@ -902,7 +1127,7 @@ void bomb_move(struct game_obj_t *o)
 			continue;
 		if (t->o->otype == 'b') 
 			continue;
-		if ((t->o->otype == 'r' || t->o->otype == 'g') && t->o->alive) {
+		if ((t->o->otype == 'r' || t->o->otype == 'g' || t->o->otype == 'S') && t->o->alive) {
 			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
 			if (dist2 < LASER_PROXIMITY) { /* a hit */
 				game_state.score += ROCKET_SCORE;
@@ -939,6 +1164,11 @@ void bomb_move(struct game_obj_t *o)
 					game_state.score += ROCKET_SCORE;
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 					t->o->alive = 0;
+					if (t->o->otype == 'f') {
+						game_state.health += 10;
+						if (game_state.health > MAXHEALTH)
+							game_state.health = MAXHEALTH;
+					}
 					remove_target(t); /* make cause skipping target */
 				}
 			}
@@ -959,6 +1189,75 @@ void bomb_move(struct game_obj_t *o)
 	if (!o->alive) {
 		remove_target(o->target);
 		o->target = NULL;
+	}
+}
+
+void chaff_move(struct game_obj_t *o)
+{
+	int i, deepest;
+
+	if (!o->alive)
+		return;
+	o->x += o->vx;
+	o->y += o->vy;
+	o->vy++;
+	o->alive--;
+
+	if (o->vx > 0)
+		o->vx--;
+	else if (o->vx < 0);
+		o->vx++;
+
+	explode(o->x, o->y, 0, 0, 10, 7, 19);
+	/* Detect smashing into the ground */
+	deepest = 64000;
+	for (i=0;i<TERRAIN_LENGTH-1;i++) {
+		if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
+			deepest = interpolate(o->x, terrain.x[i], terrain.y[i],
+					terrain.x[i+1], terrain.y[i+1]);
+			break;
+		}
+	}
+	if (deepest != 64000 && o->y > deepest) {
+		o->alive = 0;
+	}
+	if (!o->alive) {
+		remove_target(o->target);
+		o->target = NULL;
+	}
+}
+
+void drop_chaff()
+{
+	int j, i[3];
+	struct game_obj_t *o;
+	struct target_t *t;
+
+	for (j=0;j<3;j++) {
+		i[j] = find_free_obj();
+		if (i[j] < 0)
+			continue;
+		o = &game_state.go[i[j]];
+		o->x = player->x;
+		o->y = player->y;
+		o->vx = player->vx + ((j-1) * 7);
+		o->vy = player->vy + 7;
+		o->v = &spark_vect;
+		o->move = chaff_move;
+		o->otype = 'C';
+		o->target = add_target(o);
+		o->color = ORANGE;
+		o->alive = 25;
+	}
+	/* find any missiles in the vicinity */
+	for (t=target_head;t != NULL;t=t->next) {
+		if (t->o->otype != 'm')
+			continue;
+		if (t->o->bullseye == player) {
+			j = randomn(3);
+			if (j >= 0 && j <= 3 && i[j] > 0 && randomn(100) < 50)
+				t->o->bullseye = &game_state.go[i[j]];
+		}
 	}
 }
 
@@ -1092,6 +1391,36 @@ void move_player(struct game_obj_t *o)
 		}
 	}
 
+	/* Detect smashing into sides and roof */
+	if (player->y < KERNEL_Y_BOUNDARY) {
+		player->y = KERNEL_Y_BOUNDARY + 10;
+		if (abs(player->vy) > 7) 
+			player->vy = 0.65 * abs(player->vy);
+		else
+			player->vy = 0;
+		player->vx = 0.65 * player->vx;
+		if (player->vy > 15)
+			player->vy = 15;
+		if (abs(player->vx) > 5 || abs(player->vy) > 5) {
+			add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
+			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
+			game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
+		}
+	}
+	if (player->x < 0) {
+		add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
+		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
+		game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
+		player->x = 20;
+		player->vx = 5;
+	} else if (player->x > terrain.x[TERRAIN_LENGTH - 1]) {
+		add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
+		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
+		game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
+		player->x = terrain.x[TERRAIN_LENGTH - 1] - 20;
+		player->vx = -5;
+	}
+
 	/* Autopilot, "attract mode", if credits <= 0 */
 	if (credits <= 0) {
 		for (i=0;i<TERRAIN_LENGTH;i++) {
@@ -1178,7 +1507,8 @@ void laser_move(struct game_obj_t *o)
 			continue;
 		if (t->o->otype == 'b') 
 			continue;
-		if ((t->o->otype == 'r' || t->o->otype == 'f' || t->o->otype == 'g') 
+		if ((t->o->otype == 'r' || t->o->otype == 'f' || t->o->otype == 'g' 
+			|| t->o->otype == 'S' || t->o->otype == 'm') 
 			&& t->o->alive) {
 			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
 			// printf("dist2 = %d\n", dist2);
@@ -1188,6 +1518,11 @@ void laser_move(struct game_obj_t *o)
 				add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 				t->o->alive = 0;
+				if (t->o->otype == 'f') {
+					game_state.health += 10;
+					if (game_state.health > MAXHEALTH)
+						game_state.health = MAXHEALTH;
+				}
 				remove_target(t);
 				o->alive = 0;
 			}
@@ -1219,13 +1554,110 @@ void draw_spark(struct game_obj_t *o, GtkWidget *w)
 	gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
 }
 
+void draw_missile(struct game_obj_t *o, GtkWidget *w)
+{
+	int x1, y1;
+	int dx, dy;
+
+	x1 = o->x - game_state.x;
+	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
+	dx = dx_from_vxy(o->vx, o->vy);
+	dy = -dy_from_vxy(o->vx, o->vy);
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+	gdk_draw_line(w->window, gc, x1, y1, x1+dx, y1+dy); 
+}
+
+void move_missile(struct game_obj_t *o)
+{
+	struct game_obj_t *target_obj;
+	int dx, dy, desired_vx, desired_vy;
+	int exvx,exvy;
+
+	/* move one step... */
+	o->x += o->vx;
+	o->y += o->vy;
+	
+	o->alive--;
+	if (o->alive <= 0)
+		return;
+
+	/* Figure out where we're trying to go */
+	target_obj = o->bullseye;
+	dx = target_obj->x + target_obj->vx - o->x;
+	dy = target_obj->y + target_obj->vy - o->y;
+
+	if ((abs(dx) < MISSILE_PROXIMITY) && (abs(dy) < MISSILE_PROXIMITY)) {
+		/* We've hit the target */
+		if (player == o->bullseye)
+			game_state.health -= MISSILE_DAMAGE;
+		else
+			target_obj->alive -= MISSILE_DAMAGE;
+		o->alive = 0;
+		target_obj->alive -= MISSILE_DAMAGE;
+		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		return;
+	}
+
+	/* by similar triangles, find desired vx/vy from dx/dy... */
+	if (abs(dx) < abs(dy)) {
+		desired_vy = ((dy < 0) ? -1 : 1 ) * MAX_MISSILE_VELOCITY;
+		if (dy != 0)
+			desired_vx = desired_vy * dx / dy;
+		else /* shouldn't happen */
+			desired_vx = ((dx < 0) ? -1 : 1 ) * MAX_MISSILE_VELOCITY;
+	} else {
+		desired_vx = ((dx < 0) ? -1 : 1 ) * MAX_MISSILE_VELOCITY;
+		if (dx != 0)
+			desired_vy = desired_vx * dy / dx;
+		else /* shouldn't happen */
+			desired_vy = ((dy < 0) ? -1 : 1 ) * MAX_MISSILE_VELOCITY;
+	}
+
+	/* Try to get to desired vx,vy */
+	if (o->vx < desired_vx)
+		o->vx++;
+	else if (o->vx > desired_vx)
+		o->vx--;
+	if (o->vy < desired_vy)
+		o->vy++;
+	else if (o->vy > desired_vy)
+		o->vy--;
+
+	/* make some exhaust sparks. */
+	exvx = -dx_from_vxy(o->vx, o->vy);
+	exvy = dy_from_vxy(o->vx, o->vy);
+	explode(o->x, o->y, exvx, exvy, 4, 4, 9);
+}
+
+static void add_missile(int x, int y, int vx, int vy, 
+	int time, int color, struct game_obj_t *bullseye)
+{
+	int i;
+	struct game_obj_t *o;
+
+	i = find_free_obj();
+	if (i<0)
+		return;
+	o = &game_state.go[i];
+	o->x = x;
+	o->y = y;
+	o->vx = vx;
+	o->vy = vy;
+	o->move = move_missile;
+	o->draw = draw_missile;
+	o->bullseye = bullseye;
+	o->target = add_target(o);
+	o->otype = 'm';
+	o->color = color;
+	o->alive = time;
+}
+
 void balloon_move(struct game_obj_t *o)
 {
 	int deepest;
 	int i;
 
-	if ((timer % 3) != 1)
-		return;
 	o->x += o->vx;
 	o->y += o->vy;
 
@@ -1380,6 +1812,7 @@ int make_font(struct my_vect_obj ***font, int xscale, int yscale)
 	v['Y'] = prerender_glyph(glyph_Y, xscale, yscale);
 	v['Z'] = prerender_glyph(glyph_Z, xscale, yscale);
 	v['!'] = prerender_glyph(glyph_bang, xscale, yscale);
+	v['/'] = prerender_glyph(glyph_slash, xscale, yscale);
 	v['?'] = prerender_glyph(glyph_que, xscale, yscale);
 	v[':'] = prerender_glyph(glyph_colon, xscale, yscale);
 	v['('] = prerender_glyph(glyph_leftparen, xscale, yscale);
@@ -1464,6 +1897,12 @@ void init_vects()
 	}
 	balloon_vect.p = balloon_points;
 	balloon_vect.npoints = sizeof(balloon_points) / sizeof(balloon_points[0]);
+	SAM_station_vect.p = SAM_station_points;
+	SAM_station_vect.npoints = sizeof(SAM_station_points) / sizeof(SAM_station_points[0]);
+	humanoid_vect.p = humanoid_points;
+	humanoid_vect.npoints = sizeof(humanoid_points) / sizeof(humanoid_points[0]);
+	socket_vect.p = socket_points;
+	socket_vect.npoints = sizeof(socket_points) / sizeof(socket_points[0]);
 
 	make_font(&gamefont[BIG_FONT], font_scale[BIG_FONT], font_scale[BIG_FONT]);
 	make_font(&gamefont[SMALL_FONT], font_scale[SMALL_FONT], font_scale[SMALL_FONT]);
@@ -2080,7 +2519,7 @@ static void add_building(struct terrain_t *t, int xi)
 		return;
 
 	height = randomab(50, 100);
-	width = randomab(1,MAXBUILDING_WIDTH);
+	width = randomab(5,MAXBUILDING_WIDTH);
 	scratch[0].x = t->x[xi];	
 	scratch[0].y = t->y[xi];	
 	scratch[1].x = scratch[0].x;
@@ -2300,6 +2739,50 @@ static void add_fuel(struct terrain_t *t)
 	}
 }
 
+static void add_SAMs(struct terrain_t *t)
+{
+	int xi, i, j;
+	struct game_obj_t *o;
+
+	for (i=0;i<level.nsams;i++) {
+		j = find_free_obj();
+		o = &game_state.go[j];
+		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		o->x = t->x[xi];
+		o->y = t->y[xi];
+		o->vx = 0;
+		o->vy = 0;
+		o->move = sam_move;
+		o->color = GREEN;
+		o->target = add_target(o);
+		o->v = &SAM_station_vect;
+		o->otype = 'S';
+		o->alive = 1;
+	}
+}
+
+static void add_humanoids(struct terrain_t *t)
+{
+	int xi, i, j;
+	struct game_obj_t *o;
+
+	for (i=0;i<level.nhumanoids;i++) {
+		j = find_free_obj();
+		o = &game_state.go[j];
+		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		o->x = t->x[xi];
+		o->y = t->y[xi];
+		o->vx = 0;
+		o->vy = 0;
+		o->move = humanoid_move;
+		o->color = GREEN;
+		o->target = add_target(o);
+		o->v = &humanoid_vect;
+		o->otype = 'H';
+		o->alive = 1;
+	}
+}
+
 static void add_airships(struct terrain_t *t)
 {
 	int xi, i, j;
@@ -2320,6 +2803,28 @@ static void add_airships(struct terrain_t *t)
 		o->otype = 'a';
 		o->alive = 1;
 	}
+}
+
+static void add_socket(struct terrain_t *t)
+{
+	int j;
+	struct game_obj_t *o;
+
+	j = find_free_obj();
+	if (j == -1) 
+		return;
+	o = &game_state.go[j];
+	
+	o->x = t->x[TERRAIN_LENGTH-1] - 250;
+	o->y = t->y[TERRAIN_LENGTH-1] - 250;
+	o->vx = 0;
+	o->vy = 0;
+	o->move = socket_move;
+	o->color = CYAN;
+	o->target = NULL;
+	o->v = &socket_vect;
+	o->otype = 'x';
+	o->alive = 1;
 }
 
 static void add_balloons(struct terrain_t *t)
@@ -2398,12 +2903,32 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		gdk_draw_line(w->window, gc, terrain.x[i] - game_state.x, terrain.y[i]+(SCREEN_HEIGHT/2) - game_state.y,  
 					 terrain.x[i+1] - game_state.x, terrain.y[i+1]+(SCREEN_HEIGHT/2) - game_state.y);
 	}
-	/* draw health bar */
 
+	/* draw "system memory boundaries" (ha!) */
+	if (game_state.x > terrain.x[0] - SCREEN_WIDTH)
+		gdk_draw_line(w->window, gc, terrain.x[0] - game_state.x, 0, 
+			terrain.x[0] - game_state.x, SCREEN_HEIGHT);
+	if (game_state.x > terrain.x[TERRAIN_LENGTH-1] - SCREEN_WIDTH)
+		gdk_draw_line(w->window, gc, terrain.x[TERRAIN_LENGTH-1] - game_state.x, 0, 
+			 terrain.x[TERRAIN_LENGTH-1] - game_state.x, SCREEN_HEIGHT); 
+	set_font(SMALL_FONT);
+	if (game_state.y < KERNEL_Y_BOUNDARY + SCREEN_HEIGHT) {
+		gdk_draw_line(w->window, gc, 0, KERNEL_Y_BOUNDARY  - game_state.y + SCREEN_HEIGHT/2, 
+			SCREEN_WIDTH, KERNEL_Y_BOUNDARY - game_state.y + SCREEN_HEIGHT/2);
+		livecursorx = (SCREEN_WIDTH - abs(game_state.x) % SCREEN_WIDTH);
+		livecursory = KERNEL_Y_BOUNDARY - game_state.y + SCREEN_HEIGHT/2 - 10;
+		draw_string(w, "Kernel Space");
+	}
+
+	if (game_state.x > terrain.x[TERRAIN_LENGTH] - SCREEN_WIDTH)
+	/* draw health bar */
 	if (game_state.health > 0)
 		gdk_draw_rectangle(w->window, gc, TRUE, 10, 10, 
 			((SCREEN_WIDTH - 20) * game_state.health / 100), 30);
 	draw_objs(w);
+		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d Score: %d Humans:%d/%d ", 
+			credits, game_state.lives, game_state.score, 
+			game_state.humanoids, level.nhumanoids);
 	draw_strings(w);
 
 	if (game_state.prev_score != game_state.score) {
@@ -2496,7 +3021,7 @@ void timer_expired()
 		strcpy(textline[GAME_OVER].string, "Insert Coin");
 		break;
 	case BLANK_GAME_OVER_2_EVENT:
-		if (game_over_count == 3) {
+		if (game_over_count >= 3) {
 			if (randomn(10) < 5)
 				timer_event = CREDITS1_EVENT;
 			else
@@ -2522,11 +3047,7 @@ void timer_expired()
 		gotoxy(x,yline++);
 		gameprint("               and Marty Kiel");
 		gotoxy(x,yline++);
-		gameprint("Sound effects: freesound users");
-		gotoxy(x,yline++);
-		gameprint("      inferno, dobroide, oniwe ");
-		gotoxy(x,yline++);
-		gameprint("(See sounds/Attribution.txt");
+		gameprint("Sound effects: Various people.");
 		gotoxy(x,yline++);
 		timer_event = CREDITS2_EVENT;
 		next_timer = timer + 100;
@@ -2572,8 +3093,9 @@ void timer_expired()
 	case READY_EVENT:
 		start_level();
 		add_sound(MUSIC_SOUND, MUSIC_SLOT);
-		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d", 
-			credits, game_state.lives);
+		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d Score: %d Humans:%d/%d ", 
+			credits, game_state.lives, game_state.score, 
+			game_state.humanoids, level.nhumanoids);
 		strcpy(textline[GAME_OVER].string, "Ready...");
 		next_timer += 30;
 		timer_event = SET_EVENT;
@@ -2701,6 +3223,7 @@ void initialize_game_state_new_level()
 {
 	game_state.lives = 3;
 	game_state.score = 0;
+	game_state.humanoids = 0;
 	game_state.prev_score = 0;
 	game_state.health = MAXHEALTH;
 	game_state.nbombs = level.nbombs;
@@ -2714,10 +3237,13 @@ void start_level()
 
 	for (i=0;i<MAXOBJS;i++) {
 		game_state.go[i].alive = 0;
+		game_state.go[i].vx = 0;
+		game_state.go[i].vy = 0;
 		game_state.go[i].move = move_obj;
 	}
 	memset(&game_state.go[0], 0, sizeof(game_state.go));
 
+	game_state.humanoids = 0;
 	game_state.direction = 1;
 	player = &game_state.go[0];
 	player->draw = NULL;
@@ -2741,10 +3267,13 @@ void start_level()
 	add_rockets(&terrain);
 	add_buildings(&terrain);
 	add_fuel(&terrain);
+	add_SAMs(&terrain);
+	add_humanoids(&terrain);
 	add_bridges(&terrain);
 	add_flak_guns(&terrain);
 	add_airships(&terrain);
 	add_balloons(&terrain);
+	add_socket(&terrain);
 
 	if (credits == 0)
 		setup_text();
@@ -2757,6 +3286,8 @@ void init_levels_to_beginning()
 	level.nbridges = NBRIDGES;
 	level.nflak = NFLAK;
 	level.nfueltanks = NFUELTANKS;
+	level.nsams = NSAMS;
+	level.nsams = NHUMANOIDS;
 	level.nbuildings = NBUILDINGS;
 	level.nbombs = NBOMBS;
 	if (credits > 0) {
@@ -2791,6 +3322,8 @@ void advance_level()
 	level.nbridges += 1;
 	level.nflak += 10;
 	level.nfueltanks += 2;
+	level.nsams += 2;
+	level.nhumanoids += 1;
 	level.large_scale_roughness+= (0.03);
 	if (level.large_scale_roughness > 0.3)
 		level.large_scale_roughness = 0.3;
@@ -2897,6 +3430,11 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 			return TRUE;
 		if (abs(player->vx + game_state.direction) < MAX_VX)
 			player->vx += game_state.direction;
+		return TRUE;
+
+	case GDK_c: if (game_state.health <= 0 || credits <= 0)
+			return TRUE;
+		drop_chaff();
 		return TRUE;
 	case GDK_b: if (game_state.health <= 0 || credits <= 0)
 			return TRUE;
@@ -3043,6 +3581,7 @@ int init_clips()
 	read_clip(GROUND_SMACK_SOUND, "sounds/ground_smack.wav");
 	read_clip(INSERT_COIN_SOUND, "sounds/us_quarter.wav");
 	read_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.wav");
+	read_clip(SAM_LAUNCH_SOUND, "sounds/18395_inferno_rltx.wav");
 
 	return 0;
 }
@@ -3291,6 +3830,7 @@ int main(int argc, char *argv[])
     gtk_box_pack_start(GTK_BOX (vbox), bombs_label, FALSE /* expand */, FALSE /* fill */, 2);
     
 	init_vects();
+	init_vxy_2_dxy();
 	
 	g_signal_connect(G_OBJECT (window), "key_press_event",
 		G_CALLBACK (key_press_cb), "window");
