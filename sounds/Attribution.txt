@@ -1,0 +1,18 @@
+
+Here is the attribution of audio files which I used from 
+freesound.iua.upf.edu.
+
+Heavily used is the UnitFXsound sample pack by freesound user "inferno"
+See: http://freesound.iua.upf.edu/packsViewSingle.php?id=1094
+
+All these samples are licensed under the 
+Creative Commons Sampling Plus 1.0 License.
+
+See: http://creativecommons.org/licenses/sampling+/1.0/
+
+        By dobroide (http://freesound.iua.upf.edu/usersViewSingle.php?id=8043)
+            firecracker.04.flac (http://freesound.iua.upf.edu/samplesViewSingle.php?id=9679)
+            (I modified the file slightly, to make it louder, noisier, etc.)
+	By inferno (http://freesound.iua.upf.edu/usersViewSingle.php?id=71614)
+	    1094_inferno_unitFXsound.zip (http://freesound.iua.upf.edu/packsViewSingle.php?id=1094)
+

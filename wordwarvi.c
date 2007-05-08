@@ -10,6 +10,7 @@
 /* For Audio stuff... */
 #include <math.h>
 #include "portaudio.h"
+#include <sndfile.h>
 
 #define SAMPLE_RATE   (44100)
 #define FRAMES_PER_BUFFER  (1024)
@@ -18,8 +19,18 @@
 #endif
 #define TWOPI (M_PI * 2.0)
 #define NCLIPS (16)
+#define MAX_CONCURRENT_SOUNDS (16)
 #define CLIPLEN (12100) 
-int add_sound();
+int add_sound(int which_sound);
+
+#define PLAYER_LASER_SOUND 0
+#define BOMB_IMPACT_SOUND 1
+#define ROCKET_LAUNCH_SOUND 2
+#define FLAK_FIRE_SOUND 3
+#define LARGE_EXPLOSION_SOUND 4
+#define ROCKET_EXPLOSION_SOUND 5
+#define LASER_EXPLOSION_SOUND 6
+
 /* ...End of audio stuff */
 
 
@@ -50,12 +61,16 @@ int add_sound();
 #define NBUILDINGS 40
 #define NBRIDGES 7
 #define MAXBUILDING_WIDTH 7
-#define NFUELTANKS 0
+#define NFUELTANKS 20
 #define BOMB_SPEED 10
 #define NBOMBS 100
 #define MAX_ALT 100
 #define MIN_ALT 50
 #define MAXHEALTH 100
+#define NAIRSHIPS 1
+#define NBALLOONS 1 
+#define MAX_BALLOON_HEIGHT 100
+#define MIN_BALLOON_HEIGHT 50
 
 /* Scoring stuff */
 #define ROCKET_SCORE 20
@@ -239,6 +254,81 @@ struct my_point_t decode_glyph[] = {
 	{ 2, 3 },
 };
 /**** end of LETTERS and stuff */
+
+struct my_point_t airship_points[] = {
+	{ -70, -50 }, /* tip of nose */
+	{ -60, -60 },
+	{ -50, -65 },
+	{ -40, -67 },
+	{ -30, -70 }, /* top left */
+	{  30, -70 }, /* top right */
+	{  40, -67 },
+	{  50, -65 },
+	{  60, -60 },
+	{  70, -50 },
+	{  LINE_BREAK, LINE_BREAK },
+	/* Now the same shape, but with y displacement to make bottom of blimp */
+	{ -70, -50 }, /* tip of nose */
+	{ -60, -40 },
+	{ -50, -35 },
+	{ -40, -33 },
+	{ -30, -30 }, /* bottom left */
+	{  30, -30 }, /* bottom right */
+	{  40, -33 },
+	{  50, -35 },
+	{  60, -40 },
+	{  70, -50 }, /* back point */
+	{  LINE_BREAK, LINE_BREAK },
+	{  60, -60 }, /* top tail */
+	{  70, -70 },
+	{  90, -70 },
+	{  90, -60 },
+	{  70, -50 }, /* back point */
+	{  90, -40 },
+	{  90, -30 },
+	{  70, -30 },
+	{  60, -40 },
+	{  LINE_BREAK, LINE_BREAK },  /* central tail fin */
+	{  60, -50 } ,
+	{  90, -50 },
+	{  LINE_BREAK, LINE_BREAK },  /* Gondola */
+	{  -10, -30 },
+	{    -5, -20 },
+	{  10, -20 },
+	{  10, -30 },
+};
+
+struct my_point_t balloon_points[] = {
+	{ 0, -100 },
+	{ -20, -98 }, 
+	{ -35, -90 },
+	{ -45, -80 },
+	{ -47, -70 },
+	{ -47, -60 },
+	{ -40, -50 },
+	{ -8, -20 },
+	{ -8, -10 },
+	{  8, -10 },
+	{  8, -20 },
+	{  40, -50 }, 
+	{  47, -60 },
+	{  47, -70 },
+	{  45, -80 },
+	{  35, -90 },
+	{  20, -98 }, 
+	{ 0, -100 },
+	{  LINE_BREAK, LINE_BREAK },  /* Gondola strings */
+	{ -8, -10 },
+	{ -5, 5, },
+	{ 5, 5, },
+	{ 8, -10 },
+	{  LINE_BREAK, LINE_BREAK },  /* Gondola */
+	{ -5, 5,},
+	{ -5, 0,},
+	{  5, 0,},
+	{  5, 5,},
+};
+
 
 struct my_point_t spark_points[] = {
 	{ -1,-1 },
@@ -426,6 +516,8 @@ struct my_vect_obj fuel_vect;
 struct my_vect_obj bomb_vect;
 struct my_vect_obj bridge_vect;
 struct my_vect_obj flak_vect;
+struct my_vect_obj airship_vect;
+struct my_vect_obj balloon_vect;
 
 struct my_vect_obj **gamefont[2];
 #define BIG_FONT 0
@@ -627,6 +719,7 @@ void move_laserbolt(struct game_obj_t *o)
 	}
 	if (abs(dy) < 9 && abs(player->x - o->x) < 15) {
 		explode(o->x, o->y, o->vx, 1, 70, 20, 20);
+		add_sound(LASER_EXPLOSION_SOUND);
 		game_state.health -= LASER_DAMAGE;
 		o->alive = 0;	
 	}
@@ -646,6 +739,7 @@ void move_flak(struct game_obj_t *o)
 		dx = player->x+LASERLEAD*player->vx - o->x;
 		dy = player->y+LASERLEAD*player->vy - o->y;
 
+		add_sound(FLAK_FIRE_SOUND);
 		if (dy >= 0) {
 			if (player->x+player->vx*LASERLEAD < o->x)
 				bx = -20;
@@ -686,11 +780,14 @@ void move_rocket(struct game_obj_t *o)
 	if (xdist < LAUNCH_DIST) {
 		ydist = o->y - player->y;
 		if ((xdist <= ydist && ydist > 0) || o->vy != 0) {
+			if (o->vy == 0)
+				add_sound(ROCKET_LAUNCH_SOUND);
 			if (o->vy > MAX_ROCKET_SPEED)
 				o->vy--;
 		}
 
 		if ((ydist*ydist + xdist*xdist) < 400) {
+			add_sound(ROCKET_EXPLOSION_SOUND);
 			explode(o->x, o->y, o->vx, 1, 70, 150, 20);
 			o->alive = 0;
 			game_state.health -= 20;
@@ -734,6 +831,7 @@ void player_fire_laser()
 	o->otype = 'L';
 	o->color = GREEN;
 	o->alive = 20;
+	add_sound(PLAYER_LASER_SOUND);
 }
 
 int interpolate(int x, int x1, int y1, int x2, int y2)
@@ -774,6 +872,7 @@ void bomb_move(struct game_obj_t *o)
 			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
 			if (dist2 < LASER_PROXIMITY) { /* a hit */
 				game_state.score += ROCKET_SCORE;
+				add_sound(BOMB_IMPACT_SOUND);
 				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 				t->o->alive = 0;
 				remove_target(t); /* BUG: Instead of remove here.. */
@@ -795,6 +894,7 @@ void bomb_move(struct game_obj_t *o)
 	}
 	if (deepest != 64000 && o->y > deepest) {
 		o->alive = 0;
+		add_sound(BOMB_IMPACT_SOUND);
 		explode(o->x, o->y, o->vx, 1, 90, 150, 20);
 		/* find nearby targets */
 		for (t=target_head;t != NULL;t=t->next) {
@@ -876,6 +976,7 @@ void move_player(struct game_obj_t *o)
 		explode(player->x, player->y, player->vx, player->vy, 90, 350, 30);
 		player->draw = no_draw;
 		add_debris(o->x, o->y, o->vx, o->vy, 20, &player);
+		add_sound(LARGE_EXPLOSION_SOUND);
 		printf("decrementing lives %d.\n", game_state.lives);
 		game_state.lives--;
 		sprintf(textline[CREDITS].string, "credits: %d lives: %d", 
@@ -976,7 +1077,7 @@ void move_player(struct game_obj_t *o)
 			if (player->vx < PLAYER_SPEED)
 				player->vx++; 
 		}
-		if (randomn(20) < 4)
+		if (randomn(40) < 4)
 			player_fire_laser();
 		if (randomn(100) < 2)
 			drop_bomb();
@@ -1049,6 +1150,7 @@ void laser_move(struct game_obj_t *o)
 			if (dist2 < LASER_PROXIMITY) { /* a hit */
 				if (t->o->otype == 'r')
 					game_state.score += ROCKET_SCORE;
+				add_sound(LASER_EXPLOSION_SOUND);
 				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 				t->o->alive = 0;
 				remove_target(t);
@@ -1080,6 +1182,40 @@ void draw_spark(struct game_obj_t *o, GtkWidget *w)
 	x2 = o->x - game_state.x; 
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
 	gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+}
+
+void balloon_move(struct game_obj_t *o)
+{
+	int deepest;
+	int i;
+
+	if ((timer % 3) != 1)
+		return;
+	o->x += o->vx;
+	o->y += o->vy;
+
+	if (randomn(1000) < 5) {
+		o->vx = randomab(1, 3) - 2;
+		o->vy = randomab(1, 3) - 2;
+	}
+
+	deepest = 64000;
+	for (i=0;i<TERRAIN_LENGTH-1;i++) {
+		if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
+			deepest = interpolate(o->x, terrain.x[i], terrain.y[i],
+					terrain.x[i+1], terrain.y[i+1]);
+			break;
+		}
+	}
+	if (deepest != 64000 && o->y > deepest - MIN_BALLOON_HEIGHT)
+		o->vy = -1;
+	else if (deepest != 64000 && o->y < deepest - MAX_BALLOON_HEIGHT)
+		o->vy = 1;
+}
+
+void airship_move(struct game_obj_t *o)
+{
+	balloon_move(o);
 }
 
 void move_spark(struct game_obj_t *o)
@@ -1257,6 +1393,16 @@ void init_vects()
 	bridge_vect.npoints = sizeof(bridge_points) / sizeof(bridge_points[0]);
 	flak_vect.p = flak_points;
 	flak_vect.npoints = sizeof(flak_points) / sizeof(flak_points[0]);
+	airship_vect.p = airship_points;
+	airship_vect.npoints = sizeof(airship_points) / sizeof(airship_points[0]);
+	for (i=0;i<airship_vect.npoints;i++) {
+		if (airship_vect.p[i].x != LINE_BREAK) {
+			airship_vect.p[i].x *= 3;
+			airship_vect.p[i].y *= 3;
+		}
+	}
+	balloon_vect.p = balloon_points;
+	balloon_vect.npoints = sizeof(balloon_points) / sizeof(balloon_points[0]);
 
 	make_font(&gamefont[BIG_FONT], font_scale[BIG_FONT], font_scale[BIG_FONT]);
 	make_font(&gamefont[SMALL_FONT], font_scale[SMALL_FONT], font_scale[SMALL_FONT]);
@@ -1513,7 +1659,7 @@ void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 
 	t->x[midxi] = x3;
 	t->y[midxi] = y3;
-	printf("gst %d %d\n", x3, y3);
+	// printf("gst %d %d\n", x3, y3);
 
 	generate_sub_terrain(t, xi1, midxi);
 	generate_sub_terrain(t, midxi, xi2);
@@ -2093,6 +2239,50 @@ static void add_fuel(struct terrain_t *t)
 	}
 }
 
+static void add_airships(struct terrain_t *t)
+{
+	int xi, i, j;
+	struct game_obj_t *o;
+
+	for (i=0;i<NAIRSHIPS;i++) {
+		j = find_free_obj();
+		o = &game_state.go[j];
+		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		o->x = t->x[xi];
+		o->y = t->y[xi]-50;
+		o->vx = 0;
+		o->vy = 0;
+		o->move = airship_move;
+		o->color = CYAN;
+		o->target = add_target(o);
+		o->v = &airship_vect;
+		o->otype = 'a';
+		o->alive = 1;
+	}
+}
+
+static void add_balloons(struct terrain_t *t)
+{
+	int xi, i, j;
+	struct game_obj_t *o;
+
+	for (i=0;i<NBALLOONS;i++) {
+		j = find_free_obj();
+		o = &game_state.go[j];
+		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		o->x = t->x[xi];
+		o->y = t->y[xi]-50;
+		o->vx = 0;
+		o->vy = 0;
+		o->move = balloon_move;
+		o->color = CYAN;
+		o->target = add_target(o);
+		o->v = &balloon_vect;
+		o->otype = 'f';
+		o->alive = 1;
+	}
+}
+
 static void draw_strings(GtkWidget *w);
 
 static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
@@ -2412,6 +2602,8 @@ void start_level()
 	add_fuel(&terrain);
 	add_bridges(&terrain);
 	add_flak_guns(&terrain);
+	add_airships(&terrain);
+	add_balloons(&terrain);
 
 	if (credits == 0)
 		setup_text();
@@ -2495,7 +2687,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		destroy_event(widget, NULL);
 		return TRUE;	
 	case GDK_q:
-		add_sound();
+		// add_sound(QUARTER);
 		credits++;
 		if (credits == 1) {
 			ntextlines = 1;
@@ -2551,7 +2743,6 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		return TRUE;
 	case GDK_space:
 	case GDK_z:
-		add_sound();
 		if (game_state.health <= 0 || credits <= 0)
 			return TRUE;
 		player_fire_laser();
@@ -2609,7 +2800,55 @@ struct sound_clip {
 	double *sample;
 } clip[NCLIPS];
 
+struct sound_clip audio_queue[MAX_CONCURRENT_SOUNDS];
+
 int nclips = 0;
+
+
+int read_clip(int clipnum, char *filename)
+{
+	SNDFILE *f;
+	SF_INFO sfinfo;
+	sf_count_t nframes;
+
+	memset(&sfinfo, 0, sizeof(sfinfo));
+	f = sf_open(filename, SFM_READ, &sfinfo);
+	if (f == NULL) {
+		fprintf(stderr, "sf_open('%s') failed.\n", filename);
+		return -1;
+	}
+
+	printf("Reading sound file: '%s'\n", filename);
+	printf("frames = %lld\n", sfinfo.frames);
+	printf("samplerate = %d\n", sfinfo.samplerate);
+	printf("channels = %d\n", sfinfo.channels);
+	printf("format = %d\n", sfinfo.format);
+	printf("sections = %d\n", sfinfo.sections);
+	printf("seekable = %d\n", sfinfo.seekable);
+
+	clip[clipnum].sample = (double *) 
+		malloc(sizeof(double) * sfinfo.channels * sfinfo.frames);
+	if (clip[clipnum].sample == NULL) {
+		printf("Can't get memory for sound data for %llu frames in %s\n", 
+			sfinfo.frames, filename);
+		goto error;
+	}
+
+	nframes = sf_readf_double(f, clip[clipnum].sample, sfinfo.frames);
+	if (nframes != sfinfo.frames) {
+		printf("Read only %llu of %llu frames from %s\n", 
+			nframes, sfinfo.frames, filename);
+	}
+	clip[clipnum].nsamples = (int) nframes;
+	if (clip[clipnum].nsamples < 0)
+		clip[clipnum].nsamples = 0;
+
+	sf_close(f);
+	return 0;
+error:
+	sf_close(f);
+	return -1;
+}
 
 /* precompute 16 2-second clips of various sine waves */
 int init_clips()
@@ -2618,6 +2857,8 @@ int init_clips()
 	double phase, phaseinc, sawinc, sawval;
 	phaseinc = 0.01;
 	sawinc = 0.01;
+
+	memset(&audio_queue, 0, sizeof(audio_queue));
 
 	for (i=0;i<NCLIPS;i++) {
 		clip[i].nsamples = CLIPLEN;
@@ -2647,6 +2888,15 @@ int init_clips()
 		phaseinc *= 1.4;
 		//phaseinc *= 1.02;
 	}
+
+	read_clip(PLAYER_LASER_SOUND, "sounds/18385_inferno_laserbeam.wav");
+	read_clip(BOMB_IMPACT_SOUND, "sounds/18390_inferno_plascanh.wav");
+	read_clip(ROCKET_LAUNCH_SOUND, "sounds/18386_inferno_lightrl.wav");
+	read_clip(FLAK_FIRE_SOUND, "sounds/18382_inferno_hvylas.wav");
+	read_clip(LARGE_EXPLOSION_SOUND, "sounds/18384_inferno_largex.wav");
+	read_clip(ROCKET_EXPLOSION_SOUND, "sounds/9679__dobroide__firecracker.04_modified.wav");
+	read_clip(LASER_EXPLOSION_SOUND, "sounds/18399_inferno_stormplas.wav");
+
 	return 0;
 }
 
@@ -2669,24 +2919,25 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 		output = 0.0;
 		count = 0;
 		for (j=0; j<NCLIPS; j++) {
-			if (!clip[j].active)
+			if (!audio_queue[j].active || 
+				audio_queue[j].sample == NULL)
 				continue;
-			sample = i + clip[j].pos;
+			sample = i + audio_queue[j].pos;
 			count++;
-			if (sample >= clip[j].nsamples) {
-				clip[j].active = 0;
+			if (sample >= audio_queue[j].nsamples) {
+				audio_queue[j].active = 0;
 				continue;
 			}
-			output += clip[j].sample[sample];
+			output += audio_queue[j].sample[sample];
 		}
 		*out++ = (float) (output / count);
         }
 	for (i=0;i<NCLIPS;i++) {
-		if (!clip[i].active)
+		if (!audio_queue[i].active)
 			continue;
-		clip[i].pos += framesPerBuffer;
-		if (clip[i].pos >= clip[i].nsamples)
-			clip[i].active = 0;
+		audio_queue[i].pos += framesPerBuffer;
+		if (audio_queue[i].pos >= audio_queue[i].nsamples)
+			audio_queue[i].active = 0;
 	}
 	return 0; /* we're never finished */
 }
@@ -2729,7 +2980,7 @@ int initialize_portaudio()
 	rc = Pa_OpenStream(&stream,
 		NULL,         /* no input */
 		&outparams, SAMPLE_RATE, FRAMES_PER_BUFFER,
-		paClipOff,    /* we won't output out of range samples so don't bother clipping them */
+		paNoFlag, /* paClipOff, */   /* we won't output out of range samples so don't bother clipping them */
 		patestCallback, NULL /* cookie */);    
 	if (rc != paNoError)
 		goto error;
@@ -2768,18 +3019,31 @@ error:
 	return;
 }
 
-int add_sound()
+int add_sound(int which_sound)
 {
 	int i;
-	for (i=0;i<NCLIPS;i++) {
-		if (clip[i].active == 0) {
-			clip[i].nsamples = CLIPLEN;
-			clip[i].pos = 0;
-			clip[i].active = 1;
+	for (i=0;i<MAX_CONCURRENT_SOUNDS;i++) {
+		if (audio_queue[i].active == 0) {
+			audio_queue[i].nsamples = clip[which_sound].nsamples;
+			audio_queue[i].pos = 0;
+			audio_queue[i].sample = clip[which_sound].sample;
+			audio_queue[i].active = 1;
 			break;
 		}
 	}
-	return 0;
+	return (i >= MAX_CONCURRENT_SOUNDS) ? -1 : i;
+}
+
+void cancel_sound(int queue_entry)
+{
+	audio_queue[queue_entry].active = 0;
+}
+
+void cancel_all_sounds()
+{
+	int i;
+	for (i=0;i<MAX_CONCURRENT_SOUNDS;i++)
+		audio_queue[i].active = 0;
 }
 
 /***********************************************************************/
