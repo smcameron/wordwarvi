@@ -13,9 +13,10 @@
 #define SCREEN_HEIGHT 600
 #define WORLDWIDTH (SCREEN_WIDTH * 40)
 
-#define ROUGHNESS (0.40)
+#define LARGE_SCALE_ROUGHNESS (0.03)
+#define SMALL_SCALE_ROUGHNESS (0.09)
 #define MAXOBJS 6500
-#define NFLAK 70
+#define NFLAK 20
 #define LASER_DAMAGE 5;
 #define NROCKETS 70 
 // #define NROCKETS 0
@@ -24,6 +25,8 @@
 #define PLAYER_SPEED 8 
 #define MAX_VX 15
 #define MAX_VY 25
+#define LASER_FIRE_CHANCE 3
+#define LASERLEAD (11)
 #define LASER_SPEED 40
 #define LASER_PROXIMITY 300 /* square root of 300 */
 #define BOMB_PROXIMITY 10000 /* square root of 30000 */
@@ -43,8 +46,9 @@
 #define BRIDGE_SCORE 5
 #define FLAK_SCORE 25
 
-int game_pause = 0;
 
+int game_pause = 0;
+int attract_mode = 0;
 int toggle = 0;
 
 #define NCOLORS 8
@@ -60,7 +64,30 @@ GdkColor huex[NCOLORS];
 #define ORANGE 6
 #define CYAN 7
 
-
+int current_level = 0;
+struct level_parameters_t {
+	int random_seed;
+	int nrockets;
+	int nbridges;
+	int nflak;
+	int nfueltanks;
+	int nbuildings;
+	int nbombs;
+	int laser_fire_chance;
+	double large_scale_roughness;
+	double small_scale_roughness;
+} level = {
+	31415927,
+	NROCKETS,
+	NBRIDGES,
+	NFLAK,
+	NFUELTANKS,
+	NBUILDINGS,
+	NBOMBS,
+	LASER_FIRE_CHANCE,
+	LARGE_SCALE_ROUGHNESS,
+	SMALL_SCALE_ROUGHNESS,
+};
 
 struct target_t;
 
@@ -391,7 +418,7 @@ void move_laserbolt(struct game_obj_t *o)
 		o->alive = 0;
 		return;
 	}
-	if (abs(dy) < 5 && abs(player->x - o->x) < 10) {
+	if (abs(dy) < 9 && abs(player->x - o->x) < 15) {
 		explode(o->x, o->y, o->vx, 1, 70, 20, 20);
 		game_state.health -= LASER_DAMAGE;
 		o->alive = 0;	
@@ -408,12 +435,12 @@ void move_flak(struct game_obj_t *o)
 	int dx, dy, bx,by;
 	int x1, y1;
 	xdist = abs(o->x - player->x);
-	if (xdist < SCREEN_WIDTH && randomn(100) < 5) {
-		dx = player->x - o->x;
-		dy = player->y - o->y;
+	if (xdist < SCREEN_WIDTH && randomn(100) < level.laser_fire_chance) {
+		dx = player->x+LASERLEAD*player->vx - o->x;
+		dy = player->y+LASERLEAD*player->vy - o->y;
 
 		if (dy >= 0) {
-			if (player->x < o->x)
+			if (player->x+player->vx*LASERLEAD < o->x)
 				bx = -20;
 			else
 				bx = 20;
@@ -422,7 +449,7 @@ void move_flak(struct game_obj_t *o)
 			bx = -0;
 			by = -20;
 		} else if (abs(dx) > abs(dy)) {
-			if (player->x < o->x)
+			if (player->x+player->vx*LASERLEAD < o->x)
 				bx = -20;
 			else
 				bx = 20;
@@ -877,10 +904,6 @@ void init_vects()
 	int i;
 
 	/* memset(&game_state.go[0], 0, sizeof(game_state.go[0])*MAXOBJS); */
-	for (i=0;i<MAXOBJS;i++) {
-		game_state.go[i].alive = 0;
-		game_state.go[i].move = move_obj;
-	}
 	player_vect.p = player_ship_points;
 	player_vect.npoints = sizeof(player_ship_points) / sizeof(player_ship_points[0]);
 	left_player_vect.p = left_player_ship_points;
@@ -901,29 +924,6 @@ void init_vects()
 	bridge_vect.npoints = sizeof(bridge_points) / sizeof(bridge_points[0]);
 	flak_vect.p = flak_points;
 	flak_vect.npoints = sizeof(flak_points) / sizeof(flak_points[0]);
-#if 0
-	player_vect.npoints = 4;
-	player_vect.p = malloc(sizeof(*player_vect.p) * player_vect.npoints);
-	player_vect.p[0].x = 10; player_vect.p[0].y = 0;
-	player_vect.p[1].x = -10; player_vect.p[1].y = -10;
-	player_vect.p[2].x = -10; player_vect.p[2].y = 10;
-	player_vect.p[3].x = 10; player_vect.p[3].y = 0;
-#endif
-	game_state.direction = 1;
-	player->move = move_player;
-	player->v = (game_state.direction == 1) ? &player_vect : &left_player_vect;
-	player->x = 200;
-	player->y = -100;
-	player->vx = PLAYER_SPEED;
-	player->vy = 0;
-	player->target = add_target(player);
-	player->alive = 1;
-	game_state.nobjs = MAXOBJS-1;
-	game_state.health = 100;
-	game_state.score = 0;
-	game_state.prev_score = 0;
-	game_state.nbombs = NBOMBS;
-	game_state.prev_bombs = -1;
 }
 
 void no_draw(struct game_obj_t *o, GtkWidget *w)
@@ -954,11 +954,11 @@ void draw_flak(struct game_obj_t *o, GtkWidget *w)
 	draw_generic(o, w);
 
 	/* Draw the gun barrels... */
-	dx = player->x - o->x;
-	dy = player->y - o->y;
+	dx = player->x+LASERLEAD*player->vx - o->x;
+	dy = player->y+LASERLEAD*player->vy - o->y;
 
 	if (dy >= 0) {
-		if (player->x < o->x)
+		if (player->x + LASERLEAD*player->vx < o->x)
 			bx = -20;
 		else
 			bx = 20;
@@ -967,7 +967,7 @@ void draw_flak(struct game_obj_t *o, GtkWidget *w)
 		bx = -0;
 		by = -20;
 	} else if (abs(dx) > abs(dy)) {
-		if (player->x < o->x)
+		if (player->x+LASERLEAD*player->vx < o->x)
 			bx = -20;
 		else
 			bx = 20;
@@ -1110,9 +1110,14 @@ void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 		x2 = tmp;
 	}
 	x3 = ((x2 - x1) / 2) + x1;
-	
-	perturb(&x3, x2, x1, ROUGHNESS);
-	perturb(&y3, x2, x1, ROUGHNESS);
+
+	if ((x2 - x1) > 1000) {	
+		perturb(&x3, x2, x1, level.large_scale_roughness);
+		perturb(&y3, x2, x1, level.large_scale_roughness);
+	} else {
+		perturb(&x3, x2, x1, level.small_scale_roughness);
+		perturb(&y3, x2, x1, level.small_scale_roughness);
+	}
 
 	t->x[midxi] = x3;
 	t->y[midxi] = y3;
@@ -1138,6 +1143,8 @@ static struct my_vect_obj *make_debris_vect()
 	int i, n;
 	struct my_point_t *p;
 	struct my_vect_obj *v;
+
+	/* FIXME, this malloc'ing is a memory leak, */
 	
 	n = randomab(5,10);
 	v = (struct my_vect_obj *) malloc(sizeof(*v));
@@ -1190,7 +1197,7 @@ static void add_flak_guns(struct terrain_t *t)
 {
 	int i, xi, z;
 	struct game_obj_t *o;
-	for (i=0;i<NFLAK;i++) {
+	for (i=0;i<level.nflak;i++) {
 		z = find_free_obj();
 		if (z < 0)
 			return;
@@ -1214,7 +1221,7 @@ static void add_rockets(struct terrain_t *t)
 {
 	int i, xi;
 
-	for (i=0;i<NROCKETS;i++) {
+	for (i=0;i<level.nrockets;i++) {
 		struct game_obj_t *g = &game_state.go[i+1];
 		xi = (int) (((0.0 + random()) / RAND_MAX) * (TERRAIN_LENGTH - 40) + 40);
 		g->move = move_rocket;
@@ -1522,7 +1529,7 @@ static void add_buildings(struct terrain_t *t)
 {
 	int xi, i;
 
-	for (i=0;i<NBUILDINGS;i++) {
+	for (i=0;i<level.nbuildings;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		add_building(t, xi);
 	}
@@ -1655,7 +1662,7 @@ static void add_bridges(struct terrain_t *t)
 	int i, n;
 	int x1, x2;
 
-	for (i=0;i<NBRIDGES;i++) {
+	for (i=0;i<level.nbridges;i++) {
 		n = find_dip(t, i+1, &x1, &x2, 600);
 		if (n != 0) 
 			n = find_dip(t, i+1, &x1, &x2, 500);
@@ -1677,7 +1684,7 @@ static void add_fuel(struct terrain_t *t)
 	int xi, i, j;
 	struct game_obj_t *o;
 
-	for (i=0;i<NFUELTANKS;i++) {
+	for (i=0;i<level.nfueltanks;i++) {
 		j = find_free_obj();
 		o = &game_state.go[j];
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
@@ -1842,6 +1849,67 @@ gint advance_game(gpointer data)
 		return TRUE;
 }
 
+void start_level()
+{
+	int i;
+
+
+	for (i=0;i<MAXOBJS;i++) {
+		game_state.go[i].alive = 0;
+		game_state.go[i].move = move_obj;
+	}
+	memset(&game_state, 0, sizeof(game_state));
+
+	game_state.direction = 1;
+	player->move = move_player;
+	player->v = (game_state.direction == 1) ? &player_vect : &left_player_vect;
+	player->x = 200;
+	player->y = -100;
+	player->vx = PLAYER_SPEED;
+	player->vy = 0;
+	player->target = add_target(player);
+	player->alive = 1;
+	game_state.nobjs = MAXOBJS-1;
+	game_state.health = 100;
+	game_state.score = 0;
+	game_state.prev_score = 0;
+	game_state.nbombs = level.nbombs;
+	game_state.prev_bombs = -1;
+
+	srandom(level.random_seed);
+	generate_terrain(&terrain);
+	add_rockets(&terrain);
+	add_buildings(&terrain);
+	add_fuel(&terrain);
+	add_bridges(&terrain);
+	add_flak_guns(&terrain);
+}
+
+void advance_level()
+{
+	/* This is harsh. */
+	srandom(level.random_seed);
+	level.random_seed = random(); /* deterministic */
+	level.nrockets += 10;
+	level.nbridges += 1;
+	level.nflak += 10;
+	level.nfueltanks += 2;
+	level.large_scale_roughness+= (0.03);
+	if (level.large_scale_roughness > 0.3)
+		level.large_scale_roughness = 0.3;
+	level.small_scale_roughness+=(0.03);
+	if (level.small_scale_roughness > 0.60)
+		level.small_scale_roughness = 0.60;
+	// level.nbuildings;
+	level.nbombs -= 5;
+	if (level.nbombs < 50) 
+		level.nbombs = 50;
+	level.laser_fire_chance++; /* this is bad. */
+	if (level.laser_fire_chance > 10)
+		level.laser_fire_chance = 10;
+
+	start_level();
+}
 
 static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 {
@@ -1915,6 +1983,12 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 	case GDK_p:
 		do_game_pause(widget, NULL);
 		return TRUE;	
+	case GDK_R:
+		start_level();
+		break;
+	case GDK_A:
+		advance_level();
+		break;
 	default:
 		break;
 	}
@@ -1929,6 +2003,8 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 #endif
 	return FALSE;
 }
+
+
 int main(int argc, char *argv[])
 {
 	/* GtkWidget is the storage type for widgets */
@@ -2011,12 +2087,6 @@ int main(int argc, char *argv[])
 		G_CALLBACK (key_press_cb), "window");
 
 
-    generate_terrain(&terrain);
-    add_rockets(&terrain);
-    add_buildings(&terrain);
-	add_fuel(&terrain);
-	add_bridges(&terrain);
-	    add_flak_guns(&terrain);
 
 	//print_target_list();
 
@@ -2026,6 +2096,8 @@ int main(int argc, char *argv[])
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
 	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &huex[BLACK]);
 
+
+	start_level();
 
     gtk_widget_show (vbox);
     gtk_widget_show (main_da);
@@ -2037,7 +2109,7 @@ int main(int argc, char *argv[])
     gtk_widget_show (window);
 	gc = gdk_gc_new(GTK_WIDGET(main_da)->window);
 
-    timer_tag = g_timeout_add(30, advance_game, NULL);
+    timer_tag = g_timeout_add(42, advance_game, NULL);
     
     /* All GTK applications must have a gtk_main(). Control ends here
      * and waits for an event to occur (like a key press or
