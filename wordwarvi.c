@@ -7,6 +7,21 @@
 
 #include <gdk/gdkkeysyms.h>
 
+/* For Audio stuff... */
+#include <math.h>
+#include "portaudio.h"
+
+#define SAMPLE_RATE   (44100)
+#define FRAMES_PER_BUFFER  (1024)
+#ifndef M_PI
+#define M_PI  (3.14159265)
+#endif
+#define TWOPI (M_PI * 2.0)
+#define NCLIPS (16)
+#define CLIPLEN (12100) 
+int add_sound();
+/* ...End of audio stuff */
+
 
 #define TERRAIN_LENGTH 2000
 #define SCREEN_WIDTH 800
@@ -2480,6 +2495,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		destroy_event(widget, NULL);
 		return TRUE;	
 	case GDK_q:
+		add_sound();
 		credits++;
 		if (credits == 1) {
 			ntextlines = 1;
@@ -2497,14 +2513,17 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		printf("The Home key was pressed.\n");
 		return TRUE;
 #endif
+	case GDK_j:
 	case GDK_Down:
 		if (player->vy < MAX_VY && game_state.health > 0 && credits > 0)
 			player->vy += 4;
 		return TRUE;
+	case GDK_k:
 	case GDK_Up:
 		if (player->vy > -MAX_VY && game_state.health > 0 && credits > 0)
 			player->vy -= 4;
 		return TRUE;
+	case GDK_l:
 	case GDK_Right:
 	case GDK_period:
 	case GDK_greater:
@@ -2517,6 +2536,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		} else if (abs(player->vx + game_state.direction) < MAX_VX)
 				player->vx += game_state.direction;
 		return TRUE;
+	case GDK_h:
 	case GDK_Left:
 	case GDK_comma:
 	case GDK_less:
@@ -2531,6 +2551,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		return TRUE;
 	case GDK_space:
 	case GDK_z:
+		add_sound();
 		if (game_state.health <= 0 || credits <= 0)
 			return TRUE;
 		player_fire_laser();
@@ -2576,6 +2597,195 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 	return FALSE;
 }
 
+/***********************************************************************/
+/* Beginning of AUDIO related code                                     */
+/***********************************************************************/
+
+
+struct sound_clip {
+	int active;
+	int nsamples;
+	int pos;
+	double *sample;
+} clip[NCLIPS];
+
+int nclips = 0;
+
+/* precompute 16 2-second clips of various sine waves */
+int init_clips()
+{
+	int i, j;
+	double phase, phaseinc, sawinc, sawval;
+	phaseinc = 0.01;
+	sawinc = 0.01;
+
+	for (i=0;i<NCLIPS;i++) {
+		clip[i].nsamples = CLIPLEN;
+		clip[i].pos = 0;
+		clip[i].active = 0;
+		sawval = 0;
+		sawinc = (double) 0.01 + (double) i / 1000.0;
+		phase = 0.0;
+		clip[i].sample = malloc(sizeof(clip[i].sample[0]) * CLIPLEN); 
+		if (clip[i].sample == NULL) {
+			printf("malloc failed, i=%d\n", i);
+			continue;
+		}
+		for (j=0;j<CLIPLEN;j++) {
+			if ((i % 3) != 0) {
+				clip[i].sample[j] = (double) (((CLIPLEN) - j) / ((double) 2*j+CLIPLEN)) * sin(phase);
+				phase += phaseinc;
+				if (phase > TWOPI) 
+					phase -= TWOPI;
+			} else {
+				sawval += sawinc;
+				clip[i].sample[j] = sawval * (double) (CLIPLEN -j) / (double) (j+CLIPLEN);
+				if (sawval > 0.80 || sawval < -0.80)
+					sawinc = -sawinc;
+			}
+		}
+		phaseinc *= 1.4;
+		//phaseinc *= 1.02;
+	}
+	return 0;
+}
+
+
+/* This routine will be called by the PortAudio engine when audio is needed.
+** It may called at interrupt level on some machines so don't do anything
+** that could mess up the system like calling malloc() or free().
+*/
+static int patestCallback(const void *inputBuffer, void *outputBuffer,
+	unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo* timeInfo,
+	PaStreamCallbackFlags statusFlags, __attribute__ ((unused)) void *userData )
+{
+	// void *data = userData; /* Prevent unused variable warning. */
+	float *out = (float*)outputBuffer;
+	int i, j, sample, count = 0;
+	(void) inputBuffer; /* Prevent unused variable warning. */
+	float output = 0.0;
+
+	for (i=0; i<framesPerBuffer; i++) {
+		output = 0.0;
+		count = 0;
+		for (j=0; j<NCLIPS; j++) {
+			if (!clip[j].active)
+				continue;
+			sample = i + clip[j].pos;
+			count++;
+			if (sample >= clip[j].nsamples) {
+				clip[j].active = 0;
+				continue;
+			}
+			output += clip[j].sample[sample];
+		}
+		*out++ = (float) (output / count);
+        }
+	for (i=0;i<NCLIPS;i++) {
+		if (!clip[i].active)
+			continue;
+		clip[i].pos += framesPerBuffer;
+		if (clip[i].pos >= clip[i].nsamples)
+			clip[i].active = 0;
+	}
+	return 0; /* we're never finished */
+}
+
+static PaStream *stream = NULL;
+
+void decode_paerror(PaError rc)
+{
+	if (rc == paNoError)
+		return;
+	fprintf(stderr, "An error occured while using the portaudio stream\n");
+	fprintf(stderr, "Error number: %d\n", rc);
+	fprintf(stderr, "Error message: %s\n", Pa_GetErrorText(rc));
+}
+
+void terminate_portaudio(PaError rc)
+{
+	Pa_Terminate();
+	decode_paerror(rc);
+}
+
+int initialize_portaudio()
+{
+	PaStreamParameters outparams;
+	PaError rc;
+
+	init_clips();
+
+	rc = Pa_Initialize();
+	if (rc != paNoError)
+		goto error;
+    
+	outparams.device = Pa_GetDefaultOutputDevice();  /* default output device */
+	outparams.channelCount = 1;                      /* mono output */
+	outparams.sampleFormat = paFloat32;              /* 32 bit floating point output */
+	outparams.suggestedLatency = 
+		Pa_GetDeviceInfo(outparams.device)->defaultLowOutputLatency;
+	outparams.hostApiSpecificStreamInfo = NULL;
+
+	rc = Pa_OpenStream(&stream,
+		NULL,         /* no input */
+		&outparams, SAMPLE_RATE, FRAMES_PER_BUFFER,
+		paClipOff,    /* we won't output out of range samples so don't bother clipping them */
+		patestCallback, NULL /* cookie */);    
+	if (rc != paNoError)
+		goto error;
+	if ((rc = Pa_StartStream(stream)) != paNoError);
+		goto error;
+#if 0
+	for (i=0;i<20;i++) {
+		for (j=0;j<NCLIPS;j++) {
+			// printf("clip[%d].pos = %d, active = %d\n", j, clip[j].pos, clip[j].active);
+			Pa_Sleep( 250 );
+			if (clip[j].active == 0) {
+				clip[j].nsamples = CLIPLEN;
+				clip[j].pos = 0;
+				clip[j].active = 1;
+			}
+		}
+		Pa_Sleep( 1500 );
+	}
+#endif
+	return rc;
+error:
+	terminate_portaudio(rc);
+	return rc;
+}
+
+
+void stop_portaudio()
+{
+	int rc;
+
+	if ((rc = Pa_StopStream(stream)) != paNoError)
+		goto error;
+	rc = Pa_CloseStream(stream);
+error:
+	terminate_portaudio(rc);
+	return;
+}
+
+int add_sound()
+{
+	int i;
+	for (i=0;i<NCLIPS;i++) {
+		if (clip[i].active == 0) {
+			clip[i].nsamples = CLIPLEN;
+			clip[i].pos = 0;
+			clip[i].active = 1;
+			break;
+		}
+	}
+	return 0;
+}
+
+/***********************************************************************/
+/* End of AUDIO related code                                     */
+/***********************************************************************/
+
 
 int main(int argc, char *argv[])
 {
@@ -2588,6 +2798,9 @@ int main(int argc, char *argv[])
 	struct timeval tm;
 	gettimeofday(&tm, NULL);
 	srandom(tm.tv_usec);	
+
+	if (initialize_portaudio() != paNoError)
+		printf("Guess sound's not working...\n");
 
 	gtk_set_locale();
 	gtk_init (&argc, &argv);
@@ -2691,6 +2904,8 @@ int main(int argc, char *argv[])
     g_thread_init(NULL);
     gdk_threads_init();
     gtk_main ();
+
+    stop_portaudio();
     
     return 0;
 }
