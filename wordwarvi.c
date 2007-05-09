@@ -152,6 +152,23 @@ GdkColor huex[NCOLORS];
 #define ORANGE 6
 #define CYAN 7
 
+
+/* Object types */
+#define OBJ_TYPE_AIRSHIP 'a'
+#define OBJ_TYPE_BALLOON 'B'
+#define OBJ_TYPE_BUILDING 'b'
+#define OBJ_TYPE_CHAFF 'c'
+#define OBJ_TYPE_FUEL 'f'
+#define OBJ_TYPE_GUN 'g'
+#define OBJ_TYPE_HUMAN 'h'
+#define OBJ_TYPE_LASER 'L'
+#define OBJ_TYPE_MISSILE 'm'
+#define OBJ_TYPE_ROCKET 'r'
+#define OBJ_TYPE_SOCKET 'x'
+#define OBJ_TYPE_SAM_STATION 'S'
+#define OBJ_TYPE_SPARK 's'
+#define OBJ_TYPE_BRIDGE 'T'
+
 int current_level = 0;
 struct level_parameters_t {
 	int random_seed;
@@ -1107,7 +1124,7 @@ void player_fire_laser()
 	o->vy = 0;
 	o->v = &right_laser_vect;
 	o->move = laser_move;
-	o->otype = 'L';
+	o->otype = OBJ_TYPE_LASER;
 	o->color = GREEN;
 	o->alive = 20;
 	add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
@@ -1161,11 +1178,11 @@ void bomb_move(struct game_obj_t *o)
 	o->vy++;
 
 	for (t=target_head;t != NULL;t=t->next) {
-		if (t->o->otype == 'L')
+		if (t->o->otype == OBJ_TYPE_LASER)
 			continue;
-		if (t->o->otype == 'b') 
+		if (t->o->otype == OBJ_TYPE_BUILDING) 
 			continue;
-		if ((t->o->otype == 'r' || t->o->otype == 'g' || t->o->otype == 'S') && t->o->alive) {
+		if ((t->o->otype == OBJ_TYPE_ROCKET || t->o->otype == OBJ_TYPE_GUN || t->o->otype == 'S') && t->o->alive) {
 			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
 			if (dist2 < LASER_PROXIMITY) { /* a hit */
 				game_state.score += ROCKET_SCORE;
@@ -1188,14 +1205,14 @@ void bomb_move(struct game_obj_t *o)
 		explode(o->x, o->y, o->vx, 1, 90, 150, 20);
 		/* find nearby targets */
 		for (t=target_head;t != NULL;t=t->next) {
-			if ((t->o->otype == 'r' || t->o->otype == 'f') && t->o->alive) {
+			if ((t->o->otype == OBJ_TYPE_ROCKET || t->o->otype == OBJ_TYPE_FUEL) && t->o->alive) {
 				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
 						(o->y - t->o->y)*(o->y - t->o->y);
 				if (dist2 < BOMB_PROXIMITY) { /* a hit */
 					game_state.score += ROCKET_SCORE;
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 					t->o->alive = 0;
-					if (t->o->otype == 'f') {
+					if (t->o->otype == OBJ_TYPE_FUEL) {
 						game_state.health += 10;
 						if (game_state.health > MAXHEALTH)
 							game_state.health = MAXHEALTH;
@@ -1203,7 +1220,7 @@ void bomb_move(struct game_obj_t *o)
 					remove_target(t); /* make cause skipping target */
 				}
 			}
-			if (t->o->otype == 'T') { /* Bridge */
+			if (t->o->otype == OBJ_TYPE_BRIDGE) { /* Bridge */
 				// dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
 				if (abs(o->x - t->o->x) < BOMB_X_PROXIMITY) { /* a hit */
 					/* "+=" instead of "=" in case multiple bombs */
@@ -1268,14 +1285,14 @@ void drop_chaff()
 		o->vy = player->vy + 7;
 		o->v = &spark_vect;
 		o->move = chaff_move;
-		o->otype = 'C';
+		o->otype = OBJ_TYPE_CHAFF;
 		o->target = add_target(o);
 		o->color = ORANGE;
 		o->alive = 25;
 	}
 	/* find any missiles in the vicinity */
 	for (t=target_head;t != NULL;t=t->next) {
-		if (t->o->otype != 'm')
+		if (t->o->otype != OBJ_TYPE_MISSILE)
 			continue;
 		if (t->o->bullseye == player) {
 			j = randomn(3);
@@ -1305,7 +1322,7 @@ void drop_bomb()
 	o->vy = player->vy;;
 	o->v = &bomb_vect;
 	o->move = bomb_move;
-	o->otype = 'B';
+	o->otype = OBJ_TYPE_BALLOON;
 	o->target = add_target(o);
 	o->color = ORANGE;
 	o->alive = 20;
@@ -1520,22 +1537,22 @@ void laser_move(struct game_obj_t *o)
 	o->y += o->vy;
 
 	for (t=target_head;t != NULL;t=t->next) {
-		if (t->o->otype == 'L')
+		if (t->o->otype == OBJ_TYPE_LASER)
 			continue;
-		if (t->o->otype == 'b') 
+		if (t->o->otype == OBJ_TYPE_BUILDING) 
 			continue;
-		if ((t->o->otype == 'r' || t->o->otype == 'f' || t->o->otype == 'g' 
-			|| t->o->otype == 'S' || t->o->otype == 'm') 
+		if ((t->o->otype == OBJ_TYPE_ROCKET || t->o->otype == OBJ_TYPE_FUEL || t->o->otype == OBJ_TYPE_GUN 
+			|| t->o->otype == 'S' || t->o->otype == OBJ_TYPE_MISSILE) 
 			&& t->o->alive) {
 			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
 			// printf("dist2 = %d\n", dist2);
 			if (dist2 < LASER_PROXIMITY) { /* a hit */
-				if (t->o->otype == 'r')
+				if (t->o->otype == OBJ_TYPE_ROCKET)
 					game_state.score += ROCKET_SCORE;
 				add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 				t->o->alive = 0;
-				if (t->o->otype == 'f') {
+				if (t->o->otype == OBJ_TYPE_FUEL) {
 					game_state.health += 10;
 					if (game_state.health > MAXHEALTH)
 						game_state.health = MAXHEALTH;
@@ -1696,7 +1713,7 @@ static void add_missile(int x, int y, int vx, int vy,
 	o->draw = draw_missile;
 	o->bullseye = bullseye;
 	o->target = add_target(o);
-	o->otype = 'm';
+	o->otype = OBJ_TYPE_MISSILE;
 	o->color = color;
 	o->alive = time;
 }
@@ -2122,7 +2139,7 @@ static void add_laserbolt(int x, int y, int vx, int vy, int time)
 	o->vx = vx;
 	o->vy = vy;
 	o->v = &spark_vect;
-	o->otype = 's';
+	o->otype = OBJ_TYPE_SPARK;
 	o->color = CYAN;
 	o->alive = time;
 }
@@ -2141,7 +2158,7 @@ static void add_spark(int x, int y, int vx, int vy, int time)
 			g->vx = vx;
 			g->vy = vy;
 			g->v = &spark_vect;
-			g->otype = 's';
+			g->otype = OBJ_TYPE_SPARK;
 			g->color = YELLOW;
 			g->alive = time;
 			break;
@@ -2278,7 +2295,7 @@ static void add_flak_guns(struct terrain_t *t)
 		xi = (int) (((0.0 + random()) / RAND_MAX) * 
 			(TERRAIN_LENGTH - 40) + 40);
 		add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
-			move_flak, draw_flak, GREEN, &flak_vect, 1, 'g', 1);
+			move_flak, draw_flak, GREEN, &flak_vect, 1, OBJ_TYPE_GUN, 1);
 	}
 }
 
@@ -2288,7 +2305,7 @@ static void add_rockets(struct terrain_t *t)
 	for (i=0;i<level.nrockets;i++) {
 		xi = (int) (((0.0 + random()) / RAND_MAX) * (TERRAIN_LENGTH - 40) + 40);
 		add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
-			move_rocket, NULL, WHITE, &rocket_vect, 1, 'r', 1);
+			move_rocket, NULL, WHITE, &rocket_vect, 1, OBJ_TYPE_ROCKET, 1);
 	}
 }
 
@@ -2573,7 +2590,7 @@ static void add_building(struct terrain_t *t, int xi)
 	o->vy = 0;
 	o->v = bvec;
 	o->move = no_move;
-	o->otype = 'b';
+	o->otype = OBJ_TYPE_BUILDING;
 	o->target = add_target(o);
 	o->color = BLUE;
 	o->alive = 1;
@@ -2659,7 +2676,7 @@ static void add_bridge_piece(int x, int y)
 	o->target = add_target(o);
 	o->v = &bridge_vect;
 	o->color = RED;
-	o->otype = 'T';
+	o->otype = OBJ_TYPE_BRIDGE;
 	o->alive = 1;
 }
 
@@ -2740,7 +2757,7 @@ static void add_fuel(struct terrain_t *t)
 	for (i=0;i<level.nfueltanks;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
-			no_move, NULL, ORANGE, &fuel_vect, 1, 'f', 1);
+			no_move, NULL, ORANGE, &fuel_vect, 1, OBJ_TYPE_FUEL, 1);
 	}
 }
 
@@ -2750,7 +2767,7 @@ static void add_SAMs(struct terrain_t *t)
 	for (i=0;i<level.nsams;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		add_generic_object(t->x[xi], t->y[xi], 0, 0, 
-			sam_move, NULL, GREEN, &SAM_station_vect, 1, 'S', 1);
+			sam_move, NULL, GREEN, &SAM_station_vect, 1, OBJ_TYPE_SAM_STATION, 1);
 	}
 }
 
@@ -2760,7 +2777,7 @@ static void add_humanoids(struct terrain_t *t)
 	for (i=0;i<level.nhumanoids;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		add_generic_object(t->x[xi], t->y[xi], 0, 0, 
-			humanoid_move, NULL, GREEN, &humanoid_vect, 1, 'H', 1);
+			humanoid_move, NULL, GREEN, &humanoid_vect, 1, OBJ_TYPE_HUMAN, 1);
 	}
 }
 
@@ -2770,14 +2787,14 @@ static void add_airships(struct terrain_t *t)
 	for (i=0;i<NAIRSHIPS;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
-			airship_move, NULL, CYAN, &airship_vect, 1, 'a', 1);
+			airship_move, NULL, CYAN, &airship_vect, 1, OBJ_TYPE_AIRSHIP, 1);
 	}
 }
 
 static void add_socket(struct terrain_t *t)
 {
 	add_generic_object(t->x[TERRAIN_LENGTH-1] - 250, t->y[TERRAIN_LENGTH-1] - 250, 
-		0, 0, socket_move, NULL, CYAN, &socket_vect, 0, 'x', 1);
+		0, 0, socket_move, NULL, CYAN, &socket_vect, 0, OBJ_TYPE_SOCKET, 1);
 }
 
 static void add_balloons(struct terrain_t *t)
@@ -2786,7 +2803,7 @@ static void add_balloons(struct terrain_t *t)
 	for (i=0;i<NBALLOONS;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
-			balloon_move, NULL, CYAN, &balloon_vect, 1, 'B', 1);
+			balloon_move, NULL, CYAN, &balloon_vect, 1, OBJ_TYPE_BALLOON, 1);
 	}
 }
 
