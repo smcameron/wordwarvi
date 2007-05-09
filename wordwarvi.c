@@ -73,12 +73,13 @@ int add_sound(int which_sound, int which_slot);
 #define SMALL_SCALE_ROUGHNESS (0.09)
 #define MAXOBJS 6500
 #define NFLAK 20
-#define LASER_DAMAGE 5;
+#define LASER_BOLT_DAMAGE 5 /* damage done by flak guns to player */
+#define PLAYER_LASER_DAMAGE 20
 #define NROCKETS 70 
 // #define NROCKETS 0
 #define LAUNCH_DIST 500
 #define MAX_ROCKET_SPEED -32
-#define SAM_LAUNCH_DIST 300
+#define SAM_LAUNCH_DIST 400
 #define SAM_LAUNCH_CHANCE 15 
 #define PLAYER_SPEED 8 
 #define MAX_VX 15
@@ -964,7 +965,7 @@ void move_laserbolt(struct game_obj_t *o)
 	if (abs(dy) < 9 && abs(player->x - o->x) < 15) {
 		explode(o->x, o->y, o->vx, 1, 70, 20, 20);
 		add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
-		game_state.health -= LASER_DAMAGE;
+		game_state.health -= LASER_BOLT_DAMAGE;
 		o->alive = 0;	
 	}
 	o->x += o->vx;
@@ -1574,6 +1575,21 @@ void laser_move(struct game_obj_t *o)
 		}
 		removed = 0;
 		switch (t->o->otype) {
+			case OBJ_TYPE_AIRSHIP:
+				if (abs(o->x - t->o->x) < 3*60 &&
+					o->y - t->o->y <= 0 &&
+					o->y - t->o->y > -50*3) {
+					explode(o->x, o->y, o->vx/2, 1, 70, 20, 20);
+					o->alive = 0;
+					t->o->alive -= PLAYER_LASER_DAMAGE;
+					if (t->o->alive <= 0) {
+						t->o->alive = 0;
+						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
+						t = remove_target(t);
+						removed = 1;
+					}
+				}
+				break;
 			case OBJ_TYPE_ROCKET:
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_GUN:
@@ -1782,7 +1798,36 @@ void balloon_move(struct game_obj_t *o)
 
 void airship_move(struct game_obj_t *o)
 {
-	balloon_move(o);
+	int deepest, xdist, ydist;
+	int gambling;
+
+	o->x += o->vx;
+	o->y += o->vy;
+
+	if (randomn(1000) < 5) {
+		o->vx = randomab(1, 3) - 2;
+		o->vy = randomab(1, 3) - 2;
+	}
+
+	deepest = ground_level(o->x);
+	if (deepest != GROUND_OOPS && o->y > deepest - MIN_BALLOON_HEIGHT)
+		o->vy = -1;
+	else if (deepest != GROUND_OOPS && o->y < deepest - MAX_BALLOON_HEIGHT)
+		o->vy = 1;
+
+	xdist = abs(o->x - player->x);
+	ydist = abs(o->y - player->y);
+	if (xdist < SAM_LAUNCH_DIST && ydist < SAM_LAUNCH_DIST) {
+		if (xdist < SAM_LAUNCH_DIST/2)
+			gambling = 2;
+		if (xdist < SAM_LAUNCH_DIST/3)
+			gambling = 4;
+		
+		if (randomn(1000) < (SAM_LAUNCH_CHANCE+gambling)) {
+			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			add_missile(o->x, o->y, 0, 0, 300, RED, player);
+		}
+	}
 }
 
 void move_spark(struct game_obj_t *o)
@@ -1992,7 +2037,7 @@ void init_vects()
 	for (i=0;i<airship_vect.npoints;i++) {
 		if (airship_vect.p[i].x != LINE_BREAK) {
 			airship_vect.p[i].x *= 3;
-			airship_vect.p[i].y *= 3;
+			airship_vect.p[i].y = (airship_vect.p[i].y+20) * 3;
 		}
 	}
 	balloon_vect.p = balloon_points;
@@ -2782,7 +2827,7 @@ static void add_airships(struct terrain_t *t)
 	for (i=0;i<NAIRSHIPS;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
-			airship_move, NULL, CYAN, &airship_vect, 1, OBJ_TYPE_AIRSHIP, 1);
+			airship_move, NULL, CYAN, &airship_vect, 1, OBJ_TYPE_AIRSHIP, 300*PLAYER_LASER_DAMAGE);
 	}
 }
 
