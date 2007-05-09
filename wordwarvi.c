@@ -1647,6 +1647,37 @@ void move_missile(struct game_obj_t *o)
 	explode(o->x, o->y, exvx, exvy, 4, 4, 9);
 }
 
+static void add_generic_object(int x, int y, int vx, int vy,
+	obj_move_func *move_func,
+	obj_draw_func *draw_func,
+	int color, 
+	struct my_vect_obj *vect, 
+	int target, char otype, int alive)
+{
+	int j;
+	struct game_obj_t *o;
+
+	j = find_free_obj();
+	if (j < 0)
+		return;
+	o = &game_state.go[j];
+	o->x = x;
+	o->y = y;
+	o->vx = vx;
+	o->vy = vy;
+	o->move = move_func;
+	o->draw = draw_func;
+	o->color = color;
+	if (target)
+		o->target = add_target(o);
+	else
+		o->target = NULL;
+	o->v = vect;
+	o->otype = otype;
+	o->alive = alive;
+	o->bullseye = NULL;
+}
+
 static void add_missile(int x, int y, int vx, int vy, 
 	int time, int color, struct game_obj_t *bullseye)
 {
@@ -2242,45 +2273,22 @@ static void add_debris(int x, int y, int vx, int vy, int r, struct game_obj_t **
 
 static void add_flak_guns(struct terrain_t *t)
 {
-	int i, xi, z;
-	struct game_obj_t *o;
+	int i, xi;
 	for (i=0;i<level.nflak;i++) {
-		z = find_free_obj();
-		if (z < 0)
-			return;
-		o = &game_state.go[z];
-		xi = (int) (((0.0 + random()) / RAND_MAX) * (TERRAIN_LENGTH - 40) + 40);
-		o->move = move_flak;
-		o->draw = draw_flak;
-		o->x = t->x[xi];
-		o->y = t->y[xi] - 7;
-		o->v = &flak_vect;
-		o->vx = 0;
-		o->vy = 0;
-		o->otype = 'g';
-		o->color = GREEN;
-		o->target = add_target(o);
-		o->alive = 1;
+		xi = (int) (((0.0 + random()) / RAND_MAX) * 
+			(TERRAIN_LENGTH - 40) + 40);
+		add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
+			move_flak, draw_flak, GREEN, &flak_vect, 1, 'g', 1);
 	}
 }
 
 static void add_rockets(struct terrain_t *t)
 {
 	int i, xi;
-
 	for (i=0;i<level.nrockets;i++) {
-		struct game_obj_t *g = &game_state.go[i+1];
 		xi = (int) (((0.0 + random()) / RAND_MAX) * (TERRAIN_LENGTH - 40) + 40);
-		g->move = move_rocket;
-		g->x = t->x[xi];
-		g->y = t->y[xi] - 7;
-		g->v = &rocket_vect;
-		g->vx = 0;
-		g->vy = 0;
-		g->otype = 'r';
-		g->color = WHITE;
-		g->target = add_target(g);
-		g->alive = 1;
+		add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
+			move_rocket, NULL, WHITE, &rocket_vect, 1, 'r', 1);
 	}
 }
 
@@ -2728,133 +2736,57 @@ static void add_bridges(struct terrain_t *t)
 
 static void add_fuel(struct terrain_t *t)
 {
-	int xi, i, j;
-	struct game_obj_t *o;
-
+	int xi, i;
 	for (i=0;i<level.nfueltanks;i++) {
-		j = find_free_obj();
-		o = &game_state.go[j];
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
-		o->x = t->x[xi];
-		o->y = t->y[xi]-30;
-		o->vx = 0;
-		o->vy = 0;
-		o->move = no_move;
-		o->color = ORANGE;
-		o->target = add_target(o);
-		o->v = &fuel_vect;
-		o->otype = 'f';
-		o->alive = 1;
+		add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
+			no_move, NULL, ORANGE, &fuel_vect, 1, 'f', 1);
 	}
 }
 
 static void add_SAMs(struct terrain_t *t)
 {
-	int xi, i, j;
-	struct game_obj_t *o;
-
+	int xi, i;
 	for (i=0;i<level.nsams;i++) {
-		j = find_free_obj();
-		o = &game_state.go[j];
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
-		o->x = t->x[xi];
-		o->y = t->y[xi];
-		o->vx = 0;
-		o->vy = 0;
-		o->move = sam_move;
-		o->color = GREEN;
-		o->target = add_target(o);
-		o->v = &SAM_station_vect;
-		o->otype = 'S';
-		o->alive = 1;
+		add_generic_object(t->x[xi], t->y[xi], 0, 0, 
+			sam_move, NULL, GREEN, &SAM_station_vect, 1, 'S', 1);
 	}
 }
 
 static void add_humanoids(struct terrain_t *t)
 {
-	int xi, i, j;
-	struct game_obj_t *o;
-
+	int xi, i;
 	for (i=0;i<level.nhumanoids;i++) {
-		j = find_free_obj();
-		o = &game_state.go[j];
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
-		o->x = t->x[xi];
-		o->y = t->y[xi];
-		o->vx = 0;
-		o->vy = 0;
-		o->move = humanoid_move;
-		o->color = GREEN;
-		o->target = add_target(o);
-		o->v = &humanoid_vect;
-		o->otype = 'H';
-		o->alive = 1;
+		add_generic_object(t->x[xi], t->y[xi], 0, 0, 
+			humanoid_move, NULL, GREEN, &humanoid_vect, 1, 'H', 1);
 	}
 }
 
 static void add_airships(struct terrain_t *t)
 {
-	int xi, i, j;
-	struct game_obj_t *o;
-
+	int xi, i;
 	for (i=0;i<NAIRSHIPS;i++) {
-		j = find_free_obj();
-		o = &game_state.go[j];
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
-		o->x = t->x[xi];
-		o->y = t->y[xi]-50;
-		o->vx = 0;
-		o->vy = 0;
-		o->move = airship_move;
-		o->color = CYAN;
-		o->target = add_target(o);
-		o->v = &airship_vect;
-		o->otype = 'a';
-		o->alive = 1;
+		add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
+			airship_move, NULL, CYAN, &airship_vect, 1, 'a', 1);
 	}
 }
 
 static void add_socket(struct terrain_t *t)
 {
-	int j;
-	struct game_obj_t *o;
-
-	j = find_free_obj();
-	if (j == -1) 
-		return;
-	o = &game_state.go[j];
-	
-	o->x = t->x[TERRAIN_LENGTH-1] - 250;
-	o->y = t->y[TERRAIN_LENGTH-1] - 250;
-	o->vx = 0;
-	o->vy = 0;
-	o->move = socket_move;
-	o->color = CYAN;
-	o->target = NULL;
-	o->v = &socket_vect;
-	o->otype = 'x';
-	o->alive = 1;
+	add_generic_object(t->x[TERRAIN_LENGTH-1] - 250, t->y[TERRAIN_LENGTH-1] - 250, 
+		0, 0, socket_move, NULL, CYAN, &socket_vect, 0, 'x', 1);
 }
 
 static void add_balloons(struct terrain_t *t)
 {
-	int xi, i, j;
-	struct game_obj_t *o;
-
+	int xi, i;
 	for (i=0;i<NBALLOONS;i++) {
-		j = find_free_obj();
-		o = &game_state.go[j];
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
-		o->x = t->x[xi];
-		o->y = t->y[xi]-50;
-		o->vx = 0;
-		o->vy = 0;
-		o->move = balloon_move;
-		o->color = CYAN;
-		o->target = add_target(o);
-		o->v = &balloon_vect;
-		o->otype = 'f';
-		o->alive = 1;
+		add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
+			balloon_move, NULL, CYAN, &balloon_vect, 1, 'B', 1);
 	}
 }
 
