@@ -69,7 +69,7 @@ int add_sound(int which_sound, int which_slot);
 #define WORLDWIDTH (SCREEN_WIDTH * 40)
 #define KERNEL_Y_BOUNDARY (-1000)
 
-#define LARGE_SCALE_ROUGHNESS (0.03)
+#define LARGE_SCALE_ROUGHNESS (0.04)
 #define SMALL_SCALE_ROUGHNESS (0.09)
 #define MAXOBJS 6500
 #define NFLAK 20
@@ -911,24 +911,24 @@ void print_target_list()
 	}
 	printf("end of list.\n");
 }
-void remove_target(struct target_t *t)
+struct target_t *remove_target(struct target_t *t)
 {
-	struct target_t *i;
 
-	for (i=target_head;i!=NULL;i=i->next) {
-		if (i == t) {
-			if (i == target_head)
-				target_head = i->next;
-			if (i->next != NULL)
-				i->next->prev = i->prev;
-			if (i->prev != NULL)
-				i->prev->next = i->next;
-			i->next = NULL;
-			i->prev = NULL;
-			free(i);
-			break;
-		}
-	}
+	struct target_t *next;
+	if (!t)
+		return NULL;
+
+	next = t->next;
+	if (t == target_head)
+		target_head = t->next;
+	if (t->next)
+		t->next->prev = t->prev;
+	if (t->prev)
+		t->prev->next = t->next;
+	t->next = NULL;
+	t->prev = NULL;
+	free(t);
+	return next;
 }
 
 int randomn(int n)
@@ -1170,6 +1170,7 @@ void bomb_move(struct game_obj_t *o)
 	struct target_t *t;
 	int deepest;
 	int dist2;
+	int removed;
 
 	if (!o->alive)
 		return;
@@ -1177,24 +1178,34 @@ void bomb_move(struct game_obj_t *o)
 	o->y += o->vy;
 	o->vy++;
 
-	for (t=target_head;t != NULL;t=t->next) {
-		if (t->o->otype == OBJ_TYPE_LASER)
+	for (t=target_head;t != NULL;) {
+		if (!t->o->alive) {
+			t=t->next;
 			continue;
-		if (t->o->otype == OBJ_TYPE_BUILDING) 
-			continue;
-		if ((t->o->otype == OBJ_TYPE_ROCKET || t->o->otype == OBJ_TYPE_GUN || t->o->otype == 'S') && t->o->alive) {
-			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
-			if (dist2 < LASER_PROXIMITY) { /* a hit */
-				game_state.score += ROCKET_SCORE;
-				add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
-				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
-				t->o->alive = 0;
-				remove_target(t); /* BUG: Instead of remove here.. */
-						  /* Add to list to be removed later */
-						  /* othewise we disturb the for loop */
-				o->alive = 0;
-			}
 		}
+		removed = 0;
+		switch (t->o->otype) {
+			case OBJ_TYPE_ROCKET:
+			case OBJ_TYPE_FUEL:
+			case OBJ_TYPE_GUN:
+			case OBJ_TYPE_SAM_STATION:  {
+				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
+					(o->y - t->o->y)*(o->y - t->o->y);
+				if (dist2 < LASER_PROXIMITY) { /* a hit */
+					game_state.score += ROCKET_SCORE;
+					add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
+					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
+					t->o->alive = 0;
+					t = remove_target(t);
+					removed = 1;
+					o->alive = 0;
+				}
+			}
+			default:
+				break;
+		}
+		if (!removed)
+			t=t->next;
 	}
 
 	/* Detect smashing into the ground */
@@ -1204,34 +1215,51 @@ void bomb_move(struct game_obj_t *o)
 		add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, 1, 90, 150, 20);
 		/* find nearby targets */
-		for (t=target_head;t != NULL;t=t->next) {
-			if ((t->o->otype == OBJ_TYPE_ROCKET || t->o->otype == OBJ_TYPE_FUEL) && t->o->alive) {
-				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
+		for (t=target_head;t != NULL;) {
+			if (!t->o->alive) {
+				t=t->next;
+				continue;
+			}
+			removed = 0;
+			switch (t->o->otype) {
+				case OBJ_TYPE_ROCKET:
+				case OBJ_TYPE_GUN:
+				case OBJ_TYPE_SAM_STATION:
+				case OBJ_TYPE_FUEL: {
+					dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
 						(o->y - t->o->y)*(o->y - t->o->y);
-				if (dist2 < BOMB_PROXIMITY) { /* a hit */
-					game_state.score += ROCKET_SCORE;
-					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
-					t->o->alive = 0;
-					if (t->o->otype == OBJ_TYPE_FUEL) {
-						game_state.health += 10;
-						if (game_state.health > MAXHEALTH)
-							game_state.health = MAXHEALTH;
+					if (dist2 < BOMB_PROXIMITY) { /* a hit */
+						if (o->otype == OBJ_TYPE_ROCKET)
+							game_state.score += ROCKET_SCORE;
+						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
+						t->o->alive = 0;
+						if (t->o->otype == OBJ_TYPE_FUEL) {
+							game_state.health += 10;
+							if (game_state.health > MAXHEALTH)
+								game_state.health = MAXHEALTH;
+						}
+						t = remove_target(t);
+						removed = 1;
 					}
-					remove_target(t); /* make cause skipping target */
 				}
+				break;
+
+				case OBJ_TYPE_BRIDGE:
+					if (abs(o->x - t->o->x) < BOMB_X_PROXIMITY) { /* a hit */
+						/* "+=" instead of "=" in case multiple bombs */
+						if (t->o->move == no_move) /* only get the points once. */
+							game_state.score += BRIDGE_SCORE;
+						t->o->vx += ((t->o->x < o->x) ? -1 : 1) * randomn(6);
+						t->o->vy += ((t->o->y < o->y) ? -1 : 1) * randomn(6);
+						t->o->move = bridge_move;
+						t->o->alive = 20;
+					}
+					break;
+				default:
+					break;
 			}
-			if (t->o->otype == OBJ_TYPE_BRIDGE) { /* Bridge */
-				// dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
-				if (abs(o->x - t->o->x) < BOMB_X_PROXIMITY) { /* a hit */
-					/* "+=" instead of "=" in case multiple bombs */
-					if (t->o->move == no_move) /* only get the points once. */
-						game_state.score += BRIDGE_SCORE;
-					t->o->vx += ((t->o->x < o->x) ? -1 : 1) * randomn(6);
-					t->o->vy += ((t->o->y < o->y) ? -1 : 1) * randomn(6);
-					t->o->move = bridge_move;
-					t->o->alive = 20;
-				}
-			}
+			if (!removed)
+				t = t->next;
 		}
 	}
 	if (!o->alive) {
@@ -1300,6 +1328,8 @@ void drop_chaff()
 				t->o->bullseye = &game_state.go[i[j]];
 		}
 	}
+	/* Bug: when (bullseye->alive == 0) some new object will allocate there
+	   and become the new target... probably a spark. */
 }
 
 void drop_bomb()
@@ -1530,37 +1560,50 @@ void laser_move(struct game_obj_t *o)
 {
 	struct target_t *t;
 	int dist2;
+	int removed;
 
 	if (!o->alive)
 		return;
 	o->x += o->vx;
 	o->y += o->vy;
 
-	for (t=target_head;t != NULL;t=t->next) {
-		if (t->o->otype == OBJ_TYPE_LASER)
+	for (t=target_head;t != NULL;) {
+		if (!t->o->alive) {
+			t = t->next;
 			continue;
-		if (t->o->otype == OBJ_TYPE_BUILDING) 
-			continue;
-		if ((t->o->otype == OBJ_TYPE_ROCKET || t->o->otype == OBJ_TYPE_FUEL || t->o->otype == OBJ_TYPE_GUN 
-			|| t->o->otype == 'S' || t->o->otype == OBJ_TYPE_MISSILE) 
-			&& t->o->alive) {
-			dist2 = (o->x - t->o->x)*(o->x - t->o->x) + (o->y - t->o->y)*(o->y - t->o->y);
-			// printf("dist2 = %d\n", dist2);
-			if (dist2 < LASER_PROXIMITY) { /* a hit */
-				if (t->o->otype == OBJ_TYPE_ROCKET)
-					game_state.score += ROCKET_SCORE;
-				add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
-				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
-				t->o->alive = 0;
-				if (t->o->otype == OBJ_TYPE_FUEL) {
-					game_state.health += 10;
-					if (game_state.health > MAXHEALTH)
-						game_state.health = MAXHEALTH;
-				}
-				remove_target(t);
-				o->alive = 0;
-			}
 		}
+		removed = 0;
+		switch (t->o->otype) {
+			case OBJ_TYPE_ROCKET:
+			case OBJ_TYPE_FUEL:
+			case OBJ_TYPE_GUN:
+			case OBJ_TYPE_SAM_STATION:
+			case OBJ_TYPE_MISSILE:{
+				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
+					(o->y - t->o->y)*(o->y - t->o->y);
+				// printf("dist2 = %d\n", dist2);
+				if (dist2 < LASER_PROXIMITY) { /* a hit */
+					if (t->o->otype == OBJ_TYPE_ROCKET)
+						game_state.score += ROCKET_SCORE;
+					add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
+					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
+					t->o->alive = 0;
+					if (t->o->otype == OBJ_TYPE_FUEL) {
+						game_state.health += 10;
+						if (game_state.health > MAXHEALTH)
+							game_state.health = MAXHEALTH;
+					}
+					t = remove_target(t);
+					removed = 1;
+					o->alive = 0;
+				}
+			}
+			break;
+			default:
+				break;
+		}
+		if (!removed)
+			t=t->next;
 	}
 	if (o->alive)
 		o->alive--;
@@ -2126,46 +2169,14 @@ static void draw_strings(GtkWidget *w)
 
 static void add_laserbolt(int x, int y, int vx, int vy, int time)
 {
-	int i;
-	struct game_obj_t *o;
-	i = find_free_obj();
-	if (i<0)
-		return;
-	o = &game_state.go[i];
-	o->move = move_laserbolt;
-	o->draw = draw_spark;
-	o->x = x;
-	o->y = y;
-	o->vx = vx;
-	o->vy = vy;
-	o->v = &spark_vect;
-	o->otype = OBJ_TYPE_SPARK;
-	o->color = CYAN;
-	o->alive = time;
+	add_generic_object(x, y, vx, vy, move_laserbolt, draw_spark,
+		CYAN, &spark_vect, 0, OBJ_TYPE_SPARK, time);
 }
 
 static void add_spark(int x, int y, int vx, int vy, int time)
 {
-	int i;
-	for (i=0;i<MAXOBJS;i++) {
-		struct game_obj_t *g = &game_state.go[i];
-		if (!g->alive) {
-			/* printf("i=%d\n", i); */
-			g->move = move_spark;
-			g->draw = draw_spark;
-			g->x = x;
-			g->y = y;
-			g->vx = vx;
-			g->vy = vy;
-			g->v = &spark_vect;
-			g->otype = OBJ_TYPE_SPARK;
-			g->color = YELLOW;
-			g->alive = time;
-			break;
-		}
-	}
-	if (i>=MAXOBJS)
-		printf("no sparks left\n");
+	add_generic_object(x, y, vx, vy, move_spark, draw_spark,
+		YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
 }
 
 void perturb(int *value, int lower, int upper, double percent)
@@ -2280,6 +2291,7 @@ static void add_debris(int x, int y, int vx, int vy, int r, struct game_obj_t **
 		o->color = WHITE;
 		o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
 		o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));
+		o->target = NULL;
 		o->v = make_debris_vect();
 		if (o->v == NULL)
 			o->draw = no_draw;
@@ -2660,24 +2672,7 @@ static int find_dip(struct terrain_t *t, int n, int *px1, int *px2, int minlengt
 
 static void add_bridge_piece(int x, int y)
 {
-	/* adds a small piece of a bridge, like a lego */
-	int j;
-	struct game_obj_t *o;
-
-	j = find_free_obj();
-	if (j == -1)
-		return;
-	o = &game_state.go[j];
-	o->x = x;
-	o->y = y; 
-	o->vx = 0;
-	o->vy = 0;
-	o->move = no_move;
-	o->target = add_target(o);
-	o->v = &bridge_vect;
-	o->color = RED;
-	o->otype = OBJ_TYPE_BRIDGE;
-	o->alive = 1;
+	add_generic_object(x, y, 0, 0, no_move, NULL, RED, &bridge_vect, 1, OBJ_TYPE_BRIDGE, 1);
 }
 
 static void add_bridge_column(struct terrain_t *t, 
@@ -3797,7 +3792,7 @@ int main(int argc, char *argv[])
 
 
 
-	//print_target_list();
+	// print_target_list();
 
 	for (i=0;i<NCOLORS;i++)
 		gdk_colormap_alloc_color(gtk_widget_get_colormap(main_da), &huex[i], FALSE, FALSE);
