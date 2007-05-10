@@ -100,7 +100,7 @@ int add_sound(int which_sound, int which_slot);
 #define NBOMBS 100
 #define MAX_ALT 100
 #define MIN_ALT 50
-#define MAXHEALTH 100
+#define MAXHEALTH 10000
 #define NAIRSHIPS 3
 #define NBALLOONS 3 
 #define MAX_BALLOON_HEIGHT 300
@@ -169,6 +169,7 @@ GdkColor huex[NCOLORS];
 #define OBJ_TYPE_SAM_STATION 'S'
 #define OBJ_TYPE_SPARK 's'
 #define OBJ_TYPE_BRIDGE 'T'
+#define OBJ_TYPE_SYMBOL 'z'
 
 int current_level = 0;
 struct level_parameters_t {
@@ -698,6 +699,26 @@ struct my_point_t bridge_points[] = {  /* square with an x through it, 8x8 */
 	{ 4, 4 },
 };
 
+/* Just a bunch of random snippets of lisp code for the emacs */
+/* blimps to spew out into core memory space as "memory leaks" */
+/* wish I could find some humorous lisp code, but, */
+/* who the hell would even recognize it? */
+char randomlisp[] = "(let ((arg (if (consp (car args)) (caar args) (car args)))"
+	"(fcs (if (consp (car args)) (cdr (car args)) nil)))"
+	"(cond ((= chr ?s)"
+	"(if addr (concat (car addr) \" <\" (cdr addr) \">\")"
+	"(or (and (boundp 'report-xemacs-bug-beta-address)"
+	"report-xemacs-bug-beta-address)"
+	"(if (eq (car-safe calc-last-kill) (car kill-ring-yank-pointer))"
+	"(cdr calc-last-kill)"
+	"(if (stringp (car kill-ring-yank-pointer))"
+	"(list 'extern"
+	"(semantic-bovinate-from-nonterminal-full" /* semantic-bovinate? */
+	" (car (nth 2 vals)) (cdr (nth 2 vals)) 'extern-c-contents)" ")))"
+	"   (if value (list (car value) (cdr value))))"
+	":value-to-external (lambda (widget value)"
+	"(if value (append (list (car value)) (cadr value)))))";
+
 struct my_vect_obj {
 	int npoints;
 	struct my_point_t *p;	
@@ -718,13 +739,16 @@ struct my_vect_obj SAM_station_vect;
 struct my_vect_obj humanoid_vect;
 struct my_vect_obj socket_vect;
 
-struct my_vect_obj **gamefont[2];
+struct my_vect_obj **gamefont[3];
 #define BIG_FONT 0
 #define SMALL_FONT 1
+#define TINY_FONT 2
 #define BIG_FONT_SCALE 14 
 #define SMALL_FONT_SCALE 5 
+#define TINY_FONT_SCALE 3 
 #define BIG_LETTER_SPACING (10)
 #define SMALL_LETTER_SPACING (5)
+#define TINY_LETTER_SPACING (3)
 #define MAXTEXTLINES 20
 int current_color = WHITE;
 int current_font = BIG_FONT;
@@ -732,8 +756,8 @@ int cursorx = 0;
 int cursory = 0;
 int livecursorx = 0;
 int livecursory = 0;
-int font_scale[2] = { BIG_FONT_SCALE, SMALL_FONT_SCALE };
-int letter_spacing[2] = { BIG_LETTER_SPACING, SMALL_LETTER_SPACING };
+int font_scale[] = { BIG_FONT_SCALE, SMALL_FONT_SCALE, TINY_FONT_SCALE };
+int letter_spacing[] = { BIG_LETTER_SPACING, SMALL_LETTER_SPACING, TINY_LETTER_SPACING };
 
 int ntextlines = 0;
 struct text_line_t {
@@ -840,6 +864,8 @@ struct game_obj_t {
 	int alive;
 	int otype;
 	struct game_obj_t *bullseye;
+	int counter;
+	void *type_specific_data;
 };
 
 GtkWidget *score_label;
@@ -1128,6 +1154,7 @@ void player_fire_laser()
 	o->otype = OBJ_TYPE_LASER;
 	o->color = GREEN;
 	o->alive = 20;
+	o->target = NULL;
 	add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
 }
 
@@ -1623,10 +1650,10 @@ void laser_move(struct game_obj_t *o)
 	}
 	if (o->alive)
 		o->alive--;
-	if (!o->alive) {
-		remove_target(o->target);
-		o->target = NULL;
-	}
+	// if (!o->alive) {
+		//remove_target(o->target);
+		//o->target = NULL;
+	//}
 }
 
 void move_obj(struct game_obj_t *o)
@@ -1723,7 +1750,7 @@ void move_missile(struct game_obj_t *o)
 	explode(o->x, o->y, exvx, exvy, 4, 4, 9);
 }
 
-static void add_generic_object(int x, int y, int vx, int vy,
+static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
 	obj_move_func *move_func,
 	obj_draw_func *draw_func,
 	int color, 
@@ -1735,7 +1762,7 @@ static void add_generic_object(int x, int y, int vx, int vy,
 
 	j = find_free_obj();
 	if (j < 0)
-		return;
+		return NULL;
 	o = &game_state.go[j];
 	o->x = x;
 	o->y = y;
@@ -1752,6 +1779,7 @@ static void add_generic_object(int x, int y, int vx, int vy,
 	o->otype = otype;
 	o->alive = alive;
 	o->bullseye = NULL;
+	return o;
 }
 
 static void add_missile(int x, int y, int vx, int vy, 
@@ -1796,6 +1824,33 @@ void balloon_move(struct game_obj_t *o)
 		o->vy = 1;
 }
 
+void symbol_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
+{
+	int vx,vy;
+	if (!o->alive)
+		return;
+	o->x += o->vx;
+	o->y += o->vy;
+	if ((timer % 40) == 1) {
+		o->vx += randomab(1,3)-2;
+		o->vy += randomab(1,3)-2;
+	}
+	if (abs(o->x - player->x) < 20 && abs(o->y - player->y) < 20) {
+		vx = o->vx;
+		vy = o->vy;
+		o->vx = player->vx/2;
+		o->vy = player->vy/2;
+		player->vx -= vx/3;
+		player->vy -= vy/3;
+	}
+	if (o->alive>0) {
+		o->alive--;
+		// if (!o->alive)
+		//	remove_target(o->target);
+	}
+}
+
+static void add_symbol(int c, int myfont, int x, int y, int vx, int vy, int time);
 void airship_move(struct game_obj_t *o)
 {
 	int deepest, xdist, ydist;
@@ -1827,6 +1882,16 @@ void airship_move(struct game_obj_t *o)
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
 			add_missile(o->x, o->y, 0, 0, 300, RED, player);
 		}
+	}
+
+	/* The airships have "memory leaks" in which they spew "lisp code" */
+	/* out into core memory... */
+	if ((timer % 10) && randomn(100) < 15) {
+		if (randomlisp[o->counter] != ' ') /* skip putting out "space" objects. */
+			add_symbol(randomlisp[o->counter], TINY_FONT, o->x, o->y, o->vx+4, 0, 200);
+		o->counter--;
+		if (o->counter < 0)
+			o->counter = strlen(randomlisp)-1;
 	}
 }
 
@@ -2051,6 +2116,7 @@ void init_vects()
 
 	make_font(&gamefont[BIG_FONT], font_scale[BIG_FONT], font_scale[BIG_FONT]);
 	make_font(&gamefont[SMALL_FONT], font_scale[SMALL_FONT], font_scale[SMALL_FONT]);
+	make_font(&gamefont[TINY_FONT], font_scale[TINY_FONT], font_scale[TINY_FONT]);
 	set_font(BIG_FONT);
 }
 
@@ -2141,7 +2207,7 @@ void draw_objs(GtkWidget *w)
 		if (o->v == &rocket_vect)
 			printf("r");
 #endif
-		if (o->draw == NULL) {
+		if (o->draw == NULL && o->v != NULL) {
 			gdk_gc_set_foreground(gc, &huex[o->color]);
 			for (j=0;j<v->npoints-1;j++) {
 				if (v->p[j+1].x == LINE_BREAK) /* Break in the line segments. */
@@ -2152,7 +2218,7 @@ void draw_objs(GtkWidget *w)
 				y2 = o->y + v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y;
 				gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
 			}
-		} else
+		} else if (o->draw != NULL)
 			o->draw(o, w);
 	}
 }
@@ -2231,6 +2297,14 @@ void perturb(int *value, int lower, int upper, double percent)
 	perturbation = percent * (lower - upper) * ((0.0 + random()) / (0.0 + RAND_MAX) - 0.5);
 	*value += perturbation;
 	return;
+}
+
+static void add_symbol(int c, int myfont, int x, int y, int vx, int vy, int time)
+{	
+	struct my_vect_obj **font = gamefont[myfont];
+	if (font[c] != NULL)
+		add_generic_object(x, y, vx, vy, symbol_move, NULL,
+			WHITE, font[c], 0, OBJ_TYPE_SYMBOL, time);
 }
 
 void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
@@ -2824,10 +2898,12 @@ static void add_humanoids(struct terrain_t *t)
 static void add_airships(struct terrain_t *t)
 {
 	int xi, i;
+	struct game_obj_t *o;
 	for (i=0;i<NAIRSHIPS;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
-		add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
+		o = add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
 			airship_move, NULL, CYAN, &airship_vect, 1, OBJ_TYPE_AIRSHIP, 300*PLAYER_LASER_DAMAGE);
+		o->counter = 0;
 	}
 }
 
