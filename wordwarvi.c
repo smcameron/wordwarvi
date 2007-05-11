@@ -105,7 +105,7 @@ int add_sound(int which_sound, int which_slot);
 #define NBALLOONS 3 
 #define MAX_BALLOON_HEIGHT 300
 #define MIN_BALLOON_HEIGHT 50
-#define MAX_MISSILE_VELOCITY 12 
+#define MAX_MISSILE_VELOCITY 15 
 #define MISSILE_DAMAGE 20
 #define MISSILE_PROXIMITY 10
 #define HUMANOID_PICKUP_SCORE 100
@@ -1684,22 +1684,39 @@ void draw_missile(struct game_obj_t *o, GtkWidget *w)
 	dx = dx_from_vxy(o->vx, o->vy);
 	dy = -dy_from_vxy(o->vx, o->vy);
 	gdk_gc_set_foreground(gc, &huex[o->color]);
-	gdk_draw_line(w->window, gc, x1, y1, x1+dx, y1+dy); 
+	gdk_draw_line(w->window, gc, x1, y1, x1+dx*2, y1+dy*2); 
 }
 
 void move_missile(struct game_obj_t *o)
 {
 	struct game_obj_t *target_obj;
 	int dx, dy, desired_vx, desired_vy;
-	int exvx,exvy;
+	int exvx,exvy,deepest;
 
 	/* move one step... */
 	o->x += o->vx;
 	o->y += o->vy;
 	
-	o->alive--;
-	if (o->alive <= 0)
+	deepest = ground_level(o->x);
+	if (deepest != GROUND_OOPS && o->y > deepest) {
+		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		o->alive = 0;
+		if (o->target) {
+			remove_target(o->target);
+			o->target = NULL;
+		}
 		return;
+	}
+
+	o->alive--;
+	if (o->alive <= 0) { 
+		if (o->target) {
+			remove_target(o->target);
+			o->target = NULL;
+		}
+		return;
+	}
 
 	/* Figure out where we're trying to go */
 	target_obj = o->bullseye;
@@ -1712,6 +1729,10 @@ void move_missile(struct game_obj_t *o)
 			game_state.health -= MISSILE_DAMAGE;
 		else
 			target_obj->alive -= MISSILE_DAMAGE;
+		if (o->target) {
+			remove_target(o->target);
+			o->target = NULL;
+		}
 		o->alive = 0;
 		target_obj->alive -= MISSILE_DAMAGE;
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
@@ -1734,20 +1755,22 @@ void move_missile(struct game_obj_t *o)
 			desired_vy = ((dy < 0) ? -1 : 1 ) * MAX_MISSILE_VELOCITY;
 	}
 
-	/* Try to get to desired vx,vy */
-	if (o->vx < desired_vx)
-		o->vx++;
-	else if (o->vx > desired_vx)
-		o->vx--;
-	if (o->vy < desired_vy)
-		o->vy++;
-	else if (o->vy > desired_vy)
-		o->vy--;
+	/* Try to get to desired vx,vy, but, only once every other clock tick */
+	if ((timer % 2) == 0) {
+		if (o->vx < desired_vx)
+			o->vx++;
+		else if (o->vx > desired_vx)
+			o->vx--;
+		if (o->vy < desired_vy)
+			o->vy++;
+		else if (o->vy > desired_vy)
+			o->vy--;
+	}
 
 	/* make some exhaust sparks. */
 	exvx = -dx_from_vxy(o->vx, o->vy);
 	exvy = dy_from_vxy(o->vx, o->vy);
-	explode(o->x, o->y, exvx, exvy, 4, 4, 9);
+	explode(o->x + exvx, o->y + exvy, exvx, exvy, 4, 4, 9);
 }
 
 static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
@@ -1803,6 +1826,7 @@ static void add_missile(int x, int y, int vx, int vy,
 	o->otype = OBJ_TYPE_MISSILE;
 	o->color = color;
 	o->alive = time;
+	o->counter = 0;
 }
 
 void balloon_move(struct game_obj_t *o)
@@ -1831,9 +1855,9 @@ void symbol_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 		return;
 	o->x += o->vx;
 	o->y += o->vy;
-	if ((timer % 40) == 1) {
-		o->vx += randomab(1,3)-2;
-		o->vy += randomab(1,3)-2;
+	if ((timer % 80) == 1) {
+		o->vx += randomab(1,4)-2;
+		o->vy += randomab(1,4)-2;
 	}
 	if (abs(o->x - player->x) < 20 && abs(o->y - player->y) < 20) {
 		vx = o->vx;
@@ -1859,6 +1883,12 @@ void airship_move(struct game_obj_t *o)
 	o->x += o->vx;
 	o->y += o->vy;
 
+	/* keep it in bounds */
+	if (o->x < 150)
+		o->vx = 1;
+	if (o->x > terrain.x[TERRAIN_LENGTH-1]-150)
+		o->vx = -1;
+
 	if (randomn(1000) < 5) {
 		o->vx = randomab(1, 3) - 2;
 		o->vy = randomab(1, 3) - 2;
@@ -1878,7 +1908,7 @@ void airship_move(struct game_obj_t *o)
 		if (xdist < SAM_LAUNCH_DIST/3)
 			gambling = 4;
 		
-		if (randomn(1000) < (SAM_LAUNCH_CHANCE+gambling)) {
+		if (randomn(2000) < (SAM_LAUNCH_CHANCE+gambling)) {
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
 			add_missile(o->x, o->y, 0, 0, 300, RED, player);
 		}
@@ -1886,9 +1916,9 @@ void airship_move(struct game_obj_t *o)
 
 	/* The airships have "memory leaks" in which they spew "lisp code" */
 	/* out into core memory... */
-	if ((timer % 10) && randomn(100) < 15) {
+	if ((timer % 8) && randomn(100) < 15) {
 		if (randomlisp[o->counter] != ' ') /* skip putting out "space" objects. */
-			add_symbol(randomlisp[o->counter], TINY_FONT, o->x, o->y, o->vx+4, 0, 200);
+			add_symbol(randomlisp[o->counter], TINY_FONT, o->x + 70*3, o->y - 30*3, o->vx+4, 0, 200);
 		o->counter--;
 		if (o->counter < 0)
 			o->counter = strlen(randomlisp)-1;
