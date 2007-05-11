@@ -2249,6 +2249,7 @@ static void draw_letter(GtkWidget *w, struct my_vect_obj **font, unsigned char l
 		x2 = livecursorx + font[letter]->p[i+1].x;
 		y2 = livecursory + font[letter]->p[i+1].y;
 		gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+		gdk_draw_line(w->window, gc, x1-1, y1+1, x2-1, y2+1); 
 	}
 	livecursorx += font_scale[current_font]*2 + letter_spacing[current_font];
 }
