@@ -864,6 +864,7 @@ struct game_obj_t {
 	int alive;
 	int otype;
 	struct game_obj_t *bullseye;
+	int last_xi;
 	int counter;
 	void *type_specific_data;
 };
@@ -1145,6 +1146,7 @@ void player_fire_laser()
 		printf("p != player!\n");
 	} 
 
+	o->last_xi = -1;
 	o->x = p->x+(30 * game_state.direction);
 	o->y = p->y;
 	o->vx = p->vx + LASER_SPEED * game_state.direction;
@@ -1173,21 +1175,58 @@ int interpolate(int x, int x1, int y1, int x2, int y2)
 }
 
 #define GROUND_OOPS 64000
-int ground_level(int x)
+int ground_level(int x, int *xi)
 {
 	/* Find the level of the ground at position x */
 	int deepest, i;
 
+	*xi = -1;
 	/* Detect smashing into the ground */
 	deepest = GROUND_OOPS;
 	for (i=0;i<TERRAIN_LENGTH-1;i++) {
 		if (x >= terrain.x[i] && x < terrain.x[i+1]) {
+			*xi = i;
 			deepest = interpolate(x, terrain.x[i], terrain.y[i],
 					terrain.x[i+1], terrain.y[i+1]);
 			break;
 		}
 	}
 	return deepest;
+}
+
+int find_ground_level(struct game_obj_t *o)
+{
+	int xi1, xi2, i;
+	xi1 = o->last_xi;
+	xi2 = xi1 + 1;
+
+	if (xi1 < 0 || xi2 >= TERRAIN_LENGTH)
+		return ground_level(o->x, &o->last_xi);
+
+	if (terrain.x[xi1] <= o->x && terrain.x[xi2] >= o->x)
+		return interpolate(o->x, terrain.x[xi1], terrain.y[xi1],
+				terrain.x[xi2], terrain.y[xi2]);
+
+	if (terrain.x[xi1] > o->x) {
+		for (i=xi1;i>=0;i--) {
+			if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
+				o->last_xi = i;
+				return interpolate(o->x, terrain.x[i], terrain.y[i],
+						terrain.x[i+1], terrain.y[i+1]);
+			}
+		}
+	} else if (terrain.x[xi2] < o->x) {
+		for (i=xi1;i<=TERRAIN_LENGTH-10;i++) {
+			if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
+				o->last_xi = i;
+				return interpolate(o->x, terrain.x[i], terrain.y[i],
+						terrain.x[i+1], terrain.y[i+1]);
+			}
+		}
+	}
+	o->last_xi = GROUND_OOPS;
+	return GROUND_OOPS;
+	
 }
 
 void bridge_move(struct game_obj_t *o);
@@ -1237,7 +1276,7 @@ void bomb_move(struct game_obj_t *o)
 	}
 
 	/* Detect smashing into the ground */
-	deepest = ground_level(o->x);
+	deepest = find_ground_level(o);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		o->alive = 0;
 		add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
@@ -1314,7 +1353,7 @@ void chaff_move(struct game_obj_t *o)
 
 	explode(o->x, o->y, 0, 0, 10, 7, 19);
 	/* Detect smashing into the ground */
-	deepest = ground_level(o->x);
+	deepest = find_ground_level(o);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		o->alive = 0;
 	}
@@ -1335,6 +1374,7 @@ void drop_chaff()
 		if (i[j] < 0)
 			continue;
 		o = &game_state.go[i[j]];
+		o->last_xi = -1;
 		o->x = player->x;
 		o->y = player->y;
 		o->vx = player->vx + ((j-1) * 7);
@@ -1374,6 +1414,7 @@ void drop_bomb()
 		return;
 
 	o = &game_state.go[i];
+	o->last_xi = -1;
 	o->x = player->x+(5 * game_state.direction);
 	o->y = player->y;
 	o->vx = player->vx + BOMB_SPEED * game_state.direction;
@@ -1465,7 +1506,7 @@ void move_player(struct game_obj_t *o)
 		game_state.vy = player->vy;
 
 	/* Detect smashing into the ground */
-	deepest = ground_level(player->x);
+	deepest = find_ground_level(player);
 	if (deepest != GROUND_OOPS && player->y > deepest) {
 		player->y = deepest - 5;
 		if (abs(player->vy) > 7) 
@@ -1697,7 +1738,7 @@ void move_missile(struct game_obj_t *o)
 	o->x += o->vx;
 	o->y += o->vy;
 	
-	deepest = ground_level(o->x);
+	deepest = find_ground_level(o);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
@@ -1711,6 +1752,8 @@ void move_missile(struct game_obj_t *o)
 
 	o->alive--;
 	if (o->alive <= 0) { 
+		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
 		if (o->target) {
 			remove_target(o->target);
 			o->target = NULL;
@@ -1768,9 +1811,9 @@ void move_missile(struct game_obj_t *o)
 	}
 
 	/* make some exhaust sparks. */
-	exvx = -dx_from_vxy(o->vx, o->vy);
-	exvy = dy_from_vxy(o->vx, o->vy);
-	explode(o->x + exvx, o->y + exvy, exvx, exvy, 4, 4, 9);
+	exvx = -dx_from_vxy(o->vx, o->vy) + randomn(2)-1;
+	exvy = dy_from_vxy(o->vx, o->vy) + randomn(2)-1;
+	explode(o->x + exvx + randomn(4)-2, o->y + exvy + randomn(4)-2, exvx, exvy, 4, 8, 9);
 }
 
 static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
@@ -1787,6 +1830,7 @@ static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
 	if (j < 0)
 		return NULL;
 	o = &game_state.go[j];
+	o->last_xi = -1;
 	o->x = x;
 	o->y = y;
 	o->vx = vx;
@@ -1815,6 +1859,7 @@ static void add_missile(int x, int y, int vx, int vy,
 	if (i<0)
 		return;
 	o = &game_state.go[i];
+	o->last_xi = -1;
 	o->x = x;
 	o->y = y;
 	o->vx = vx;
@@ -1841,7 +1886,7 @@ void balloon_move(struct game_obj_t *o)
 		o->vy = randomab(1, 3) - 2;
 	}
 
-	deepest = ground_level(o->x);
+	deepest = find_ground_level(o);
 	if (deepest != GROUND_OOPS && o->y > deepest - MIN_BALLOON_HEIGHT)
 		o->vy = -1;
 	else if (deepest != GROUND_OOPS && o->y < deepest - MAX_BALLOON_HEIGHT)
@@ -1894,7 +1939,7 @@ void airship_move(struct game_obj_t *o)
 		o->vy = randomab(1, 3) - 2;
 	}
 
-	deepest = ground_level(o->x);
+	deepest = find_ground_level(o);
 	if (deepest != GROUND_OOPS && o->y > deepest - MIN_BALLOON_HEIGHT)
 		o->vy = -1;
 	else if (deepest != GROUND_OOPS && o->y < deepest - MAX_BALLOON_HEIGHT)
@@ -2369,10 +2414,14 @@ void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 
 	if ((x2 - x1) > 1000) {	
 		perturb(&x3, x2, x1, level.large_scale_roughness);
-		perturb(&y3, x2, x1, level.large_scale_roughness);
+		do { 
+			perturb(&y3, x2, x1, level.large_scale_roughness);
+		} while ((KERNEL_Y_BOUNDARY - y3) > -50);
 	} else {
 		perturb(&x3, x2, x1, level.small_scale_roughness);
-		perturb(&y3, x2, x1, level.small_scale_roughness);
+		do { 
+			perturb(&y3, x2, x1, level.small_scale_roughness);
+		} while ((KERNEL_Y_BOUNDARY - y3) > -50);
 	}
 
 	t->x[midxi] = x3;
@@ -2433,6 +2482,7 @@ static void add_debris(int x, int y, int vx, int vy, int r, struct game_obj_t **
 		if (z < 0)
 			return;
 		o = &game_state.go[z];
+		o->last_xi = -1;
 		o->x = x;
 		o->y = y;
 		o->move = bridge_move;
@@ -3642,41 +3692,7 @@ error:
 /* precompute 16 2-second clips of various sine waves */
 int init_clips()
 {
-	int i, j;
-	double phase, phaseinc, sawinc, sawval;
-	phaseinc = 0.01;
-	sawinc = 0.01;
-
 	memset(&audio_queue, 0, sizeof(audio_queue));
-
-	for (i=0;i<NCLIPS;i++) {
-		clip[i].nsamples = CLIPLEN;
-		clip[i].pos = 0;
-		clip[i].active = 0;
-		sawval = 0;
-		sawinc = (double) 0.01 + (double) i / 1000.0;
-		phase = 0.0;
-		clip[i].sample = malloc(sizeof(clip[i].sample[0]) * CLIPLEN); 
-		if (clip[i].sample == NULL) {
-			printf("malloc failed, i=%d\n", i);
-			continue;
-		}
-		for (j=0;j<CLIPLEN;j++) {
-			if ((i % 3) != 0) {
-				clip[i].sample[j] = (double) (((CLIPLEN) - j) / ((double) 2*j+CLIPLEN)) * sin(phase);
-				phase += phaseinc;
-				if (phase > TWOPI) 
-					phase -= TWOPI;
-			} else {
-				sawval += sawinc;
-				clip[i].sample[j] = sawval * (double) (CLIPLEN -j) / (double) (j+CLIPLEN);
-				if (sawval > 0.80 || sawval < -0.80)
-					sawinc = -sawinc;
-			}
-		}
-		phaseinc *= 1.4;
-		//phaseinc *= 1.02;
-	}
 
 	read_clip(PLAYER_LASER_SOUND, "sounds/18385_inferno_laserbeam.wav");
 	read_clip(BOMB_IMPACT_SOUND, "sounds/18390_inferno_plascanh.wav");
@@ -3687,7 +3703,8 @@ int init_clips()
 	read_clip(LASER_EXPLOSION_SOUND, "sounds/18399_inferno_stormplas.wav");
 	read_clip(GROUND_SMACK_SOUND, "sounds/ground_smack.wav");
 	read_clip(INSERT_COIN_SOUND, "sounds/us_quarter.wav");
-	read_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.wav");
+	// read_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.wav");
+	read_clip(MUSIC_SOUND, "ounds/18395_inferno_rltx.wav");
 	read_clip(SAM_LAUNCH_SOUND, "sounds/18395_inferno_rltx.wav");
 
 	return 0;
@@ -3943,13 +3960,10 @@ int main(int argc, char *argv[])
 		G_CALLBACK (key_press_cb), "window");
 
 
-
 	// print_target_list();
 
 	for (i=0;i<NCOLORS;i++)
 		gdk_colormap_alloc_color(gtk_widget_get_colormap(main_da), &huex[i], FALSE, FALSE);
-	gdk_gc_set_foreground(gc, &huex[BLUE]);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
 	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &huex[BLACK]);
 
 
@@ -3965,6 +3979,8 @@ int main(int argc, char *argv[])
     /* and the window */
     gtk_widget_show (window);
 	gc = gdk_gc_new(GTK_WIDGET(main_da)->window);
+	gdk_gc_set_foreground(gc, &huex[BLUE]);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
 
     timer_tag = g_timeout_add(42, advance_game, NULL);
     
