@@ -80,6 +80,7 @@ int add_sound(int which_sound, int which_slot);
 #define LAUNCH_DIST 500
 #define MAX_ROCKET_SPEED -32
 #define SAM_LAUNCH_DIST 400
+#define GDB_LAUNCH_DIST 700
 #define SAM_LAUNCH_CHANCE 15 
 #define PLAYER_SPEED 8 
 #define MAX_VX 15
@@ -90,17 +91,22 @@ int add_sound(int which_sound, int which_slot);
 #define LASER_PROXIMITY 300 /* square root of 300 */
 #define BOMB_PROXIMITY 10000 /* square root of 30000 */
 #define BOMB_X_PROXIMITY 100
+#define GDB_DX_THRESHOLD 150
+#define GDB_DY_THRESHOLD 150
+#define GDB_MAX_VX 10
+#define GDB_MAX_VY 10
 #define LINE_BREAK (-999)
 #define NBUILDINGS 40
 #define NBRIDGES 7
 #define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
+#define NGDBS 20 
 #define NSAMS 5
 #define BOMB_SPEED 10
 #define NBOMBS 100
 #define MAX_ALT 100
 #define MIN_ALT 50
-#define MAXHEALTH 10000
+#define MAXHEALTH 500
 #define NAIRSHIPS 3
 #define NBALLOONS 3 
 #define MAX_BALLOON_HEIGHT 300
@@ -140,7 +146,7 @@ int timer_event = 0;
 #define INTRO1_EVENT 14
 #define INTRO2_EVENT 15
 
-#define NCOLORS 8
+#define NCOLORS 9
 
 GdkColor huex[NCOLORS];
 
@@ -152,6 +158,7 @@ GdkColor huex[NCOLORS];
 #define RED 5
 #define ORANGE 6
 #define CYAN 7
+#define MAGENTA 8
 
 
 /* Object types */
@@ -164,12 +171,14 @@ GdkColor huex[NCOLORS];
 #define OBJ_TYPE_HUMAN 'h'
 #define OBJ_TYPE_LASER 'L'
 #define OBJ_TYPE_MISSILE 'm'
+#define OBJ_TYPE_HARPOON 'H'
 #define OBJ_TYPE_ROCKET 'r'
 #define OBJ_TYPE_SOCKET 'x'
 #define OBJ_TYPE_SAM_STATION 'S'
 #define OBJ_TYPE_SPARK 's'
 #define OBJ_TYPE_BRIDGE 'T'
 #define OBJ_TYPE_SYMBOL 'z'
+#define OBJ_TYPE_GDB 'd'
 
 int current_level = 0;
 struct level_parameters_t {
@@ -178,6 +187,7 @@ struct level_parameters_t {
 	int nbridges;
 	int nflak;
 	int nfueltanks;
+	int ngdbs;
 	int nsams;
 	int nhumanoids;
 	int nbuildings;
@@ -191,6 +201,7 @@ struct level_parameters_t {
 	NBRIDGES,
 	NFLAK,
 	NFUELTANKS,
+	NGDBS,
 	NSAMS,
 	NHUMANOIDS,
 	NBUILDINGS,
@@ -347,6 +358,52 @@ struct my_point_t decode_glyph[] = {
 #define MAX_VELOCITY_TO_COMPUTE 20 
 #define V_MAGNITUDE (20.0)
 struct my_point_t vxy_2_dxy[MAX_VELOCITY_TO_COMPUTE+1][MAX_VELOCITY_TO_COMPUTE+1];
+
+struct my_point_t gdb_points_left[] = {
+	{ 10, 0 },
+	{ -20, 0 },
+	{ -20, -5 },
+	{ 0, -15, },
+	{ 0, 15 },
+	{ -5, 20 },
+	{ -10, 20 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 10, -15 },
+	{ 0, -15 },
+	{ 0, 0 },
+	{ 15, 0  },
+	{ 15, -15  },
+	{ 35, -45  },
+	{ 38, -45  },
+	{ 18, -15  },
+	{ 18, 0  },
+	{ 28, 0  },
+	{ 28, -15  },
+	{ 18, -15  },
+};
+
+struct my_point_t gdb_points_right[] = {
+	{ 10, 0 },
+	{ -20, 0 },
+	{ -20, -5 },
+	{ 0, -15, },
+	{ 0, 15 },
+	{ -5, 20 },
+	{ -10, 20 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 10, -15 },
+	{ 0, -15 },
+	{ 0, 0 },
+	{ 15, 0  },
+	{ 15, -15  },
+	{ 35, -45  },
+	{ 38, -45  },
+	{ 18, -15  },
+	{ 18, 0  },
+	{ 28, 0  },
+	{ 28, -15  },
+	{ 18, -15  },
+};
 
 struct my_point_t humanoid_points[] = {
 	{ -5, 0 },
@@ -738,6 +795,8 @@ struct my_vect_obj balloon_vect;
 struct my_vect_obj SAM_station_vect;
 struct my_vect_obj humanoid_vect;
 struct my_vect_obj socket_vect;
+struct my_vect_obj gdb_vect_right;
+struct my_vect_obj gdb_vect_left;
 
 struct my_vect_obj **gamefont[3];
 #define BIG_FONT 0
@@ -853,6 +912,20 @@ struct game_obj_t;
 typedef void obj_move_func(struct game_obj_t *o);
 typedef void obj_draw_func(struct game_obj_t *o, GtkWidget *w);
 
+struct harpoon_data {
+	struct game_obj_t *gdb;
+};
+
+struct gdb_data {
+	int awake;
+	int tx, ty;
+};
+
+union type_specific_data {
+	struct harpoon_data harpoon;
+	struct gdb_data gdb;
+};
+
 struct game_obj_t {
 	obj_move_func *move;
 	obj_draw_func *draw;
@@ -866,7 +939,7 @@ struct game_obj_t {
 	struct game_obj_t *bullseye;
 	int last_xi;
 	int counter;
-	void *type_specific_data;
+	union type_specific_data tsd;
 };
 
 GtkWidget *score_label;
@@ -1044,6 +1117,9 @@ void move_flak(struct game_obj_t *o)
 
 static void add_missile(int x, int y, int vx, int vy, 
 	int time, int color, struct game_obj_t *bullseye);
+static void add_harpoon(int x, int y, int vx, int vy, 
+	int time, int color, struct game_obj_t *bullseye,
+	struct game_obj_t *gdb);
 
 void move_rocket(struct game_obj_t *o)
 {
@@ -1093,6 +1169,94 @@ void sam_move(struct game_obj_t *o)
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
 			add_missile(o->x+20, o->y-30, 0, 0, 300, GREEN, player);
 		}
+	}
+}
+
+void draw_generic(struct game_obj_t *o, GtkWidget *w);
+void gdb_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	if (o->vx < 0)
+		o->v = &gdb_vect_left;
+	else if (o->vx > 0)
+		o->v = &gdb_vect_right;
+	draw_generic(o, w);
+}
+
+int find_ground_level(struct game_obj_t *o);
+void gdb_move(struct game_obj_t *o)
+{
+	int xdist, ydist;
+	int dvx, dvy, tx, ty;
+	int gy;
+
+	if (!o->alive)
+		return;
+
+	gy = find_ground_level(o);
+	
+
+	if (o->tsd.gdb.awake) {
+		tx = o->tsd.gdb.tx;
+		ty = o->tsd.gdb.ty;
+		if (o->x < tx && tx - o->x > GDB_DX_THRESHOLD)
+			dvx = GDB_MAX_VX;
+		else if (o->x < tx)
+			dvx = 0;
+		else if (o->x > tx && o->x - tx > GDB_DX_THRESHOLD)
+			dvx = -GDB_MAX_VX;
+		else if (o->x > tx)
+			dvx = 0;
+		if (o->y < ty && ty - o->y > GDB_DY_THRESHOLD)
+			dvy = GDB_MAX_VY;
+		else if (o->y < ty)
+			dvy = 0;
+		else if (o->y > ty && o->y - ty > GDB_DY_THRESHOLD)
+			dvy = -GDB_MAX_VY;
+		else if (o->y > ty)
+			dvy = 0;
+
+		if (abs(player->x - tx) > GDB_DX_THRESHOLD ||
+			abs(player->y - ty) > GDB_DY_THRESHOLD) {
+			o->tsd.gdb.tx = player->x + randomn(200)-100;
+			o->tsd.gdb.ty = player->y + randomn(200)-100;
+		}
+
+		if (o->y > gy - 40 && dvy > 0)
+			dvy = -10;	
+
+		if (o->vx < dvx)
+			o->vx++;
+		else if (o->vx > dvx)
+			o->vx--;
+		if (o->vy < dvy)
+			o->vy++;
+		else if (o->vy > dvy)
+			o->vy--;
+
+		o->x += o->vx;
+		o->y += o->vy;
+
+		
+		explode(o->x - dvx + randomn(4)-2, o->y - dvy + randomn(4)-2, -dvx, -dvy, 4, 8, 9);
+	}
+	
+	xdist = abs(o->x - player->x);
+	if (xdist < GDB_LAUNCH_DIST) {
+		ydist = o->y - player->y;
+		if (randomn(1000) < SAM_LAUNCH_CHANCE) {
+			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			add_harpoon(o->x+10, o->y, 0, 0, 300, MAGENTA, player, o);
+			if (!o->tsd.gdb.awake) {
+				o->tsd.gdb.awake = 1;
+				o->tsd.gdb.tx = player->x + randomn(200)-100;
+				o->tsd.gdb.ty = player->y + randomn(200)-100;
+			}
+		}
+	}
+
+	if (o->y >= gy + 3) {
+		o->alive = 0;
+		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
 	}
 }
 
@@ -1253,6 +1417,9 @@ void bomb_move(struct game_obj_t *o)
 		removed = 0;
 		switch (t->o->otype) {
 			case OBJ_TYPE_ROCKET:
+			case OBJ_TYPE_MISSILE:
+			case OBJ_TYPE_HARPOON:
+			case OBJ_TYPE_GDB:
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_GUN:
 			case OBJ_TYPE_SAM_STATION:  {
@@ -1290,6 +1457,9 @@ void bomb_move(struct game_obj_t *o)
 			removed = 0;
 			switch (t->o->otype) {
 				case OBJ_TYPE_ROCKET:
+				case OBJ_TYPE_HARPOON:
+				case OBJ_TYPE_MISSILE:
+				case OBJ_TYPE_GDB:
 				case OBJ_TYPE_GUN:
 				case OBJ_TYPE_SAM_STATION:
 				case OBJ_TYPE_FUEL: {
@@ -1659,6 +1829,8 @@ void laser_move(struct game_obj_t *o)
 				}
 				break;
 			case OBJ_TYPE_ROCKET:
+			case OBJ_TYPE_HARPOON:
+			case OBJ_TYPE_GDB:
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_GUN:
 			case OBJ_TYPE_SAM_STATION:
@@ -1728,7 +1900,115 @@ void draw_missile(struct game_obj_t *o, GtkWidget *w)
 	gdk_draw_line(w->window, gc, x1, y1, x1+dx*2, y1+dy*2); 
 }
 
+void draw_harpoon(struct game_obj_t *o, GtkWidget *w)
+{
+	int x1, y1, x2, y2;
+	int dx, dy;
+
+	x1 = o->x - game_state.x;
+	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
+	x2 = o->tsd.harpoon.gdb->x - game_state.x;
+	y2 = o->tsd.harpoon.gdb->y - game_state.y + (SCREEN_HEIGHT/2);  
+	dx = dx_from_vxy(o->vx, o->vy);
+	dy = -dy_from_vxy(o->vx, o->vy);
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+	gdk_draw_line(w->window, gc, x1, y1, x1+dx*2, y1+dy*2); 
+	if (o->tsd.harpoon.gdb->alive && o->tsd.harpoon.gdb->otype == OBJ_TYPE_GDB) {
+		x2 = o->tsd.harpoon.gdb->x - game_state.x;
+		y2 = o->tsd.harpoon.gdb->y - game_state.y + (SCREEN_HEIGHT/2);  
+		gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+	}
+}
+
 void move_missile(struct game_obj_t *o)
+{
+	struct game_obj_t *target_obj;
+	int dx, dy, desired_vx, desired_vy;
+	int exvx,exvy,deepest;
+
+	/* move one step... */
+	o->x += o->vx;
+	o->y += o->vy;
+	
+	deepest = find_ground_level(o);
+	if (deepest != GROUND_OOPS && o->y > deepest) {
+		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		o->alive = 0;
+		if (o->target) {
+			remove_target(o->target);
+			o->target = NULL;
+		}
+		return;
+	}
+
+	o->alive--;
+	if (o->alive <= 0) { 
+		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		if (o->target) {
+			remove_target(o->target);
+			o->target = NULL;
+		}
+		return;
+	}
+
+	/* Figure out where we're trying to go */
+	target_obj = o->bullseye;
+	dx = target_obj->x + target_obj->vx - o->x;
+	dy = target_obj->y + target_obj->vy - o->y;
+
+	if ((abs(dx) < MISSILE_PROXIMITY) && (abs(dy) < MISSILE_PROXIMITY)) {
+		/* We've hit the target */
+		if (player == o->bullseye)
+			game_state.health -= MISSILE_DAMAGE;
+		else
+			target_obj->alive -= MISSILE_DAMAGE;
+		if (o->target) {
+			remove_target(o->target);
+			o->target = NULL;
+		}
+		o->alive = 0;
+		target_obj->alive -= MISSILE_DAMAGE;
+		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		return;
+	}
+
+	/* by similar triangles, find desired vx/vy from dx/dy... */
+	if (abs(dx) < abs(dy)) {
+		desired_vy = ((dy < 0) ? -1 : 1 ) * MAX_MISSILE_VELOCITY;
+		if (dy != 0)
+			desired_vx = desired_vy * dx / dy;
+		else /* shouldn't happen */
+			desired_vx = ((dx < 0) ? -1 : 1 ) * MAX_MISSILE_VELOCITY;
+	} else {
+		desired_vx = ((dx < 0) ? -1 : 1 ) * MAX_MISSILE_VELOCITY;
+		if (dx != 0)
+			desired_vy = desired_vx * dy / dx;
+		else /* shouldn't happen */
+			desired_vy = ((dy < 0) ? -1 : 1 ) * MAX_MISSILE_VELOCITY;
+	}
+
+	/* Try to get to desired vx,vy, but, only once every other clock tick */
+	if ((timer % 2) == 0) {
+		if (o->vx < desired_vx)
+			o->vx++;
+		else if (o->vx > desired_vx)
+			o->vx--;
+		if (o->vy < desired_vy)
+			o->vy++;
+		else if (o->vy > desired_vy)
+			o->vy--;
+	}
+
+	/* make some exhaust sparks. */
+	exvx = -dx_from_vxy(o->vx, o->vy) + randomn(2)-1;
+	exvy = dy_from_vxy(o->vx, o->vy) + randomn(2)-1;
+	explode(o->x + exvx + randomn(4)-2, o->y + exvy + randomn(4)-2, exvx, exvy, 4, 8, 9);
+}
+
+void move_harpoon(struct game_obj_t *o)
 {
 	struct game_obj_t *target_obj;
 	int dx, dy, desired_vx, desired_vy;
@@ -1874,6 +2154,32 @@ static void add_missile(int x, int y, int vx, int vy,
 	o->counter = 0;
 }
 
+static void add_harpoon(int x, int y, int vx, int vy, 
+	int time, int color, struct game_obj_t *bullseye,
+	struct game_obj_t *gdb)
+{
+	int i;
+	struct game_obj_t *o;
+
+	i = find_free_obj();
+	if (i<0)
+		return;
+	o = &game_state.go[i];
+	o->last_xi = -1;
+	o->x = x;
+	o->y = y;
+	o->vx = vx;
+	o->vy = vy;
+	o->move = move_harpoon;
+	o->draw = draw_harpoon;
+	o->bullseye = bullseye;
+	o->target = add_target(o);
+	o->otype = OBJ_TYPE_HARPOON;
+	o->color = color;
+	o->alive = time;
+	o->counter = 0;
+	o->tsd.harpoon.gdb = gdb;
+}
 void balloon_move(struct game_obj_t *o)
 {
 	int deepest;
@@ -2166,6 +2472,13 @@ void init_vects()
 	right_laser_vect.npoints = sizeof(right_laser_beam_points) / sizeof(right_laser_beam_points[0]);
 	fuel_vect.p = fuel_points;
 	fuel_vect.npoints = sizeof(fuel_points) / sizeof(fuel_points[0]);
+	gdb_vect_right.p = gdb_points_right;
+	gdb_vect_right.npoints = sizeof(gdb_points_right) / sizeof(gdb_points_right[0]);
+	gdb_vect_left.p = gdb_points_left;
+	gdb_vect_left.npoints = sizeof(gdb_points_left) / sizeof(gdb_points_left[0]);
+	for (i=0;i<gdb_vect_right.npoints;i++)
+		if (gdb_vect_right.p[i].x != LINE_BREAK) 
+			gdb_vect_right.p[i].x = -gdb_vect_left.p[i].x;
 	bomb_vect.p = bomb_points;
 	bomb_vect.npoints = sizeof(bomb_points) / sizeof(bomb_points[0]);
 	bridge_vect.p = bridge_points;
@@ -2956,6 +3269,20 @@ static void add_fuel(struct terrain_t *t)
 	}
 }
 
+static void add_gdbs(struct terrain_t *t)
+{
+	int xi, i;
+	struct game_obj_t *o;
+	for (i=0;i<level.ngdbs;i++) {
+		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
+			gdb_move, gdb_draw, CYAN, &gdb_vect_left, 1, OBJ_TYPE_GDB, 1);
+		if (o != NULL) {
+			o->tsd.gdb.awake = 0;
+		}
+	}
+}
+
 static void add_SAMs(struct terrain_t *t)
 {
 	int xi, i;
@@ -2972,7 +3299,7 @@ static void add_humanoids(struct terrain_t *t)
 	for (i=0;i<level.nhumanoids;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		add_generic_object(t->x[xi], t->y[xi], 0, 0, 
-			humanoid_move, NULL, GREEN, &humanoid_vect, 1, OBJ_TYPE_HUMAN, 1);
+			humanoid_move, NULL, MAGENTA, &humanoid_vect, 1, OBJ_TYPE_HUMAN, 1);
 	}
 }
 
@@ -3079,7 +3406,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	/* draw health bar */
 	if (game_state.health > 0)
 		gdk_draw_rectangle(w->window, gc, TRUE, 10, 10, 
-			((SCREEN_WIDTH - 20) * game_state.health / 100), 30);
+			((SCREEN_WIDTH - 20) * game_state.health / MAXHEALTH), 30);
 	draw_objs(w);
 		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d Score: %d Humans:%d/%d ", 
 			credits, game_state.lives, game_state.score, 
@@ -3431,6 +3758,7 @@ void start_level()
 	add_airships(&terrain);
 	add_balloons(&terrain);
 	add_socket(&terrain);
+	add_gdbs(&terrain);
 
 	if (credits == 0)
 		setup_text();
@@ -3443,6 +3771,7 @@ void init_levels_to_beginning()
 	level.nbridges = NBRIDGES;
 	level.nflak = NFLAK;
 	level.nfueltanks = NFUELTANKS;
+	level.ngdbs = NGDBS;
 	level.nsams = NSAMS;
 	level.nsams = NHUMANOIDS;
 	level.nbuildings = NBUILDINGS;
@@ -3479,6 +3808,7 @@ void advance_level()
 	level.nbridges += 1;
 	level.nflak += 10;
 	level.nfueltanks += 2;
+	level.ngdbs += 2;
 	level.nsams += 2;
 	level.nhumanoids += 1;
 	level.large_scale_roughness+= (0.03);
@@ -3703,7 +4033,7 @@ int init_clips()
 	read_clip(LASER_EXPLOSION_SOUND, "sounds/18399_inferno_stormplas.wav");
 	read_clip(GROUND_SMACK_SOUND, "sounds/ground_smack.wav");
 	read_clip(INSERT_COIN_SOUND, "sounds/us_quarter.wav");
-	// read_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.wav");
+	read_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.wav");
 	read_clip(MUSIC_SOUND, "ounds/18395_inferno_rltx.wav");
 	read_clip(SAM_LAUNCH_SOUND, "sounds/18395_inferno_rltx.wav");
 
@@ -3900,6 +4230,7 @@ int main(int argc, char *argv[])
 	gdk_color_parse("red", &huex[RED]);
 	gdk_color_parse("orange", &huex[ORANGE]);
 	gdk_color_parse("cyan", &huex[CYAN]);
+	gdk_color_parse("MAGENTA", &huex[MAGENTA]);
  
     /* create a new window */
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
