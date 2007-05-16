@@ -93,8 +93,8 @@ int add_sound(int which_sound, int which_slot);
 #define BOMB_X_PROXIMITY 100
 #define GDB_DX_THRESHOLD 150
 #define GDB_DY_THRESHOLD 150
-#define GDB_MAX_VX 10
-#define GDB_MAX_VY 10
+#define GDB_MAX_VX 13 
+#define GDB_MAX_VY 13 
 #define LINE_BREAK (-999)
 #define NBUILDINGS 40
 #define NBRIDGES 7
@@ -106,12 +106,12 @@ int add_sound(int which_sound, int which_slot);
 #define NBOMBS 100
 #define MAX_ALT 100
 #define MIN_ALT 50
-#define MAXHEALTH 500
+#define MAXHEALTH 100
 #define NAIRSHIPS 3
 #define NBALLOONS 3 
 #define MAX_BALLOON_HEIGHT 300
 #define MIN_BALLOON_HEIGHT 50
-#define MAX_MISSILE_VELOCITY 15 
+#define MAX_MISSILE_VELOCITY 19 
 #define MISSILE_DAMAGE 20
 #define MISSILE_PROXIMITY 10
 #define HUMANOID_PICKUP_SCORE 100
@@ -912,6 +912,11 @@ struct game_obj_t;
 typedef void obj_move_func(struct game_obj_t *o);
 typedef void obj_draw_func(struct game_obj_t *o, GtkWidget *w);
 
+struct extra_player_data {
+	int count;
+	int count2;
+};
+
 struct harpoon_data {
 	struct game_obj_t *gdb;
 };
@@ -924,6 +929,7 @@ struct gdb_data {
 union type_specific_data {
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
+	struct extra_player_data epd;
 };
 
 struct game_obj_t {
@@ -1216,12 +1222,12 @@ void gdb_move(struct game_obj_t *o)
 			dvy = 0;
 
 		if (abs(player->x - tx) > GDB_DX_THRESHOLD ||
-			abs(player->y - ty) > GDB_DY_THRESHOLD) {
-			o->tsd.gdb.tx = player->x + randomn(200)-100;
-			o->tsd.gdb.ty = player->y + randomn(200)-100;
+			abs(player->y - ty) > GDB_DY_THRESHOLD || randomn(100) < 3) {
+			o->tsd.gdb.tx = player->x + randomn(300)-150;
+			o->tsd.gdb.ty = player->y + randomn(300)-150;
 		}
 
-		if (o->y > gy - 40 && dvy > 0)
+		if (o->y > gy - 100 && dvy > -3)
 			dvy = -10;	
 
 		if (o->vx < dvx)
@@ -1289,6 +1295,10 @@ void socket_move(struct game_obj_t *o)
 	/* HUMANOID_DIST is close enough */
 	if (xdist < HUMANOID_DIST && ydist < HUMANOID_DIST) {
 		add_sound(HUMANOID_PICKUP_SOUND, ANY_SLOT);
+		player->tsd.epd.count = 50;
+		player->tsd.epd.count2 = 0;
+		player->vx = 0;
+		player->vy = 0;
 		advance_level();
 	}
 }
@@ -1595,6 +1605,48 @@ void drop_bomb()
 	o->target = add_target(o);
 	o->color = ORANGE;
 	o->alive = 20;
+}
+
+void player_draw(struct game_obj_t *o, GtkWidget *w)
+{
+
+	int i, countdir;
+	double scale, scalefactor;
+
+	if (player->tsd.epd.count == 0)
+		draw_generic(o, w);
+	else {
+		if (player->tsd.epd.count > 0) {
+			scale = 1.07;
+			scalefactor = 1.07;
+			countdir = 1;
+		} else {
+			scale = 1.07;
+			scalefactor = 1.07;
+			countdir = -1;
+		}
+
+		for (i = 0; i<o->tsd.epd.count2; i++) {
+			int j;
+			int x1, y1, x2, y2;
+			gdk_gc_set_foreground(gc, &huex[o->color]);
+			for (j=0;j<o->v->npoints-1;j++) {
+				if (o->v->p[j+1].x == LINE_BREAK) /* Break in the line segments. */
+					j+=2;
+				x1 = o->x + o->v->p[j].x*scale - game_state.x;
+				y1 = o->y + o->v->p[j].y*scale - game_state.y + (SCREEN_HEIGHT/2);  
+				x2 = o->x + o->v->p[j+1].x*scale - game_state.x; 
+				y2 = o->y + o->v->p[j+1].y*scale+(SCREEN_HEIGHT/2) - game_state.y;
+				gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+			}
+			scale = scale * scalefactor;
+		}
+		o->tsd.epd.count2 += countdir;
+		if (o->tsd.epd.count2 == 0 && countdir == -1)
+			o->tsd.epd.count = 0;
+		if (o->tsd.epd.count != 0 && o->tsd.epd.count2 == o->tsd.epd.count && countdir == 1)
+			o->tsd.epd.count = 0;
+	}
 }
 
 static void add_debris(int x, int y, int vx, int vy, int r, struct game_obj_t **victim);
@@ -3730,7 +3782,7 @@ void start_level()
 	game_state.humanoids = 0;
 	game_state.direction = 1;
 	player = &game_state.go[0];
-	player->draw = NULL;
+	player->draw = player_draw;
 	player->move = move_player;
 	player->v = (game_state.direction == 1) ? &player_vect : &left_player_vect;
 	player->x = 200;
@@ -3739,6 +3791,8 @@ void start_level()
 	player->vy = 0;
 	player->target = add_target(player);
 	player->alive = 1;
+	player->tsd.epd.count = -1;
+	player->tsd.epd.count2 = 50;
 	game_state.health = MAXHEALTH;
 	game_state.nbombs = level.nbombs;
 	game_state.prev_bombs = -1;
@@ -3841,6 +3895,14 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 #endif
 	switch (event->keyval)
 	{
+	case GDK_8:
+			player->tsd.epd.count = 50;
+			player->tsd.epd.count2 = 0;
+			break;
+	case GDK_7:
+			player->tsd.epd.count = -1;
+			player->tsd.epd.count2 = 50;
+			break;
 	case GDK_9:
 		if (credits > 0)
 			game_state.health = -1;
