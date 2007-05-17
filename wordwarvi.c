@@ -72,10 +72,10 @@ int add_sound(int which_sound, int which_slot);
 #define LARGE_SCALE_ROUGHNESS (0.04)
 #define SMALL_SCALE_ROUGHNESS (0.09)
 #define MAXOBJS 6500
-#define NFLAK 20
+#define NFLAK 10
 #define LASER_BOLT_DAMAGE 5 /* damage done by flak guns to player */
 #define PLAYER_LASER_DAMAGE 20
-#define NROCKETS 70 
+#define NROCKETS 20 
 // #define NROCKETS 0
 #define LAUNCH_DIST 500
 #define MAX_ROCKET_SPEED -32
@@ -100,7 +100,8 @@ int add_sound(int which_sound, int which_slot);
 #define NBRIDGES 7
 #define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
-#define NGDBS 20 
+#define NGDBS 4 
+#define NTENTACLES 40 
 #define NSAMS 5
 #define BOMB_SPEED 10
 #define NBOMBS 100
@@ -116,7 +117,9 @@ int add_sound(int which_sound, int which_slot);
 #define MISSILE_PROXIMITY 10
 #define HUMANOID_PICKUP_SCORE 100
 #define HUMANOID_DIST 10
-
+#define MAX_TENTACLE_SEGS 20
+#define MAX_SEG_ANGLE 60
+#define TENTACLE_RANGE (randomn(200) - 10)
 /* Scoring stuff */
 #define ROCKET_SCORE 20
 #define BRIDGE_SCORE 5
@@ -179,6 +182,7 @@ GdkColor huex[NCOLORS];
 #define OBJ_TYPE_BRIDGE 'T'
 #define OBJ_TYPE_SYMBOL 'z'
 #define OBJ_TYPE_GDB 'd'
+#define OBJ_TYPE_TENTACLE 'j'
 
 int current_level = 0;
 struct level_parameters_t {
@@ -188,6 +192,7 @@ struct level_parameters_t {
 	int nflak;
 	int nfueltanks;
 	int ngdbs;
+	int ntentacles;
 	int nsams;
 	int nhumanoids;
 	int nbuildings;
@@ -202,6 +207,7 @@ struct level_parameters_t {
 	NFLAK,
 	NFUELTANKS,
 	NGDBS,
+	NTENTACLES,
 	NSAMS,
 	NHUMANOIDS,
 	NBUILDINGS,
@@ -358,6 +364,9 @@ struct my_point_t decode_glyph[] = {
 #define MAX_VELOCITY_TO_COMPUTE 20 
 #define V_MAGNITUDE (20.0)
 struct my_point_t vxy_2_dxy[MAX_VELOCITY_TO_COMPUTE+1][MAX_VELOCITY_TO_COMPUTE+1];
+
+double sine[361];
+double cosine[361];
 
 struct my_point_t gdb_points_left[] = {
 	{ 10, 0 },
@@ -926,11 +935,26 @@ struct gdb_data {
 	int tx, ty;
 };
 
+struct tentacle_seg_data {
+	int angle;
+	int length;
+	int angular_v;
+	int dest_angle;
+};
+
+struct tentacle_data {
+	int angle;
+	int nsegs;
+	struct tentacle_seg_data *seg;
+};
+
 union type_specific_data {
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
 	struct extra_player_data epd;
+	struct tentacle_data tentacle;
 };
+
 
 struct game_obj_t {
 	obj_move_func *move;
@@ -1188,7 +1212,162 @@ void gdb_draw(struct game_obj_t *o, GtkWidget *w)
 	draw_generic(o, w);
 }
 
+void draw_lightning( GtkWidget *w, int x1, int y1, int x2, int y2) 
+{
+	int x3, y3, dx, dy;
+
+	dx = abs(x2 - x1);
+	dy = abs(y2 - y1);
+
+	if (dx < 10 && dy < 10) {
+		gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+		return;
+	}
+
+	if (y2 > y1)
+		y3 = (y2 - y1) / 2 + y1;
+	else if (y2 < y1)
+		y3 = (y1 - y2) / 2 + y2;
+	else 
+		y3 = y1;
+	if (x2 > x1)
+		x3 = (x2 - x1) / 2 + x1;
+	else if (x2 < x1)
+		x3 = (x1 - x2) / 2 + x2;
+	else
+		x3 = x1;
+
+	x3 += (int) (0.2 * (randomn(2*dx) - dx)); 
+	y3 += (int) (0.2 * (randomn(2*dy) - dy)); 
+
+	draw_lightning(w, x1, y1, x3, y3);	
+	draw_lightning(w, x3, y3, x2, y2);	
+	add_sound(INSERT_COIN_SOUND, ANY_SLOT);
+}
+
+void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	int i;
+	int x1, y1, x2, y2;
+	int angle = 0;
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+	x1 = o->x - game_state.x;
+	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
+	for (i=0;i<o->tsd.tentacle.nsegs;i++) {
+		angle = angle + o->tsd.tentacle.seg[i].angle;
+		if (angle < 0)
+			angle += 360;
+		else if (angle > 360)
+			angle -= 360;
+		x2 = x1 + cosine[angle] * o->tsd.tentacle.seg[i].length; 
+		y2 = y1 -   sine[angle] * o->tsd.tentacle.seg[i].length; 
+		if ((i % 2) == 0)
+			gdk_gc_set_foreground(gc, &huex[BLUE]);
+		else
+			gdk_gc_set_foreground(gc, &huex[YELLOW]);
+		gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+		x1 = x2;
+		y1 = y2;
+	}
+	if (randomn(1000) < 20 && abs(o->x - player->x) < 100 && abs(o->y - player->y) < 300) {
+		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		draw_lightning(w, x2, y2, player->x - game_state.x, player->y - game_state.y + (SCREEN_HEIGHT/2));
+		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
+	}
+}
+
 int find_ground_level(struct game_obj_t *o);
+
+void tentacle_move(struct game_obj_t *o) 
+{
+
+	struct tentacle_seg_data *t;
+	int i, gy;
+
+	o->x += o->vx;
+	o->y += o->vy;
+	o->vy += 1;
+
+	gy = find_ground_level(o);
+
+	if (o->y >= gy) {
+		o->vy = 0;
+		o->vx = 0;
+		o->y = gy;
+	}
+
+	if (o->x < 0) {
+		o->x = 0;
+		o->vx = 20;
+	}
+	if (o->x > terrain.x[TERRAIN_LENGTH-1]) {
+		o->x = terrain.x[TERRAIN_LENGTH-1];
+		o->vx = -20;
+	}
+
+	for (i=0;i<o->tsd.tentacle.nsegs;i++) {
+		t = &o->tsd.tentacle.seg[i];
+		if (i==0)
+			t->dest_angle = o->tsd.tentacle.angle;
+		if (t->angle < t->dest_angle)
+			t->angular_v = 1;
+		else if (t->angle > t->dest_angle)
+			t->angular_v = -1;
+		else
+			t->angular_v = 0;
+		t->angle += t->angular_v;
+		if (i != 0 && t->angle > MAX_SEG_ANGLE)
+			t->angle = MAX_SEG_ANGLE;
+		else if (i != 0 && t->angle < -MAX_SEG_ANGLE)
+			t->angle = -MAX_SEG_ANGLE;
+	}
+
+	if (randomn(1000) < 50) {
+
+		o->tsd.tentacle.angle = TENTACLE_RANGE;
+		if (o->tsd.tentacle.angle < 0)
+			o->tsd.tentacle.angle += 360; 
+		if (o->tsd.tentacle.angle > 360)
+			o->tsd.tentacle.angle -= 360; 
+
+		switch (randomn(11)) {
+
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+		case 7:
+		case 8:
+			for (i=0;i<o->tsd.tentacle.nsegs;i++) {
+				t = &o->tsd.tentacle.seg[i];
+				t->dest_angle = randomn(2 * MAX_SEG_ANGLE) - MAX_SEG_ANGLE;
+			}
+			break;
+		case 10:
+			for (i=1;i<o->tsd.tentacle.nsegs;i++) {
+				t = &o->tsd.tentacle.seg[i];
+				t->dest_angle = 0;
+			}
+			o->vx = cosine[o->tsd.tentacle.angle] * 20;
+			o->vy = -sine[o->tsd.tentacle.angle] * 20;
+			break;
+		case 5:
+			for (i=0;i<o->tsd.tentacle.nsegs;i++) {
+				t = &o->tsd.tentacle.seg[i];
+				t->angular_v = -1;
+			}
+			break;
+		case 9:
+			for (i=0;i<o->tsd.tentacle.nsegs;i++) {
+				t = &o->tsd.tentacle.seg[i];
+				t->angular_v = 1;
+			}
+			break;
+		}
+	}
+}
+
 void gdb_move(struct game_obj_t *o)
 {
 	int xdist, ydist;
@@ -1466,6 +1645,12 @@ void bomb_move(struct game_obj_t *o)
 			}
 			removed = 0;
 			switch (t->o->otype) {
+				case OBJ_TYPE_TENTACLE: /* Doesn't hurt them, just moves them */
+					if (abs(o->x - t->o->x) < BOMB_X_PROXIMITY) { /* a hit */
+						t->o->vx = ((t->o->x < o->x) ? -1 : 1) * randomn(16);
+						t->o->vy = ((t->o->y < o->y) ? -1 : 1) * randomn(16);
+					}
+					break;
 				case OBJ_TYPE_ROCKET:
 				case OBJ_TYPE_HARPOON:
 				case OBJ_TYPE_MISSILE:
@@ -2509,6 +2694,12 @@ void init_vects()
 {
 	int i;
 
+	for (i=0;i<=360;i++) {
+		sine[i] = sin((double)i * 3.1415927 * 2.0 / 360.0);
+		cosine[i] = cos((double)i * 3.1415927 * 2.0 / 360.0);
+		// printf("%d, %g, %g\n", i, cosine[i], sine[i]);
+	}
+
 	/* memset(&game_state.go[0], 0, sizeof(game_state.go[0])*MAXOBJS); */
 	player_vect.p = player_ship_points;
 	player_vect.npoints = sizeof(player_ship_points) / sizeof(player_ship_points[0]);
@@ -3335,6 +3526,35 @@ static void add_gdbs(struct terrain_t *t)
 	}
 }
 
+static void add_tentacles(struct terrain_t *t)
+{
+	int xi, i,j, length;
+	struct game_obj_t *o;
+
+	for (j=0;j<level.ntentacles;j++) {
+		length = randomn(30) + 9;
+		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		o = add_generic_object(t->x[xi], t->y[xi], 0, 0,
+			tentacle_move, tentacle_draw, CYAN, NULL, 1, OBJ_TYPE_TENTACLE, 1);
+		if (o != NULL) {
+			o->tsd.tentacle.nsegs = MAX_TENTACLE_SEGS;
+			o->tsd.tentacle.seg = (struct tentacle_seg_data *) 
+				malloc(MAX_TENTACLE_SEGS * sizeof (o->tsd.tentacle.seg[0]));
+			if (o->tsd.tentacle.seg != NULL) {
+				o->tsd.tentacle.angle = 0;
+				for (i=0;i<MAX_TENTACLE_SEGS;i++) {
+					o->tsd.tentacle.seg[i].angle = i;
+					o->tsd.tentacle.seg[i].length = length;
+					o->tsd.tentacle.seg[i].angular_v = 0;
+					o->tsd.tentacle.seg[i].dest_angle = 0;
+					length = length * 0.92;
+				}
+			}
+		}
+	}
+
+}
+
 static void add_SAMs(struct terrain_t *t)
 {
 	int xi, i;
@@ -3813,6 +4033,7 @@ void start_level()
 	add_balloons(&terrain);
 	add_socket(&terrain);
 	add_gdbs(&terrain);
+	add_tentacles(&terrain);
 
 	if (credits == 0)
 		setup_text();
@@ -3826,6 +4047,7 @@ void init_levels_to_beginning()
 	level.nflak = NFLAK;
 	level.nfueltanks = NFUELTANKS;
 	level.ngdbs = NGDBS;
+	level.ntentacles = NTENTACLES;
 	level.nsams = NSAMS;
 	level.nsams = NHUMANOIDS;
 	level.nbuildings = NBUILDINGS;
@@ -3863,6 +4085,7 @@ void advance_level()
 	level.nflak += 10;
 	level.nfueltanks += 2;
 	level.ngdbs += 2;
+	level.ntentacles += 2;
 	level.nsams += 2;
 	level.nhumanoids += 1;
 	level.large_scale_roughness+= (0.03);
