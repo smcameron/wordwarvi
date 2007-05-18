@@ -57,6 +57,7 @@ int add_sound(int which_sound, int which_slot);
 #define INSERT_COIN_SOUND 8
 #define MUSIC_SOUND 9
 #define SAM_LAUNCH_SOUND 10 
+#define THUNDER_SOUND 11 
 #define NHUMANOIDS 4
 #define HUMANOID_PICKUP_SOUND 8 /* FIXME, this will do for now */
 
@@ -96,12 +97,13 @@ int add_sound(int which_sound, int which_slot);
 #define GDB_MAX_VX 13 
 #define GDB_MAX_VY 13 
 #define LINE_BREAK (-999)
-#define NBUILDINGS 40
+#define NBUILDINGS 20
 #define NBRIDGES 7
 #define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
-#define NGDBS 20
-#define NTENTACLES 10 
+#define NGDBS 3 
+#define NOCTOPI 0 
+#define NTENTACLES 2 
 #define NSAMS 5
 #define BOMB_SPEED 10
 #define NBOMBS 100
@@ -119,7 +121,7 @@ int add_sound(int which_sound, int which_slot);
 #define HUMANOID_DIST 10
 #define MAX_TENTACLE_SEGS 40
 #define MAX_SEG_ANGLE 60
-#define TENTACLE_RANGE(t) (randomn(t.upper_angle + t.lower_angle) - t.upper_angle)
+#define TENTACLE_RANGE(t) (randomn(t.upper_angle - t.lower_angle) + t.lower_angle)
 /* Scoring stuff */
 #define ROCKET_SCORE 20
 #define BRIDGE_SCORE 5
@@ -193,6 +195,7 @@ struct level_parameters_t {
 	int nflak;
 	int nfueltanks;
 	int ngdbs;
+	int noctopi;
 	int ntentacles;
 	int nsams;
 	int nhumanoids;
@@ -208,6 +211,7 @@ struct level_parameters_t {
 	NFLAK,
 	NFUELTANKS,
 	NGDBS,
+	NOCTOPI,
 	NTENTACLES,
 	NSAMS,
 	NHUMANOIDS,
@@ -368,6 +372,24 @@ struct my_point_t vxy_2_dxy[MAX_VELOCITY_TO_COMPUTE+1][MAX_VELOCITY_TO_COMPUTE+1
 
 double sine[361];
 double cosine[361];
+
+struct my_point_t octopus_points[] = {
+	{ -7, 0 },
+	{ 7, 0 },
+	{ 10, -5 },
+	{ 15, -25 },
+	{ 10, -30 },
+	{ -10, -30 },
+	{ -15, -25 },
+	{ -10, -5 },
+	{ -7, 0 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -8, -10 },
+	{ -4, -7 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 8, -10 },
+	{ 4, -7 }
+};
 
 struct my_point_t gdb_points_left[] = {
 	{ 10, 0 },
@@ -807,6 +829,7 @@ struct my_vect_obj humanoid_vect;
 struct my_vect_obj socket_vect;
 struct my_vect_obj gdb_vect_right;
 struct my_vect_obj gdb_vect_left;
+struct my_vect_obj octopus_vect;
 
 struct my_vect_obj **gamefont[3];
 #define BIG_FONT 0
@@ -932,10 +955,16 @@ struct harpoon_data {
 	struct game_obj_t *gdb;
 };
 
-struct gdb_data {
+struct octopus_data {
 	int awake;
 	int tx, ty;
 	struct game_obj_t *tentacle[8];
+};
+
+struct gdb_data {
+	int awake;
+	int tx, ty;
+	// struct game_obj_t *tentacle[8];
 };
 
 struct tentacle_seg_data {
@@ -956,6 +985,7 @@ struct tentacle_data {
 union type_specific_data {
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
+	struct octopus_data octopus;
 	struct extra_player_data epd;
 	struct tentacle_data tentacle;
 };
@@ -1251,7 +1281,6 @@ void draw_lightning( GtkWidget *w, int x1, int y1, int x2, int y2)
 
 	draw_lightning(w, x1, y1, x3, y3);	
 	draw_lightning(w, x3, y3, x2, y2);	
-	add_sound(INSERT_COIN_SOUND, ANY_SLOT);
 }
 
 void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
@@ -1282,6 +1311,7 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 		gdk_gc_set_foreground(gc, &huex[WHITE]);
 		draw_lightning(w, x2, y2, player->x - game_state.x, player->y - game_state.y + (SCREEN_HEIGHT/2));
 		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
+		add_sound(THUNDER_SOUND, ANY_SLOT);
 	}
 }
 
@@ -1293,7 +1323,7 @@ void tentacle_move(struct game_obj_t *o)
 	struct tentacle_seg_data *t;
 	int i, gy;
 
-	if (abs(o->x - game_state.x) > SCREEN_WIDTH)
+	if (abs(o->x - game_state.x) > SCREEN_WIDTH*1.5)
 		return;
 
 	if (o->tsd.tentacle.attached_to == NULL) {	
@@ -1393,6 +1423,93 @@ void tentacle_move(struct game_obj_t *o)
 			}
 			break;
 		}
+	}
+}
+
+void octopus_move(struct game_obj_t *o)
+{
+	int xdist, ydist;
+	int dvx, dvy, tx, ty;
+	int gy, i;
+
+	if (!o->alive)
+		return;
+
+	gy = find_ground_level(o);
+	
+
+	if (o->tsd.octopus.awake) {
+		tx = o->tsd.octopus.tx;
+		ty = o->tsd.octopus.ty;
+		if (o->x < tx && tx - o->x > GDB_DX_THRESHOLD)
+			dvx = GDB_MAX_VX;
+		else if (o->x < tx)
+			dvx = 0;
+		else if (o->x > tx && o->x - tx > GDB_DX_THRESHOLD)
+			dvx = -GDB_MAX_VX;
+		else if (o->x > tx)
+			dvx = 0;
+		if (o->y < ty && ty - o->y > GDB_DY_THRESHOLD)
+			dvy = GDB_MAX_VY;
+		else if (o->y < ty)
+			dvy = 0;
+		else if (o->y > ty && o->y - ty > GDB_DY_THRESHOLD)
+			dvy = -GDB_MAX_VY;
+		else if (o->y > ty)
+			dvy = 0;
+
+		if (abs(player->x - tx) > GDB_DX_THRESHOLD ||
+			abs(player->y - ty) > GDB_DY_THRESHOLD || randomn(100) < 3) {
+			o->tsd.octopus.tx = player->x + randomn(300)-150;
+			o->tsd.octopus.ty = player->y + randomn(300)-150;
+		}
+
+		if (o->y > gy - 100 && dvy > -3)
+			dvy = -10;	
+
+		if (o->vx < dvx)
+			o->vx++;
+		else if (o->vx > dvx)
+			o->vx--;
+		if (o->vy < dvy)
+			o->vy++;
+		else if (o->vy > dvy)
+			o->vy--;
+
+		o->x += o->vx;
+		o->y += o->vy;
+
+		
+		explode(o->x - dvx + randomn(4)-2, o->y - dvy + randomn(4)-2, -dvx, -dvy, 4, 8, 9);
+	}
+	
+	xdist = abs(o->x - player->x);
+	if (xdist < GDB_LAUNCH_DIST) {
+		ydist = o->y - player->y;
+#if 1
+		if (randomn(1000) < SAM_LAUNCH_CHANCE) {
+			// add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			//add_harpoon(o->x+10, o->y, 0, 0, 300, MAGENTA, player, o);
+			if (!o->tsd.octopus.awake) {
+				o->tsd.octopus.awake = 1;
+				o->tsd.octopus.tx = player->x + randomn(200)-100;
+				o->tsd.octopus.ty = player->y + randomn(200)-100;
+			}
+		}
+#endif
+	}
+
+	for (i=0;i<8;i++) {
+		if (o->tsd.octopus.tentacle[i]) {
+			o->tsd.octopus.tentacle[i]->x = o->x;
+			o->tsd.octopus.tentacle[i]->y = o->y;
+		}
+	}
+
+	if (o->y >= gy + 3) {
+		o->alive = 0;
+		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
+		o->destroy(o);
 	}
 }
 
@@ -1619,14 +1736,23 @@ void generic_destroy_func(struct game_obj_t *o)
 	return;
 }
 
-void gdb_destroy(struct game_obj_t *o)
+void octopus_destroy(struct game_obj_t *o)
 {
 	int i;
 	for (i=0;i<8;i++) {
-		o->tsd.gdb.tentacle[i]->tsd.tentacle.attached_to = NULL;
-		o->tsd.gdb.tentacle[i] = NULL;
+		struct game_obj_t *tentacle;
+		tentacle = o->tsd.octopus.tentacle[i];
+		if (tentacle) {
+			tentacle->tsd.tentacle.attached_to = NULL;
+			tentacle->vx = randomn(40)-20;
+			tentacle->vy = randomn(40)-20;
+			tentacle->tsd.tentacle.upper_angle = 170;
+			tentacle->tsd.tentacle.lower_angle = 10;
+			o->tsd.octopus.tentacle[i] = NULL;
+		}
 	}
 }
+
 
 void bridge_move(struct game_obj_t *o);
 void no_move(struct game_obj_t *o);
@@ -2778,6 +2904,8 @@ void init_vects()
 	right_laser_vect.npoints = sizeof(right_laser_beam_points) / sizeof(right_laser_beam_points[0]);
 	fuel_vect.p = fuel_points;
 	fuel_vect.npoints = sizeof(fuel_points) / sizeof(fuel_points[0]);
+	octopus_vect.p = octopus_points;
+	octopus_vect.npoints = sizeof(octopus_points) / sizeof(octopus_points[0]);
 	gdb_vect_right.p = gdb_points_right;
 	gdb_vect_right.npoints = sizeof(gdb_points_right) / sizeof(gdb_points_right[0]);
 	gdb_vect_left.p = gdb_points_left;
@@ -3579,21 +3707,75 @@ static void add_fuel(struct terrain_t *t)
 	}
 }
 
-static void add_gdbs(struct terrain_t *t)
+static void add_octopi(struct terrain_t *t)
 {
 	int xi, i, j, k, count;
 
 	count = 0;
+	struct game_obj_t *o;
+	for (i=0;i<level.noctopi;i++) {
+		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		o = add_generic_object(t->x[xi], t->y[xi]-50 - randomn(100), 0, 0, 
+			octopus_move, NULL, YELLOW, &octopus_vect, 1, OBJ_TYPE_GDB, 1);
+		if (o != NULL) {
+			count++;
+			o->destroy = octopus_destroy;
+			o->tsd.octopus.awake = 0;
+
+			for (j=0;j<8;j++) {
+				int length = randomn(30) + 9;
+				double length_factor = 0.90;
+				o->tsd.octopus.tentacle[j] = add_generic_object(o->x, o->y, 0, 0,
+					tentacle_move, tentacle_draw, CYAN, NULL, 1, OBJ_TYPE_TENTACLE, 1);
+				if (o->tsd.octopus.tentacle[j] != NULL) {
+					struct game_obj_t *t = o->tsd.octopus.tentacle[j];
+					t->tsd.tentacle.attached_to = o;
+					t->tsd.tentacle.upper_angle = 359;
+					t->tsd.tentacle.lower_angle = 181;
+					t->tsd.tentacle.nsegs = MAX_TENTACLE_SEGS;
+					t->tsd.tentacle.seg = (struct tentacle_seg_data *) 
+						malloc(MAX_TENTACLE_SEGS * sizeof (t->tsd.tentacle.seg[0]));
+					if (t->tsd.tentacle.seg != NULL) {
+						t->tsd.tentacle.angle = 0;
+						for (k=0;k<MAX_TENTACLE_SEGS;k++) {
+							t->tsd.tentacle.seg[k].angle = 
+								TENTACLE_RANGE(t->tsd.tentacle);
+							t->tsd.tentacle.seg[k].length = length;
+							t->tsd.tentacle.seg[k].angular_v = 0;
+							t->tsd.tentacle.seg[i].dest_angle = 
+								TENTACLE_RANGE(t->tsd.tentacle);
+							length = length * length_factor;
+							length_factor += 0.01;
+							if (length_factor > 0.97) 
+								length_factor = 0.97;
+							if (length == 1) {
+								t->tsd.tentacle.nsegs = k;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	
+	}
+}
+
+static void add_gdbs(struct terrain_t *t)
+{
+	int xi, i; //, j, k, count;
+
+	// count = 0;
 	struct game_obj_t *o;
 	for (i=0;i<level.ngdbs;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
 			gdb_move, gdb_draw, CYAN, &gdb_vect_left, 1, OBJ_TYPE_GDB, 1);
 		if (o != NULL) {
-			count++;
-			o->destroy = gdb_destroy;
+			o->destroy = generic_destroy_func;
 			o->tsd.gdb.awake = 0;
 
+#if 0
 			for (j=0;j<8;j++) {
 				int length = randomn(30) + 9;
 				double length_factor = 0.90;
@@ -3626,6 +3808,7 @@ static void add_gdbs(struct terrain_t *t)
 					}
 				}
 			}
+#endif
 		}
 	
 	}
@@ -4150,6 +4333,7 @@ void start_level()
 	add_balloons(&terrain);
 	add_socket(&terrain);
 	add_gdbs(&terrain);
+	add_octopi(&terrain);
 	add_tentacles(&terrain);
 
 	if (credits == 0)
@@ -4164,6 +4348,7 @@ void init_levels_to_beginning()
 	level.nflak = NFLAK;
 	level.nfueltanks = NFUELTANKS;
 	level.ngdbs = NGDBS;
+	level.noctopi = NOCTOPI;
 	level.ntentacles = NTENTACLES;
 	level.nsams = NSAMS;
 	level.nsams = NHUMANOIDS;
@@ -4202,6 +4387,7 @@ void advance_level()
 	level.nflak += 10;
 	level.nfueltanks += 2;
 	level.ngdbs += 2;
+	level.noctopi += 2;
 	level.ntentacles += 2;
 	level.nsams += 2;
 	level.nhumanoids += 1;
@@ -4438,6 +4624,7 @@ int init_clips()
 	read_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.wav");
 	read_clip(MUSIC_SOUND, "ounds/18395_inferno_rltx.wav");
 	read_clip(SAM_LAUNCH_SOUND, "sounds/18395_inferno_rltx.wav");
+	read_clip(THUNDER_SOUND, "sounds/thunder.wav");
 
 	return 0;
 }
