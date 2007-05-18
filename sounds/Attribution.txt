@@ -18,6 +18,8 @@ See: http://creativecommons.org/licenses/sampling+/1.0/
 	By oniwe (http://freesound.iua.upf.edu/usersViewSingle.php?id=193786)
              http://freesound.iua.upf.edu/samplesViewSingle.php?id=32871
              (used in creation of ground_smack.wav) 
+	By genghis attenborough (http://freesound.iua.upf.edu/usersViewSingle.php?id=205108)
+            Thunder_edited.wav (http://freesound.iua.upf.edu/samplesViewSingle.php?id=28071)
 
 * ground_smack.wav is a combination of something I recorded
   (hammer banging on metal pipes) and something recorded by 
@@ -38,6 +40,9 @@ See: http://creativecommons.org/licenses/sampling+/1.0/
   licensed under the Creative Commons Attribution 2.0 license
   http://creativecommons.org/licenses/by/2.0/
   (Note, this is different than the other audio clips.)
+
+* thunder.wav is derived from 28071__genghis_attenborough__Thunder_edited.wav
+  by fresound user genghis attenborough.
 
 
 
