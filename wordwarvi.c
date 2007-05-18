@@ -71,7 +71,7 @@ int add_sound(int which_sound, int which_slot);
 
 #define LARGE_SCALE_ROUGHNESS (0.04)
 #define SMALL_SCALE_ROUGHNESS (0.09)
-#define MAXOBJS 6500
+#define MAXOBJS 8500
 #define NFLAK 10
 #define LASER_BOLT_DAMAGE 5 /* damage done by flak guns to player */
 #define PLAYER_LASER_DAMAGE 20
@@ -100,8 +100,8 @@ int add_sound(int which_sound, int which_slot);
 #define NBRIDGES 7
 #define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
-#define NGDBS 4 
-#define NTENTACLES 40 
+#define NGDBS 20
+#define NTENTACLES 10 
 #define NSAMS 5
 #define BOMB_SPEED 10
 #define NBOMBS 100
@@ -117,9 +117,9 @@ int add_sound(int which_sound, int which_slot);
 #define MISSILE_PROXIMITY 10
 #define HUMANOID_PICKUP_SCORE 100
 #define HUMANOID_DIST 10
-#define MAX_TENTACLE_SEGS 20
+#define MAX_TENTACLE_SEGS 40
 #define MAX_SEG_ANGLE 60
-#define TENTACLE_RANGE (randomn(200) - 10)
+#define TENTACLE_RANGE(t) (randomn(t.upper_angle + t.lower_angle) - t.upper_angle)
 /* Scoring stuff */
 #define ROCKET_SCORE 20
 #define BRIDGE_SCORE 5
@@ -166,6 +166,7 @@ GdkColor huex[NCOLORS];
 
 /* Object types */
 #define OBJ_TYPE_AIRSHIP 'a'
+#define OBJ_TYPE_BOMB 'p'
 #define OBJ_TYPE_BALLOON 'B'
 #define OBJ_TYPE_BUILDING 'b'
 #define OBJ_TYPE_CHAFF 'c'
@@ -920,6 +921,7 @@ struct game_obj_t;
 
 typedef void obj_move_func(struct game_obj_t *o);
 typedef void obj_draw_func(struct game_obj_t *o, GtkWidget *w);
+typedef void obj_destroy_func(struct game_obj_t *o);
 
 struct extra_player_data {
 	int count;
@@ -933,6 +935,7 @@ struct harpoon_data {
 struct gdb_data {
 	int awake;
 	int tx, ty;
+	struct game_obj_t *tentacle[8];
 };
 
 struct tentacle_seg_data {
@@ -943,8 +946,10 @@ struct tentacle_seg_data {
 };
 
 struct tentacle_data {
+	struct game_obj_t *attached_to;
 	int angle;
 	int nsegs;
+	int upper_angle, lower_angle;
 	struct tentacle_seg_data *seg;
 };
 
@@ -959,6 +964,7 @@ union type_specific_data {
 struct game_obj_t {
 	obj_move_func *move;
 	obj_draw_func *draw;
+	obj_destroy_func *destroy;
 	struct my_vect_obj *v;
 	struct target_t *target;
 	int x, y;
@@ -1090,6 +1096,7 @@ void move_laserbolt(struct game_obj_t *o)
 	dy = (o->y - player->y);
 	if (dy < -1000) {
 		o->alive = 0;
+		o->destroy(o);
 		return;
 	}
 	if (abs(dy) < 9 && abs(player->x - o->x) < 15) {
@@ -1097,6 +1104,7 @@ void move_laserbolt(struct game_obj_t *o)
 		add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 		game_state.health -= LASER_BOLT_DAMAGE;
 		o->alive = 0;	
+		o->destroy(o);
 	}
 	o->x += o->vx;
 	o->y += o->vy;
@@ -1183,6 +1191,7 @@ void move_rocket(struct game_obj_t *o)
 	if (o->y - player->y < -1000 && o->vy != 0) {
 		o->alive = 0;
 		remove_target(o->target);
+		o->destroy(o);
 	}
 }
 
@@ -1284,37 +1293,55 @@ void tentacle_move(struct game_obj_t *o)
 	struct tentacle_seg_data *t;
 	int i, gy;
 
-	o->x += o->vx;
-	o->y += o->vy;
-	o->vy += 1;
+	if (abs(o->x - game_state.x) > SCREEN_WIDTH)
+		return;
 
-	gy = find_ground_level(o);
+	if (o->tsd.tentacle.attached_to == NULL) {	
+		o->x += o->vx;
+		o->y += o->vy;
+		o->vy += 1;
 
-	if (o->y >= gy) {
-		o->vy = 0;
-		o->vx = 0;
-		o->y = gy;
-	}
+		gy = find_ground_level(o);
 
-	if (o->x < 0) {
-		o->x = 0;
-		o->vx = 20;
-	}
-	if (o->x > terrain.x[TERRAIN_LENGTH-1]) {
-		o->x = terrain.x[TERRAIN_LENGTH-1];
-		o->vx = -20;
+		if (o->y >= gy) {
+			o->vy = 0;
+			o->vx = 0;
+			o->y = gy;
+		}
+
+		if (o->x < 0) {
+			o->x = 0;
+			o->vx = 20;
+		}
+		if (o->x > terrain.x[TERRAIN_LENGTH-1]) {
+			o->x = terrain.x[TERRAIN_LENGTH-1];
+			o->vx = -20;
+		}
+	} else {
+		o->x = o->tsd.tentacle.attached_to->x;
+		o->y = o->tsd.tentacle.attached_to->y;
 	}
 
 	for (i=0;i<o->tsd.tentacle.nsegs;i++) {
+		int da;
 		t = &o->tsd.tentacle.seg[i];
 		if (i==0)
 			t->dest_angle = o->tsd.tentacle.angle;
-		if (t->angle < t->dest_angle)
-			t->angular_v = 1;
-		else if (t->angle > t->dest_angle)
-			t->angular_v = -1;
-		else
-			t->angular_v = 0;
+
+		da = (t->dest_angle - t->angle);
+		if (abs(da) > 10) {
+			if (t->angle < t->dest_angle)
+				t->angular_v = 3;
+			else if (t->angle > t->dest_angle)
+				t->angular_v = -3;
+		} else {
+			if (t->angle < t->dest_angle)
+				t->angular_v = 1;
+			else if (t->angle > t->dest_angle)
+				t->angular_v = -1;
+			else
+				t->angular_v = 0;
+		}
 		t->angle += t->angular_v;
 		if (i != 0 && t->angle > MAX_SEG_ANGLE)
 			t->angle = MAX_SEG_ANGLE;
@@ -1324,7 +1351,7 @@ void tentacle_move(struct game_obj_t *o)
 
 	if (randomn(1000) < 50) {
 
-		o->tsd.tentacle.angle = TENTACLE_RANGE;
+		o->tsd.tentacle.angle = TENTACLE_RANGE(o->tsd.tentacle);
 		if (o->tsd.tentacle.angle < 0)
 			o->tsd.tentacle.angle += 360; 
 		if (o->tsd.tentacle.angle > 360)
@@ -1339,18 +1366,19 @@ void tentacle_move(struct game_obj_t *o)
 		case 4:
 		case 7:
 		case 8:
-			for (i=0;i<o->tsd.tentacle.nsegs;i++) {
+			for (i=1;i<o->tsd.tentacle.nsegs;i++) {
 				t = &o->tsd.tentacle.seg[i];
 				t->dest_angle = randomn(2 * MAX_SEG_ANGLE) - MAX_SEG_ANGLE;
 			}
 			break;
-		case 10:
-			for (i=1;i<o->tsd.tentacle.nsegs;i++) {
-				t = &o->tsd.tentacle.seg[i];
-				t->dest_angle = 0;
+		case 10: if (o->tsd.tentacle.attached_to == NULL) {
+				for (i=1;i<o->tsd.tentacle.nsegs;i++) {
+					t = &o->tsd.tentacle.seg[i];
+					t->dest_angle = 0;
+				}
+				o->vx = cosine[o->tsd.tentacle.angle] * 20;
+				o->vy = -sine[o->tsd.tentacle.angle] * 20;
 			}
-			o->vx = cosine[o->tsd.tentacle.angle] * 20;
-			o->vy = -sine[o->tsd.tentacle.angle] * 20;
 			break;
 		case 5:
 			for (i=0;i<o->tsd.tentacle.nsegs;i++) {
@@ -1442,6 +1470,7 @@ void gdb_move(struct game_obj_t *o)
 	if (o->y >= gy + 3) {
 		o->alive = 0;
 		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
+		o->destroy(o);
 	}
 }
 
@@ -1485,6 +1514,7 @@ void socket_move(struct game_obj_t *o)
 int find_free_obj();
 
 void laser_move(struct game_obj_t *o);
+void generic_destroy_func(struct game_obj_t *o);
 
 void player_fire_laser()
 {
@@ -1505,7 +1535,9 @@ void player_fire_laser()
 	o->vx = p->vx + LASER_SPEED * game_state.direction;
 	o->vy = 0;
 	o->v = &right_laser_vect;
+	o->draw = NULL;
 	o->move = laser_move;
+	o->destroy = generic_destroy_func;
 	o->otype = OBJ_TYPE_LASER;
 	o->color = GREEN;
 	o->alive = 20;
@@ -1582,6 +1614,20 @@ int find_ground_level(struct game_obj_t *o)
 	
 }
 
+void generic_destroy_func(struct game_obj_t *o)
+{
+	return;
+}
+
+void gdb_destroy(struct game_obj_t *o)
+{
+	int i;
+	for (i=0;i<8;i++) {
+		o->tsd.gdb.tentacle[i]->tsd.tentacle.attached_to = NULL;
+		o->tsd.gdb.tentacle[i] = NULL;
+	}
+}
+
 void bridge_move(struct game_obj_t *o);
 void no_move(struct game_obj_t *o);
 
@@ -1611,6 +1657,7 @@ void bomb_move(struct game_obj_t *o)
 			case OBJ_TYPE_GDB:
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_GUN:
+			/* case OBJ_TYPE_BOMB:  no, bomb can't bomb himself... */
 			case OBJ_TYPE_SAM_STATION:  {
 				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
 					(o->y - t->o->y)*(o->y - t->o->y);
@@ -1619,9 +1666,11 @@ void bomb_move(struct game_obj_t *o)
 					add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 					t->o->alive = 0;
+					t->o->destroy(t->o);
 					t = remove_target(t);
 					removed = 1;
 					o->alive = 0;
+					o->destroy(o);
 				}
 			}
 			default:
@@ -1635,6 +1684,7 @@ void bomb_move(struct game_obj_t *o)
 	deepest = find_ground_level(o);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		o->alive = 0;
+		o->destroy(o);
 		add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, 1, 90, 150, 20);
 		/* find nearby targets */
@@ -1656,6 +1706,7 @@ void bomb_move(struct game_obj_t *o)
 				case OBJ_TYPE_MISSILE:
 				case OBJ_TYPE_GDB:
 				case OBJ_TYPE_GUN:
+				case OBJ_TYPE_BOMB:
 				case OBJ_TYPE_SAM_STATION:
 				case OBJ_TYPE_FUEL: {
 					dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
@@ -1665,6 +1716,7 @@ void bomb_move(struct game_obj_t *o)
 							game_state.score += ROCKET_SCORE;
 						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 						t->o->alive = 0;
+						t->o->destroy(t->o);
 						if (t->o->otype == OBJ_TYPE_FUEL) {
 							game_state.health += 10;
 							if (game_state.health > MAXHEALTH)
@@ -1721,6 +1773,7 @@ void chaff_move(struct game_obj_t *o)
 	deepest = find_ground_level(o);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		o->alive = 0;
+		o->destroy(o);
 	}
 	if (!o->alive) {
 		remove_target(o->target);
@@ -1786,10 +1839,13 @@ void drop_bomb()
 	o->vy = player->vy;;
 	o->v = &bomb_vect;
 	o->move = bomb_move;
-	o->otype = OBJ_TYPE_BALLOON;
+	o->draw = NULL;
+	o->destroy = generic_destroy_func;
+	o->otype = OBJ_TYPE_BOMB;
 	o->target = add_target(o);
 	o->color = ORANGE;
 	o->alive = 20;
+	o->target = add_target(o);
 }
 
 void player_draw(struct game_obj_t *o, GtkWidget *w)
@@ -2056,9 +2112,11 @@ void laser_move(struct game_obj_t *o)
 					o->y - t->o->y > -50*3) {
 					explode(o->x, o->y, o->vx/2, 1, 70, 20, 20);
 					o->alive = 0;
+					o->destroy(o);
 					t->o->alive -= PLAYER_LASER_DAMAGE;
 					if (t->o->alive <= 0) {
 						t->o->alive = 0;
+						t->o->destroy(t->o);
 						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 						t = remove_target(t);
 						removed = 1;
@@ -2070,6 +2128,7 @@ void laser_move(struct game_obj_t *o)
 			case OBJ_TYPE_GDB:
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_GUN:
+			case OBJ_TYPE_BOMB:
 			case OBJ_TYPE_SAM_STATION:
 			case OBJ_TYPE_MISSILE:{
 				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
@@ -2086,9 +2145,11 @@ void laser_move(struct game_obj_t *o)
 						if (game_state.health > MAXHEALTH)
 							game_state.health = MAXHEALTH;
 					}
+					t->o->destroy(t->o);
 					t = remove_target(t);
 					removed = 1;
 					o->alive = 0;
+					o->destroy(o);
 				}
 			}
 			break;
@@ -2176,6 +2237,7 @@ void move_missile(struct game_obj_t *o)
 			remove_target(o->target);
 			o->target = NULL;
 		}
+		o->destroy(o);
 		return;
 	}
 
@@ -2187,6 +2249,7 @@ void move_missile(struct game_obj_t *o)
 			remove_target(o->target);
 			o->target = NULL;
 		}
+		o->destroy(o);
 		return;
 	}
 
@@ -2209,6 +2272,7 @@ void move_missile(struct game_obj_t *o)
 		target_obj->alive -= MISSILE_DAMAGE;
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		o->destroy(o);
 		return;
 	}
 
@@ -2264,6 +2328,7 @@ void move_harpoon(struct game_obj_t *o)
 			remove_target(o->target);
 			o->target = NULL;
 		}
+		o->destroy(o);
 		return;
 	}
 
@@ -2275,6 +2340,7 @@ void move_harpoon(struct game_obj_t *o)
 			remove_target(o->target);
 			o->target = NULL;
 		}
+		o->destroy(o);
 		return;
 	}
 
@@ -2297,6 +2363,7 @@ void move_harpoon(struct game_obj_t *o)
 		target_obj->alive -= MISSILE_DAMAGE;
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		o->destroy(o);
 		return;
 	}
 
@@ -2354,6 +2421,7 @@ static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
 	o->vy = vy;
 	o->move = move_func;
 	o->draw = draw_func;
+	o->destroy = generic_destroy_func;
 	o->color = color;
 	if (target)
 		o->target = add_target(o);
@@ -2383,6 +2451,7 @@ static void add_missile(int x, int y, int vx, int vy,
 	o->vy = vy;
 	o->move = move_missile;
 	o->draw = draw_missile;
+	o->destroy = generic_destroy_func;
 	o->bullseye = bullseye;
 	o->target = add_target(o);
 	o->otype = OBJ_TYPE_MISSILE;
@@ -2409,6 +2478,7 @@ static void add_harpoon(int x, int y, int vx, int vy,
 	o->vy = vy;
 	o->move = move_harpoon;
 	o->draw = draw_harpoon;
+	o->destroy = generic_destroy_func;
 	o->bullseye = bullseye;
 	o->target = add_target(o);
 	o->otype = OBJ_TYPE_HARPOON;
@@ -2459,7 +2529,8 @@ void symbol_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 		o->alive--;
 		// if (!o->alive)
 		//	remove_target(o->target);
-	}
+	} else
+		o->destroy(o);
 }
 
 static void add_symbol(int c, int myfont, int x, int y, int vx, int vy, int time);
@@ -2515,23 +2586,15 @@ void airship_move(struct game_obj_t *o)
 
 void move_spark(struct game_obj_t *o)
 {
-	if (o->alive < 0) {
-		o->alive = 0;
+	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
+	if (o->alive <= 0) {
 		o->draw = NULL;
-	}
-	if (!o->alive) {
-		o->draw = NULL;
+		o->destroy(o);
 		return;
 	}
-
-	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
 	o->x += o->vx;
 	o->y += o->vy;
 	o->alive--;
-	if (!o->alive) {
-		o->draw = NULL;
-		return;
-	}
 	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
 	
 	if (o->vx > 0)
@@ -3043,6 +3106,7 @@ static void add_debris(int x, int y, int vx, int vy, int r, struct game_obj_t **
 		o->y = y;
 		o->move = bridge_move;
 		o->draw = draw_generic;
+		o->destroy = generic_destroy_func;
 		o->alive = 30;	
 		o->color = WHITE;
 		o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
@@ -3362,6 +3426,9 @@ static void add_building(struct terrain_t *t, int xi)
 	o->target = add_target(o);
 	o->color = BLUE;
 	o->alive = 1;
+	o->draw = NULL;
+	o->move = NULL;
+	o->destroy = generic_destroy_func;
 	printf("b, x=%d, y=%d\n", x, y);
 }
 
@@ -3514,15 +3581,53 @@ static void add_fuel(struct terrain_t *t)
 
 static void add_gdbs(struct terrain_t *t)
 {
-	int xi, i;
+	int xi, i, j, k, count;
+
+	count = 0;
 	struct game_obj_t *o;
 	for (i=0;i<level.ngdbs;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
 			gdb_move, gdb_draw, CYAN, &gdb_vect_left, 1, OBJ_TYPE_GDB, 1);
 		if (o != NULL) {
+			count++;
+			o->destroy = gdb_destroy;
 			o->tsd.gdb.awake = 0;
+
+			for (j=0;j<8;j++) {
+				int length = randomn(30) + 9;
+				double length_factor = 0.90;
+				o->tsd.gdb.tentacle[j] = add_generic_object(o->x, o->y, 0, 0,
+					tentacle_move, tentacle_draw, CYAN, NULL, 1, OBJ_TYPE_TENTACLE, 1);
+				if (o->tsd.gdb.tentacle[j] != NULL) {
+					struct game_obj_t *t = o->tsd.gdb.tentacle[j];
+					t->tsd.tentacle.attached_to = o;
+					t->tsd.tentacle.upper_angle = 340;
+					t->tsd.tentacle.lower_angle = 200;
+					t->tsd.tentacle.nsegs = MAX_TENTACLE_SEGS;
+					t->tsd.tentacle.seg = (struct tentacle_seg_data *) 
+						malloc(MAX_TENTACLE_SEGS * sizeof (t->tsd.tentacle.seg[0]));
+					if (t->tsd.tentacle.seg != NULL) {
+						t->tsd.tentacle.angle = 0;
+						for (k=0;k<MAX_TENTACLE_SEGS;k++) {
+							t->tsd.tentacle.seg[k].angle = randomn(60)-30;
+							t->tsd.tentacle.seg[k].length = length;
+							t->tsd.tentacle.seg[k].angular_v = 0;
+							t->tsd.tentacle.seg[i].dest_angle = TENTACLE_RANGE(t->tsd.tentacle);
+							length = length * length_factor;
+							length_factor += 0.01;
+							if (length_factor > 0.97) 
+								length_factor = 0.97;
+							if (length == 1) {
+								t->tsd.tentacle.nsegs = k;
+								break;
+							}
+						}
+					}
+				}
+			}
 		}
+	
 	}
 }
 
@@ -3530,24 +3635,35 @@ static void add_tentacles(struct terrain_t *t)
 {
 	int xi, i,j, length;
 	struct game_obj_t *o;
+	double length_factor;
 
 	for (j=0;j<level.ntentacles;j++) {
 		length = randomn(30) + 9;
+		length_factor = 0.90;
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		o = add_generic_object(t->x[xi], t->y[xi], 0, 0,
 			tentacle_move, tentacle_draw, CYAN, NULL, 1, OBJ_TYPE_TENTACLE, 1);
 		if (o != NULL) {
+			o->tsd.tentacle.upper_angle = 160;
+			o->tsd.tentacle.lower_angle = 20;
 			o->tsd.tentacle.nsegs = MAX_TENTACLE_SEGS;
 			o->tsd.tentacle.seg = (struct tentacle_seg_data *) 
 				malloc(MAX_TENTACLE_SEGS * sizeof (o->tsd.tentacle.seg[0]));
 			if (o->tsd.tentacle.seg != NULL) {
 				o->tsd.tentacle.angle = 0;
 				for (i=0;i<MAX_TENTACLE_SEGS;i++) {
-					o->tsd.tentacle.seg[i].angle = i;
+					o->tsd.tentacle.seg[i].angle = randomn(60)-30;
 					o->tsd.tentacle.seg[i].length = length;
 					o->tsd.tentacle.seg[i].angular_v = 0;
-					o->tsd.tentacle.seg[i].dest_angle = 0;
-					length = length * 0.92;
+					o->tsd.tentacle.seg[i].dest_angle = TENTACLE_RANGE(o->tsd.tentacle);
+					length = length * length_factor;
+					length_factor += 0.01;
+					if (length_factor > 0.97) 
+						length_factor = 0.97;
+					if (length == 1) {
+						o->tsd.tentacle.nsegs = i;
+						break;
+					}
 				}
 			}
 		}
@@ -4011,6 +4127,7 @@ void start_level()
 	player->vy = 0;
 	player->target = add_target(player);
 	player->alive = 1;
+	player->destroy = generic_destroy_func;
 	player->tsd.epd.count = -1;
 	player->tsd.epd.count2 = 50;
 	game_state.health = MAXHEALTH;
@@ -4598,7 +4715,7 @@ int main(int argc, char *argv[])
 	gdk_gc_set_foreground(gc, &huex[BLUE]);
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
 
-    timer_tag = g_timeout_add(42, advance_game, NULL);
+    timer_tag = g_timeout_add(52, advance_game, NULL);
     
     /* All GTK applications must have a gtk_main(). Control ends here
      * and waits for an event to occur (like a key press or
