@@ -111,7 +111,7 @@ int add_sound(int which_sound, int which_slot);
 #define MAX_ALT 100
 #define MIN_ALT 50
 #define MAXHEALTH 100
-#define NAIRSHIPS 3
+#define NAIRSHIPS 1
 #define NBALLOONS 3 
 #define MAX_BALLOON_HEIGHT 300
 #define MIN_BALLOON_HEIGHT 50
@@ -120,7 +120,7 @@ int add_sound(int which_sound, int which_slot);
 #define MISSILE_PROXIMITY 10
 #define MISSILE_FIRE_PERIOD (FRAME_RATE_HZ / 10);
 #define HUMANOID_PICKUP_SCORE 100
-#define HUMANOID_DIST 10
+#define HUMANOID_DIST 15
 #define MAX_TENTACLE_SEGS 40
 #define MAX_SEG_ANGLE 60
 #define TENTACLE_RANGE(t) (randomn(t.upper_angle - t.lower_angle) + t.lower_angle)
@@ -152,6 +152,8 @@ int timer_event = 0;
 #define CREDITS2_EVENT 13
 #define INTRO1_EVENT 14
 #define INTRO2_EVENT 15
+#define START_INTERMISSION_EVENT 16
+#define END_INTERMISSION_EVENT 17
 
 #define NCOLORS 9
 
@@ -187,6 +189,7 @@ GdkColor huex[NCOLORS];
 #define OBJ_TYPE_BRIDGE 'T'
 #define OBJ_TYPE_SYMBOL 'z'
 #define OBJ_TYPE_GDB 'd'
+#define OBJ_TYPE_OCTOPUS 'o'
 #define OBJ_TYPE_TENTACLE 'j'
 
 int current_level = 0;
@@ -203,6 +206,7 @@ struct level_parameters_t {
 	int nhumanoids;
 	int nbuildings;
 	int nbombs;
+	int nairships;
 	int laser_fire_chance;
 	double large_scale_roughness;
 	double small_scale_roughness;
@@ -1040,6 +1044,14 @@ struct game_state_t {
 	int nbombs;
 	int prev_bombs;
 	int humanoids;
+	int gdbs_killed;
+	int guns_killed;
+	int sams_killed;
+	int missiles_killed;
+	int octos_killed;
+	int emacs_killed;
+	int rockets_killed;
+	struct timeval start_time, finish_time;
 	struct game_obj_t go[MAXOBJS];
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
 
@@ -1624,13 +1636,17 @@ void socket_move(struct game_obj_t *o)
 	xdist = abs(o->x - player->x);
 	ydist = abs(o->y - player->y);
 	/* HUMANOID_DIST is close enough */
-	if (xdist < HUMANOID_DIST && ydist < HUMANOID_DIST) {
+	if (xdist < HUMANOID_DIST && ydist < HUMANOID_DIST 
+		&& timer_event != START_INTERMISSION_EVENT) {
+		gettimeofday(&game_state.finish_time, NULL);
 		add_sound(HUMANOID_PICKUP_SOUND, ANY_SLOT);
 		player->tsd.epd.count = 50;
 		player->tsd.epd.count2 = 0;
 		player->vx = 0;
 		player->vy = 0;
-		advance_level();
+		timer_event = START_INTERMISSION_EVENT;
+		next_timer = timer + 1;
+		// advance_level();
 	}
 }
 
@@ -1787,6 +1803,7 @@ void bomb_move(struct game_obj_t *o)
 			case OBJ_TYPE_MISSILE:
 			case OBJ_TYPE_HARPOON:
 			case OBJ_TYPE_GDB:
+			case OBJ_TYPE_OCTOPUS:
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_GUN:
 			/* case OBJ_TYPE_BOMB:  no, bomb can't bomb himself... */
@@ -1803,6 +1820,19 @@ void bomb_move(struct game_obj_t *o)
 					removed = 1;
 					o->alive = 0;
 					o->destroy(o);
+					if (t->o->otype == OBJ_TYPE_SAM_STATION)
+						game_state.sams_killed++;
+					else if (t->o->otype == OBJ_TYPE_ROCKET)
+						game_state.rockets_killed++;
+					else if (t->o->otype == OBJ_TYPE_MISSILE || 
+						t->o->otype == OBJ_TYPE_HARPOON)
+						game_state.missiles_killed++;
+					else if (t->o->otype == OBJ_TYPE_OCTOPUS)
+						game_state.octos_killed++;
+					else if (t->o->otype == OBJ_TYPE_GDB)
+						game_state.gdbs_killed++;
+					else if (t->o->otype == OBJ_TYPE_GUN)
+						game_state.guns_killed++;
 				}
 			}
 			default:
@@ -1837,6 +1867,7 @@ void bomb_move(struct game_obj_t *o)
 				case OBJ_TYPE_HARPOON:
 				case OBJ_TYPE_MISSILE:
 				case OBJ_TYPE_GDB:
+				case OBJ_TYPE_OCTOPUS:
 				case OBJ_TYPE_GUN:
 				case OBJ_TYPE_BOMB:
 				case OBJ_TYPE_SAM_STATION:
@@ -2247,6 +2278,7 @@ void laser_move(struct game_obj_t *o)
 					o->destroy(o);
 					t->o->alive -= PLAYER_LASER_DAMAGE;
 					if (t->o->alive <= 0) {
+						game_state.emacs_killed++;
 						t->o->alive = 0;
 						t->o->destroy(t->o);
 						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
@@ -2258,6 +2290,7 @@ void laser_move(struct game_obj_t *o)
 			case OBJ_TYPE_ROCKET:
 			case OBJ_TYPE_HARPOON:
 			case OBJ_TYPE_GDB:
+			case OBJ_TYPE_OCTOPUS:
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_GUN:
 			case OBJ_TYPE_BOMB:
@@ -2267,8 +2300,21 @@ void laser_move(struct game_obj_t *o)
 					(o->y - t->o->y)*(o->y - t->o->y);
 				// printf("dist2 = %d\n", dist2);
 				if (dist2 < LASER_PROXIMITY) { /* a hit */
-					if (t->o->otype == OBJ_TYPE_ROCKET)
+					if (t->o->otype == OBJ_TYPE_ROCKET) {
 						game_state.score += ROCKET_SCORE;
+						game_state.rockets_killed++;
+					}
+					if (t->o->otype == OBJ_TYPE_MISSILE ||
+						t->o->otype == OBJ_TYPE_HARPOON)
+						game_state.missiles_killed++;
+					else if (t->o->otype == OBJ_TYPE_SAM_STATION)
+						game_state.sams_killed++;
+					else if (t->o->otype == OBJ_TYPE_GDB)
+						game_state.gdbs_killed++;
+					else if (t->o->otype == OBJ_TYPE_GUN)
+						game_state.guns_killed++;
+					else if (t->o->otype == OBJ_TYPE_OCTOPUS)
+						game_state.octos_killed++;
 					add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 					t->o->alive = 0;
@@ -2671,6 +2717,9 @@ void airship_move(struct game_obj_t *o)
 {
 	int deepest, xdist, ydist;
 	int gambling;
+
+	if (!o->alive)
+		return;
 
 	o->x += o->vx;
 	o->y += o->vy;
@@ -3768,7 +3817,7 @@ static void add_octopi(struct terrain_t *t)
 	for (i=0;i<level.noctopi;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		o = add_generic_object(t->x[xi], t->y[xi]-50 - randomn(100), 0, 0, 
-			octopus_move, NULL, YELLOW, &octopus_vect, 1, OBJ_TYPE_GDB, 1);
+			octopus_move, NULL, YELLOW, &octopus_vect, 1, OBJ_TYPE_OCTOPUS, 1);
 		if (o != NULL) {
 			count++;
 			o->destroy = octopus_destroy;
@@ -3930,7 +3979,7 @@ static void add_airships(struct terrain_t *t)
 {
 	int xi, i;
 	struct game_obj_t *o;
-	for (i=0;i<NAIRSHIPS;i++) {
+	for (i=0;i<level.nairships;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		o = add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
 			airship_move, NULL, CYAN, &airship_vect, 1, OBJ_TYPE_AIRSHIP, 300*PLAYER_LASER_DAMAGE);
@@ -3955,6 +4004,103 @@ static void add_balloons(struct terrain_t *t)
 }
 
 static void draw_strings(GtkWidget *w);
+void setup_text();
+
+static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
+{
+	static int intermission_stage = 0;
+	static int intermission_timer = 0;
+	char s[100];
+	int elapsed_secs;
+
+	/* stop other events, if any... */
+	next_timer = 0;
+	timer_event = START_INTERMISSION_EVENT; 
+	
+	if (intermission_timer == 0) {
+		intermission_timer = timer + FRAME_RATE_HZ;
+	}
+
+	if (timer >= intermission_timer) {
+		intermission_stage++;
+		intermission_timer = timer + FRAME_RATE_HZ;
+	}
+
+	/* printf("timer=%d, timer_event=%d, intermission_timer=%d, stage=%d\n", 
+		timer, timer_event, intermission_timer, intermission_stage); */
+
+	cleartext();
+	set_font(SMALL_FONT);
+	switch (intermission_stage) {
+		/* Cases are listed backwards to take advantage of fall-thru */
+		case 11:
+			timer_event = END_INTERMISSION_EVENT;
+			next_timer = timer + 1;
+			intermission_timer = 0;
+			intermission_stage = 0;
+			cleartext();
+			gotoxy(0,0);
+			sprintf(s, "Credits: %d Lives: %d", credits, game_state.lives);
+			gameprint(s);
+			break;
+		case 10: 
+			gotoxy(8, 10+3);
+			elapsed_secs = game_state.finish_time.tv_sec - game_state.start_time.tv_sec;
+			sprintf(s, "Elapsed time                  %d:%d",
+				elapsed_secs / 60, elapsed_secs % 60);
+			gameprint(s);
+		case 9: 
+			gotoxy(8, 9+2);
+			sprintf(s, "SAM stations destroyed:       %d/%d",
+				game_state.sams_killed, level.nsams);
+			gameprint(s);
+		case 8: 
+			gotoxy(8, 8+2);
+			sprintf(s, "Laser turrets killed:         %d/%d", 
+				game_state.guns_killed, level.nflak);
+			gameprint(s);
+		case 7: 
+			gotoxy(8, 7+2);
+			sprintf(s, "Missiles killed:              %d",
+				game_state.missiles_killed);
+			gameprint(s);
+		case 6: 
+			gotoxy(8, 6+2);
+			sprintf(s, "Rockets killed:               %d/%d",
+				game_state.rockets_killed, level.nrockets);
+			gameprint(s);
+		case 5: 
+			gotoxy(8, 5+2);
+			sprintf(s, "Octo-viruses killed:          %d/%d",
+				game_state.octos_killed, level.noctopi);
+			gameprint(s);
+		case 4: 
+			gotoxy(8, 4+2);
+			sprintf(s, "gdb processes killed:         %d/%d",
+				game_state.gdbs_killed, level.ngdbs);
+			gameprint(s);
+		case 3: 
+			gotoxy(8, 3+2);
+			sprintf(s, "Emacs processes terminated:   %d/%d",
+				game_state.emacs_killed, level.nairships);
+			gameprint(s);
+		case 2: 
+			gotoxy(8, 2+2);
+			sprintf(s, "vi .swp files rescued:        %d/%d", 
+				game_state.humanoids, level.nhumanoids);
+			gameprint(s);
+		case 1: 
+			gotoxy(8, 1);
+			sprintf(s, "Node cleared!");
+			gameprint( s);
+	}
+	if (intermission_stage != 11)
+		draw_strings(w);
+	else
+		setup_text();
+	printf("i, timer_event = %d\n", timer_event);
+	return 0;
+}
 
 static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 {
@@ -3964,7 +4110,11 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	char score_str[100];
 	// int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
 
-	
+
+	if (timer_event == START_INTERMISSION_EVENT) {
+		do_intermission(w, event, p);
+		return 0;
+	}
 
 	sx1 = game_state.x - SCREEN_WIDTH / 3;
 	sx2 = game_state.x + 4*SCREEN_WIDTH/3;
@@ -4092,7 +4242,6 @@ static void destroy( GtkWidget *widget,
     gtk_main_quit ();
 }
 
-void setup_text();
 void game_ended();
 void start_level();
 void timer_expired()
@@ -4204,6 +4353,7 @@ void timer_expired()
 			credits, game_state.lives, game_state.score, 
 			game_state.humanoids, level.nhumanoids);
 		strcpy(textline[GAME_OVER].string, "Ready...");
+		gettimeofday(&game_state.start_time, NULL);
 		next_timer += 30;
 		timer_event = SET_EVENT;
 		ntextlines = 2;
@@ -4258,6 +4408,15 @@ void timer_expired()
 		}
 		game_ended();
 		break;
+	case START_INTERMISSION_EVENT:
+		/* drawing area expose event handler handles this directly */
+		break;
+	case END_INTERMISSION_EVENT:
+		advance_level();
+		timer_event = READY_EVENT;
+		ntextlines = 2;
+		next_timer = timer+1;
+		break;
 	default: 
 		break;
 	}
@@ -4280,24 +4439,32 @@ gint advance_game(gpointer data)
 	if (game_pause == 1)
 		return TRUE;
 
-	for (i=0;i<MAXOBJS;i++) {
-		if (game_state.go[i].alive) {
-			// printf("%d ", i);
-			nalive++;
-		} else
-			ndead++;
-		if (game_state.go[i].alive && game_state.go[i].move != NULL)
-			game_state.go[i].move(&game_state.go[i]);
-		// if (game_state.go[i].alive && game_state.go[i].move == NULL)
-			// printf("NULL MOVE!\n");
+	if (timer_event == END_INTERMISSION_EVENT)
+		return TRUE;
+
+	if (timer_event != START_INTERMISSION_EVENT) {
+		for (i=0;i<MAXOBJS;i++) {
+			if (game_state.go[i].alive) {
+				// printf("%d ", i);
+				nalive++;
+			} else
+				ndead++;
+			if (game_state.go[i].alive && game_state.go[i].move != NULL)
+				game_state.go[i].move(&game_state.go[i]);
+			// if (game_state.go[i].alive && game_state.go[i].move == NULL)
+				// printf("NULL MOVE!\n");
+		}
 	}
 	gtk_widget_queue_draw(main_da);
 	// printf("ndead=%d, nalive=%d\n", ndead, nalive);
 	gdk_threads_leave();
+#if 0
 	if (WORLDWIDTH - game_state.x < 100)
 		return FALSE;
 	else
 		return TRUE;
+#endif
+	return TRUE;
 }
 
 void setup_text()
@@ -4335,6 +4502,13 @@ void initialize_game_state_new_level()
 	game_state.health = MAXHEALTH;
 	game_state.nbombs = level.nbombs;
 	game_state.prev_bombs = -1;
+	game_state.gdbs_killed = 0;
+	game_state.guns_killed = 0;
+	game_state.sams_killed = 0;
+	game_state.emacs_killed = 0;
+	game_state.missiles_killed = 0;
+	game_state.octos_killed = 0;
+	game_state.rockets_killed = 0;
 }
 
 void start_level()
@@ -4403,6 +4577,7 @@ void init_levels_to_beginning()
 	level.noctopi = NOCTOPI;
 	level.ntentacles = NTENTACLES;
 	level.nsams = NSAMS;
+	level.nairships = NAIRSHIPS;
 	level.nsams = NHUMANOIDS;
 	level.nbuildings = NBUILDINGS;
 	level.nbombs = NBOMBS;
@@ -4442,6 +4617,7 @@ void advance_level()
 	level.noctopi += 2;
 	level.ntentacles += 2;
 	level.nsams += 2;
+	level.nairships += 1;
 	level.nhumanoids += 1;
 	level.large_scale_roughness+= (0.03);
 	if (level.large_scale_roughness > 0.3)
@@ -4571,6 +4747,11 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		if (game_state.health <= 0 || credits <= 0)
 			return TRUE;
 		do_game_pause(widget, NULL);
+		return TRUE;
+	case GDK_i:
+		gettimeofday(&game_state.finish_time, NULL);
+		timer_event = START_INTERMISSION_EVENT;
+		next_timer = timer + 1;
 		return TRUE;
 #if 1
 /* These two just for testing... */
