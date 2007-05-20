@@ -3293,6 +3293,49 @@ static void insert_points(struct my_point_t host_list[], int *nhost,
 }
 
 static void embellish_roof(struct my_point_t *building, int *npoints, int left, int right);
+static void indent_roof(struct my_point_t *building, int *npoints, int left, int right);
+
+static struct my_point_t mosquey_roof[] = {
+		{ -10, 0 },
+		{ -15, -5 },
+		{ -17, -10 },
+		{ -15, -15 },
+		{  -5, -25 },
+		{  0, -35 },
+		{  5, -25 },
+		{ 15, -15 },
+		{ 17, -10 },
+		{ 15, -5 },
+		{ 10, 0 },
+	};
+static void add_mosquey_roof(struct my_point_t *building, int *npoints, int left, int right)
+{
+	struct my_point_t p[ sizeof(mosquey_roof)/  sizeof(mosquey_roof[0])];
+	int i;
+	int width;
+	double factor;
+
+	if (building[right].x - building[left].x > 30) {
+		/* only looks good on narraw buildings, if it's too wide */
+		/* skip the mosquey roof and just indent */
+		indent_roof(building, npoints, left, right);
+		return;
+	}
+
+	memcpy(p, mosquey_roof, sizeof(mosquey_roof));
+
+	width = building[right].x - building[left].x; 
+	factor = (0.0 + width) / 20.0;
+
+	for (i=0;i<sizeof(p)/sizeof(p[0]);i++) {
+		p[i].x = (p[i].x * factor) + building[left].x + (10 * factor);
+		p[i].y = (p[i].y * factor) + building[left].y;
+	}
+	insert_points(building, npoints, p, 
+		sizeof(mosquey_roof) / sizeof(mosquey_roof[0]), right);
+	
+	return;
+}
 
 static void peak_roof(struct my_point_t *building, int *npoints, int left, int right)
 {
@@ -3408,7 +3451,8 @@ static void embellish_roof(struct my_point_t *building, int *npoints, int left, 
 			break;
 		case 2:turret_roof(building, npoints, left, right);
 			break;
-		case 3:
+		case 3: add_mosquey_roof(building, npoints, left, right);
+			break;
 		case 4:
 		case 5: indent_roof(building, npoints, left, right);
 			break;
