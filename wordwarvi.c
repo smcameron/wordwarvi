@@ -64,6 +64,7 @@ int add_sound(int which_sound, int which_slot);
 /* ...End of audio stuff */
 
 
+#define FRAME_RATE_HZ 30
 #define TERRAIN_LENGTH 1000
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 600
@@ -117,6 +118,7 @@ int add_sound(int which_sound, int which_slot);
 #define MAX_MISSILE_VELOCITY 19 
 #define MISSILE_DAMAGE 20
 #define MISSILE_PROXIMITY 10
+#define MISSILE_FIRE_PERIOD (FRAME_RATE_HZ / 10);
 #define HUMANOID_PICKUP_SCORE 100
 #define HUMANOID_DIST 10
 #define MAX_TENTACLE_SEGS 40
@@ -1006,6 +1008,7 @@ struct game_obj_t {
 	int last_xi;
 	int counter;
 	union type_specific_data tsd;
+	int missile_timer;
 };
 
 GtkWidget *score_label;
@@ -1234,9 +1237,10 @@ void sam_move(struct game_obj_t *o)
 	xdist = abs(o->x - player->x);
 	if (xdist < SAM_LAUNCH_DIST) {
 		ydist = o->y - player->y;
-		if (ydist > 0 && randomn(1000) < SAM_LAUNCH_CHANCE) {
+		if (ydist > 0 && randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
 			add_missile(o->x+20, o->y-30, 0, 0, 300, GREEN, player);
+			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 		}
 	}
 }
@@ -1487,9 +1491,10 @@ void octopus_move(struct game_obj_t *o)
 	if (xdist < GDB_LAUNCH_DIST) {
 		ydist = o->y - player->y;
 #if 1
-		if (randomn(1000) < SAM_LAUNCH_CHANCE) {
+		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
 			// add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
 			//add_harpoon(o->x+10, o->y, 0, 0, 300, MAGENTA, player, o);
+			// o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 			if (!o->tsd.octopus.awake) {
 				o->tsd.octopus.awake = 1;
 				o->tsd.octopus.tx = player->x + randomn(200)-100;
@@ -1573,9 +1578,10 @@ void gdb_move(struct game_obj_t *o)
 	xdist = abs(o->x - player->x);
 	if (xdist < GDB_LAUNCH_DIST) {
 		ydist = o->y - player->y;
-		if (randomn(1000) < SAM_LAUNCH_CHANCE) {
+		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
 			add_harpoon(o->x+10, o->y, 0, 0, 300, MAGENTA, player, o);
+			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 			if (!o->tsd.gdb.awake) {
 				o->tsd.gdb.awake = 1;
 				o->tsd.gdb.tx = player->x + randomn(200)-100;
@@ -2557,6 +2563,7 @@ static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
 	o->otype = otype;
 	o->alive = alive;
 	o->bullseye = NULL;
+	o->missile_timer = 0;
 	return o;
 }
 
@@ -2693,9 +2700,10 @@ void airship_move(struct game_obj_t *o)
 		if (xdist < SAM_LAUNCH_DIST/3)
 			gambling = 4;
 		
-		if (randomn(2000) < (SAM_LAUNCH_CHANCE+gambling)) {
+		if (randomn(2000) < (SAM_LAUNCH_CHANCE+gambling) && timer >= o->missile_timer) {
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
 			add_missile(o->x, o->y, 0, 0, 300, RED, player);
+			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 		}
 	}
 
@@ -4902,7 +4910,7 @@ int main(int argc, char *argv[])
 	gdk_gc_set_foreground(gc, &huex[BLUE]);
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
 
-    timer_tag = g_timeout_add(52, advance_game, NULL);
+    timer_tag = g_timeout_add(1000 / FRAME_RATE_HZ, advance_game, NULL);
     
     /* All GTK applications must have a gtk_main(). Control ends here
      * and waits for an event to occur (like a key press or
