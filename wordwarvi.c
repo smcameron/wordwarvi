@@ -58,6 +58,8 @@ int add_sound(int which_sound, int which_slot);
 #define MUSIC_SOUND 9
 #define SAM_LAUNCH_SOUND 10 
 #define THUNDER_SOUND 11 
+#define INTERMISSION_MUSIC_SOUND 12
+#define MISSILE_LOCK_SIREN_SOUND 13
 #define NHUMANOIDS 4
 #define HUMANOID_PICKUP_SOUND 8 /* FIXME, this will do for now */
 
@@ -87,7 +89,7 @@ int add_sound(int which_sound, int which_slot);
 #define PLAYER_SPEED 8 
 #define MAX_VX 15
 #define MAX_VY 25
-#define LASER_FIRE_CHANCE 3
+#define LASER_FIRE_CHANCE 10
 #define LASERLEAD (11)
 #define LASER_SPEED 40
 #define LASER_PROXIMITY 300 /* square root of 300 */
@@ -1051,6 +1053,7 @@ struct game_state_t {
 	int octos_killed;
 	int emacs_killed;
 	int rockets_killed;
+	int missile_locked;
 	struct timeval start_time, finish_time;
 	struct game_obj_t go[MAXOBJS];
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
@@ -1163,7 +1166,7 @@ void move_flak(struct game_obj_t *o)
 	int dx, dy, bx,by;
 	int x1, y1;
 	xdist = abs(o->x - player->x);
-	if (xdist < SCREEN_WIDTH && randomn(100) < level.laser_fire_chance) {
+	if (xdist < SCREEN_WIDTH && randomn(1000) < level.laser_fire_chance) {
 		dx = player->x+LASERLEAD*player->vx - o->x;
 		dy = player->y+LASERLEAD*player->vy - o->y;
 
@@ -2433,6 +2436,10 @@ void move_missile(struct game_obj_t *o)
 
 	/* Figure out where we're trying to go */
 	target_obj = o->bullseye;
+	if (target_obj == player) {
+		game_state.missile_locked = 1;
+		printf("mlock1\n");
+	}
 	dx = target_obj->x + target_obj->vx - o->x;
 	dy = target_obj->y + target_obj->vy - o->y;
 
@@ -2524,6 +2531,10 @@ void move_harpoon(struct game_obj_t *o)
 
 	/* Figure out where we're trying to go */
 	target_obj = o->bullseye;
+	if (target_obj == player) {
+		game_state.missile_locked = 1;
+		printf("mlock2\n");
+	}
 	dx = target_obj->x + target_obj->vx - o->x;
 	dy = target_obj->y + target_obj->vy - o->y;
 
@@ -4010,6 +4021,9 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 {
 	static int intermission_stage = 0;
 	static int intermission_timer = 0;
+	static int add_bonus;
+	int bonus_points = 0;
+	int inc_bonus = 0;
 	char s[100];
 	int elapsed_secs;
 
@@ -4018,12 +4032,13 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 	timer_event = START_INTERMISSION_EVENT; 
 	
 	if (intermission_timer == 0) {
-		intermission_timer = timer + FRAME_RATE_HZ;
+		add_sound(INTERMISSION_MUSIC_SOUND, MUSIC_SLOT);
 	}
 
 	if (timer >= intermission_timer) {
+		add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 		intermission_stage++;
-		intermission_timer = timer + FRAME_RATE_HZ;
+		intermission_timer = timer + (intermission_stage == 10 ? 4 : 1) * FRAME_RATE_HZ;
 	}
 
 	/* printf("timer=%d, timer_event=%d, intermission_timer=%d, stage=%d\n", 
@@ -4041,57 +4056,96 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 			cleartext();
 			gotoxy(0,0);
 			sprintf(s, "Credits: %d Lives: %d", credits, game_state.lives);
+			game_state.score += add_bonus;
 			gameprint(s);
 			break;
 		case 10: 
 			gotoxy(8, 10+3);
 			elapsed_secs = game_state.finish_time.tv_sec - game_state.start_time.tv_sec;
-			sprintf(s, "Elapsed time                  %d:%d",
-				elapsed_secs / 60, elapsed_secs % 60);
+			if (elapsed_secs < 90)
+				inc_bonus = (90 - elapsed_secs) * 10;
+			else
+				inc_bonus = 0;
+			sprintf(s, "Elapsed time                  %d:%d      %d pts",
+				elapsed_secs / 60, elapsed_secs % 60, inc_bonus);
+			bonus_points += inc_bonus;	
+			add_bonus = bonus_points;
 			gameprint(s);
 		case 9: 
 			gotoxy(8, 9+2);
-			sprintf(s, "SAM stations destroyed:       %d/%d",
-				game_state.sams_killed, level.nsams);
+			if (game_state.sams_killed >= level.nsams)
+				inc_bonus = 50;
+			else
+				inc_bonus = 0;
+			bonus_points += inc_bonus;
+			sprintf(s, "SAM stations destroyed:       %d/%d     %d pts",
+				game_state.sams_killed, level.nsams, inc_bonus);
+			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 8: 
 			gotoxy(8, 8+2);
-			sprintf(s, "Laser turrets killed:         %d/%d", 
-				game_state.guns_killed, level.nflak);
+			if (game_state.guns_killed >= level.nflak)
+				inc_bonus = 50;
+			else
+				inc_bonus = 0;
+			sprintf(s, "Laser turrets killed:         %d/%d    %d pts", 
+				game_state.guns_killed, level.nflak, inc_bonus);
+			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 7: 
 			gotoxy(8, 7+2);
-			sprintf(s, "Missiles killed:              %d",
+			sprintf(s, "Missiles killed:              %d       0 pts",
 				game_state.missiles_killed);
+			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 6: 
 			gotoxy(8, 6+2);
-			sprintf(s, "Rockets killed:               %d/%d",
-				game_state.rockets_killed, level.nrockets);
+			if (game_state.rockets_killed >= level.nrockets)
+				inc_bonus = 50;
+			else
+				inc_bonus = 0;
+			sprintf(s, "Rockets killed:               %d/%d   %d pts",
+				game_state.rockets_killed, level.nrockets, inc_bonus);
+			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 5: 
 			gotoxy(8, 5+2);
-			sprintf(s, "Octo-viruses killed:          %d/%d",
-				game_state.octos_killed, level.noctopi);
+			if (game_state.octos_killed >= level.noctopi)
+				inc_bonus = 50;
+			else
+				inc_bonus = 0;
+			sprintf(s, "Octo-viruses killed:          %d/%d   %d pts",
+				game_state.octos_killed, level.noctopi, inc_bonus);
+			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 4: 
 			gotoxy(8, 4+2);
-			sprintf(s, "gdb processes killed:         %d/%d",
-				game_state.gdbs_killed, level.ngdbs);
+			if (game_state.gdbs_killed >= level.ngdbs)
+				inc_bonus = 50;
+			else
+				inc_bonus = 0;
+			sprintf(s, "gdb processes killed:         %d/%d   %d pts",
+				game_state.gdbs_killed, level.ngdbs, inc_bonus);
+			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 3: 
 			gotoxy(8, 3+2);
-			sprintf(s, "Emacs processes terminated:   %d/%d",
-				game_state.emacs_killed, level.nairships);
+			inc_bonus = game_state.emacs_killed * 100;
+			sprintf(s, "Emacs processes terminated:   %d/%d   %d pts",
+				game_state.emacs_killed, level.nairships, inc_bonus);
+			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 2: 
 			gotoxy(8, 2+2);
-			sprintf(s, "vi .swp files rescued:        %d/%d", 
-				game_state.humanoids, level.nhumanoids);
+			inc_bonus = game_state.humanoids * 100;
+			sprintf(s, "vi .swp files rescued:        %d/%d   %d pts", 
+				game_state.humanoids, level.nhumanoids, inc_bonus);
+			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 1: 
+			add_bonus = 0;
 			gotoxy(8, 1);
-			sprintf(s, "Node cleared!");
+			sprintf(s, "Node cleared!  Total bonus points: %d\n", bonus_points);
 			gameprint( s);
 	}
 	if (intermission_stage != 11)
@@ -4426,22 +4480,25 @@ gint advance_game(gpointer data)
 {
 	int i, ndead, nalive;
 
+	if (game_pause == 1) {
+		return TRUE;
+	}
+
 	gdk_threads_enter();
 	ndead = 0;
 	nalive = 0;
 	game_state.x += game_state.vx;
 	game_state.y += game_state.vy; 
 
+
 	timer++;
 	if (timer == next_timer)
 		timer_expired();
 
-	if (game_pause == 1)
-		return TRUE;
-
 	if (timer_event == END_INTERMISSION_EVENT)
 		return TRUE;
 
+	game_state.missile_locked = 0;
 	if (timer_event != START_INTERMISSION_EVENT) {
 		for (i=0;i<MAXOBJS;i++) {
 			if (game_state.go[i].alive) {
@@ -4454,6 +4511,8 @@ gint advance_game(gpointer data)
 			// if (game_state.go[i].alive && game_state.go[i].move == NULL)
 				// printf("NULL MOVE!\n");
 		}
+		if (game_state.missile_locked && timer % 20 == 0)
+			add_sound(MISSILE_LOCK_SIREN_SOUND, ANY_SLOT);
 	}
 	gtk_widget_queue_draw(main_da);
 	// printf("ndead=%d, nalive=%d\n", ndead, nalive);
@@ -4496,7 +4555,6 @@ void setup_text()
 void initialize_game_state_new_level()
 {
 	game_state.lives = 3;
-	game_state.score = 0;
 	game_state.humanoids = 0;
 	game_state.prev_score = 0;
 	game_state.health = MAXHEALTH;
@@ -4578,9 +4636,9 @@ void init_levels_to_beginning()
 	level.ntentacles = NTENTACLES;
 	level.nsams = NSAMS;
 	level.nairships = NAIRSHIPS;
-	level.nsams = NHUMANOIDS;
 	level.nbuildings = NBUILDINGS;
 	level.nbombs = NBOMBS;
+	level.nhumanoids = NHUMANOIDS;
 	if (credits > 0) {
 		level.random_seed = 31415927;
 		level.laser_fire_chance = LASER_FIRE_CHANCE;
@@ -4600,6 +4658,7 @@ void game_ended()
 {
 	init_levels_to_beginning();
 	initialize_game_state_new_level();
+	game_state.score = 0;
 	start_level();
 }
 
@@ -4629,9 +4688,9 @@ void advance_level()
 	level.nbombs -= 5;
 	if (level.nbombs < 50) 
 		level.nbombs = 50;
-	level.laser_fire_chance++; /* this is bad. */
-	if (level.laser_fire_chance > 10)
-		level.laser_fire_chance = 10;
+	level.laser_fire_chance += 3; /* this is bad. */
+	if (level.laser_fire_chance > 100)
+		level.laser_fire_chance = 100;
 
 	initialize_game_state_new_level();
 	start_level();
@@ -4675,6 +4734,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 			/* initialize_game_state_new_level();
 			init_levels_to_beginning();
 			start_level(); */
+			init_levels_to_beginning();
 			timer_event = READY_EVENT;
 			next_timer = timer+1;
 		}
@@ -4744,8 +4804,8 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		drop_bomb();
 		return TRUE;
 	case GDK_p:
-		if (game_state.health <= 0 || credits <= 0)
-			return TRUE;
+		// if (game_state.health <= 0 || credits <= 0)
+		//	return TRUE;
 		do_game_pause(widget, NULL);
 		return TRUE;
 	case GDK_i:
@@ -4858,6 +4918,8 @@ int init_clips()
 	read_clip(MUSIC_SOUND, "ounds/18395_inferno_rltx.wav");
 	read_clip(SAM_LAUNCH_SOUND, "sounds/18395_inferno_rltx.wav");
 	read_clip(THUNDER_SOUND, "sounds/thunder.wav");
+	read_clip(INTERMISSION_MUSIC_SOUND, "sounds/dtox3monomix.wav");
+	read_clip(MISSILE_LOCK_SIREN_SOUND, "sounds/34561__DrNI__ob12_triangular_growling_wailing.wav");
 
 	return 0;
 }
@@ -5121,6 +5183,7 @@ int main(int argc, char *argv[])
 
 
 	initialize_game_state_new_level();
+	game_state.score = 0;
 	start_level();
 
     gtk_widget_show (vbox);
