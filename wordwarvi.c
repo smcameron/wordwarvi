@@ -158,8 +158,11 @@ int timer_event = 0;
 #define END_INTERMISSION_EVENT 17
 
 #define NCOLORS 9
+#define NSPARKCOLORS 25 
 
-GdkColor huex[NCOLORS];
+GdkColor huex[NCOLORS + NSPARKCOLORS];
+
+GdkColor *sparkcolor;
 
 #define WHITE 0
 #define BLUE 1
@@ -2438,7 +2441,7 @@ void move_missile(struct game_obj_t *o)
 	target_obj = o->bullseye;
 	if (target_obj == player) {
 		game_state.missile_locked = 1;
-		printf("mlock1\n");
+		/* printf("mlock1\n"); */
 	}
 	dx = target_obj->x + target_obj->vx - o->x;
 	dy = target_obj->y + target_obj->vy - o->y;
@@ -2533,7 +2536,7 @@ void move_harpoon(struct game_obj_t *o)
 	target_obj = o->bullseye;
 	if (target_obj == player) {
 		game_state.missile_locked = 1;
-		printf("mlock2\n");
+		/* printf("mlock2\n"); */
 	}
 	dx = target_obj->x + target_obj->vx - o->x;
 	dy = target_obj->y + target_obj->vy - o->y;
@@ -2790,7 +2793,14 @@ void move_spark(struct game_obj_t *o)
 	o->y += o->vy;
 	o->alive--;
 	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
-	
+
+	if (o->alive >= NSPARKCOLORS)
+		o->color = NCOLORS + NSPARKCOLORS - 1; 
+	else if (o->alive < 0) 
+		o->color = NCOLORS;
+	else
+		o->color = NCOLORS + o->alive;
+
 	if (o->vx > 0)
 		o->vx--;
 	else if (o->vx < 0)
@@ -5087,6 +5097,42 @@ void cancel_all_sounds()
 /* End of AUDIO related code                                     */
 /***********************************************************************/
 
+void setup_spark_colors()
+{
+
+/* Set up an array of colors that fade nicely from bright
+   yellow to orange to red.  */
+
+	int i, r,g,b, dr, dg, db;
+
+	sparkcolor = &huex[NCOLORS];
+
+	r = 32766*2;
+	g = 32766*2;
+	b = 32766;
+
+	dr = 0;
+	dg = (-(2500) / NSPARKCOLORS);
+	db = 2 * dg;
+	
+	for (i=NSPARKCOLORS-1; i>=0; i--) {
+		sparkcolor[i].red = (unsigned short) r;
+		sparkcolor[i].green = (unsigned short) g;
+		sparkcolor[i].blue = (unsigned short) b;
+		sparkcolor[i].pixel = 0;
+
+		r += dr;
+		g += dg;
+		b += db;
+
+		if (r < 0) r = 0;
+		if (g < 0) g = 0;
+		if (b < 0) b = 0;
+
+		dg *= 1.27;
+		db *= 1.27;
+	}
+}
 
 int main(int argc, char *argv[])
 {
@@ -5115,6 +5161,10 @@ int main(int argc, char *argv[])
 	gdk_color_parse("orange", &huex[ORANGE]);
 	gdk_color_parse("cyan", &huex[CYAN]);
 	gdk_color_parse("MAGENTA", &huex[MAGENTA]);
+
+	/* Set up the spark colors. */
+	setup_spark_colors();
+
  
     /* create a new window */
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -5177,7 +5227,7 @@ int main(int argc, char *argv[])
 
 	// print_target_list();
 
-	for (i=0;i<NCOLORS;i++)
+	for (i=0;i<NCOLORS+NSPARKCOLORS;i++)
 		gdk_colormap_alloc_color(gtk_widget_get_colormap(main_da), &huex[i], FALSE, FALSE);
 	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &huex[BLACK]);
 
