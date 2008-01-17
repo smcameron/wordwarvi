@@ -104,6 +104,7 @@ int add_sound(int which_sound, int which_slot);
 #define NBRIDGES 7
 #define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
+#define NSHIPS 1
 #define NGDBS 3 
 #define NOCTOPI 0 
 #define NTENTACLES 2 
@@ -182,6 +183,7 @@ GdkColor *sparkcolor;
 #define OBJ_TYPE_BUILDING 'b'
 #define OBJ_TYPE_CHAFF 'c'
 #define OBJ_TYPE_FUEL 'f'
+#define OBJ_TYPE_SHIP 'w'
 #define OBJ_TYPE_GUN 'g'
 #define OBJ_TYPE_HUMAN 'h'
 #define OBJ_TYPE_LASER 'L'
@@ -204,6 +206,7 @@ struct level_parameters_t {
 	int nbridges;
 	int nflak;
 	int nfueltanks;
+	int nships;
 	int ngdbs;
 	int noctopi;
 	int ntentacles;
@@ -221,6 +224,7 @@ struct level_parameters_t {
 	NBRIDGES,
 	NFLAK,
 	NFUELTANKS,
+	NSHIPS,
 	NGDBS,
 	NOCTOPI,
 	NTENTACLES,
@@ -633,7 +637,7 @@ struct my_point_t fuel_points[] = {
 	{ 5, 15 },
 	{ 10, 15 },
 	{ LINE_BREAK, LINE_BREAK },
-	{ 18, -25 },
+	{ 18, -5 },
 	{ 18, 25 },
 	{ 25, 25 },
 };
@@ -799,6 +803,149 @@ struct my_point_t bridge_points[] = {  /* square with an x through it, 8x8 */
 	{ 4, 4 },
 };
 
+struct my_point_t ships_hull_points[] = {
+	/* bowsprit */
+	{ -60, -14 },
+	{ -15, -10 },
+	{  -15, -5 },
+	{   21, -5 },
+	{   25, -13 },
+	{  60, -15 },
+	{  55, 0 },
+	{  51, -1 },
+	{  51, 20 },
+	{  -12, 15 },
+	{  -27, 0 },
+	{  -30, -7 },
+	{  -60, -14 }, 	
+	{ LINE_BREAK, LINE_BREAK },
+	{ 51, 15 },
+	{ -12, 15 }, /* keel */
+	{ LINE_BREAK, LINE_BREAK },
+	{ 5, -5 },
+	{ 8, -110 }, /* main mast */
+	{ 0, -108 }, /* flag */
+	{ 8, -105 },
+	
+	{ LINE_BREAK, LINE_BREAK },
+	{ 39, -14 }, /* aft mast */
+	{ 41, -95 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -22, -12 }, /* fore mast */
+	{ -20, -83 },
+	{ -60, -14 }, /* fore sail */
+	{ -30, -25 },
+	{ -20, -83 },
+	{ 8, -100 }, /* lines on top */
+	{ 41, -90 },
+	{ 60, -70 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 39, -20 }, /* aft boom */
+	{ 75, -20 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 39, -60 }, /* upper aft boom */
+	{ 60, -70 },
+	{ 75, -20 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -30, -75 }, /* foretopsail */
+	{ -14, -75 },
+	{ -17, -68 },
+	{ -14, -58 },
+	{ -27, -61 },
+	{ -30, -58 },
+	{ -32, -65 },
+	{ -30, -75 },  
+	{ LINE_BREAK, LINE_BREAK },
+	{ -30, -58 }, /* foremidsail */
+	{ -14, -58 },
+	{ -14, -49 },
+	{ -10, -40 },
+	{ -24, -45 },
+	{ -35, -40 },
+	{ -36, -47 },
+	{ -30, -58 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -35, -40 }, /* forelowersail */
+	{ -10, -40 },
+	{ -10, -26 },
+	{ -5, -12 },
+	{ -25, -17 },
+	{ -39, -12 },
+	{ -40, -22 },
+	{ -35, -40 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -5, -100 }, /* main top sail */
+	{  20, -100 },
+	{  20, -95 },
+	{  25, -80 },
+	{  20, -83 },
+	{  -6, -83 },
+	{ -10, -80 },
+	{ -10, -85 },
+	{ -5, -100 },
+	{ LINE_BREAK, LINE_BREAK },
+	{  25, -80 }, /* 2nd main sail */
+	{ -10, -80 },
+	{ -15, -63 },
+	{ -15,  -57 },
+	{ -10,  -60 },
+	{  25,  -60 },
+	{  30,  -57 },
+	{  25,  -75 },
+	{  25, -80 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -15,  -57 }, /* 3rd main sail */
+	{  30,  -57 },
+	{  30,  -50 },
+	{  33,  -37 },
+	{  28,  -40 },
+	{  -13,  -40 },
+	{  -18,  -37 },
+	{  -18,  -43 },
+	{ -15,  -57 },
+	{ LINE_BREAK, LINE_BREAK },
+	{  33,  -37 }, /* 4th main sail */
+	{  -18,  -37 },
+	{  -20,  -18 },
+	{  -20,  -13 },
+	{  -15,  -17 },
+	{  30,  -17 },
+	{  35,  -13 },
+	{  33,  -32 },
+	{  33,  -37 },
+	{ LINE_BREAK, LINE_BREAK },
+	{  28,  -90 }, /* aft top sail */
+	{  52,  -90 },
+	{  52,  -85 },
+	{  55,  -70 },
+	{  50,  -73 },
+	{  30,  -73 },
+	{  25,  -70 },
+	{  25,  -75 },
+	{  28,  -90 },
+	{ LINE_BREAK, LINE_BREAK },
+	{  55,  -70 },
+	{  25,  -70 },
+	{  22,  -55 },
+	{  22,  -50 },
+	{  25,  -53 },
+	{  52,  -53 },
+	{  57,  -50 },
+	{  55,  -65 },
+	{  55,  -70 },
+	{ LINE_BREAK, LINE_BREAK },
+	{  22,  -50 },
+	{  57,  -50 },
+	{  57,  -45 },
+	{  60,  -30 },
+	{  55,  -33 },
+	{  25,  -33 },
+	{  20,  -30 },
+	{  20,  -35 },
+	{  22,  -50 },
+	
+};
+
 /* Just a bunch of random snippets of lisp code for the emacs */
 /* blimps to spew out into core memory space as "memory leaks" */
 /* wish I could find some humorous lisp code, but, */
@@ -830,6 +977,7 @@ struct my_vect_obj rocket_vect;
 struct my_vect_obj spark_vect;
 struct my_vect_obj right_laser_vect;
 struct my_vect_obj fuel_vect;
+struct my_vect_obj ship_vect;
 struct my_vect_obj bomb_vect;
 struct my_vect_obj bridge_vect;
 struct my_vect_obj flak_vect;
@@ -841,6 +989,8 @@ struct my_vect_obj socket_vect;
 struct my_vect_obj gdb_vect_right;
 struct my_vect_obj gdb_vect_left;
 struct my_vect_obj octopus_vect;
+struct my_vect_obj sail_segment;
+struct my_vect_obj ships_hull;
 
 struct my_vect_obj **gamefont[3];
 #define BIG_FONT 0
@@ -2275,6 +2425,7 @@ void laser_move(struct game_obj_t *o)
 		}
 		removed = 0;
 		switch (t->o->otype) {
+			case OBJ_TYPE_SHIP:
 			case OBJ_TYPE_AIRSHIP:
 				if (abs(o->x - t->o->x) < 3*60 &&
 					o->y - t->o->y <= 0 &&
@@ -2726,14 +2877,30 @@ void symbol_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 		o->destroy(o);
 }
 
-static void add_symbol(int c, int myfont, int x, int y, int vx, int vy, int time);
-void airship_move(struct game_obj_t *o)
+static void flying_thing_shoot_missile(struct game_obj_t *o)
 {
-	int deepest, xdist, ydist;
-	int gambling;
+	int gambling, xdist, ydist;
 
-	if (!o->alive)
-		return;
+	xdist = abs(o->x - player->x);
+	ydist = abs(o->y - player->y);
+	if (xdist < SAM_LAUNCH_DIST && ydist < SAM_LAUNCH_DIST) {
+		if (xdist < SAM_LAUNCH_DIST/2)
+			gambling = 2;
+		if (xdist < SAM_LAUNCH_DIST/3)
+			gambling = 4;
+		
+		if (randomn(2000) < (SAM_LAUNCH_CHANCE+gambling) && timer >= o->missile_timer) {
+			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			add_missile(o->x, o->y, 0, 0, 300, RED, player);
+			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
+		}
+	}
+}
+
+static void add_symbol(int c, int myfont, int x, int y, int vx, int vy, int time);
+void flying_thing_move(struct game_obj_t *o)
+{
+	int deepest;
 
 	o->x += o->vx;
 	o->y += o->vy;
@@ -2754,22 +2921,10 @@ void airship_move(struct game_obj_t *o)
 		o->vy = -1;
 	else if (deepest != GROUND_OOPS && o->y < deepest - MAX_BALLOON_HEIGHT)
 		o->vy = 1;
+}
 
-	xdist = abs(o->x - player->x);
-	ydist = abs(o->y - player->y);
-	if (xdist < SAM_LAUNCH_DIST && ydist < SAM_LAUNCH_DIST) {
-		if (xdist < SAM_LAUNCH_DIST/2)
-			gambling = 2;
-		if (xdist < SAM_LAUNCH_DIST/3)
-			gambling = 4;
-		
-		if (randomn(2000) < (SAM_LAUNCH_CHANCE+gambling) && timer >= o->missile_timer) {
-			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
-			add_missile(o->x, o->y, 0, 0, 300, RED, player);
-			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
-		}
-	}
-
+void airship_leak_lisp(struct game_obj_t *o)
+{
 	/* The airships have "memory leaks" in which they spew "lisp code" */
 	/* out into core memory... */
 	if ((timer % 8) && randomn(100) < 15) {
@@ -2779,6 +2934,25 @@ void airship_move(struct game_obj_t *o)
 		if (o->counter < 0)
 			o->counter = strlen(randomlisp)-1;
 	}
+}
+
+void airship_move(struct game_obj_t *o)
+{
+	if (!o->alive)
+		return;
+
+	flying_thing_move(o);
+	flying_thing_shoot_missile(o);
+	airship_leak_lisp(o);
+}
+
+void ship_move(struct game_obj_t *o)
+{
+	if (!o->alive)
+		return;
+
+	flying_thing_move(o);
+	flying_thing_shoot_missile(o);
 }
 
 void move_spark(struct game_obj_t *o)
@@ -2982,6 +3156,15 @@ void init_vects()
 	right_laser_vect.npoints = sizeof(right_laser_beam_points) / sizeof(right_laser_beam_points[0]);
 	fuel_vect.p = fuel_points;
 	fuel_vect.npoints = sizeof(fuel_points) / sizeof(fuel_points[0]);
+
+	ship_vect.p = ships_hull_points;
+	ship_vect.npoints = sizeof(ships_hull_points) / sizeof(ships_hull_points[0]);
+	for (i=0;i<ship_vect.npoints;i++) {
+		if (ship_vect.p[i].x != LINE_BREAK) {
+			ship_vect.p[i].x *= 2;
+			ship_vect.p[i].y = (ship_vect.p[i].y+20) * 2;
+		}
+	}
 	octopus_vect.p = octopus_points;
 	octopus_vect.npoints = sizeof(octopus_points) / sizeof(octopus_points[0]);
 	gdb_vect_right.p = gdb_points_right;
@@ -3037,7 +3220,8 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 		y1 = o->y + o->v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
 		x2 = o->x + o->v->p[j+1].x - game_state.x; 
 		y2 = o->y + o->v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y;
-		gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+		if (x1 > 0 && x2 > 0)
+			gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
 	}
 }
 
@@ -3116,7 +3300,8 @@ void draw_objs(GtkWidget *w)
 				y1 = o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
 				x2 = o->x + v->p[j+1].x - game_state.x; 
 				y2 = o->y + v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y;
-				gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+				if (x1 > 0 && x2 > 0)
+					gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
 			}
 		} else if (o->draw != NULL)
 			o->draw(o, w);
@@ -3829,6 +4014,16 @@ static void add_fuel(struct terrain_t *t)
 	}
 }
 
+static void add_ships(struct terrain_t *t)
+{
+	int xi, i;
+	for (i=0;i<level.nships;i++) {
+		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
+			ship_move, NULL, ORANGE, &ship_vect, 1, OBJ_TYPE_SHIP, 50*PLAYER_LASER_DAMAGE);
+	}
+}
+
 static void add_octopi(struct terrain_t *t)
 {
 	int xi, i, j, k, count;
@@ -4312,7 +4507,7 @@ void timer_expired()
 {
 	static int game_over_count = 0;
 
-	printf("timer expired, %d\n", timer_event);
+	/* printf("timer expired, %d\n", timer_event); */
 	switch (timer_event) {
 	case BLINK_EVENT:
 		setup_text();
@@ -4619,6 +4814,7 @@ void start_level()
 	add_rockets(&terrain);
 	add_buildings(&terrain);
 	add_fuel(&terrain);
+	add_ships(&terrain);
 	add_SAMs(&terrain);
 	add_humanoids(&terrain);
 	add_bridges(&terrain);
@@ -4641,6 +4837,7 @@ void init_levels_to_beginning()
 	level.nbridges = NBRIDGES;
 	level.nflak = NFLAK;
 	level.nfueltanks = NFUELTANKS;
+	level.nships = NSHIPS;
 	level.ngdbs = NGDBS;
 	level.noctopi = NOCTOPI;
 	level.ntentacles = NTENTACLES;
@@ -4682,6 +4879,7 @@ void advance_level()
 	level.nbridges += 1;
 	level.nflak += 10;
 	level.nfueltanks += 2;
+	level.nships += 1;
 	level.ngdbs += 2;
 	level.noctopi += 2;
 	level.ntentacles += 2;
