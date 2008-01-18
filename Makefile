@@ -28,8 +28,8 @@ wordwarvi:	wordwarvi.c
 
 tarball:
 	mkdir -p d/wordwarvi/sounds
-	cp Makefile wordwarvi.c AUTHORS COPYING d/wordwarvi
-	cp sounds/*.wav d/wordwarvi/sounds
+	cp Makefile wordwarvi.c README AUTHORS COPYING d/wordwarvi
+	cp sounds/*.ogg d/wordwarvi/sounds
 	cp sounds/Attribution.txt d/wordwarvi/sounds
 	( cd d; tar cvf ../wordwarvi.tar ./wordwarvi )
 	gzip wordwarvi.tar
