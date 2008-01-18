@@ -27,11 +27,13 @@
 #include <unistd.h>
 
 #include <gdk/gdkkeysyms.h>
-
-/* For Audio stuff... */
 #include <math.h>
+
+#ifdef WITHAUDIOSUPPORT
+/* For Audio stuff... */
 #include "portaudio.h"
 #include <sndfile.h>
+#endif
 
 #define SAMPLE_RATE   (44100)
 #define FRAMES_PER_BUFFER  (1024)
@@ -104,7 +106,7 @@ int add_sound(int which_sound, int which_slot);
 #define NBRIDGES 7
 #define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
-#define NSHIPS 1
+#define NSHIPS 21
 #define NGDBS 3 
 #define NOCTOPI 0 
 #define NTENTACLES 2 
@@ -2952,7 +2954,7 @@ void ship_move(struct game_obj_t *o)
 		return;
 
 	flying_thing_move(o);
-	flying_thing_shoot_missile(o);
+	/* flying_thing_shoot_missile(o); */
 }
 
 void move_spark(struct game_obj_t *o)
@@ -5050,7 +5052,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 /* Beginning of AUDIO related code                                     */
 /***********************************************************************/
 
-
+#ifdef WITHAUDIOSUPPORT
 struct sound_clip {
 	int active;
 	int nsamples;
@@ -5061,10 +5063,11 @@ struct sound_clip {
 struct sound_clip audio_queue[MAX_CONCURRENT_SOUNDS];
 
 int nclips = 0;
-
+#endif
 
 int read_clip(int clipnum, char *filename)
 {
+#ifdef WITHAUDIOSUPPORT
 	SNDFILE *f;
 	SF_INFO sfinfo;
 	sf_count_t nframes;
@@ -5106,8 +5109,12 @@ int read_clip(int clipnum, char *filename)
 error:
 	sf_close(f);
 	return -1;
+#else
+	return 0;
+#endif
 }
 
+#ifdef WITHAUDIOSUPPORT
 /* precompute 16 2-second clips of various sine waves */
 int init_clips()
 {
@@ -5123,15 +5130,12 @@ int init_clips()
 	read_clip(GROUND_SMACK_SOUND, "sounds/ground_smack.wav");
 	read_clip(INSERT_COIN_SOUND, "sounds/us_quarter.wav");
 	read_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.wav");
-	read_clip(MUSIC_SOUND, "ounds/18395_inferno_rltx.wav");
 	read_clip(SAM_LAUNCH_SOUND, "sounds/18395_inferno_rltx.wav");
 	read_clip(THUNDER_SOUND, "sounds/thunder.wav");
 	read_clip(INTERMISSION_MUSIC_SOUND, "sounds/dtox3monomix.wav");
 	read_clip(MISSILE_LOCK_SIREN_SOUND, "sounds/34561__DrNI__ob12_triangular_growling_wailing.wav");
-
 	return 0;
 }
-
 
 /* This routine will be called by the PortAudio engine when audio is needed.
 ** It may called at interrupt level on some machines so don't do anything
@@ -5184,15 +5188,21 @@ void decode_paerror(PaError rc)
 	fprintf(stderr, "Error number: %d\n", rc);
 	fprintf(stderr, "Error message: %s\n", Pa_GetErrorText(rc));
 }
+#endif
 
+#ifdef WITHAUDIOSUPPORT
 void terminate_portaudio(PaError rc)
 {
 	Pa_Terminate();
 	decode_paerror(rc);
 }
+#else
+#define terminate_portaudio()
+#endif
 
 int initialize_portaudio()
 {
+#ifdef WITHAUDIOSUPPORT
 	PaStreamParameters outparams;
 	PaError rc;
 
@@ -5236,11 +5246,15 @@ int initialize_portaudio()
 error:
 	terminate_portaudio(rc);
 	return rc;
+#else
+	return 0;
+#endif
 }
 
 
 void stop_portaudio()
 {
+#ifdef WITHAUDIOSUPPORT
 	int rc;
 
 	if ((rc = Pa_StopStream(stream)) != paNoError)
@@ -5248,11 +5262,13 @@ void stop_portaudio()
 	rc = Pa_CloseStream(stream);
 error:
 	terminate_portaudio(rc);
+#endif
 	return;
 }
 
 int add_sound(int which_sound, int which_slot)
 {
+#ifdef WITHAUDIOSUPPORT
 	int i;
 
 	if (which_slot != ANY_SLOT) {
@@ -5277,18 +5293,25 @@ int add_sound(int which_sound, int which_slot)
 		}
 	}
 	return (i >= MAX_CONCURRENT_SOUNDS) ? -1 : i;
+#else
+	return 0;
+#endif
 }
 
 void cancel_sound(int queue_entry)
 {
+#ifdef WITHAUDIOSUPPORT
 	audio_queue[queue_entry].active = 0;
+#endif
 }
 
 void cancel_all_sounds()
 {
+#ifdef WITHAUDIOSUPPORT
 	int i;
 	for (i=0;i<MAX_CONCURRENT_SOUNDS;i++)
 		audio_queue[i].active = 0;
+#endif
 }
 
 /***********************************************************************/
@@ -5344,9 +5367,10 @@ int main(int argc, char *argv[])
 	gettimeofday(&tm, NULL);
 	srandom(tm.tv_usec);	
 
+#ifdef WITHAUDIOSUPPORT
 	if (initialize_portaudio() != paNoError)
 		printf("Guess sound's not working...\n");
-
+#endif
 	gtk_set_locale();
 	gtk_init (&argc, &argv);
    
