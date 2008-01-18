@@ -18,4 +18,4 @@ all:	18382_inferno_hvylas.wav \
 	us_quarter.wav
 
 clean:
-	/bin/rm *.wav
+	/bin/rm -f *.wav
