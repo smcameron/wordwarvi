@@ -1,0 +1,21 @@
+
+%.wav:	%.ogg
+	oggdec $<
+
+all:	18382_inferno_hvylas.wav \
+	18384_inferno_largex.wav \
+	18385_inferno_laserbeam.wav \
+	18386_inferno_lightrl.wav \
+	18390_inferno_plascanh.wav \
+	18395_inferno_rltx.wav \
+	18399_inferno_stormplas.wav \
+	34561__DrNI__ob12_triangular_growling_wailing.wav \
+	9679__dobroide__firecracker.04_modified.wav \
+	dtox3monomix.wav \
+	ground_smack.wav \
+	lucky13-steve-mono-mix.wav \
+	thunder.wav \
+	us_quarter.wav
+
+clean:
+	/bin/rm *.wav
