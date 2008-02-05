@@ -41,7 +41,7 @@
 #define M_PI  (3.14159265)
 #endif
 #define TWOPI (M_PI * 2.0)
-#define NCLIPS (16)
+#define NCLIPS (18)
 #define MAX_CONCURRENT_SOUNDS (16)
 #define CLIPLEN (12100) 
 int add_sound(int which_sound, int which_slot);
@@ -62,8 +62,11 @@ int add_sound(int which_sound, int which_slot);
 #define THUNDER_SOUND 11 
 #define INTERMISSION_MUSIC_SOUND 12
 #define MISSILE_LOCK_SIREN_SOUND 13
+#define CARDOOR_SOUND 14
+#define OWMYSPINE_SOUND 15
+#define WOOHOO_SOUND 16
+#define HELPDOWNHERE_SOUND 17
 #define NHUMANOIDS 4
-#define HUMANOID_PICKUP_SOUND 8 /* FIXME, this will do for now */
 
 /* ...End of audio stuff */
 
@@ -97,8 +100,8 @@ int add_sound(int which_sound, int which_slot);
 #define LASER_PROXIMITY 300 /* square root of 300 */
 #define BOMB_PROXIMITY 10000 /* square root of 30000 */
 #define BOMB_X_PROXIMITY 100
-#define GDB_DX_THRESHOLD 150
-#define GDB_DY_THRESHOLD 150
+#define GDB_DX_THRESHOLD 250
+#define GDB_DY_THRESHOLD 250
 #define GDB_MAX_VX 13 
 #define GDB_MAX_VY 13 
 #define LINE_BREAK (-999)
@@ -106,7 +109,7 @@ int add_sound(int which_sound, int which_slot);
 #define NBRIDGES 7
 #define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
-#define NSHIPS 21
+#define NSHIPS 1
 #define NGDBS 3 
 #define NOCTOPI 0 
 #define NTENTACLES 2 
@@ -123,7 +126,7 @@ int add_sound(int which_sound, int which_slot);
 #define MAX_MISSILE_VELOCITY 19 
 #define MISSILE_DAMAGE 20
 #define MISSILE_PROXIMITY 10
-#define MISSILE_FIRE_PERIOD (FRAME_RATE_HZ / 10);
+#define MISSILE_FIRE_PERIOD (FRAME_RATE_HZ / 2);
 #define HUMANOID_PICKUP_SCORE 100
 #define HUMANOID_DIST 15
 #define MAX_TENTACLE_SEGS 40
@@ -1211,6 +1214,7 @@ struct game_state_t {
 	int missile_locked;
 	struct timeval start_time, finish_time;
 	struct game_obj_t go[MAXOBJS];
+	int cmd_multiplier;
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
 
 struct game_obj_t *player = &game_state.go[0];
@@ -1736,10 +1740,12 @@ void gdb_move(struct game_obj_t *o)
 		if (o->vy < dvy)
 			o->vy++;
 		else if (o->vy > dvy)
-			o->vy--;
+			o->vy -= 2;
 
 		o->x += o->vx;
 		o->y += o->vy;
+
+		o->vy++; /* gravity */
 
 		
 		explode(o->x - dvx + randomn(4)-2, o->y - dvy + randomn(4)-2, -dvx, -dvy, 4, 8, 9);
@@ -1775,13 +1781,22 @@ void humanoid_move(struct game_obj_t *o)
 
 	xdist = abs(o->x - player->x);
 	ydist = abs(o->y - player->y);
-	if (xdist < HUMANOID_DIST && ydist < HUMANOID_DIST) {
-		add_sound(HUMANOID_PICKUP_SOUND, ANY_SLOT);
-		o->x = -1000; /* take him off screen. */
-		o->y = -1000;
-		game_state.score += HUMANOID_PICKUP_SCORE;
-		game_state.humanoids++;
-	}
+	if (xdist < HUMANOID_DIST) {
+		if (ydist < HUMANOID_DIST) {
+			add_sound(CARDOOR_SOUND, ANY_SLOT);
+			add_sound(WOOHOO_SOUND, ANY_SLOT);
+			o->x = -1000; /* take him off screen. */
+			o->y = -1000;
+			game_state.score += HUMANOID_PICKUP_SCORE;
+			game_state.humanoids++;
+		} else {
+			if (o->counter == 0) {
+				add_sound(HELPDOWNHERE_SOUND, ANY_SLOT);
+				o->counter = 1;
+			}
+		}
+	} else if (xdist > 1000) 
+		o->counter = 0;
 }
 
 void advance_level();
@@ -1797,7 +1812,7 @@ void socket_move(struct game_obj_t *o)
 	if (xdist < HUMANOID_DIST && ydist < HUMANOID_DIST 
 		&& timer_event != START_INTERMISSION_EVENT) {
 		gettimeofday(&game_state.finish_time, NULL);
-		add_sound(HUMANOID_PICKUP_SOUND, ANY_SLOT);
+		add_sound(WOOHOO_SOUND, ANY_SLOT);
 		player->tsd.epd.count = 50;
 		player->tsd.epd.count2 = 0;
 		player->vx = 0;
@@ -1817,10 +1832,14 @@ void player_fire_laser()
 {
 	int i;
 	struct game_obj_t *o, *p;
+	int j;
+	int y;
 
+	p = &game_state.go[0];
+	y = p->y - ((game_state.cmd_multiplier-1)/2) * 10;
+	for (j=0;j<game_state.cmd_multiplier;j++) {
 	i = find_free_obj();
 	o = &game_state.go[i];
-	p = &game_state.go[0];
 
 	if (p != player) {
 		printf("p != player!\n");
@@ -1828,7 +1847,8 @@ void player_fire_laser()
 
 	o->last_xi = -1;
 	o->x = p->x+(30 * game_state.direction);
-	o->y = p->y;
+	o->y = y;
+	y += 10;
 	o->vx = p->vx + LASER_SPEED * game_state.direction;
 	o->vy = 0;
 	o->v = &right_laser_vect;
@@ -1839,6 +1859,8 @@ void player_fire_laser()
 	o->color = GREEN;
 	o->alive = 20;
 	o->target = NULL;
+	}
+	game_state.cmd_multiplier = 1;
 	add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
 }
 
@@ -2141,32 +2163,35 @@ void drop_chaff()
 
 void drop_bomb()
 {
-	int i;
+	int i, j;
 	struct game_obj_t *o;
 
-	if (game_state.nbombs == 0)
-		return;
-	game_state.nbombs--;
+	for (j=0;j<game_state.cmd_multiplier;j++) {
+		if (game_state.nbombs == 0)
+			return;
+		game_state.nbombs--;
 	
-	i = find_free_obj();
-	if (i < 0)
-		return;
+		i = find_free_obj();
+		if (i < 0)
+			return;
 
-	o = &game_state.go[i];
-	o->last_xi = -1;
-	o->x = player->x+(5 * game_state.direction);
-	o->y = player->y;
-	o->vx = player->vx + BOMB_SPEED * game_state.direction;
-	o->vy = player->vy;;
-	o->v = &bomb_vect;
-	o->move = bomb_move;
-	o->draw = NULL;
-	o->destroy = generic_destroy_func;
-	o->otype = OBJ_TYPE_BOMB;
-	o->target = add_target(o);
-	o->color = ORANGE;
-	o->alive = 20;
-	o->target = add_target(o);
+		o = &game_state.go[i];
+		o->last_xi = -1;
+		o->x = player->x+(5 * game_state.direction);
+		o->y = player->y;
+		o->vx = player->vx + BOMB_SPEED * game_state.direction + (j*3*game_state.direction);
+		o->vy = player->vy;
+		o->v = &bomb_vect;
+		o->move = bomb_move;
+		o->draw = NULL;
+		o->destroy = generic_destroy_func;
+		o->otype = OBJ_TYPE_BOMB;
+		o->target = add_target(o);
+		o->color = ORANGE;
+		o->alive = 20;
+		o->target = add_target(o);
+	}
+	game_state.cmd_multiplier = 1;
 }
 
 void player_draw(struct game_obj_t *o, GtkWidget *w)
@@ -2303,6 +2328,7 @@ void move_player(struct game_obj_t *o)
 		}
 		if (abs(player->vx) > 5 || abs(player->vy) > 5) {
 			add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
+			add_sound(OWMYSPINE_SOUND, ANY_SLOT);
 			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 			game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 		}
@@ -2320,18 +2346,21 @@ void move_player(struct game_obj_t *o)
 			player->vy = 15;
 		if (abs(player->vx) > 5 || abs(player->vy) > 5) {
 			add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
+			add_sound(OWMYSPINE_SOUND, ANY_SLOT);
 			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 			game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 		}
 	}
 	if (player->x < 0) {
 		add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
+		add_sound(OWMYSPINE_SOUND, ANY_SLOT);
 		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 		game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 		player->x = 20;
 		player->vx = 5;
 	} else if (player->x > terrain.x[TERRAIN_LENGTH - 1]) {
 		add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
+		add_sound(OWMYSPINE_SOUND, ANY_SLOT);
 		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 		game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 		player->x = terrain.x[TERRAIN_LENGTH - 1] - 20;
@@ -2777,6 +2806,7 @@ static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
 	o->alive = alive;
 	o->bullseye = NULL;
 	o->missile_timer = 0;
+	o->counter = 0;
 	return o;
 }
 
@@ -3428,12 +3458,12 @@ void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 		perturb(&x3, x2, x1, level.large_scale_roughness);
 		do { 
 			perturb(&y3, x2, x1, level.large_scale_roughness);
-		} while ((KERNEL_Y_BOUNDARY - y3) > -50);
+		} while ((KERNEL_Y_BOUNDARY - y3) > -150);
 	} else {
 		perturb(&x3, x2, x1, level.small_scale_roughness);
 		do { 
 			perturb(&y3, x2, x1, level.small_scale_roughness);
-		} while ((KERNEL_Y_BOUNDARY - y3) > -50);
+		} while ((KERNEL_Y_BOUNDARY - y3) > -150);
 	}
 
 	t->x[midxi] = x3;
@@ -4774,6 +4804,7 @@ void initialize_game_state_new_level()
 	game_state.missiles_killed = 0;
 	game_state.octos_killed = 0;
 	game_state.rockets_killed = 0;
+	game_state.cmd_multiplier = 1;
 }
 
 void start_level()
@@ -4918,6 +4949,21 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 #endif
 	switch (event->keyval)
 	{
+	case GDK_2:
+			game_state.cmd_multiplier = 2;
+			return TRUE;
+	case GDK_3:
+			game_state.cmd_multiplier = 3;
+			return TRUE;
+	case GDK_4:
+			game_state.cmd_multiplier = 4;
+			return TRUE;
+	case GDK_5:
+			game_state.cmd_multiplier = 5;
+			return TRUE;
+	case GDK_6:
+			game_state.cmd_multiplier = 6;
+			return TRUE;
 	case GDK_8:
 			player->tsd.epd.count = 50;
 			player->tsd.epd.count2 = 0;
@@ -4958,39 +5004,52 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 	case GDK_j:
 	case GDK_Down:
 		if (player->vy < MAX_VY && game_state.health > 0 && credits > 0)
-			player->vy += 4;
+			player->vy += 4 * game_state.cmd_multiplier;
+		game_state.cmd_multiplier = 1;
 		return TRUE;
 	case GDK_k:
 	case GDK_Up:
 		if (player->vy > -MAX_VY && game_state.health > 0 && credits > 0)
-			player->vy -= 4;
+			player->vy -= 4 * game_state.cmd_multiplier;
 		return TRUE;
 	case GDK_l:
 	case GDK_Right:
 	case GDK_period:
-	case GDK_greater:
-		if (game_state.health <= 0 || credits <= 0)
-			return TRUE;
-		if (game_state.direction != 1) {
-			game_state.direction = 1;
-			player->vx = player->vx / 2;
-			player->v = &player_vect;
-		} else if (abs(player->vx + game_state.direction) < MAX_VX)
-				player->vx += game_state.direction;
+	case GDK_greater: {
+		int i;
+
+		for (i=0;i<game_state.cmd_multiplier;i++) {
+			if (game_state.health <= 0 || credits <= 0)
+				return TRUE;
+			if (game_state.direction != 1) {
+				game_state.direction = 1;
+				player->vx = player->vx / 2;
+				player->v = &player_vect;
+			} else if (abs(player->vx + game_state.direction) < MAX_VX)
+					player->vx += game_state.direction;
+		}
+		game_state.cmd_multiplier = 1;
 		return TRUE;
+	}
 	case GDK_h:
 	case GDK_Left:
 	case GDK_comma:
-	case GDK_less:
-		if (game_state.health <= 0 || credits <= 0)
-			return TRUE;
-		if (game_state.direction != -1) {
-			player->vx = player->vx / 2;
-			game_state.direction = -1;
-			player->v = &left_player_vect;
-		} else if (abs(player->vx + game_state.direction) < MAX_VX)
-				player->vx += game_state.direction;
+	case GDK_less: {
+		int i;
+
+		for (i=0;i<game_state.cmd_multiplier;i++) {
+			if (game_state.health <= 0 || credits <= 0)
+				return TRUE;
+			if (game_state.direction != -1) {
+				player->vx = player->vx / 2;
+				game_state.direction = -1;
+				player->v = &left_player_vect;
+			} else if (abs(player->vx + game_state.direction) < MAX_VX)
+					player->vx += game_state.direction;
+		}
+		game_state.cmd_multiplier = 1;
 		return TRUE;
+	}
 	case GDK_space:
 	case GDK_z:
 		if (game_state.health <= 0 || credits <= 0)
@@ -5134,6 +5193,10 @@ int init_clips()
 	read_clip(THUNDER_SOUND, "sounds/thunder.wav");
 	read_clip(INTERMISSION_MUSIC_SOUND, "sounds/dtox3monomix.wav");
 	read_clip(MISSILE_LOCK_SIREN_SOUND, "sounds/34561__DrNI__ob12_triangular_growling_wailing.wav");
+	read_clip(CARDOOR_SOUND, "sounds/cardoor.wav");
+	read_clip(WOOHOO_SOUND, "sounds/woohoo.wav");
+	read_clip(OWMYSPINE_SOUND, "sounds/ow_my_spine.wav");
+	read_clip(HELPDOWNHERE_SOUND, "sounds/help_down_here.wav");
 	return 0;
 }
 
