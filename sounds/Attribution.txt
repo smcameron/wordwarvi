@@ -20,6 +20,8 @@ See: http://creativecommons.org/licenses/sampling+/1.0/
              (used in creation of ground_smack.wav) 
 	By genghis attenborough (http://freesound.iua.upf.edu/usersViewSingle.php?id=205108)
             Thunder_edited.wav (http://freesound.iua.upf.edu/samplesViewSingle.php?id=28071)
+	By Jesse Stephens (http://freesound.iua.upf.edu/usersViewSingle.php?id=481069)
+            cardoor.wav (http://freesound.iua.upf.edu/samplesViewSingle.php?id=46917
 
 * ground_smack.wav is a combination of something I recorded
   (hammer banging on metal pipes) and something recorded by 

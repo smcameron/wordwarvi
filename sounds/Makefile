@@ -15,7 +15,10 @@ all:	18382_inferno_hvylas.wav \
 	ground_smack.wav \
 	lucky13-steve-mono-mix.wav \
 	thunder.wav \
-	us_quarter.wav
+	us_quarter.wav \
+	ow_my_spine.wav \
+	help_down_here.wav \
+	woohoo.wav
 
 clean:
 	/bin/rm -f *.wav
