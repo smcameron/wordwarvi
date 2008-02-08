@@ -127,15 +127,18 @@ int add_sound(int which_sound, int which_slot);
 #define MISSILE_DAMAGE 20
 #define MISSILE_PROXIMITY 10
 #define MISSILE_FIRE_PERIOD (FRAME_RATE_HZ / 2);
-#define HUMANOID_PICKUP_SCORE 100
+#define HUMANOID_PICKUP_SCORE 1000
 #define HUMANOID_DIST 15
 #define MAX_TENTACLE_SEGS 40
 #define MAX_SEG_ANGLE 60
 #define TENTACLE_RANGE(t) (randomn(t.upper_angle - t.lower_angle) + t.lower_angle)
 /* Scoring stuff */
-#define ROCKET_SCORE 20
-#define BRIDGE_SCORE 5
-#define FLAK_SCORE 25
+#define ROCKET_SCORE 200
+#define BRIDGE_SCORE 10 
+#define FLAK_SCORE 250
+#define OCTOPUS_SCORE 800 
+#define SAM_SCORE 400
+#define GDB_SCORE 400
 
 
 int game_pause = 0;
@@ -203,6 +206,7 @@ GdkColor *sparkcolor;
 #define OBJ_TYPE_GDB 'd'
 #define OBJ_TYPE_OCTOPUS 'o'
 #define OBJ_TYPE_TENTACLE 'j'
+#define OBJ_TYPE_FLOATING_MESSAGE 'M'
 
 int current_level = 0;
 struct level_parameters_t {
@@ -1148,14 +1152,19 @@ struct tentacle_data {
 	struct tentacle_seg_data *seg;
 };
 
+struct floating_message_data {
+	int font;
+	char msg[21];
+};
+
 union type_specific_data {
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
 	struct octopus_data octopus;
 	struct extra_player_data epd;
 	struct tentacle_data tentacle;
+	struct floating_message_data floating_message;
 };
-
 
 struct game_obj_t {
 	obj_move_func *move;
@@ -1459,6 +1468,13 @@ void draw_lightning( GtkWidget *w, int x1, int y1, int x2, int y2)
 
 	draw_lightning(w, x1, y1, x3, y3);	
 	draw_lightning(w, x3, y3, x2, y2);	
+}
+
+static void xy_draw_string(GtkWidget *w, unsigned char *s, int font, int x, int y) ;
+void floating_message_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+	xy_draw_string(w, o->tsd.floating_message.msg, o->tsd.floating_message.font, o->x, o->y) ;
 }
 
 void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
@@ -1958,6 +1974,7 @@ void octopus_destroy(struct game_obj_t *o)
 
 void bridge_move(struct game_obj_t *o);
 void no_move(struct game_obj_t *o);
+static void add_score_floater(int x, int y, int score);
 
 void bomb_move(struct game_obj_t *o)
 {
@@ -1991,7 +2008,22 @@ void bomb_move(struct game_obj_t *o)
 				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
 					(o->y - t->o->y)*(o->y - t->o->y);
 				if (dist2 < LASER_PROXIMITY) { /* a hit */
-					game_state.score += ROCKET_SCORE;
+					if (t->o->otype == OBJ_TYPE_ROCKET) {
+						game_state.score += ROCKET_SCORE;
+						add_score_floater(t->o->x, t->o->y, ROCKET_SCORE);
+					} else if (t->o->otype == OBJ_TYPE_SAM_STATION) { 
+						game_state.score += SAM_SCORE;
+						add_score_floater(t->o->x, t->o->y, SAM_SCORE);
+					} else if (t->o->otype == OBJ_TYPE_GDB) { 
+						game_state.score += GDB_SCORE;
+						add_score_floater(t->o->x, t->o->y, GDB_SCORE);
+					} else if (t->o->otype == OBJ_TYPE_GUN) { 
+						game_state.score += FLAK_SCORE;
+						add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
+					} else if (t->o->otype == OBJ_TYPE_OCTOPUS) { 
+						game_state.score += OCTOPUS_SCORE;
+						add_score_floater(t->o->x, t->o->y, OCTOPUS_SCORE);
+					}
 					add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 					t->o->alive = 0;
@@ -2055,8 +2087,22 @@ void bomb_move(struct game_obj_t *o)
 					dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
 						(o->y - t->o->y)*(o->y - t->o->y);
 					if (dist2 < BOMB_PROXIMITY) { /* a hit */
-						if (o->otype == OBJ_TYPE_ROCKET)
+						if (t->o->otype == OBJ_TYPE_ROCKET) {
 							game_state.score += ROCKET_SCORE;
+							add_score_floater(t->o->x, t->o->y, ROCKET_SCORE);
+						} else if (t->o->otype == OBJ_TYPE_SAM_STATION) { 
+							game_state.score += SAM_SCORE;
+							add_score_floater(t->o->x, t->o->y, SAM_SCORE);
+						} else if (t->o->otype == OBJ_TYPE_GDB) { 
+							game_state.score += GDB_SCORE;
+							add_score_floater(t->o->x, t->o->y, GDB_SCORE);
+						} else if (t->o->otype == OBJ_TYPE_GUN) { 
+							game_state.score += FLAK_SCORE;
+							add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
+						} else if (t->o->otype == OBJ_TYPE_OCTOPUS) { 
+							game_state.score += OCTOPUS_SCORE;
+							add_score_floater(t->o->x, t->o->y, OCTOPUS_SCORE);
+						}
 						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 						t->o->alive = 0;
 						t->o->destroy(t->o);
@@ -2491,18 +2537,27 @@ void laser_move(struct game_obj_t *o)
 					if (t->o->otype == OBJ_TYPE_ROCKET) {
 						game_state.score += ROCKET_SCORE;
 						game_state.rockets_killed++;
-					}
-					if (t->o->otype == OBJ_TYPE_MISSILE ||
+						add_score_floater(t->o->x, t->o->y, ROCKET_SCORE);
+					} else if (t->o->otype == OBJ_TYPE_MISSILE ||
 						t->o->otype == OBJ_TYPE_HARPOON)
 						game_state.missiles_killed++;
-					else if (t->o->otype == OBJ_TYPE_SAM_STATION)
+					else if (t->o->otype == OBJ_TYPE_SAM_STATION) {
 						game_state.sams_killed++;
-					else if (t->o->otype == OBJ_TYPE_GDB)
+						game_state.score += SAM_SCORE;
+						add_score_floater(t->o->x, t->o->y, SAM_SCORE);
+					} else if (t->o->otype == OBJ_TYPE_GDB) {
 						game_state.gdbs_killed++;
-					else if (t->o->otype == OBJ_TYPE_GUN)
+						game_state.score += GDB_SCORE;
+						add_score_floater(t->o->x, t->o->y, GDB_SCORE);
+					} else if (t->o->otype == OBJ_TYPE_GUN) {
 						game_state.guns_killed++;
-					else if (t->o->otype == OBJ_TYPE_OCTOPUS)
+						game_state.score += FLAK_SCORE;
+						add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
+					} else if (t->o->otype == OBJ_TYPE_OCTOPUS) {
 						game_state.octos_killed++;
+						game_state.score += OCTOPUS_SCORE;
+						add_score_floater(t->o->x, t->o->y, OCTOPUS_SCORE);
+					}
 					add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 					t->o->alive = 0;
@@ -2880,6 +2935,19 @@ void balloon_move(struct game_obj_t *o)
 		o->vy = -1;
 	else if (deepest != GROUND_OOPS && o->y < deepest - MAX_BALLOON_HEIGHT)
 		o->vy = 1;
+}
+
+void floating_message_move(struct game_obj_t *o)
+{
+
+	/* this is a trivial move, if anything else needs this, factor it out */
+	if (!o->alive)
+		return;
+	o->alive--;
+	if (o->alive <= 0)
+		o->destroy(o);
+	o->x += o->vx;
+	o->y += o->vy;
 }
 
 void symbol_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
@@ -3315,6 +3383,7 @@ void draw_objs(GtkWidget *w)
 			continue;
 		if (o->y > (game_state.y + (SCREEN_HEIGHT)))
 			continue;
+
 #if 0
 		if (o->v == &spark_vect)
 			printf("s");
@@ -3374,7 +3443,7 @@ static void draw_letter(GtkWidget *w, struct my_vect_obj **font, unsigned char l
 static void draw_string(GtkWidget *w, unsigned char *s) 
 {
 
-	char *i;
+	unsigned char *i;
 
 	for (i=s;*i;i++)
 		draw_letter(w, gamefont[current_font], *i);  
@@ -3395,6 +3464,38 @@ static void draw_strings(GtkWidget *w)
 		draw_string(w, textline[i].string);
 	}
 }
+
+static void xy_draw_letter(GtkWidget *w, struct my_vect_obj **font, 
+		unsigned char letter, int x, int y)
+{
+	int i, x1, y1, x2, y2;
+
+	if (letter == ' ' || letter == '\n' || letter == '\t' || font[letter] == NULL)
+		return;
+
+	for (i=0;i<font[letter]->npoints-1;i++) {
+		if (font[letter]->p[i+1].x == LINE_BREAK)
+			i+=2;
+		x1 = x + font[letter]->p[i].x - game_state.x;
+		y1 = y + font[letter]->p[i].y - game_state.y + (SCREEN_HEIGHT/2);
+		x2 = x + font[letter]->p[i+1].x - game_state.x;
+		y2 = y + font[letter]->p[i+1].y - game_state.y + (SCREEN_HEIGHT/2);
+		if (x1 > 0 && x2 > 0)
+			gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+		// gdk_draw_line(w->window, gc, x1-1, y1+1, x2-1, y2+1); 
+	}
+}
+
+static void xy_draw_string(GtkWidget *w, unsigned char *s, int font, int x, int y) 
+{
+
+	int i;	
+	int deltax = font_scale[font]*2 + letter_spacing[font];
+
+	for (i=0;s[i];i++)
+		xy_draw_letter(w, gamefont[font], s[i], x + deltax*i, y);  
+}
+
 
 static void add_laserbolt(int x, int y, int vx, int vy, int time)
 {
@@ -3423,6 +3524,44 @@ static void add_symbol(int c, int myfont, int x, int y, int vx, int vy, int time
 	if (font[c] != NULL)
 		add_generic_object(x, y, vx, vy, symbol_move, NULL,
 			WHITE, font[c], 0, OBJ_TYPE_SYMBOL, time);
+}
+
+static void add_floating_message(char *msg, int font, int x, int y, int vx, int vy, int time)
+{
+	struct game_obj_t *o;
+	o = add_generic_object(x, y, vx, vy, floating_message_move, 
+		floating_message_draw, WHITE, NULL, 0,
+		OBJ_TYPE_FLOATING_MESSAGE, time);
+	if (o == NULL)
+		return;
+	strncpy(o->tsd.floating_message.msg, msg, 20);
+	o->tsd.floating_message.font = font;
+}
+
+static void add_score_floater(int x, int y, int score)
+{
+	char message[20];
+	int vx, vy;
+	sprintf(message, "%d", score);
+	vx = game_state.go[0].vx * 2;
+	vy = -7;
+/*
+	if (x is offscreen)
+		return;
+	if (y is offscreen)
+		return;
+	if (x is mostly to the left)
+		vx = -4;
+	else
+		vx = 4;
+
+	if (y is mostly to the bottom)
+		vy = -4; 
+	else
+		vy = +4;
+*/
+	add_floating_message(message, SMALL_FONT, x, y, vx, vy, 20);
+		
 }
 
 void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
