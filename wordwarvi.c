@@ -94,7 +94,7 @@ int add_sound(int which_sound, int which_slot);
 #define PLAYER_SPEED 8 
 #define MAX_VX 15
 #define MAX_VY 25
-#define LASER_FIRE_CHANCE 10
+#define LASER_FIRE_CHANCE 20
 #define LASERLEAD (11)
 #define LASER_SPEED 40
 #define LASER_PROXIMITY 300 /* square root of 300 */
@@ -1224,6 +1224,8 @@ struct game_state_t {
 	struct timeval start_time, finish_time;
 	struct game_obj_t go[MAXOBJS];
 	int cmd_multiplier;
+	int music_on;
+	int sound_effects_on;
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
 
 struct game_obj_t *player = &game_state.go[0];
@@ -5115,6 +5117,12 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		if (credits > 0)
 			game_state.health = -1;
 		return TRUE;
+	case GDK_s:
+		game_state.sound_effects_on = !game_state.sound_effects_on;
+		return TRUE;
+	case GDK_m:
+		game_state.music_on = !game_state.music_on;
+		return TRUE;
 	case GDK_Escape:
 		destroy_event(widget, NULL);
 		return TRUE;	
@@ -5366,7 +5374,10 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 				audio_queue[j].active = 0;
 				continue;
 			}
-			output += audio_queue[j].sample[sample];
+			if (j != MUSIC_SLOT && game_state.sound_effects_on)
+				output += audio_queue[j].sample[sample];
+			else if (j == MUSIC_SLOT && game_state.music_on)
+				output += audio_queue[j].sample[sample];
 		}
 		*out++ = (float) output / 2; /* (output / count); */
         }
@@ -5658,6 +5669,8 @@ int main(int argc, char *argv[])
 
 	initialize_game_state_new_level();
 	game_state.score = 0;
+	game_state.music_on = 1;
+	game_state.sound_effects_on = 1;
 	start_level();
 
     gtk_widget_show (vbox);
