@@ -68,6 +68,7 @@ int add_sound(int which_sound, int which_slot);
 #define HELPDOWNHERE_SOUND 17
 #define CRONSHOT 18
 #define NHUMANOIDS 4
+#define MAXHUMANS 10
 
 /* ...End of audio stuff */
 
@@ -103,17 +104,17 @@ int add_sound(int which_sound, int which_slot);
 #define BOMB_X_PROXIMITY 100
 #define CRON_SHOT_CHANCE 5
 #define CRON_SHOT_DIST_SQR (300*300) 
-#define CRON_DX_THRESHOLD 60
-#define CRON_DY_THRESHOLD 30
-#define CRON_MAX_VX 13 
+#define CRON_DX_THRESHOLD 14 
+#define CRON_DY_THRESHOLD 14 
+#define CRON_MAX_VX 8 
 #define CRON_MAX_VY 5 
 #define GDB_DX_THRESHOLD 250
 #define GDB_DY_THRESHOLD 250
 #define GDB_MAX_VX 13 
 #define GDB_MAX_VY 13 
 #define LINE_BREAK (-999)
-#define NBUILDINGS 20
-#define NBRIDGES 7
+#define NBUILDINGS 15 
+#define NBRIDGES 2
 #define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
 #define NCRON 20 
@@ -121,14 +122,14 @@ int add_sound(int which_sound, int which_slot);
 #define NGDBS 3 
 #define NOCTOPI 0 
 #define NTENTACLES 2 
-#define NSAMS 5
+#define NSAMS 3
 #define BOMB_SPEED 10
 #define NBOMBS 100
 #define MAX_ALT 100
 #define MIN_ALT 50
 #define MAXHEALTH 100
-#define NAIRSHIPS 1
-#define NBALLOONS 3 
+#define NAIRSHIPS 0
+#define NBALLOONS 2 
 #define MAX_BALLOON_HEIGHT 300
 #define MIN_BALLOON_HEIGHT 50
 #define MAX_MISSILE_VELOCITY 19 
@@ -138,7 +139,7 @@ int add_sound(int which_sound, int which_slot);
 #define BULLET_PROXIMITY 10
 #define BULLET_LEAD_TIME 15
 #define MISSILE_PROXIMITY 10
-#define MISSILE_FIRE_PERIOD (FRAME_RATE_HZ / 2);
+#define MISSILE_FIRE_PERIOD (FRAME_RATE_HZ)
 #define HUMANOID_PICKUP_SCORE 1000
 #define HUMANOID_DIST 15
 #define MAX_TENTACLE_SEGS 40
@@ -1192,6 +1193,7 @@ struct cron_data {
 	int beam_pos;
 	int tmp_ty_offset;
 	int tx, ty;
+	struct game_obj_t *myhuman;
 };
 
 struct tentacle_seg_data {
@@ -1214,6 +1216,13 @@ struct floating_message_data {
 	char msg[21];
 };
 
+struct human_data {
+	struct game_obj_t *abductor;
+	int picked_up;
+	int on_ground;
+	int human_number;
+};
+
 union type_specific_data {
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
@@ -1222,6 +1231,7 @@ union type_specific_data {
 	struct tentacle_data tentacle;
 	struct floating_message_data floating_message;
 	struct cron_data cron;
+	struct human_data human;
 };
 
 struct game_obj_t {
@@ -1286,6 +1296,8 @@ struct game_state_t {
 	int music_on;
 	int sound_effects_on;
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
+
+struct game_obj_t * human[MAXHUMANS];
 
 struct game_obj_t *player = &game_state.go[0];
 
@@ -1495,7 +1507,7 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 	int x1, y1, x2, y2, gy, xi, tx, ty, dist2;
 	draw_generic(o, w);
 
-#if 0
+#if 1
 	/* this is debug code */
 	dist2 = (o->tsd.cron.tx - o->x)* (o->tsd.cron.tx - o->x) + (o->tsd.cron.ty - o->y)* (o->tsd.cron.ty - o->y);
 	if (dist2 < 20000) {
@@ -1812,10 +1824,26 @@ void cron_move(struct game_obj_t *o)
 	int xdist, ydist;
 	int dvx, dvy, tx, ty;
 	int gy, dgy, xi;
-	int done, dist2;
+	int done, dist2, i;
 
 	if (!o->alive)
 		return;
+
+	if (o->tsd.cron.myhuman == NULL && ((timer % 10) == 0)) {
+		/* check for unpursued humans. */
+		for (i=0;i<level.nhumanoids;i++) {
+			if (human[i] == NULL)
+				continue;
+			if (human[i]->tsd.human.abductor == NULL) {
+				o->tsd.cron.myhuman = human[i];
+				human[i]->tsd.human.abductor = o;
+				human[i]->tsd.human.picked_up = 0;
+				o->tsd.cron.tx = human[i]->x;
+				o->tsd.cron.ty = human[i]->y;
+				break;
+			}
+		}
+	}
 
 	done = 0;
 	gy = find_ground_level(o);
@@ -1841,13 +1869,17 @@ void cron_move(struct game_obj_t *o)
 		o->tsd.cron.ty = dgy-140;
 		ty = o->tsd.cron.ty;
 		o->tsd.cron.tmp_ty_offset = 0;
+		if (o->tsd.cron.myhuman != NULL) {
+			o->tsd.cron.myhuman->tsd.human.picked_up = 1;
+			o->tsd.cron.myhuman->tsd.human.on_ground = 0;
+		}
 	}
 	if (xdist > CRON_DX_THRESHOLD) {
 		ty += o->tsd.cron.tmp_ty_offset;
 
 		/* avoid the ground */
-		if (ty > gy-30 && xdist)
-			ty = gy-30;
+		if (ty > gy-15 && xdist)
+			ty = gy-15;
 	}
 		else ty = o->tsd.cron.ty;
 	
@@ -1894,7 +1926,7 @@ void cron_move(struct game_obj_t *o)
 			// vy += randomn(3)-1;
 			explode(o->x, o->y, o->vx, o->vy, 4, 8, 9);
 			add_bullet(o->x, o->y, vx, vy, 40, WHITE, player);
-			add_floater_message(o->x, o->y, "Bang!");
+			// add_floater_message(o->x, o->y, "Bang!");
 			add_sound(CRONSHOT, ANY_SLOT);
 		}
 	}
@@ -1907,8 +1939,8 @@ void cron_move(struct game_obj_t *o)
 	}
 #endif
 
-	if (o->y > gy - 100 && dvy > -3)
-		dvy = -10;	
+	/* if (o->y > gy - 100 && dvy > -3)
+		dvy = -10;	 */
 
 	if (o->vx < dvx)
 		o->vx++;
@@ -2054,8 +2086,28 @@ void gdb_move(struct game_obj_t *o)
 void humanoid_move(struct game_obj_t *o)
 {
 	int xdist, ydist;
-	if (!o->alive)
+	if (!o->alive) {
+		printf("Bug... Dead human %d\n", o->tsd.human.human_number);
 		return;
+	}
+	if (o->alive != 1) printf("human%d, alive=%d\n", o->tsd.human.human_number, o->alive);
+
+	if (o->tsd.human.picked_up && o->tsd.human.abductor != NULL) {
+		o->x = o->tsd.human.abductor->x + 10 * (o->tsd.human.human_number - ((level.nhumanoids >> 1)));
+		o->y = o->tsd.human.abductor->y + 30;
+	}
+
+	if (o->tsd.human.on_ground == 0 && o->tsd.human.picked_up == 0) {
+		int gy;
+		/* we got dropped */
+		o->vy += 1;
+		o->y += o->vy;
+		gy = find_ground_level(o);
+		if (gy == -1 || o->y >= gy) {
+			o->y = gy;
+			o->tsd.human.on_ground = 1;
+		}
+	}
 
 	xdist = abs(o->x - player->x);
 	ydist = abs(o->y - player->y);
@@ -2066,6 +2118,14 @@ void humanoid_move(struct game_obj_t *o)
 			add_floater_message(o->x, o->y, "Woohoo!");
 			o->x = -1000; /* take him off screen. */
 			o->y = -1000;
+			if (o->tsd.human.abductor != NULL) {
+				o->tsd.human.abductor->tsd.cron.myhuman = NULL;
+				o->tsd.human.abductor->tsd.cron.ty -= 50;
+				o->tsd.human.abductor = NULL;
+				o->tsd.human.abductor = player;
+				o->tsd.human.picked_up = 1;
+				o->tsd.human.on_ground = 0;
+			}
 			game_state.score += HUMANOID_PICKUP_SCORE;
 			game_state.humanoids++;
 		} else {
@@ -2237,6 +2297,18 @@ void octopus_destroy(struct game_obj_t *o)
 	}
 }
 
+void cron_destroy(struct game_obj_t *o)
+{
+	if (o->tsd.cron.myhuman != NULL) {
+		o->tsd.cron.myhuman->tsd.human.abductor = NULL;
+		o->tsd.cron.myhuman->tsd.human.picked_up = 0;
+		o->tsd.cron.myhuman->tsd.human.on_ground = 0;
+		/* printf("Human released, alive=%d, x=%d, y=%d.\n", o->tsd.cron.myhuman->x, o->tsd.cron.myhuman->y,
+			o->tsd.cron.myhuman->alive); */
+		o->tsd.cron.myhuman = NULL;
+	}
+	generic_destroy_func(o);
+}
 
 void bridge_move(struct game_obj_t *o);
 void no_move(struct game_obj_t *o);
@@ -4548,9 +4620,10 @@ static void add_cron(struct terrain_t *t)
 		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
 			cron_move, cron_draw, GREEN, &cron_vect, 1, OBJ_TYPE_CRON, 1);
 		if (o != NULL) {
-			o->destroy = generic_destroy_func;
+			o->destroy = cron_destroy;
 			o->tsd.cron.tx = o->x;
 			o->tsd.cron.ty = o->y;
+			o->tsd.cron.myhuman = NULL;
 		}
 	}
 }
@@ -4735,10 +4808,19 @@ static void add_SAMs(struct terrain_t *t)
 static void add_humanoids(struct terrain_t *t)
 {
 	int xi, i;
+	struct game_obj_t *o;
+
 	for (i=0;i<level.nhumanoids;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
-		add_generic_object(t->x[xi], t->y[xi], 0, 0, 
+		o = add_generic_object(t->x[xi], t->y[xi], 0, 0, 
 			humanoid_move, NULL, MAGENTA, &humanoid_vect, 1, OBJ_TYPE_HUMAN, 1);
+		human[i] = o;
+		if (o != NULL) {
+			o->tsd.human.abductor = NULL;
+			o->tsd.human.picked_up = 0;
+			o->tsd.human.on_ground = 1;
+			o->tsd.human.human_number = i;
+		}
 	}
 }
 
@@ -5441,7 +5523,9 @@ void advance_level()
 	level.ntentacles += 2;
 	level.nsams += 2;
 	level.nairships += 1;
-	level.nhumanoids += 1;
+	level.nhumanoids += 1; 
+	if (level.nhumanoids > MAXHUMANS)
+		level.nhumanoids = MAXHUMANS;
 	level.large_scale_roughness+= (0.03);
 	if (level.large_scale_roughness > 0.3)
 		level.large_scale_roughness = 0.3;
