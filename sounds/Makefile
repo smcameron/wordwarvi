@@ -19,7 +19,8 @@ all:	18382_inferno_hvylas.wav \
 	cardoor.wav \
 	ow_my_spine.wav \
 	help_down_here.wav \
-	woohoo.wav
+	woohoo.wav \
+	37236_Shades_Gun_Pistol_one_shot_.wav
 
 clean:
 	/bin/rm -f *.wav

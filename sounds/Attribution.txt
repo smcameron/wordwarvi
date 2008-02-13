@@ -46,5 +46,12 @@ See: http://creativecommons.org/licenses/sampling+/1.0/
 * thunder.wav is derived from 28071__genghis_attenborough__Thunder_edited.wav
   by fresound user genghis attenborough.
 
+* 37236_Shades_Gun_Pistol_one_shot_.ogg: (heavily edited by Stephen Cameron,
+  with phaser and leveller, speeding up, etc..
+	DESCRIPTION=Sound of gunshot
+	COPYRIGHT=2007 by freesound user Shades.  See http://freesound.iua.upf.edu/samplesViewSingle.php?id=37236
+	LICENSE=Creative Commons Sampling Plus 1.0 License http://creativecommons.org/licenses/sampling+/1.0/
+
+
 
 

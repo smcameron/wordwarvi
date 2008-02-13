@@ -41,7 +41,7 @@
 #define M_PI  (3.14159265)
 #endif
 #define TWOPI (M_PI * 2.0)
-#define NCLIPS (18)
+#define NCLIPS (19)
 #define MAX_CONCURRENT_SOUNDS (16)
 #define CLIPLEN (12100) 
 int add_sound(int which_sound, int which_slot);
@@ -66,6 +66,7 @@ int add_sound(int which_sound, int which_slot);
 #define OWMYSPINE_SOUND 15
 #define WOOHOO_SOUND 16
 #define HELPDOWNHERE_SOUND 17
+#define CRONSHOT 18
 #define NHUMANOIDS 4
 
 /* ...End of audio stuff */
@@ -100,6 +101,12 @@ int add_sound(int which_sound, int which_slot);
 #define LASER_PROXIMITY 300 /* square root of 300 */
 #define BOMB_PROXIMITY 10000 /* square root of 30000 */
 #define BOMB_X_PROXIMITY 100
+#define CRON_SHOT_CHANCE 5
+#define CRON_SHOT_DIST_SQR (300*300) 
+#define CRON_DX_THRESHOLD 60
+#define CRON_DY_THRESHOLD 30
+#define CRON_MAX_VX 13 
+#define CRON_MAX_VY 5 
 #define GDB_DX_THRESHOLD 250
 #define GDB_DY_THRESHOLD 250
 #define GDB_MAX_VX 13 
@@ -109,6 +116,7 @@ int add_sound(int which_sound, int which_slot);
 #define NBRIDGES 7
 #define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
+#define NCRON 20 
 #define NSHIPS 1
 #define NGDBS 3 
 #define NOCTOPI 0 
@@ -139,6 +147,7 @@ int add_sound(int which_sound, int which_slot);
 #define OCTOPUS_SCORE 800 
 #define SAM_SCORE 400
 #define GDB_SCORE 400
+#define CRON_SCORE 400
 
 
 int game_pause = 0;
@@ -190,6 +199,7 @@ GdkColor *sparkcolor;
 #define OBJ_TYPE_BALLOON 'B'
 #define OBJ_TYPE_BUILDING 'b'
 #define OBJ_TYPE_CHAFF 'c'
+#define OBJ_TYPE_CRON 'C'
 #define OBJ_TYPE_FUEL 'f'
 #define OBJ_TYPE_SHIP 'w'
 #define OBJ_TYPE_GUN 'g'
@@ -215,6 +225,7 @@ struct level_parameters_t {
 	int nbridges;
 	int nflak;
 	int nfueltanks;
+	int ncron;
 	int nships;
 	int ngdbs;
 	int noctopi;
@@ -233,6 +244,7 @@ struct level_parameters_t {
 	NBRIDGES,
 	NFLAK,
 	NFUELTANKS,
+	NCRON,
 	NSHIPS,
 	NGDBS,
 	NOCTOPI,
@@ -619,6 +631,29 @@ struct my_point_t spark_points[] = {
 #endif
 };
 
+struct my_point_t cron_points[] = {
+	{ -10, -15 },	
+	{ 10, -15 },	
+	{ 15, -8 },	
+	{ 10, 0 },	
+	{ -10, 0 },	
+	{ -15, -8 },	
+	{ -10, -15 },	
+	{ LINE_BREAK, LINE_BREAK },
+	{ 7, 0 },
+	{ 7, 7 },
+	{ 10, 10 },
+	{ 7, 17 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -7, 0 },
+	{ -7, 7 },
+	{ -10, 10 },
+	{ -7, 17 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 0, 0 },
+	{ 0, 10 },
+};
+
 struct my_point_t fuel_points[] = {
 	{ -30, -10 },
 	{ 30, -10 },
@@ -986,6 +1021,7 @@ struct my_vect_obj rocket_vect;
 struct my_vect_obj spark_vect;
 struct my_vect_obj right_laser_vect;
 struct my_vect_obj fuel_vect;
+struct my_vect_obj cron_vect;
 struct my_vect_obj ship_vect;
 struct my_vect_obj bomb_vect;
 struct my_vect_obj bridge_vect;
@@ -1137,6 +1173,13 @@ struct gdb_data {
 	// struct game_obj_t *tentacle[8];
 };
 
+struct cron_data {
+	int beam_speed;
+	int beam_pos;
+	int tmp_ty_offset;
+	int tx, ty;
+};
+
 struct tentacle_seg_data {
 	int angle;
 	int length;
@@ -1164,6 +1207,7 @@ union type_specific_data {
 	struct extra_player_data epd;
 	struct tentacle_data tentacle;
 	struct floating_message_data floating_message;
+	struct cron_data cron;
 };
 
 struct game_obj_t {
@@ -1214,6 +1258,7 @@ struct game_state_t {
 	int prev_bombs;
 	int humanoids;
 	int gdbs_killed;
+	int crons_killed;
 	int guns_killed;
 	int sams_killed;
 	int missiles_killed;
@@ -1431,6 +1476,41 @@ void sam_move(struct game_obj_t *o)
 }
 
 void draw_generic(struct game_obj_t *o, GtkWidget *w);
+void cron_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	int x1, y1, x2, y2, gy, xi, tx, ty, dist2;
+	draw_generic(o, w);
+
+#if 0
+	/* this is debug code */
+	dist2 = (o->tsd.cron.tx - o->x)* (o->tsd.cron.tx - o->x) + (o->tsd.cron.ty - o->y)* (o->tsd.cron.ty - o->y);
+	if (dist2 < 20000) {
+		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS)]);
+		x1 = o->x - game_state.x;
+		y1 = o->y + 7 - game_state.y + (SCREEN_HEIGHT/2);  
+		x2 = o->tsd.cron.tx - game_state.x;
+		y2 = o->tsd.cron.ty + 7 - game_state.y + (SCREEN_HEIGHT/2);  
+		if (x1 > 0 && x2 > 0)
+			gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+	}
+#endif
+
+	if (o->tsd.cron.beam_speed != 0) {
+		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS)]);
+		gy = ground_level(o->x + o->tsd.cron.beam_pos, &xi);
+		if (xi != -1) {
+			x1 = 
+			x1 = o->x - game_state.x;
+			y1 = o->y + 7 - game_state.y + (SCREEN_HEIGHT/2);  
+			x2 = o->x + o->tsd.cron.beam_pos - game_state.x; 
+			y2 = gy + (SCREEN_HEIGHT/2) - game_state.y;
+			if (x1 > 0 && x2 > 0)
+				gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+			explode(o->x + o->tsd.cron.beam_pos, gy, 0, 1, 20, 3, 10);
+		}
+	}
+}
+
 void gdb_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	if (o->vx < 0)
@@ -1710,6 +1790,152 @@ void octopus_move(struct game_obj_t *o)
 	}
 }
 
+static void add_floater_message(int x, int y, char *msg);
+void cron_move(struct game_obj_t *o)
+{
+	int xdist, ydist;
+	int dvx, dvy, tx, ty;
+	int gy, dgy, xi;
+	int done, dist2;
+
+	if (!o->alive)
+		return;
+
+	done = 0;
+	gy = find_ground_level(o);
+
+	tx = o->tsd.cron.tx;
+	ty = o->tsd.cron.ty;
+
+	xdist = abs(o->x - tx);
+
+	if (xdist < CRON_DX_THRESHOLD * 2)
+		o->tsd.cron.tmp_ty_offset = 0;
+	else
+		if (randomn(100) <= 30)
+			o->tsd.cron.tmp_ty_offset = -randomn(150);
+	/* if we made it to our dest, pick a new dest. */
+	if (xdist <= CRON_DX_THRESHOLD  && abs(o->y - ty) <= CRON_DY_THRESHOLD ) {
+		/* pick a new target location */
+		add_floater_message(o->x, o->y, "here!");
+		done = 1;
+		o->tsd.cron.tx = terrain.x[randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1)];
+		tx = o->tsd.cron.tx;
+		dgy = ground_level(tx, &xi);
+		o->tsd.cron.ty = dgy-140;
+		ty = o->tsd.cron.ty;
+		o->tsd.cron.tmp_ty_offset = 0;
+	}
+	if (xdist > CRON_DX_THRESHOLD) {
+		ty += o->tsd.cron.tmp_ty_offset;
+
+		/* avoid the ground */
+		if (ty > gy-30 && xdist)
+			ty = gy-30;
+	}
+		else ty = o->tsd.cron.ty;
+	
+	/* move towards the destination */	
+	if (o->x < tx && tx - o->x > CRON_DX_THRESHOLD)
+		dvx = CRON_MAX_VX;
+	else if (o->x > tx && o->x - tx > CRON_DX_THRESHOLD)
+		dvx = -CRON_MAX_VX;
+	else
+		dvx = 0;
+	if (o->y < ty && ty - o->y > CRON_DY_THRESHOLD)
+		dvy = CRON_MAX_VY;
+	else if (o->y > ty && o->y - ty > CRON_DY_THRESHOLD)
+		dvy = -CRON_MAX_VY;
+	else
+		dvy = 0;
+
+	if (done && dvx == 0 && dvy == 0) {
+		printf("Arg!  Stuck.  tx=%d,ty=%d, x=%d, y=%d\n", 
+			tx, ty, o->x, o->y);
+		dvy = -CRON_MAX_VY;
+		dvx = -CRON_MAX_VX;
+	}
+
+	if (randomn(100) <= CRON_SHOT_CHANCE) {
+		dist2 = (player->x - o->x) * (player->x - o->x) + 
+			(player->y - o->y) * (player->y - o->y);
+		if (dist2 <= CRON_SHOT_DIST_SQR) {
+			add_floater_message(o->x, o->y, "Bang!");
+			add_sound(CRONSHOT, ANY_SLOT);
+		}
+	}
+	
+#if 0
+	if (abs(player->x - tx) > CRON_DX_THRESHOLD ||
+		abs(player->y - ty) > CRON_DY_THRESHOLD || randomn(100) < 3) {
+		o->tsd.gdb.tx = player->x + randomn(300)-150;
+		o->tsd.gdb.ty = player->y + randomn(300)-150;
+	}
+#endif
+
+	if (o->y > gy - 100 && dvy > -3)
+		dvy = -10;	
+
+	if (o->vx < dvx)
+		o->vx++;
+	else if (o->vx > dvx)
+		o->vx--;
+	if (o->vy < dvy)
+		o->vy++;
+	else if (o->vy > dvy)
+		o->vy -= 2;
+
+	o->x += o->vx;
+	o->y += o->vy;
+
+	o->vy++; /* gravity */
+
+	/* move the beam around */
+	if (randomn(100) <= 3) {
+		switch (randomn(10)) {
+			case 0:
+			case 1:
+			case 2:
+			case 3:
+			case 4:
+			case 5: o->tsd.cron.beam_speed = randomn(24) - 12;
+				break;
+			default:
+				o->tsd.cron.beam_speed = 0; /* turn off beam */
+		}
+	}
+	if (((o->tsd.cron.beam_speed < 0 && o->tsd.cron.beam_pos < -300)) || 
+		((o->tsd.cron.beam_speed > 0 && o->tsd.cron.beam_pos > 300)))
+		o->tsd.cron.beam_speed = -o->tsd.cron.beam_speed;
+	o->tsd.cron.beam_pos += o->tsd.cron.beam_speed;
+		
+	// explode(o->x - dvx + randomn(4)-2, o->y - dvy + randomn(4)-2, -dvx, -dvy, 4, 8, 9);
+#if 0	
+	xdist = abs(o->x - player->x);
+	if (xdist < GDB_LAUNCH_DIST) {
+		ydist = o->y - player->y;
+		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
+			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			add_harpoon(o->x+10, o->y, 0, 0, 300, MAGENTA, player, o);
+			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
+			if (!o->tsd.gdb.awake) {
+				o->tsd.gdb.awake = 1;
+				o->tsd.gdb.tx = player->x + randomn(200)-100;
+				o->tsd.gdb.ty = player->y + randomn(200)-100;
+			}
+		}
+	}
+#endif
+
+#if 0
+	if (o->y >= gy + 3) {
+		o->alive = 0;
+		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
+		o->destroy(o);
+	}
+#endif
+}
+
 void gdb_move(struct game_obj_t *o)
 {
 	int xdist, ydist;
@@ -1803,12 +2029,14 @@ void humanoid_move(struct game_obj_t *o)
 		if (ydist < HUMANOID_DIST) {
 			add_sound(CARDOOR_SOUND, ANY_SLOT);
 			add_sound(WOOHOO_SOUND, ANY_SLOT);
+			add_floater_message(o->x, o->y, "Woohoo!");
 			o->x = -1000; /* take him off screen. */
 			o->y = -1000;
 			game_state.score += HUMANOID_PICKUP_SCORE;
 			game_state.humanoids++;
 		} else {
 			if (o->counter == 0) {
+				add_floater_message(o->x, o->y, "Help!");
 				add_sound(HELPDOWNHERE_SOUND, ANY_SLOT);
 				o->counter = 1;
 			}
@@ -1839,6 +2067,8 @@ void socket_move(struct game_obj_t *o)
 		next_timer = timer + 1;
 		// advance_level();
 	}
+	if (xdist < SCREEN_WIDTH)
+		o->color = randomn(NCOLORS + NSPARKCOLORS);
 }
 
 int find_free_obj();
@@ -2001,6 +2231,7 @@ void bomb_move(struct game_obj_t *o)
 			case OBJ_TYPE_ROCKET:
 			case OBJ_TYPE_MISSILE:
 			case OBJ_TYPE_HARPOON:
+			case OBJ_TYPE_CRON:
 			case OBJ_TYPE_GDB:
 			case OBJ_TYPE_OCTOPUS:
 			case OBJ_TYPE_FUEL:
@@ -2025,6 +2256,9 @@ void bomb_move(struct game_obj_t *o)
 					} else if (t->o->otype == OBJ_TYPE_OCTOPUS) { 
 						game_state.score += OCTOPUS_SCORE;
 						add_score_floater(t->o->x, t->o->y, OCTOPUS_SCORE);
+					} else if (t->o->otype == OBJ_TYPE_CRON) { 
+						game_state.score += CRON_SCORE;
+						add_score_floater(t->o->x, t->o->y, CRON_SCORE);
 					}
 					add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
@@ -2045,6 +2279,8 @@ void bomb_move(struct game_obj_t *o)
 						game_state.octos_killed++;
 					else if (t->o->otype == OBJ_TYPE_GDB)
 						game_state.gdbs_killed++;
+					else if (t->o->otype == OBJ_TYPE_CRON)
+						game_state.crons_killed++;
 					else if (t->o->otype == OBJ_TYPE_GUN)
 						game_state.guns_killed++;
 				}
@@ -2081,6 +2317,7 @@ void bomb_move(struct game_obj_t *o)
 				case OBJ_TYPE_HARPOON:
 				case OBJ_TYPE_MISSILE:
 				case OBJ_TYPE_GDB:
+				case OBJ_TYPE_CRON:
 				case OBJ_TYPE_OCTOPUS:
 				case OBJ_TYPE_GUN:
 				case OBJ_TYPE_BOMB:
@@ -2095,7 +2332,7 @@ void bomb_move(struct game_obj_t *o)
 						} else if (t->o->otype == OBJ_TYPE_SAM_STATION) { 
 							game_state.score += SAM_SCORE;
 							add_score_floater(t->o->x, t->o->y, SAM_SCORE);
-						} else if (t->o->otype == OBJ_TYPE_GDB) { 
+						} else if (t->o->otype == OBJ_TYPE_CRON) { 
 							game_state.score += GDB_SCORE;
 							add_score_floater(t->o->x, t->o->y, GDB_SCORE);
 						} else if (t->o->otype == OBJ_TYPE_GUN) { 
@@ -2332,10 +2569,10 @@ void move_player(struct game_obj_t *o)
 		if (o->vy > MAX_VY)
 			o->vy = MAX_VY;
 		if (was_healthy)
-			explode(o->x-(11 * game_state.direction), o->y, -(7*game_state.direction), 0, 7, 10, 9);
+			explode(o->x-(13 * game_state.direction), o->y, -(7*game_state.direction), 0, 7, 10, 9);
 	} else
 		if (was_healthy)
-			explode(o->x-(11 * game_state.direction), o->y, -((abs(o->vx)+7)*game_state.direction), 0, 10, 10, 9);
+			explode(o->x-(13 * game_state.direction), o->y, -((abs(o->vx)+7)*game_state.direction), 0, 10, 10, 9);
 	if (game_state.direction == 1) {
 		if (player->x - game_state.x > SCREEN_WIDTH/3) {
 			/* going off screen to the right... rein back in */
@@ -2526,6 +2763,7 @@ void laser_move(struct game_obj_t *o)
 			case OBJ_TYPE_ROCKET:
 			case OBJ_TYPE_HARPOON:
 			case OBJ_TYPE_GDB:
+			case OBJ_TYPE_CRON:
 			case OBJ_TYPE_OCTOPUS:
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_GUN:
@@ -2551,6 +2789,10 @@ void laser_move(struct game_obj_t *o)
 						game_state.gdbs_killed++;
 						game_state.score += GDB_SCORE;
 						add_score_floater(t->o->x, t->o->y, GDB_SCORE);
+					} else if (t->o->otype == OBJ_TYPE_CRON) {
+						game_state.crons_killed++;
+						game_state.score += CRON_SCORE;
+						add_score_floater(t->o->x, t->o->y, CRON_SCORE);
 					} else if (t->o->otype == OBJ_TYPE_GUN) {
 						game_state.guns_killed++;
 						game_state.score += FLAK_SCORE;
@@ -3259,6 +3501,8 @@ void init_vects()
 	fuel_vect.p = fuel_points;
 	fuel_vect.npoints = sizeof(fuel_points) / sizeof(fuel_points[0]);
 
+	cron_vect.p = cron_points;
+	cron_vect.npoints = sizeof(cron_points) / sizeof(cron_points[0]);
 	ship_vect.p = ships_hull_points;
 	ship_vect.npoints = sizeof(ships_hull_points) / sizeof(ships_hull_points[0]);
 	for (i=0;i<ship_vect.npoints;i++) {
@@ -3564,6 +3808,11 @@ static void add_score_floater(int x, int y, int score)
 */
 	add_floating_message(message, SMALL_FONT, x, y, vx, vy, 20);
 		
+}
+
+static void add_floater_message(int x, int y, char *msg)
+{
+	add_floating_message(msg, SMALL_FONT, x, y, game_state.go[0].vx * 2, -7, 20);
 }
 
 void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
@@ -4174,6 +4423,22 @@ static void add_bridges(struct terrain_t *t)
 			add_bridge(t, x1, x2);
 		else
 			break;
+	}
+}
+
+static void add_cron(struct terrain_t *t)
+{
+	int xi, i;
+	struct game_obj_t *o;
+	for (i=0;i<level.ncron;i++) {
+		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
+			cron_move, cron_draw, GREEN, &cron_vect, 1, OBJ_TYPE_CRON, 1);
+		if (o != NULL) {
+			o->destroy = generic_destroy_func;
+			o->tsd.cron.tx = o->x;
+			o->tsd.cron.ty = o->y;
+		}
 	}
 }
 
@@ -4939,6 +5204,7 @@ void initialize_game_state_new_level()
 	game_state.nbombs = level.nbombs;
 	game_state.prev_bombs = -1;
 	game_state.gdbs_killed = 0;
+	game_state.crons_killed = 0;
 	game_state.guns_killed = 0;
 	game_state.sams_killed = 0;
 	game_state.emacs_killed = 0;
@@ -4988,6 +5254,7 @@ void start_level()
 	add_rockets(&terrain);
 	add_buildings(&terrain);
 	add_fuel(&terrain);
+	add_cron(&terrain);
 	add_ships(&terrain);
 	add_SAMs(&terrain);
 	add_humanoids(&terrain);
@@ -5011,6 +5278,7 @@ void init_levels_to_beginning()
 	level.nbridges = NBRIDGES;
 	level.nflak = NFLAK;
 	level.nfueltanks = NFUELTANKS;
+	level.ncron = NCRON;
 	level.nships = NSHIPS;
 	level.ngdbs = NGDBS;
 	level.noctopi = NOCTOPI;
@@ -5053,6 +5321,7 @@ void advance_level()
 	level.nbridges += 1;
 	level.nflak += 10;
 	level.nfueltanks += 2;
+	level.ncron += 1;
 	level.nships += 1;
 	level.ngdbs += 2;
 	level.noctopi += 2;
@@ -5344,6 +5613,7 @@ int init_clips()
 	read_clip(WOOHOO_SOUND, "sounds/woohoo.wav");
 	read_clip(OWMYSPINE_SOUND, "sounds/ow_my_spine.wav");
 	read_clip(HELPDOWNHERE_SOUND, "sounds/help_down_here.wav");
+	read_clip(CRONSHOT, "sounds/37236_Shades_Gun_Pistol_one_shot_.wav");
 	return 0;
 }
 
