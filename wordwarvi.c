@@ -133,6 +133,10 @@ int add_sound(int which_sound, int which_slot);
 #define MIN_BALLOON_HEIGHT 50
 #define MAX_MISSILE_VELOCITY 19 
 #define MISSILE_DAMAGE 20
+#define BULLET_SPEED 25
+#define BULLET_DAMAGE 20
+#define BULLET_PROXIMITY 10
+#define BULLET_LEAD_TIME 15
 #define MISSILE_PROXIMITY 10
 #define MISSILE_FIRE_PERIOD (FRAME_RATE_HZ / 2);
 #define HUMANOID_PICKUP_SCORE 1000
@@ -217,6 +221,7 @@ GdkColor *sparkcolor;
 #define OBJ_TYPE_OCTOPUS 'o'
 #define OBJ_TYPE_TENTACLE 'j'
 #define OBJ_TYPE_FLOATING_MESSAGE 'M'
+#define OBJ_TYPE_BULLET '>'
 
 int current_level = 0;
 struct level_parameters_t {
@@ -425,6 +430,14 @@ struct my_point_t octopus_points[] = {
 	{ LINE_BREAK, LINE_BREAK },
 	{ 8, -10 },
 	{ 4, -7 }
+};
+
+struct my_point_t bullet_points[] = {
+	{ -4, 0 },
+	{ 0, -4 },
+	{ 4, 0 },
+	{ 0, 4 },
+	{ -4, 0 },
 };
 
 struct my_point_t gdb_points_left[] = {
@@ -1031,6 +1044,7 @@ struct my_vect_obj balloon_vect;
 struct my_vect_obj SAM_station_vect;
 struct my_vect_obj humanoid_vect;
 struct my_vect_obj socket_vect;
+struct my_vect_obj bullet_vect;
 struct my_vect_obj gdb_vect_right;
 struct my_vect_obj gdb_vect_left;
 struct my_vect_obj octopus_vect;
@@ -1791,6 +1805,8 @@ void octopus_move(struct game_obj_t *o)
 }
 
 static void add_floater_message(int x, int y, char *msg);
+static void add_bullet(int x, int y, int vx, int vy, 
+	int time, int color, struct game_obj_t *bullseye);
 void cron_move(struct game_obj_t *o)
 {
 	int xdist, ydist;
@@ -1860,6 +1876,24 @@ void cron_move(struct game_obj_t *o)
 		dist2 = (player->x - o->x) * (player->x - o->x) + 
 			(player->y - o->y) * (player->y - o->y);
 		if (dist2 <= CRON_SHOT_DIST_SQR) {
+			int dx, dy, vx, vy;
+			/* calculate vx, vy by similar triangles */
+			dx = (player->x + player->vx * BULLET_LEAD_TIME) - o->x;
+			dy = (player->y + player->vy * BULLET_LEAD_TIME) - o->y;
+			if (dx == 0 && dy == 0) {
+				vx = 0;
+				vy = 0;
+			} else if (abs(dx) > abs(dy)) {
+				vx = ((dx < 0) ? -1 : 1) * BULLET_SPEED;
+				vy = (dy * BULLET_SPEED)/(abs(dx));
+			} else {
+				vy = ((dy < 0) ? -1 : 1) * BULLET_SPEED;
+				vx = (dx * BULLET_SPEED)/(abs(dy));
+			}
+			// vx += randomn(3)-1;
+			// vy += randomn(3)-1;
+			explode(o->x, o->y, o->vx, o->vy, 4, 8, 9);
+			add_bullet(o->x, o->y, vx, vy, 40, WHITE, player);
 			add_floater_message(o->x, o->y, "Bang!");
 			add_sound(CRONSHOT, ANY_SLOT);
 		}
@@ -3073,6 +3107,51 @@ void move_harpoon(struct game_obj_t *o)
 	explode(o->x + exvx + randomn(4)-2, o->y + exvy + randomn(4)-2, exvx, exvy, 4, 8, 9);
 }
 
+void move_bullet(struct game_obj_t *o)
+{
+	struct game_obj_t *target_obj;
+	int dx, dy, desired_vx, desired_vy;
+	int exvx,exvy,deepest;
+
+	/* move one step... */
+	o->x += o->vx;
+	o->y += o->vy;
+	
+	o->alive--;
+	deepest = find_ground_level(o);
+	if (o->alive <= 0 || deepest != GROUND_OOPS && o->y > deepest) {
+		o->alive = 0;
+		if (o->target) {
+			remove_target(o->target);
+			o->target = NULL;
+		}
+		o->destroy(o);
+		return;
+	}
+
+	/* Figure out where we're trying to go */
+	target_obj = o->bullseye;
+	dx = target_obj->x + target_obj->vx - o->x;
+	dy = target_obj->y + target_obj->vy - o->y;
+
+	if ((abs(dx) < BULLET_PROXIMITY) && (abs(dy) < BULLET_PROXIMITY)) {
+		/* We've hit the target */
+		if (player == o->bullseye)
+			game_state.health -= BULLET_DAMAGE;
+		else
+			target_obj->alive -= BULLET_DAMAGE;
+		if (o->target) {
+			remove_target(o->target);
+			o->target = NULL;
+		}
+		o->alive = 0;
+		// add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		explode(o->x, o->y, o->vx, o->vy, 70, 10, 10);
+		o->destroy(o);
+		return;
+	}
+}
+
 static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
 	obj_move_func *move_func,
 	obj_draw_func *draw_func,
@@ -3107,6 +3186,31 @@ static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
 	o->missile_timer = 0;
 	o->counter = 0;
 	return o;
+}
+
+static void add_bullet(int x, int y, int vx, int vy, 
+	int time, int color, struct game_obj_t *bullseye)
+{
+	int i;
+	struct game_obj_t *o;
+
+	i = find_free_obj();
+	if (i<0)
+		return;
+	o = &game_state.go[i];
+	o->x = x;
+	o->y = y;
+	o->vx = vx;
+	o->vy = vy;
+	o->move = move_bullet;
+	o->draw = NULL;
+	o->destroy = generic_destroy_func;
+	o->bullseye = bullseye;
+	o->target = add_target(o);
+	o->otype = OBJ_TYPE_BULLET;
+	o->color = color;
+	o->alive = time;
+	o->counter = 0;
 }
 
 static void add_missile(int x, int y, int vx, int vy, 
@@ -3513,6 +3617,8 @@ void init_vects()
 	}
 	octopus_vect.p = octopus_points;
 	octopus_vect.npoints = sizeof(octopus_points) / sizeof(octopus_points[0]);
+	bullet_vect.p = bullet_points;
+	bullet_vect.npoints = sizeof(bullet_points) / sizeof(bullet_points[0]);
 	gdb_vect_right.p = gdb_points_right;
 	gdb_vect_right.npoints = sizeof(gdb_points_right) / sizeof(gdb_points_right[0]);
 	gdb_vect_left.p = gdb_points_left;
