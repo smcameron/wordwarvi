@@ -2881,7 +2881,8 @@ void draw_spark(struct game_obj_t *o, GtkWidget *w)
 	y1 = o->y - o->vy - game_state.y + (SCREEN_HEIGHT/2);  
 	x2 = o->x - game_state.x; 
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
-	gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+	if (x1 > 0 && x2 > 0) 
+		gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
 }
 
 void draw_missile(struct game_obj_t *o, GtkWidget *w)
@@ -2894,7 +2895,8 @@ void draw_missile(struct game_obj_t *o, GtkWidget *w)
 	dx = dx_from_vxy(o->vx, o->vy);
 	dy = -dy_from_vxy(o->vx, o->vy);
 	gdk_gc_set_foreground(gc, &huex[o->color]);
-	gdk_draw_line(w->window, gc, x1, y1, x1+dx*2, y1+dy*2); 
+	if (x1 > 0 && x1+dx*2 > 0) 
+		gdk_draw_line(w->window, gc, x1, y1, x1+dx*2, y1+dy*2); 
 }
 
 void draw_harpoon(struct game_obj_t *o, GtkWidget *w)
@@ -3746,15 +3748,20 @@ void draw_objs(GtkWidget *w)
 #endif
 		if (o->draw == NULL && o->v != NULL) {
 			gdk_gc_set_foreground(gc, &huex[o->color]);
+			x1 = o->x + v->p[0].x - game_state.x;
+			y1 = o->y + v->p[0].y - game_state.y + (SCREEN_HEIGHT/2);  
 			for (j=0;j<v->npoints-1;j++) {
-				if (v->p[j+1].x == LINE_BREAK) /* Break in the line segments. */
+				if (v->p[j+1].x == LINE_BREAK) { /* Break in the line segments. */
 					j+=2;
-				x1 = o->x + v->p[j].x - game_state.x;
-				y1 = o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
+					x1 = o->x + v->p[j].x - game_state.x;
+					y1 = o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
+				}
 				x2 = o->x + v->p[j+1].x - game_state.x; 
 				y2 = o->y + v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y;
 				if (x1 > 0 && x2 > 0)
 					gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+				x1 = x2;
+				y1 = y2;
 			}
 		} else if (o->draw != NULL)
 			o->draw(o, w);

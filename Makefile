@@ -12,6 +12,15 @@ SNDLIBS=
 SNDFLAGS=
 endif
 
+#DEBUG=-g
+DEBUG=
+#PROFILE_FLAG=-pg
+PROFILE_FLAG=
+#OPTIMIZE_FLAG=
+OPTIMIZE_FLAG=-O2
+
+LDFLAGS=${PROFILE_FLAG}
+
 ifeq (${WITHAUDIO},yes)
 all:	wordwarvi thesounds
 
@@ -24,7 +33,7 @@ thesounds:
 	( cd sounds ; make  )
 
 wordwarvi:	wordwarvi.c
-	gcc -g -Wall  ${SNDFLAGS} wordwarvi.c -o wordwarvi -lm ${SNDLIBS} `pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0` `pkg-config --libs gthread-2.0`
+	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -Wall  ${SNDFLAGS} wordwarvi.c -o wordwarvi -lm ${SNDLIBS} `pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0` `pkg-config --libs gthread-2.0`
 
 tarball:
 	mkdir -p d/wordwarvi-${VERSION}/sounds
