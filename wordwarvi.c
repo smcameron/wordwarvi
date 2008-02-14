@@ -1877,7 +1877,6 @@ void cron_move(struct game_obj_t *o)
 	/* if we made it to our dest, pick a new dest. */
 	if (xdist <= CRON_DX_THRESHOLD  && abs(o->y - ty) <= CRON_DY_THRESHOLD ) {
 		/* pick a new target location */
-		add_floater_message(o->x, o->y, "here!");
 		done = 1;
 		o->tsd.cron.tx = terrain.x[randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1)];
 		tx = o->tsd.cron.tx;
@@ -1885,7 +1884,7 @@ void cron_move(struct game_obj_t *o)
 		o->tsd.cron.ty = dgy-140;
 		ty = o->tsd.cron.ty;
 		o->tsd.cron.tmp_ty_offset = 0;
-		if (o->tsd.cron.myhuman != NULL) {
+		if (o->tsd.cron.myhuman != NULL && o->tsd.cron.myhuman->tsd.human.picked_up == 0) {
 			o->tsd.cron.myhuman->tsd.human.picked_up = 1;
 			o->tsd.cron.myhuman->tsd.human.on_ground = 0;
 			add_sound(ABDUCTED_SOUND, ANY_SLOT);
