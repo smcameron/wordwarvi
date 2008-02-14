@@ -52,6 +52,20 @@ See: http://creativecommons.org/licenses/sampling+/1.0/
 	COPYRIGHT=2007 by freesound user Shades.  See http://freesound.iua.upf.edu/samplesViewSingle.php?id=37236
 	LICENSE=Creative Commons Sampling Plus 1.0 License http://creativecommons.org/licenses/sampling+/1.0/
 
+* abducted.ogg 
+	LICENSE=Creative Commons Sampling Plus 1.0 License 
+		http://creativecommons.org/licenses/sampling+/1.0/
+	COPYRIGHT=2008 by Stephen M. Cameron
+
+* clang.ogg 
+	LICENSE=Creative Commons Sampling Plus 1.0 License
+		http://creativecommons.org/licenses/sampling+/1.0/
+	COPYRIGHT=2008 by Stephen M. Cameron
+
+* help_up_here.ogg 
+	LICENSE=Creative Commons Sampling Plus 1.0 License
+		http://creativecommons.org/licenses/sampling+/1.0/
+	COPYRIGHT=2008 by Stephen M. Cameron
 
 
 
