@@ -3843,7 +3843,7 @@ void draw_objs(GtkWidget *w)
 
 	/* figure where the center y of the radar screen is */
 	radary = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((player->y * RADAR_HEIGHT) / 1500);
-	radary = radary - (SCREEN_HEIGHT - (RADAR_HEIGHT >> 1));
+	radary = (SCREEN_HEIGHT - (RADAR_HEIGHT >> 1)) - radary;
 
 	for (i=0;i<MAXOBJS;i++) {
 		struct my_vect_obj *v = game_state.go[i].v;
