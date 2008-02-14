@@ -69,6 +69,9 @@ int add_sound(int which_sound, int which_slot);
 #define CRONSHOT 18
 #define NHUMANOIDS 4
 #define MAXHUMANS 10
+#define RADAR_HEIGHT 50
+#define RADAR_XMARGIN 10
+#define	RADAR_YMARGIN 10
 
 /* ...End of audio stuff */
 
@@ -223,6 +226,7 @@ GdkColor *sparkcolor;
 #define OBJ_TYPE_TENTACLE 'j'
 #define OBJ_TYPE_FLOATING_MESSAGE 'M'
 #define OBJ_TYPE_BULLET '>'
+#define OBJ_TYPE_PLAYER '1'
 
 int current_level = 0;
 struct level_parameters_t {
@@ -1250,6 +1254,7 @@ struct game_obj_t {
 	int counter;
 	union type_specific_data tsd;
 	int missile_timer;
+	int radar_image;
 };
 
 GtkWidget *score_label;
@@ -3259,6 +3264,7 @@ static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
 	o->bullseye = NULL;
 	o->missile_timer = 0;
 	o->counter = 0;
+	o->radar_image = 0;
 	return o;
 }
 
@@ -3790,9 +3796,45 @@ void draw_flak(struct game_obj_t *o, GtkWidget *w)
 	gdk_draw_line(w->window, gc, x1+10, y1, x1+bx+6, y1+by); 
 }
 
+void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
+{
+	int radarx, radary;
+	int x1, x2, y1, y2, size; 
+
+	radary = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((o->y * RADAR_HEIGHT) / 1500);
+	radary = radary + y_correction;
+
+	if (radary < SCREEN_HEIGHT - RADAR_HEIGHT - RADAR_YMARGIN)
+		return;
+	if (radary > SCREEN_HEIGHT - RADAR_YMARGIN)
+		return;
+
+	radarx = ((SCREEN_WIDTH - (2*RADAR_XMARGIN)) * o->x) / WORLDWIDTH + RADAR_XMARGIN;
+
+	x1 = radarx - o->radar_image;
+	x2 = radarx + o->radar_image;
+	y1 = radary - o->radar_image;
+	y2 = radary + o->radar_image;
+
+	
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+	gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+	gdk_draw_line(w->window, gc, x1, y2, x2, y1); 
+	if (o->otype == OBJ_TYPE_HUMAN || o->otype == OBJ_TYPE_PLAYER) {
+		gdk_draw_line(w->window, gc, x1, y2, x1, y1); 
+		gdk_draw_line(w->window, gc, x1, y1, x2, y1); 
+		gdk_draw_line(w->window, gc, x2, y1, x2, y2); 
+		gdk_draw_line(w->window, gc, x2, y2, x1, y2); 
+	}
+}
+
 void draw_objs(GtkWidget *w)
 {
-	int i, j, x1, y1, x2, y2;
+	int i, j, x1, y1, x2, y2, radary;
+
+	/* figure where the center y of the radar screen is */
+	radary = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((player->y * RADAR_HEIGHT) / 1500);
+	radary = radary - (SCREEN_HEIGHT - (RADAR_HEIGHT >> 1));
 
 	for (i=0;i<MAXOBJS;i++) {
 		struct my_vect_obj *v = game_state.go[i].v;
@@ -3800,6 +3842,9 @@ void draw_objs(GtkWidget *w)
 
 		if (!o->alive)
 			continue;
+
+		if (o->radar_image)
+			draw_on_radar(w, o, radary);
 
 		if (o->x < (game_state.x - (SCREEN_WIDTH/3)))
 			continue;
@@ -4624,6 +4669,7 @@ static void add_cron(struct terrain_t *t)
 			o->tsd.cron.tx = o->x;
 			o->tsd.cron.ty = o->y;
 			o->tsd.cron.myhuman = NULL;
+			o->radar_image = 1;
 		}
 	}
 }
@@ -4640,11 +4686,14 @@ static void add_fuel(struct terrain_t *t)
 
 static void add_ships(struct terrain_t *t)
 {
+	struct game_obj_t *o;
 	int xi, i;
 	for (i=0;i<level.nships;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
-		add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
+		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
 			ship_move, NULL, ORANGE, &ship_vect, 1, OBJ_TYPE_SHIP, 50*PLAYER_LASER_DAMAGE);
+		if (o)
+			o->radar_image = 1;
 	}
 }
 
@@ -4662,6 +4711,7 @@ static void add_octopi(struct terrain_t *t)
 			count++;
 			o->destroy = octopus_destroy;
 			o->tsd.octopus.awake = 0;
+			o->radar_image = 1;
 
 			for (j=0;j<8;j++) {
 				int length = randomn(30) + 9;
@@ -4715,6 +4765,7 @@ static void add_gdbs(struct terrain_t *t)
 		if (o != NULL) {
 			o->destroy = generic_destroy_func;
 			o->tsd.gdb.awake = 0;
+			o->radar_image = 1;
 
 #if 0
 			for (j=0;j<8;j++) {
@@ -4820,6 +4871,7 @@ static void add_humanoids(struct terrain_t *t)
 			o->tsd.human.picked_up = 0;
 			o->tsd.human.on_ground = 1;
 			o->tsd.human.human_number = i;
+			o->radar_image = 2;
 		}
 	}
 }
@@ -4832,7 +4884,10 @@ static void add_airships(struct terrain_t *t)
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		o = add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
 			airship_move, NULL, CYAN, &airship_vect, 1, OBJ_TYPE_AIRSHIP, 300*PLAYER_LASER_DAMAGE);
-		o->counter = 0;
+		if (o) {
+			o->counter = 0;
+			o->radar_image = 4;
+		}
 	}
 }
 
@@ -4844,11 +4899,14 @@ static void add_socket(struct terrain_t *t)
 
 static void add_balloons(struct terrain_t *t)
 {
+	struct game_obj_t *o;
 	int xi, i;
 	for (i=0;i<NBALLOONS;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
-		add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
+		o = add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
 			balloon_move, NULL, CYAN, &balloon_vect, 1, OBJ_TYPE_BALLOON, 1);
+		if (o) 
+			o->radar_image = 1;
 	}
 }
 
@@ -4994,6 +5052,27 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 	return 0;
 }
 
+void draw_radar(GtkWidget *w)
+{
+	int xoffset, height, width, yoffset; 
+	int x1, y1, x2, y2;
+
+	height = RADAR_HEIGHT;
+	xoffset = RADAR_XMARGIN;
+	yoffset = RADAR_YMARGIN;
+	width = SCREEN_WIDTH-(xoffset * 2);
+
+	y2 = SCREEN_HEIGHT - yoffset;
+	y1 = y2 - height;
+	x1 = xoffset;
+	x2 = SCREEN_WIDTH - xoffset;
+	gdk_gc_set_foreground(gc, &huex[RED]);
+	gdk_draw_line(w->window, gc, x1, y1, x1, y2);
+	gdk_draw_line(w->window, gc, x1, y2, x2, y2);
+	gdk_draw_line(w->window, gc, x2, y2, x2, y1);
+	gdk_draw_line(w->window, gc, x2, y1, x1, y1);
+}
+
 static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 {
 	int i;
@@ -5077,6 +5156,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 			credits, game_state.lives, game_state.score, 
 			game_state.humanoids, level.nhumanoids);
 	draw_strings(w);
+	draw_radar(w);
 
 	if (game_state.prev_score != game_state.score) {
 		sprintf(score_str, "Score: %06d", game_state.score);
@@ -5437,6 +5517,8 @@ void start_level()
 	player->destroy = generic_destroy_func;
 	player->tsd.epd.count = -1;
 	player->tsd.epd.count2 = 50;
+	player->radar_image = 2;
+	player->otype = OBJ_TYPE_PLAYER;
 	game_state.health = MAXHEALTH;
 	game_state.nbombs = level.nbombs;
 	game_state.prev_bombs = -1;
