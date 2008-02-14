@@ -41,7 +41,7 @@
 #define M_PI  (3.14159265)
 #endif
 #define TWOPI (M_PI * 2.0)
-#define NCLIPS (19)
+#define NCLIPS (22)
 #define MAX_CONCURRENT_SOUNDS (16)
 #define CLIPLEN (12100) 
 int add_sound(int which_sound, int which_slot);
@@ -67,6 +67,11 @@ int add_sound(int which_sound, int which_slot);
 #define WOOHOO_SOUND 16
 #define HELPDOWNHERE_SOUND 17
 #define CRONSHOT 18
+#define HELPUPHERE_SOUND 19
+#define ABDUCTED_SOUND 20 
+#define CLANG_SOUND 21
+
+
 #define NHUMANOIDS 4
 #define MAXHUMANS 10
 #define RADAR_HEIGHT 50
@@ -1877,6 +1882,7 @@ void cron_move(struct game_obj_t *o)
 		if (o->tsd.cron.myhuman != NULL) {
 			o->tsd.cron.myhuman->tsd.human.picked_up = 1;
 			o->tsd.cron.myhuman->tsd.human.on_ground = 0;
+			add_sound(ABDUCTED_SOUND, ANY_SLOT);
 		}
 	}
 	if (xdist > CRON_DX_THRESHOLD) {
@@ -2136,7 +2142,10 @@ void humanoid_move(struct game_obj_t *o)
 		} else {
 			if (o->counter == 0) {
 				add_floater_message(o->x, o->y, "Help!");
-				add_sound(HELPDOWNHERE_SOUND, ANY_SLOT);
+				if (o->y > player->y)
+					add_sound(HELPDOWNHERE_SOUND, ANY_SLOT);
+				else
+					add_sound(HELPUPHERE_SOUND, ANY_SLOT);
 				o->counter = 1;
 			}
 		}
@@ -3224,7 +3233,7 @@ void move_bullet(struct game_obj_t *o)
 			o->target = NULL;
 		}
 		o->alive = 0;
-		// add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		add_sound(CLANG_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, o->vy, 70, 10, 10);
 		o->destroy(o);
 		return;
@@ -5893,6 +5902,9 @@ int init_clips()
 	read_clip(OWMYSPINE_SOUND, "sounds/ow_my_spine.wav");
 	read_clip(HELPDOWNHERE_SOUND, "sounds/help_down_here.wav");
 	read_clip(CRONSHOT, "sounds/37236_Shades_Gun_Pistol_one_shot_.wav");
+	read_clip(HELPUPHERE_SOUND, "sounds/help_up_here.wav");
+	read_clip(ABDUCTED_SOUND, "sounds/abducted.wav");
+	read_clip(CLANG_SOUND, "sounds/clang.wav");
 	return 0;
 }
 
