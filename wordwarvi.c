@@ -1275,6 +1275,7 @@ struct cron_data {
 	int beam_pos;
 	int tmp_ty_offset;
 	int tx, ty;
+	int eyepos;
 	struct game_obj_t *myhuman;
 };
 
@@ -1590,7 +1591,7 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 	int x1, y1, x2, y2, gy, xi, tx, ty, dist2;
 	draw_generic(o, w);
 
-#if 1
+#if 0
 	/* this is debug code */
 	dist2 = (o->tsd.cron.tx - o->x)* (o->tsd.cron.tx - o->x) + (o->tsd.cron.ty - o->y)* (o->tsd.cron.ty - o->y);
 	if (dist2 < 20000) {
@@ -1604,11 +1605,20 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 #endif
 
+	x1 = o->x - game_state.x + o->tsd.cron.eyepos;
+	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2) - 5;  
+	x2 = x1 + 3;
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	gdk_draw_line(w->window, gc, x1, y1, x2, y1); /* draw eye */
+	o->tsd.cron.eyepos +=1;
+	if (o->tsd.cron.eyepos > 10)
+		o->tsd.cron.eyepos = -10;
+	
+
 	if (o->tsd.cron.beam_speed != 0) {
 		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS)]);
 		gy = ground_level(o->x + o->tsd.cron.beam_pos, &xi);
 		if (xi != -1) {
-			x1 = 
 			x1 = o->x - game_state.x;
 			y1 = o->y + 7 - game_state.y + (SCREEN_HEIGHT/2);  
 			x2 = o->x + o->tsd.cron.beam_pos - game_state.x; 
@@ -4767,6 +4777,7 @@ static void add_cron(struct terrain_t *t)
 			o->tsd.cron.tx = o->x;
 			o->tsd.cron.ty = o->y;
 			o->tsd.cron.myhuman = NULL;
+			o->tsd.cron.eyepos = 0;
 			o->radar_image = 1;
 		}
 	}
