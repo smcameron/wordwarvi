@@ -137,6 +137,7 @@ int add_sound(int which_sound, int which_slot);
 #define MAX_ALT 100
 #define MIN_ALT 50
 #define MAXHEALTH 100
+#define RADAR_FRITZ_HEALTH 30
 #define NAIRSHIPS 0
 #define NBALLOONS 2 
 #define MAX_BALLOON_HEIGHT 300
@@ -333,6 +334,8 @@ stroke_t glyph_C[] = { 11, 13, 9, 3, 1, 5, 99 };
 stroke_t glyph_B[] = { 0, 12, 13, 11, 5, 1, 0, 21, 6, 8, 99 };
 stroke_t glyph_A[] = { 12, 3, 0, 5, 14, 21, 8, 6, 99 };
 stroke_t glyph_slash[] = { 12, 2, 99 };
+stroke_t glyph_backslash[] = { 0, 14, 99 };
+stroke_t glyph_pipe[] = { 1, 13, 99 };
 stroke_t glyph_que[] = { 13, 10, 21, 7, 5, 2, 0, 3, 99 };
 stroke_t glyph_bang[] = { 10, 13, 21, 1, 7, 99};
 stroke_t glyph_colon[] = { 6, 7, 21, 12, 13, 99 };
@@ -1379,6 +1382,11 @@ struct game_state_t {
 	int cmd_multiplier;
 	int music_on;
 	int sound_effects_on;
+	int radar_state;
+#define     RADAR_RUNNING (0)
+#define     RADAR_FRITZED (-1)
+#define     RADAR_BOOTUP (5 * FRAME_RATE_HZ)
+
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
 
 struct game_obj_t * human[MAXHUMANS];
@@ -2858,6 +2866,17 @@ void move_player(struct game_obj_t *o)
 		player->vx = -5;
 	}
 
+	/* Check to see if radar is fritzed, or unfritzed. */
+	if (game_state.health > RADAR_FRITZ_HEALTH) {
+		if (game_state.radar_state == RADAR_FRITZED) {
+			game_state.radar_state = RADAR_BOOTUP;
+		}
+	} else if (game_state.health <= RADAR_FRITZ_HEALTH) {
+		if (game_state.radar_state != RADAR_FRITZED) {
+			game_state.radar_state = RADAR_FRITZED;
+		}
+	}
+
 	/* Autopilot, "attract mode", if credits <= 0 */
 	if (credits <= 0) {
 		for (i=0;i<TERRAIN_LENGTH;i++) {
@@ -3705,6 +3724,8 @@ int make_font(struct my_vect_obj ***font, int xscale, int yscale)
 	v['Z'] = prerender_glyph(glyph_Z, xscale, yscale);
 	v['!'] = prerender_glyph(glyph_bang, xscale, yscale);
 	v['/'] = prerender_glyph(glyph_slash, xscale, yscale);
+	v['\\'] = prerender_glyph(glyph_backslash, xscale, yscale);
+	v['|'] = prerender_glyph(glyph_pipe, xscale, yscale);
 	v['?'] = prerender_glyph(glyph_que, xscale, yscale);
 	v[':'] = prerender_glyph(glyph_colon, xscale, yscale);
 	v['('] = prerender_glyph(glyph_leftparen, xscale, yscale);
@@ -3945,7 +3966,7 @@ void draw_objs(GtkWidget *w)
 		if (!o->alive)
 			continue;
 
-		if (o->radar_image)
+		if (o->radar_image && game_state.radar_state == RADAR_RUNNING)
 			draw_on_radar(w, o, radary);
 
 		if (o->x < (game_state.x - (SCREEN_WIDTH/3)))
@@ -4048,6 +4069,37 @@ static void draw_strings(GtkWidget *w)
 		draw_string(w, textline[i].string);
 	}
 }
+
+static void abs_xy_draw_letter(GtkWidget *w, struct my_vect_obj **font, 
+		unsigned char letter, int x, int y)
+{
+	int i, x1, y1, x2, y2;
+
+	if (letter == ' ' || letter == '\n' || letter == '\t' || font[letter] == NULL)
+		return;
+
+	for (i=0;i<font[letter]->npoints-1;i++) {
+		if (font[letter]->p[i+1].x == LINE_BREAK)
+			i+=2;
+		x1 = x + font[letter]->p[i].x;
+		y1 = y + font[letter]->p[i].y;
+		x2 = x + font[letter]->p[i+1].x;
+		y2 = y + font[letter]->p[i+1].y;
+		if (x1 > 0 && x2 > 0)
+			gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+	}
+}
+
+static void abs_xy_draw_string(GtkWidget *w, unsigned char *s, int font, int x, int y) 
+{
+
+	int i;	
+	int deltax = font_scale[font]*2 + letter_spacing[font];
+
+	for (i=0;s[i];i++)
+		abs_xy_draw_letter(w, gamefont[font], s[i], x + deltax*i, y);  
+}
+
 
 static void xy_draw_letter(GtkWidget *w, struct my_vect_obj **font, 
 		unsigned char letter, int x, int y)
@@ -5161,6 +5213,10 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 	return 0;
 }
 
+char spinner[] = "||||////----\\\\\\\\";
+char radar_msg1[] = "  Sirius Cybernetics Corp. RADAR -- firmware v. 1.03 (bootleg)";
+char radar_msg2[] = "  Fly Safe!!! Fly Siriusly Safe!!!";
+
 void draw_radar(GtkWidget *w)
 {
 	int xoffset, height, width, yoffset; 
@@ -5180,6 +5236,21 @@ void draw_radar(GtkWidget *w)
 	gdk_draw_line(w->window, gc, x1, y2, x2, y2);
 	gdk_draw_line(w->window, gc, x2, y2, x2, y1);
 	gdk_draw_line(w->window, gc, x2, y1, x1, y1);
+
+	if (game_state.radar_state == RADAR_RUNNING)
+		return;
+
+	if (game_state.radar_state == RADAR_FRITZED) {
+		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS)]);
+		gdk_draw_line(w->window, gc, x1, y1 + timer % RADAR_HEIGHT, 
+			x2,  y1 + timer % RADAR_HEIGHT);
+	} else if (game_state.radar_state <= RADAR_BOOTUP) { /* radar is booting up, display bootup message. */
+		gdk_gc_set_foreground(gc, &huex[GREEN]);
+		radar_msg1[0] = spinner[timer % 16];
+		abs_xy_draw_string(w, radar_msg1, TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2-10);
+		abs_xy_draw_string(w, radar_msg2, TINY_FONT, x1 + 80, y1 + RADAR_HEIGHT/2+10);
+		game_state.radar_state --;
+	}
 }
 
 static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
@@ -5596,6 +5667,7 @@ void initialize_game_state_new_level()
 	game_state.octos_killed = 0;
 	game_state.rockets_killed = 0;
 	game_state.cmd_multiplier = 1;
+	game_state.radar_state = RADAR_BOOTUP;
 }
 
 void start_level()
@@ -5634,6 +5706,7 @@ void start_level()
 	game_state.nobjs = MAXOBJS-1;
 	game_state.x = 0;
 	game_state.y = 0;
+	game_state.radar_state = RADAR_BOOTUP;
 
 	srandom(level.random_seed);
 	generate_terrain(&terrain);
