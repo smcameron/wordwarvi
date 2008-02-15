@@ -121,6 +121,7 @@ int add_sound(int which_sound, int which_slot);
 #define GDB_MAX_VX 13 
 #define GDB_MAX_VY 13 
 #define LINE_BREAK (-999)
+#define COLOR_CHANGE (-1000) /* note, color change can ONLY follow LINE_BREAK */
 #define NBUILDINGS 15 
 #define NBRIDGES 2
 #define MAXBUILDING_WIDTH 9
@@ -497,26 +498,41 @@ struct my_point_t gdb_points_right[] = {
 };
 
 struct my_point_t humanoid_points[] = {
-	{ -5, 0 },
-	{ -3, -5 },
-	{ 3, -5, },
-	{ 3, 0 },
+	{ -2, 0 }, /* waist */
+	{  2, 0 },
+	{  4, -6 }, /* shoulders */
+	{  -4, -6 },
+	{ -2, 0 }, 
 	{ LINE_BREAK, LINE_BREAK },
-	{ 3, -5 },
-	{ 3, -9 },
-	{ 1, -9 },
-	{ 1, -12 },
-	{ -1, -12 },
+	{ COLOR_CHANGE, BLUE },
+	{ -2, 0 }, /* left leg */
+	{ -3, 4 },
+	{ -3, 7 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 2, 0 }, /* right leg */
+	{ 3, 7 },
+	{ 3, 7 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, MAGENTA },
+	{ 4, -6, }, /* right arm */
+	{ 6, -3 },
+	{ 6, 1 }, 
+	{ LINE_BREAK, LINE_BREAK },
+	{ -4, -6, }, /* left arm */
+	{ -6, -3 },
+	{ -6, 1 }, 
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, ORANGE },
+	{ -1, -7 }, /* head */
 	{ -1, -9 },
-	{ -3, -9 },
-	{ LINE_BREAK, LINE_BREAK },
-	{ 6, -5 },
-	{ 3, -9 },
-	{ -3, -9 },
-	{ -6, -5 },
+	{ 1, -9, },
+	{ 1, -7 },
 };
 
 struct my_point_t SAM_station_points[] = {
+	{ -5, 0 },   /* Bottom base */
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, RED },
 	{ -5, 0 },   /* Bottom base */
 	{ -5, -10 },
 	{ 5, 0 },
@@ -536,8 +552,9 @@ struct my_point_t SAM_station_points[] = {
 	{ 5, -20 },
 	{ 5, -30 },
 	{ -5, -20 },
-	{ 5, -20 }, 	
+	{ 5, -20 },
 	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, WHITE },
 	{ -5, -30 },
 	{ 5, -30 }, 	
 	{ LINE_BREAK, LINE_BREAK },
@@ -557,6 +574,7 @@ struct my_point_t SAM_station_points[] = {
 	{ 0, -35, }, /* Radar dish */
 	{ -15, -50, }, /* Radar dish */
 	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, WHITE },
 	{ 20, 0 }, /* Little building */
 	{ 20, -50 },
 	{ 30, -50 },
@@ -684,12 +702,35 @@ struct my_point_t cron_points[] = {
 };
 
 struct my_point_t fuel_points[] = {
-	{ -30, -10 },
-	{ 30, -10 },
-	{ 30, 30 },
-	{ -30, 30 },
-	{ -30, -10 },
+	{ -30, -15 },
+
+	{ -25, -18 }, /* top far curve */
+	{ -20, -19 },
+	{  20, -19 },
+	{  25, -18 },
+
+	{ 30, -15 },
+
+	{  25, -12 }, /* top near curve */
+	{  20, -11 },
+	{ -20, -11 },
+	{ -25, -12 },
+	{ -30, -15 },
+
 	{ LINE_BREAK, LINE_BREAK },
+
+	{ 30, -15 },
+	{ 30, 30 },
+	
+	{ 25, 33 }, /* bottom curve */
+	{ 20, 34 },
+	{ -20, 34 },
+	{ -25, 33 },
+
+	{ -30, 30 },
+	{ -30, -15 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, WHITE },
 	{ -25, 25 },
 	{ -25, -5 },
 	{ -15, -5 },
@@ -746,6 +787,10 @@ struct my_point_t player_ship_points[] = {
 	{ 24, 2 }, /* tip of nose */
 	{ 9, 0 }, /* front of hatch */
 	{ -3, -6 }, /* top of hatch */ 
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, RED },
+	{ 20, 2 },
+	{ -17, 2 }, /* red stripe */
 #if 0
 	{ LINE_BREAK, LINE_BREAK }, /* Just for testing */
 	{ -30, -20 },
@@ -813,6 +858,11 @@ struct my_point_t left_player_ship_points[] = {
 	{ 24, 2 }, /* tip of nose */
 	{ 9, 0 }, /* front of hatch */
 	{ -3, -6 }, /* top of hatch */ 
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, RED },
+	{ 20, 2 },
+	{ -17, 2 }, /* red stripe */
+	
 #if 0
 	{ LINE_BREAK, LINE_BREAK }, /* Just for testing */
 	{ -30, -20 },
@@ -846,6 +896,7 @@ struct my_point_t flak_points[] = {
 	{ 5, -3},
 	{ 10, 5 },
 	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, ORANGE },
 	{ -3, -3 },
 	{ -3, -5},
 	{ 3, -5},
@@ -854,11 +905,20 @@ struct my_point_t flak_points[] = {
 
 struct my_point_t rocket_points[] = {
 	{ -2, 3 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, RED },
+	{ -2, 3 },
 	{ -4, 7 },
 	{ -2, 7 },
-	{ -2, -8 },
-	{ 0, -10 },
-	{ 2, -8 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, WHITE },
+	{ -2, 7 },
+	{ -2, -11 },
+	{ 0, -15 },
+	{ 2, -11 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, WHITE },
+	{ 2, -11 },
 	{ 2, 7},
 	{ 4, 7},
 	{ 2, 3}, 
@@ -897,14 +957,21 @@ struct my_point_t ships_hull_points[] = {
 	{ LINE_BREAK, LINE_BREAK },
 	{ 5, -5 },
 	{ 8, -110 }, /* main mast */
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, RED },
+	{ 8, -110 }, /* main mast */
 	{ 0, -108 }, /* flag */
 	{ 8, -105 },
 	
 	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, ORANGE },
 	{ 39, -14 }, /* aft mast */
 	{ 41, -95 },
 	{ LINE_BREAK, LINE_BREAK },
 	{ -22, -12 }, /* fore mast */
+	{ -20, -83 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, WHITE },
 	{ -20, -83 },
 	{ -60, -14 }, /* fore sail */
 	{ -30, -25 },
@@ -1511,7 +1578,7 @@ void sam_move(struct game_obj_t *o)
 		ydist = o->y - player->y;
 		if (ydist > 0 && randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
-			add_missile(o->x+20, o->y-30, 0, 0, 300, GREEN, player);
+			add_missile(o->x+20, o->y-30, 0, -10, 300, GREEN, player);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 		}
 	}
@@ -2630,6 +2697,10 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 			for (j=0;j<o->v->npoints-1;j++) {
 				if (o->v->p[j+1].x == LINE_BREAK) /* Break in the line segments. */
 					j+=2;
+				if (o->v->p[j].x == COLOR_CHANGE) {
+					gdk_gc_set_foreground(gc, &huex[o->v->p[j].y]);
+					j+=1;
+				}
 				x1 = o->x + o->v->p[j].x*scale - game_state.x;
 				y1 = o->y + o->v->p[j].y*scale - game_state.y + (SCREEN_HEIGHT/2);  
 				x2 = o->x + o->v->p[j+1].x*scale - game_state.x; 
@@ -3688,8 +3759,11 @@ void init_vects()
 	player_vect.npoints = sizeof(player_ship_points) / sizeof(player_ship_points[0]);
 	left_player_vect.p = left_player_ship_points;
 	left_player_vect.npoints = sizeof(left_player_ship_points) / sizeof(left_player_ship_points[0]);
-	for (i=0;i<left_player_vect.npoints;i++)
-		left_player_ship_points[i].x *= -1;
+	for (i=0;i<left_player_vect.npoints;i++) {
+		if (left_player_ship_points[i].x != COLOR_CHANGE &&
+			left_player_ship_points[i].x != LINE_BREAK)
+			left_player_ship_points[i].x *= -1;
+	}
 	rocket_vect.p = rocket_points;
 	rocket_vect.npoints = sizeof(rocket_points) / sizeof(rocket_points[0]);
 	spark_vect.p = spark_points;
@@ -3703,12 +3777,12 @@ void init_vects()
 	cron_vect.npoints = sizeof(cron_points) / sizeof(cron_points[0]);
 	ship_vect.p = ships_hull_points;
 	ship_vect.npoints = sizeof(ships_hull_points) / sizeof(ships_hull_points[0]);
-	for (i=0;i<ship_vect.npoints;i++) {
-		if (ship_vect.p[i].x != LINE_BREAK) {
+	/* for (i=0;i<ship_vect.npoints;i++) {
+		if (ship_vect.p[i].x != LINE_BREAK && ship_vect.p[i].x != COLOR_CHANGE) {
 			ship_vect.p[i].x *= 2;
 			ship_vect.p[i].y = (ship_vect.p[i].y+20) * 2;
 		}
-	}
+	} */
 	octopus_vect.p = octopus_points;
 	octopus_vect.npoints = sizeof(octopus_points) / sizeof(octopus_points[0]);
 	bullet_vect.p = bullet_points;
@@ -3718,7 +3792,7 @@ void init_vects()
 	gdb_vect_left.p = gdb_points_left;
 	gdb_vect_left.npoints = sizeof(gdb_points_left) / sizeof(gdb_points_left[0]);
 	for (i=0;i<gdb_vect_right.npoints;i++)
-		if (gdb_vect_right.p[i].x != LINE_BREAK) 
+		if (gdb_vect_right.p[i].x != LINE_BREAK && gdb_vect_right.p[i].x != COLOR_CHANGE) 
 			gdb_vect_right.p[i].x = -gdb_vect_left.p[i].x;
 	bomb_vect.p = bomb_points;
 	bomb_vect.npoints = sizeof(bomb_points) / sizeof(bomb_points[0]);
@@ -3729,7 +3803,7 @@ void init_vects()
 	airship_vect.p = airship_points;
 	airship_vect.npoints = sizeof(airship_points) / sizeof(airship_points[0]);
 	for (i=0;i<airship_vect.npoints;i++) {
-		if (airship_vect.p[i].x != LINE_BREAK) {
+		if (airship_vect.p[i].x != LINE_BREAK && airship_vect.p[i].x != COLOR_CHANGE) {
 			airship_vect.p[i].x *= 3;
 			airship_vect.p[i].y = (airship_vect.p[i].y+20) * 3;
 		}
@@ -3762,6 +3836,10 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 	for (j=0;j<o->v->npoints-1;j++) {
 		if (o->v->p[j+1].x == LINE_BREAK) /* Break in the line segments. */
 			j+=2;
+		if (o->v->p[j].x == COLOR_CHANGE) {
+			gdk_gc_set_foreground(gc, &huex[o->v->p[j].y]);
+			j+=1;
+		}
 		x1 = o->x + o->v->p[j].x - game_state.x;
 		y1 = o->y + o->v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
 		x2 = o->x + o->v->p[j+1].x - game_state.x; 
@@ -3884,6 +3962,12 @@ void draw_objs(GtkWidget *w)
 			for (j=0;j<v->npoints-1;j++) {
 				if (v->p[j+1].x == LINE_BREAK) { /* Break in the line segments. */
 					j+=2;
+					x1 = o->x + v->p[j].x - game_state.x;
+					y1 = o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
+				}
+				if (o->v->p[j].x == COLOR_CHANGE) {
+					gdk_gc_set_foreground(gc, &huex[o->v->p[j].y]);
+					j+=1;
 					x1 = o->x + v->p[j].x - game_state.x;
 					y1 = o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
 				}
