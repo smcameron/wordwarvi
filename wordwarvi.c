@@ -3670,11 +3670,11 @@ struct my_vect_obj *prerender_glyph(stroke_t g[], int xscale, int yscale)
 	struct my_point_t scratch[100];
 	struct my_vect_obj *v;
 
-	printf("Prerendering glyph..\n");
+	/* printf("Prerendering glyph..\n"); */
 
 	for (i=0;g[i] != 99;i++) {
 		if (g[i] == 21) {
-			printf("LINE_BREAK\n");
+			/* printf("LINE_BREAK\n"); */
 			x = LINE_BREAK;
 			y = LINE_BREAK;
 		} else {
@@ -3682,7 +3682,7 @@ struct my_vect_obj *prerender_glyph(stroke_t g[], int xscale, int yscale)
 			// y = ((g[i]/3)-4) * yscale ;     // truncating division.
 			x = decode_glyph[g[i]].x * xscale;
 			y = decode_glyph[g[i]].y * yscale;
-			printf("x=%d, y=%d\n", x,y);
+			/* printf("x=%d, y=%d\n", x,y); */
 		}
 		scratch[npoints].x = x;
 		scratch[npoints].y = y;
@@ -3877,19 +3877,26 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 	int j;
 	int x1, y1, x2, y2;
 	gdk_gc_set_foreground(gc, &huex[o->color]);
+	x1 = o->x + o->v->p[0].x - game_state.x;
+	y1 = o->y + o->v->p[0].y - game_state.y + (SCREEN_HEIGHT/2);  
 	for (j=0;j<o->v->npoints-1;j++) {
-		if (o->v->p[j+1].x == LINE_BREAK) /* Break in the line segments. */
+		if (o->v->p[j+1].x == LINE_BREAK) { /* Break in the line segments. */
 			j+=2;
+			x1 = o->x + o->v->p[j].x - game_state.x;
+			y1 = o->y + o->v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
+		}
 		if (o->v->p[j].x == COLOR_CHANGE) {
 			gdk_gc_set_foreground(gc, &huex[o->v->p[j].y]);
 			j+=1;
+			x1 = o->x + o->v->p[j].x - game_state.x;
+			y1 = o->y + o->v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
 		}
-		x1 = o->x + o->v->p[j].x - game_state.x;
-		y1 = o->y + o->v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
 		x2 = o->x + o->v->p[j+1].x - game_state.x; 
 		y2 = o->y + o->v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y;
 		if (x1 > 0 && x2 > 0)
 			gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
+		x1 = x2;
+		y1 = y2;
 	}
 }
 
@@ -4548,9 +4555,9 @@ static void embellish_roof(struct my_point_t *building, int *npoints, int left, 
 static void add_window(struct my_point_t *building, int *npoints, 
 		int x1, int y1, int x2, int y2)
 {
-	printf("aw: npoints = %p\n", npoints); fflush(stdout);
+	/* printf("aw: npoints = %p\n", npoints); fflush(stdout); */
 	if (*npoints > 1000) {
-		printf("npoints = %d\n", *npoints); fflush(stdout);
+		/* printf("npoints = %d\n", *npoints); fflush(stdout); */
 		return;
 	}
 	building[*npoints].x = LINE_BREAK; 
@@ -4576,7 +4583,7 @@ static void add_windows(struct my_point_t *building, int *npoints,
 	int width;
 	int i;
 
-	printf("aws: npoints = %p\n", npoints); fflush(stdout);
+	/* printf("aws: npoints = %p\n", npoints); fflush(stdout); */
 	xindent = randomab(5, 20);
 	yindent = randomab(5, 20);
 	spacing = randomab(3, 15);
@@ -4584,7 +4591,7 @@ static void add_windows(struct my_point_t *building, int *npoints,
 	x1 += xindent;
 	y1 -= yindent;
 	y2 += yindent;
-	printf("add_windows, %d,%d  %d,%d\n", x1, y1, x2, y2);
+	/* printf("add_windows, %d,%d  %d,%d\n", x1, y1, x2, y2); */
 
 	if (x2 - x1 < 30)
 		return;
@@ -4593,11 +4600,11 @@ static void add_windows(struct my_point_t *building, int *npoints,
 
 	nwindows = randomab(1, 5);
 	width = (x2-x1) / nwindows; 
-	printf("adding %d windows, *npoints = %d\n", nwindows, *npoints);
+	/* printf("adding %d windows, *npoints = %d\n", nwindows, *npoints); */
 	for (i=0;i<nwindows;i++) {
-		printf("Adding window -> %d, %d, %d, %d, npoints = %d\n",
+		/* printf("Adding window -> %d, %d, %d, %d, npoints = %d\n",
 			x1 + (i*width), y1, x1 + (i+1)*width - spacing, y2, *npoints);
-		fflush(stdout);
+		fflush(stdout); */
 		add_window(building, npoints,
 			x1 + (i*(width)), y1, x1 + (i+1)*(width) - spacing, y2);
 	}
@@ -4689,7 +4696,7 @@ static void add_building(struct terrain_t *t, int xi)
 	o->draw = NULL;
 	o->move = NULL;
 	o->destroy = generic_destroy_func;
-	printf("b, x=%d, y=%d\n", x, y);
+	/* printf("b, x=%d, y=%d\n", x, y); */
 }
 
 static void add_buildings(struct terrain_t *t)
@@ -4707,7 +4714,7 @@ static int find_dip(struct terrain_t *t, int n, int *px1, int *px2, int minlengt
 	/*	Find the nth dip in the terrain, over which we might put a bridge. */
 
 	int i, j, x1, x2, found, highest, lowest;
-	printf("top of find_dip, n=%d\n", n);
+	/* printf("top of find_dip, n=%d\n", n); */
 
 	found=0;
 	x1 = 0;
@@ -4734,7 +4741,7 @@ static int find_dip(struct terrain_t *t, int n, int *px1, int *px2, int minlengt
 			if (t->y[x1] >= highest || t->y[x2] >= highest)
 				continue; /* not a dip */
 	
-			printf("found a dip x1=%d, x2=%d.\n", x1, x2);
+			/* printf("found a dip x1=%d, x2=%d.\n", x1, x2); */
 			break;
 		}
 		if (x1 >= TERRAIN_LENGTH-100)
@@ -4744,7 +4751,7 @@ static int find_dip(struct terrain_t *t, int n, int *px1, int *px2, int minlengt
 			break;
 		x1 = x2;
 	}
-	printf("found %d dips.\n", found);
+	/* printf("found %d dips.\n", found); */
 	if (found == n) {
 		*px1 = x1;
 		*px2 = x2;
@@ -5378,7 +5385,7 @@ static void do_game_pause( GtkWidget *widget,
 static void destroy_event( GtkWidget *widget,
                    gpointer   data )
 {
-    g_print ("Bye bye.\n");
+    /* g_print ("Bye bye.\n"); */
 	exit(1); /* bad form to call exit here... */
 }
 
@@ -5600,6 +5607,7 @@ void timer_expired()
 		next_timer = timer + 1;
 		if (credits <= 0) {
 			game_ended();
+			start_level();
 			timer_event = BLINK_EVENT;
 			strcpy(textline[GAME_OVER].string, FINAL_MSG1);
 			strcpy(textline[GAME_OVER+1].string, FINAL_MSG2);
@@ -5819,7 +5827,7 @@ void game_ended()
 	init_levels_to_beginning();
 	initialize_game_state_new_level();
 	game_state.score = 0;
-	start_level();
+	/* start_level(); */
 }
 
 void cancel_sound(int queue_entry);
@@ -6066,7 +6074,7 @@ int read_clip(int clipnum, char *filename)
 		fprintf(stderr, "sf_open('%s') failed.\n", filename);
 		return -1;
 	}
-
+/*
 	printf("Reading sound file: '%s'\n", filename);
 	printf("frames = %lld\n", sfinfo.frames);
 	printf("samplerate = %d\n", sfinfo.samplerate);
@@ -6074,6 +6082,7 @@ int read_clip(int clipnum, char *filename)
 	printf("format = %d\n", sfinfo.format);
 	printf("sections = %d\n", sfinfo.sections);
 	printf("seekable = %d\n", sfinfo.seekable);
+*/
 
 	clip[clipnum].sample = (double *) 
 		malloc(sizeof(double) * sfinfo.channels * sfinfo.frames);
