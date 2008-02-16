@@ -2937,8 +2937,11 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 	o->vy++;
 	if (o->alive >1)
 		o->alive--;
-	if (o->otype == OBJ_TYPE_DEBRIS && o->alive == 2)
-		o->alive = 0;
+	if (o->otype == OBJ_TYPE_DEBRIS) {
+		if  (o->alive == 2)
+			o->alive = 0;
+		if (o->alive > FRAME_RATE_HZ*4) explode(o->x, o->y, 0, 0, 16, 3, 10);
+	}		
 
 	/* Detect smashing into the ground */
 	deepest = 64000;
@@ -4376,7 +4379,7 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 	int i, z; 
 	struct game_obj_t *o;
 
-	for (i=0;i<=12;i++) {
+	for (i=0;i<=16;i++) {
 		z = find_free_obj();
 		if (z < 0)
 			return;
