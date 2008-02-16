@@ -27,10 +27,7 @@ all:	18382_inferno_hvylas.wav \
 	bodyslam.wav \
 	fallingscreamhi.wav \
 	UseTheSource.wav \
-	ooooof.wav \
-	terrible_pain1.wav \
-	terrible_pain2.wav \
-	might_be_dying.wav
+	ooooof.wav
 
 clean:
 	/bin/rm -f *.wav
