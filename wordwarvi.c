@@ -41,7 +41,7 @@
 #define M_PI  (3.14159265)
 #endif
 #define TWOPI (M_PI * 2.0)
-#define NCLIPS (22)
+#define NCLIPS (26)
 #define MAX_CONCURRENT_SOUNDS (16)
 #define CLIPLEN (12100) 
 int add_sound(int which_sound, int which_slot);
@@ -70,6 +70,10 @@ int add_sound(int which_sound, int which_slot);
 #define HELPUPHERE_SOUND 19
 #define ABDUCTED_SOUND 20 
 #define CLANG_SOUND 21
+#define SCREAM_SOUND 22
+#define BODYSLAM_SOUND 23
+#define USETHESOURCE_SOUND 24
+#define OOF_SOUND 25
 
 
 #define NHUMANOIDS 4
@@ -2203,10 +2207,13 @@ void humanoid_move(struct game_obj_t *o)
 		/* we got dropped */
 		o->vy += 1;
 		o->y += o->vy;
+		o->vx += o->vx;
 		gy = find_ground_level(o);
 		if (gy == -1 || o->y >= gy) {
 			o->y = gy;
 			o->tsd.human.on_ground = 1;
+			add_sound(BODYSLAM_SOUND, ANY_SLOT);
+			add_sound(OOF_SOUND, ANY_SLOT);
 		}
 	}
 
@@ -2403,13 +2410,17 @@ void octopus_destroy(struct game_obj_t *o)
 
 void cron_destroy(struct game_obj_t *o)
 {
-	if (o->tsd.cron.myhuman != NULL) {
+	if (o->tsd.cron.myhuman != NULL && 
+		o->tsd.cron.myhuman->tsd.picked_up &&
+		o->tsd.con.myhuman->tsd.abductor == o) {
 		o->tsd.cron.myhuman->tsd.human.abductor = NULL;
 		o->tsd.cron.myhuman->tsd.human.picked_up = 0;
 		o->tsd.cron.myhuman->tsd.human.on_ground = 0;
 		/* printf("Human released, alive=%d, x=%d, y=%d.\n", o->tsd.cron.myhuman->x, o->tsd.cron.myhuman->y,
 			o->tsd.cron.myhuman->alive); */
+		o->tsd.cron.myhuman->vx = o->vx;
 		o->tsd.cron.myhuman = NULL;
+		add_sound(SCREAM_SOUND, ANY_SLOT);
 	}
 	generic_destroy_func(o);
 }
@@ -5728,6 +5739,7 @@ void start_level()
 
 	if (credits == 0)
 		setup_text();
+	add_sound(USETHESOURCE_SOUND, ANY_SLOT);
 
 }
 
@@ -6078,6 +6090,10 @@ int init_clips()
 	read_clip(HELPUPHERE_SOUND, "sounds/help_up_here.wav");
 	read_clip(ABDUCTED_SOUND, "sounds/abducted.wav");
 	read_clip(CLANG_SOUND, "sounds/clang.wav");
+	read_clip(SCREAM_SOUND, "sounds/fallingscreamhi.wav");
+	read_clip(BODYSLAM_SOUND, "sounds/bodyslam.wav");
+	read_clip(USETHESOURCE_SOUND, "sounds/UseTheSource.wav");
+	read_clip(OOF_SOUND, "sounds/ooooof.wav");
 	return 0;
 }
 

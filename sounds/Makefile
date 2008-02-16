@@ -23,7 +23,14 @@ all:	18382_inferno_hvylas.wav \
 	37236_Shades_Gun_Pistol_one_shot_.wav \
 	clang.wav \
 	abducted.wav \
-	help_up_here.wav
+	help_up_here.wav \
+	bodyslam.wav \
+	fallingscreamhi.wav \
+	UseTheSource.wav \
+	ooooof.wav \
+	terrible_pain1.wav \
+	terrible_pain2.wav \
+	might_be_dying.wav
 
 clean:
 	/bin/rm -f *.wav
