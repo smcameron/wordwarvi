@@ -2411,8 +2411,8 @@ void octopus_destroy(struct game_obj_t *o)
 void cron_destroy(struct game_obj_t *o)
 {
 	if (o->tsd.cron.myhuman != NULL && 
-		o->tsd.cron.myhuman->tsd.picked_up &&
-		o->tsd.con.myhuman->tsd.abductor == o) {
+		o->tsd.cron.myhuman->tsd.human.picked_up &&
+		o->tsd.cron.myhuman->tsd.human.abductor == o) {
 		o->tsd.cron.myhuman->tsd.human.abductor = NULL;
 		o->tsd.cron.myhuman->tsd.human.picked_up = 0;
 		o->tsd.cron.myhuman->tsd.human.on_ground = 0;
@@ -5647,7 +5647,7 @@ void setup_text()
 	gotoxy(4,2);
 	gameprint("Word War vi\n");
 	set_font(SMALL_FONT);
-	gotoxy(13,15);
+	gotoxy(15,13);
 	gameprint("(c) 2007 Stephen Cameron\n");
 	timer_event = BLINK_EVENT;
 	next_timer = timer + 30;
