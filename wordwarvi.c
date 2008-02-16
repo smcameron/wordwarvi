@@ -240,6 +240,7 @@ GdkColor *sparkcolor;
 #define OBJ_TYPE_FLOATING_MESSAGE 'M'
 #define OBJ_TYPE_BULLET '>'
 #define OBJ_TYPE_PLAYER '1'
+#define OBJ_TYPE_DEBRIS 'D'
 
 int current_level = 0;
 struct level_parameters_t {
@@ -904,8 +905,6 @@ struct my_point_t flak_points[] = {
 	{ -5, -3 },
 	{ 5, -3},
 	{ 10, 5 },
-	{ LINE_BREAK, LINE_BREAK },
-	{ COLOR_CHANGE, ORANGE },
 	{ -3, -3 },
 	{ -3, -5},
 	{ 3, -5},
@@ -1094,6 +1093,11 @@ struct my_point_t ships_hull_points[] = {
 	{  22,  -50 },
 	
 };
+
+/* These debris things will get filled in procedurally */
+#define NDEBRIS_FORMS 25
+struct my_point_t *debris_point[NDEBRIS_FORMS] = { 0 };
+struct my_vect_obj *debris_vect[NDEBRIS_FORMS] = { 0 };
 
 /* Just a bunch of random snippets of lisp code for the emacs */
 /* blimps to spew out into core memory space as "memory leaks" */
@@ -2431,6 +2435,7 @@ void cron_destroy(struct game_obj_t *o)
 void bridge_move(struct game_obj_t *o);
 void no_move(struct game_obj_t *o);
 static void add_score_floater(int x, int y, int score);
+static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t *victim);
 
 void bomb_move(struct game_obj_t *o)
 {
@@ -2486,6 +2491,7 @@ void bomb_move(struct game_obj_t *o)
 					}
 					add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
+					spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o);
 					t->o->alive = 0;
 					t->o->destroy(t->o);
 					t = remove_target(t);
@@ -2567,6 +2573,7 @@ void bomb_move(struct game_obj_t *o)
 							add_score_floater(t->o->x, t->o->y, OCTOPUS_SCORE);
 						}
 						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
+						spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o);
 						t->o->alive = 0;
 						t->o->destroy(t->o);
 						if (t->o->otype == OBJ_TYPE_FUEL) {
@@ -2581,6 +2588,7 @@ void bomb_move(struct game_obj_t *o)
 				break;
 
 				case OBJ_TYPE_BRIDGE:
+				case OBJ_TYPE_DEBRIS:
 					if (abs(o->x - t->o->x) < BOMB_X_PROXIMITY) { /* a hit */
 						/* "+=" instead of "=" in case multiple bombs */
 						if (t->o->move == no_move) /* only get the points once. */
@@ -2929,6 +2937,8 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 	o->vy++;
 	if (o->alive >1)
 		o->alive--;
+	if (o->otype == OBJ_TYPE_DEBRIS && o->alive == 2)
+		o->alive = 0;
 
 	/* Detect smashing into the ground */
 	deepest = 64000;
@@ -2952,7 +2962,7 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 			o->vx = -3;
 			o->vy += 1;
 		}
-		if (o->alive == 1) 
+		if (o->alive == 1 && o->otype == OBJ_TYPE_BRIDGE) 
 			o->move = NULL;
 	}
 }
@@ -3043,6 +3053,7 @@ void laser_move(struct game_obj_t *o)
 					}
 					add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
+					spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o);
 					t->o->alive = 0;
 					if (t->o->otype == OBJ_TYPE_FUEL) {
 						game_state.health += 10;
@@ -4315,6 +4326,77 @@ static struct my_vect_obj *make_debris_vect()
 	return v;
 }
 
+static struct my_vect_obj *init_debris_vect(struct my_vect_obj **v, struct my_point_t **p)
+{
+	int i, n;
+
+	/* FIXME, this malloc'ing is a memory leak, */
+	
+	n = randomab(2,5);
+	*v = (struct my_vect_obj *) malloc(sizeof(**v));
+	*p = (struct my_point_t *) malloc(sizeof(**p) * n);
+	if (!*v || !*p) {
+		if (*v)
+			free(*v);
+		if (*p)
+			free (*p);
+		return NULL;
+	}
+
+	(*v)->p = *p;
+	(*v)->npoints = n;
+	
+	for (i=0;i<n;i++) {
+		(*p)[i].x = randomn(20)-10;
+		(*p)[i].y = randomn(10)-5;
+	}
+	return *v;
+}
+
+static void make_debris_forms()
+{
+	int i;
+
+	for (i=0;i<NDEBRIS_FORMS;i++)
+		init_debris_vect(&debris_vect[i], &debris_point[i]);
+}
+
+static void free_debris_forms()
+{
+	int i;
+
+	for (i=0;i<NDEBRIS_FORMS;i++) {
+		free(debris_vect[i]);
+		free(debris_point[i]);
+	}
+}
+
+static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t *victim)
+{
+	int i, z; 
+	struct game_obj_t *o;
+
+	for (i=0;i<=12;i++) {
+		z = find_free_obj();
+		if (z < 0)
+			return;
+		o = &game_state.go[z];
+		o->last_xi = -1;
+		o->x = x;
+		o->y = y;
+		o->otype = OBJ_TYPE_DEBRIS;
+		o->move = bridge_move;
+		o->draw = draw_generic;
+		o->destroy = generic_destroy_func;
+		o->alive = 5*FRAME_RATE_HZ + randomn(FRAME_RATE_HZ);	
+		o->color = victim->color;
+		o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
+		o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));
+		o->target = NULL;
+		o->v = debris_vect[randomn(NDEBRIS_FORMS)];
+	}
+}
+
 static void add_debris(int x, int y, int vx, int vy, int r, struct game_obj_t **victim)
 {
 	int i, z; 
@@ -5034,7 +5116,7 @@ static void add_SAMs(struct terrain_t *t)
 	for (i=0;i<level.nsams;i++) {
 		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
 		add_generic_object(t->x[xi], t->y[xi], 0, 0, 
-			sam_move, NULL, GREEN, &SAM_station_vect, 1, OBJ_TYPE_SAM_STATION, 1);
+			sam_move, NULL, WHITE, &SAM_station_vect, 1, OBJ_TYPE_SAM_STATION, 1);
 	}
 }
 
@@ -6468,6 +6550,7 @@ int main(int argc, char *argv[])
 	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &huex[BLACK]);
 
 
+	make_debris_forms();
 	initialize_game_state_new_level();
 	game_state.score = 0;
 	game_state.music_on = 1;
