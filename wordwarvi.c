@@ -193,6 +193,8 @@ int timer_event = 0;
 #define INTRO2_EVENT 15
 #define START_INTERMISSION_EVENT 16
 #define END_INTERMISSION_EVENT 17
+#define KEYS1_EVENT 18
+#define KEYS2_EVENT 19
 
 #define NCOLORS 9
 #define NSPARKCOLORS 25 
@@ -5439,22 +5441,30 @@ void timer_expired()
 		break;
 	case BLANK_GAME_OVER_2_EVENT:
 		if (game_over_count >= 3) {
-			if (randomn(10) < 5)
-				timer_event = CREDITS1_EVENT;
-			else
-				timer_event = INTRO1_EVENT;
+			int wherenext;
+			wherenext = randomn(3); 
+			switch (wherenext) {
+			case 0: timer_event = CREDITS1_EVENT;
+				break;
+			case 1: timer_event = INTRO1_EVENT;
+				break;
+			case 2:
+			default: timer_event = KEYS1_EVENT;
+				break;
+			}
 		} else
 			timer_event = BLINK_EVENT;
 		next_timer = timer + 20;
 		strcpy(textline[GAME_OVER].string, "");
 		break;
 	case CREDITS1_EVENT: {
-		int yline = 7;
+		int yline = 6;
 		int x = 12;
 		ntextlines = 1;
 		set_font(SMALL_FONT);
 		gotoxy(x,yline++);
 		gameprint("Credits:");
+		yline++;
 		gotoxy(x,yline++);
 		gameprint("Programming:   Stephen Cameron");
 		gotoxy(x,yline++);
@@ -5482,7 +5492,7 @@ void timer_expired()
 		break;
 
 	case INTRO1_EVENT: {
-		int yline = 7;
+		int yline = 6;
 		int x = 12;
 		ntextlines = 1;
 		set_font(SMALL_FONT);
@@ -5497,7 +5507,7 @@ void timer_expired()
 		gameprint("there are many emacs friendly"); gotoxy(x, yline++);
 		gameprint("processes."); gotoxy(x,yline++);
 		timer_event = INTRO2_EVENT;
-		next_timer = timer + 350;
+		next_timer = timer + 150;
 		game_over_count = 0;
 		break;
 		}
@@ -5505,6 +5515,36 @@ void timer_expired()
 		ntextlines = 1;
 		setup_text();
 		timer_event = BLINK_EVENT;
+		timer_event = BLANK_GAME_OVER_1_EVENT;
+		// timer_event = KEYS1_EVENT;
+		next_timer = timer + 1;
+		break;
+		}
+	case KEYS1_EVENT: {
+		int yline = 2;
+		int x = 18;
+		ntextlines = 1;
+		set_font(SMALL_FONT);
+		gotoxy(x,yline++);
+		gameprint("Controls:"); yline++; gotoxy(x,yline++);
+		gameprint("h - move left"); gotoxy(x,yline++);
+		gameprint("l - move right"); gotoxy(x,yline++);
+		gameprint("k - move up"); gotoxy(x,yline++);
+		gameprint("j - move down"); gotoxy(x,yline++);
+		gameprint("z - fires laser"); gotoxy(x,yline++);
+		gameprint("b - drops bomb"); gotoxy(x,yline++);
+		gameprint("c - drops chaff"); gotoxy(x,yline++);
+		yline++;
+		gameprint("Q - Insert Quarter"); gotoxy(x, yline++);
+		gameprint("Esc to Exit"); gotoxy(x,yline++);
+		next_timer = timer + 150;
+		game_over_count = 0;
+		timer_event = KEYS2_EVENT;
+		break;
+		}
+	case KEYS2_EVENT: {
+		ntextlines = 1;
+		setup_text();
 		timer_event = BLANK_GAME_OVER_1_EVENT;
 		next_timer = timer + 1;
 		break;
