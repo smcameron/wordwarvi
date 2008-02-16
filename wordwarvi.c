@@ -2270,6 +2270,7 @@ void socket_move(struct game_obj_t *o)
 		player->tsd.epd.count2 = 0;
 		player->vx = 0;
 		player->vy = 0;
+		player->x = 0; /* so we won't enter the socket again immediately */
 		timer_event = START_INTERMISSION_EVENT;
 		next_timer = timer + 1;
 		// advance_level();
@@ -4258,12 +4259,12 @@ void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 		perturb(&x3, x2, x1, level.large_scale_roughness);
 		do { 
 			perturb(&y3, x2, x1, level.large_scale_roughness);
-		} while ((KERNEL_Y_BOUNDARY - y3) > -150);
+		} while ((KERNEL_Y_BOUNDARY - y3) > -250);
 	} else {
 		perturb(&x3, x2, x1, level.small_scale_roughness);
 		do { 
 			perturb(&y3, x2, x1, level.small_scale_roughness);
-		} while ((KERNEL_Y_BOUNDARY - y3) > -150);
+		} while ((KERNEL_Y_BOUNDARY - y3) > -250);
 	}
 
 	t->x[midxi] = x3;
@@ -4772,15 +4773,15 @@ static void add_bridge_column(struct terrain_t *t,
 	int i, terminal_y;
 	i = x1;
 
-	printf("add_bridge_column, rx =%d, ry=%d, x1 = %d, x2=%d\n", rx, ry, x1, x2);
+	/* printf("add_bridge_column, rx =%d, ry=%d, x1 = %d, x2=%d\n", rx, ry, x1, x2); */
 	while (t->x[i] <= rx && i <= x2)
 		i++;
 	if (i>x2)  /* we're at the rightmost end of the bridge, that is, done. */
 		return;
 
 	terminal_y = interpolate(rx, t->x[i-1], t->y[i-1], t->x[i], t->y[i]);
-	printf("term_y = %d, intr(%d, %d, %d, %d, %d)\n", 
-		terminal_y, rx, t->y[i-1], t->x[i-1], t->y[i], t->x[i]);
+	/* printf("term_y = %d, intr(%d, %d, %d, %d, %d)\n", 
+		terminal_y, rx, t->y[i-1], t->x[i-1], t->y[i], t->x[i]); */
 
 	if (ry > terminal_y) /* shouldn't happen... */
 		return;
@@ -5229,7 +5230,7 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 		draw_strings(w);
 	else
 		setup_text();
-	printf("i, timer_event = %d\n", timer_event);
+	/* printf("i, timer_event = %d\n", timer_event); */
 	return 0;
 }
 
@@ -5788,6 +5789,7 @@ void start_level()
 	if (credits == 0)
 		setup_text();
 	add_sound(USETHESOURCE_SOUND, ANY_SLOT);
+	/* printf("use the force.\n"); */
 
 }
 
@@ -5865,7 +5867,7 @@ void advance_level()
 		level.laser_fire_chance = 100;
 
 	initialize_game_state_new_level();
-	start_level();
+	/* start_level(); */
 }
 
 static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
@@ -6019,7 +6021,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		timer_event = START_INTERMISSION_EVENT;
 		next_timer = timer + 1;
 		return TRUE;
-#if 1
+#if 0
 /* These two just for testing... */
 	case GDK_R:
 		start_level();
