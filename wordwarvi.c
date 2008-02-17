@@ -81,6 +81,7 @@ int add_sound(int which_sound, int which_slot);
 #define RADAR_HEIGHT 50
 #define RADAR_XMARGIN 10
 #define	RADAR_YMARGIN 10
+#define MAX_RADAR_NOISE 2000
 
 /* ...End of audio stuff */
 
@@ -130,6 +131,7 @@ int add_sound(int which_sound, int which_slot);
 #define NBRIDGES 2
 #define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
+#define NJAMMERS 1 
 #define NCRON 20 
 #define NSHIPS 1
 #define NGDBS 3 
@@ -176,6 +178,7 @@ int toggle = 0;
 int timer = 0;
 int next_timer = 0;
 int timer_event = 0;
+int total_radar_noise;
 #define BLINK_EVENT 1
 #define READY_EVENT 2
 #define SET_EVENT 3
@@ -241,6 +244,7 @@ GdkColor *sparkcolor;
 #define OBJ_TYPE_BULLET '>'
 #define OBJ_TYPE_PLAYER '1'
 #define OBJ_TYPE_DEBRIS 'D'
+#define OBJ_TYPE_JAMMER 'J'
 
 int current_level = 0;
 struct level_parameters_t {
@@ -249,6 +253,7 @@ struct level_parameters_t {
 	int nbridges;
 	int nflak;
 	int nfueltanks;
+	int njammers;
 	int ncron;
 	int nships;
 	int ngdbs;
@@ -268,6 +273,7 @@ struct level_parameters_t {
 	NBRIDGES,
 	NFLAK,
 	NFUELTANKS,
+	NJAMMERS,
 	NCRON,
 	NSHIPS,
 	NGDBS,
@@ -711,6 +717,18 @@ struct my_point_t cron_points[] = {
 	{ 9, -35 },
 };
 
+struct my_point_t jammer_points[] = {
+	{ -10, 0 },
+	{ 10, 0 },
+	{ 10, -10 },
+	{ 5, -10 },
+	{ 3, -15 },
+	{ -3, -15 },
+	{ -5, -10 },
+	{ -10, -10 },
+	{ -10, 0 },
+};
+
 struct my_point_t fuel_points[] = {
 	{ -30, -15 },
 
@@ -1130,6 +1148,7 @@ struct my_vect_obj rocket_vect;
 struct my_vect_obj spark_vect;
 struct my_vect_obj right_laser_vect;
 struct my_vect_obj fuel_vect;
+struct my_vect_obj jammer_vect;
 struct my_vect_obj cron_vect;
 struct my_vect_obj ship_vect;
 struct my_vect_obj bomb_vect;
@@ -1319,6 +1338,11 @@ struct human_data {
 	int human_number;
 };
 
+struct jammer_data {
+	int width;
+	int direction;
+};
+
 union type_specific_data {
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
@@ -1328,6 +1352,7 @@ union type_specific_data {
 	struct floating_message_data floating_message;
 	struct cron_data cron;
 	struct human_data human;
+	struct jammer_data jammer;
 };
 
 struct game_obj_t {
@@ -1604,6 +1629,29 @@ void sam_move(struct game_obj_t *o)
 }
 
 void draw_generic(struct game_obj_t *o, GtkWidget *w);
+
+void jammer_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	int x1, x2, y1, y2;
+	draw_generic(o, w); /* will set the color too. */
+
+	/* this draws a sort of spinning rectangular radar dish */
+	o->tsd.jammer.width += o->tsd.jammer.direction;
+	if (o->tsd.jammer.width > 8) {
+		o->tsd.jammer.direction = -1;
+	} else if (o->tsd.jammer.width < 2) {
+		o->tsd.jammer.direction = 1;
+	}
+	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2) - 15;  
+	y2 = y1 - 15;
+	x1 = (o->x - game_state.x) - o->tsd.jammer.width;
+	x2 = (o->x - game_state.x) + o->tsd.jammer.width;
+	gdk_draw_line(w->window, gc, x1, y1, x2, y1); 
+	gdk_draw_line(w->window, gc, x1, y2, x2, y2); 
+	gdk_draw_line(w->window, gc, x1, y1, x1, y2); 
+	gdk_draw_line(w->window, gc, x2, y1, x2, y2); 
+}
+
 void cron_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, y1, x2, y2, gy, xi, tx, ty, dist2;
@@ -2464,6 +2512,7 @@ void bomb_move(struct game_obj_t *o)
 			case OBJ_TYPE_GDB:
 			case OBJ_TYPE_OCTOPUS:
 			case OBJ_TYPE_FUEL:
+			case OBJ_TYPE_JAMMER:
 			case OBJ_TYPE_GUN:
 			/* case OBJ_TYPE_BOMB:  no, bomb can't bomb himself... */
 			case OBJ_TYPE_SAM_STATION:  {
@@ -2551,6 +2600,7 @@ void bomb_move(struct game_obj_t *o)
 				case OBJ_TYPE_OCTOPUS:
 				case OBJ_TYPE_GUN:
 				case OBJ_TYPE_BOMB:
+				case OBJ_TYPE_JAMMER:
 				case OBJ_TYPE_SAM_STATION:
 				case OBJ_TYPE_FUEL: {
 					dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
@@ -3018,6 +3068,7 @@ void laser_move(struct game_obj_t *o)
 			case OBJ_TYPE_CRON:
 			case OBJ_TYPE_OCTOPUS:
 			case OBJ_TYPE_FUEL:
+			case OBJ_TYPE_JAMMER:
 			case OBJ_TYPE_GUN:
 			case OBJ_TYPE_BOMB:
 			case OBJ_TYPE_SAM_STATION:
@@ -3831,7 +3882,8 @@ void init_vects()
 	right_laser_vect.npoints = sizeof(right_laser_beam_points) / sizeof(right_laser_beam_points[0]);
 	fuel_vect.p = fuel_points;
 	fuel_vect.npoints = sizeof(fuel_points) / sizeof(fuel_points[0]);
-
+	jammer_vect.p = jammer_points;
+	jammer_vect.npoints = sizeof(jammer_points) / sizeof(jammer_points[0]);
 	cron_vect.p = cron_points;
 	cron_vect.npoints = sizeof(cron_points) / sizeof(cron_points[0]);
 	ship_vect.p = ships_hull_points;
@@ -3954,6 +4006,31 @@ void draw_flak(struct game_obj_t *o, GtkWidget *w)
 	gdk_draw_line(w->window, gc, x1+10, y1, x1+bx+6, y1+by); 
 }
 
+#define XRADARN 3313 /* should be 2 unequal primes */
+#define YRADARN 223 
+#define CRADARN 47
+
+int xradarnoise[XRADARN];
+int yradarnoise[YRADARN]; 
+int cradarnoise[CRADARN];
+
+void init_radar_noise()
+{
+	int i;
+
+	for (i=0;i<XRADARN;i++) {
+		xradarnoise[i] = randomn(SCREEN_WIDTH - 
+			RADAR_XMARGIN*2) + RADAR_XMARGIN;
+	}
+	for (i=0;i<YRADARN;i++) {
+		yradarnoise[i] = randomn(RADAR_HEIGHT) + 
+			SCREEN_HEIGHT - RADAR_YMARGIN - RADAR_HEIGHT;
+	}
+	for (i=0;i<CRADARN;i++) {
+		cradarnoise[i] = randomn(NCOLORS);
+	}
+}
+
 void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 {
 	int radarx, radary;
@@ -3983,6 +4060,37 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 		gdk_draw_line(w->window, gc, x1, y1, x2, y1); 
 		gdk_draw_line(w->window, gc, x2, y1, x2, y2); 
 		gdk_draw_line(w->window, gc, x2, y2, x1, y2); 
+		return;
+	}
+
+	if (o->otype == OBJ_TYPE_JAMMER && total_radar_noise < MAX_RADAR_NOISE) {
+		int xdist, noisecount, i, nx, ny, nc;
+
+		nc = randomn(CRADARN);
+		nx = randomn(XRADARN);
+		ny = randomn(YRADARN);
+		if (nx >= XRADARN) nx = 0;
+		if (ny >= YRADARN) ny = 0;
+		if (nc >= CRADARN) nc = 0;
+
+		xdist = abs(player->x - o->x);
+		noisecount = 2000 - xdist;
+		for (i=0;i<noisecount;i++) {
+			int x1, y1, x2, y2;
+			gdk_gc_set_foreground(gc, &huex[cradarnoise[nc]]);
+			x1 = xradarnoise[nx]-1;
+			x2 = xradarnoise[nx]+1;
+			y1 = yradarnoise[ny]-1;
+			y2 = yradarnoise[ny]+1;
+			gdk_draw_line(w->window, gc, x1, y1, x2, y2);
+			gdk_draw_line(w->window, gc, x1, y2, x2, y1);
+			nx++; if (nx >= XRADARN) nx = 0;
+			ny++; if (ny >= YRADARN) ny = 0;
+			nc++; if (nc >= CRADARN) nc = 0;
+			total_radar_noise++;
+			if (total_radar_noise >= MAX_RADAR_NOISE)
+				break;
+		}
 	}
 }
 
@@ -3994,6 +4102,7 @@ void draw_objs(GtkWidget *w)
 	radary = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((player->y * RADAR_HEIGHT) / 1500);
 	radary = (SCREEN_HEIGHT - (RADAR_HEIGHT >> 1)) - radary;
 
+	total_radar_noise = 0;
 	for (i=0;i<MAXOBJS;i++) {
 		struct my_vect_obj *v = game_state.go[i].v;
 		struct game_obj_t *o = &game_state.go[i];
@@ -4393,6 +4502,7 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 		o->destroy = generic_destroy_func;
 		o->alive = 5*FRAME_RATE_HZ + randomn(FRAME_RATE_HZ);	
 		o->color = victim->color;
+		o->radar_image = 1;
 		o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
 		o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));
 		o->target = NULL;
@@ -4940,6 +5050,24 @@ static void add_cron(struct terrain_t *t)
 		}
 	}
 }
+
+static void add_jammers(struct terrain_t *t)
+{
+	int xi, i;
+	struct game_obj_t *o;
+	for (i=0;i<level.njammers;i++) {
+		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		o = add_generic_object(t->x[xi], t->y[xi], 0, 0, 
+			no_move, jammer_draw, GREEN, &jammer_vect, 1, OBJ_TYPE_JAMMER, 1);
+		if (o) {
+			o->tsd.jammer.width = 0;
+			o->tsd.jammer.direction = 2;
+			o->radar_image = 1;
+		}
+		
+	}
+}
+
 
 static void add_fuel(struct terrain_t *t)
 {
@@ -5858,6 +5986,7 @@ void start_level()
 	add_rockets(&terrain);
 	add_buildings(&terrain);
 	add_fuel(&terrain);
+	add_jammers(&terrain);
 	add_cron(&terrain);
 	add_ships(&terrain);
 	add_SAMs(&terrain);
@@ -5884,6 +6013,7 @@ void init_levels_to_beginning()
 	level.nbridges = NBRIDGES;
 	level.nflak = NFLAK;
 	level.nfueltanks = NFUELTANKS;
+	level.njammers = NJAMMERS;
 	level.ncron = NCRON;
 	level.nships = NSHIPS;
 	level.ngdbs = NGDBS;
@@ -5927,6 +6057,7 @@ void advance_level()
 	level.nbridges += 1;
 	level.nflak += 10;
 	level.nfueltanks += 2;
+	level.njammers += 1;
 	level.ncron += 1;
 	level.nships += 1;
 	level.ngdbs += 2;
@@ -6555,6 +6686,7 @@ int main(int argc, char *argv[])
 
 	make_debris_forms();
 	initialize_game_state_new_level();
+	init_radar_noise();
 	game_state.score = 0;
 	game_state.music_on = 1;
 	game_state.sound_effects_on = 1;
