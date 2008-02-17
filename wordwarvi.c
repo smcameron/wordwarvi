@@ -131,7 +131,7 @@ int add_sound(int which_sound, int which_slot);
 #define NBRIDGES 2
 #define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
-#define NJAMMERS 1 
+#define NJAMMERS 1
 #define NCRON 20 
 #define NSHIPS 1
 #define NGDBS 3 
@@ -1632,7 +1632,7 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w);
 
 void jammer_draw(struct game_obj_t *o, GtkWidget *w)
 {
-	int x1, x2, y1, y2;
+	int x1, x2, y1, y2, x3, x4, x5;
 	draw_generic(o, w); /* will set the color too. */
 
 	/* this draws a sort of spinning rectangular radar dish */
@@ -1643,13 +1643,22 @@ void jammer_draw(struct game_obj_t *o, GtkWidget *w)
 		o->tsd.jammer.direction = 1;
 	}
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2) - 15;  
-	y2 = y1 - 15;
-	x1 = (o->x - game_state.x) - o->tsd.jammer.width;
-	x2 = (o->x - game_state.x) + o->tsd.jammer.width;
+	y2 = y1 - 16;
+	x5 = (o->x - game_state.x);
+	x1 = x5 - o->tsd.jammer.width;
+	x2 = x5 + o->tsd.jammer.width;
+	x3 = x5 - (o->tsd.jammer.width >> 1);
+	x4 = x5 + (o->tsd.jammer.width >> 1);
 	gdk_draw_line(w->window, gc, x1, y1, x2, y1); 
 	gdk_draw_line(w->window, gc, x1, y2, x2, y2); 
 	gdk_draw_line(w->window, gc, x1, y1, x1, y2); 
 	gdk_draw_line(w->window, gc, x2, y1, x2, y2); 
+	gdk_draw_line(w->window, gc, x3, y1, x3, y2); 
+	gdk_draw_line(w->window, gc, x4, y1, x4, y2); 
+	gdk_draw_line(w->window, gc, x5, y1, x5, y2); 
+	gdk_draw_line(w->window, gc, x1, y2+4, x2, y2+4); 
+	gdk_draw_line(w->window, gc, x1, y2+8, x2, y2+8); 
+	gdk_draw_line(w->window, gc, x1, y2+12, x2, y2+12); 
 }
 
 void cron_draw(struct game_obj_t *o, GtkWidget *w)
