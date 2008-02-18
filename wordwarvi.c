@@ -3156,11 +3156,11 @@ void draw_spark(struct game_obj_t *o, GtkWidget *w)
 	int x1, y1, x2, y2;
 
 	gdk_gc_set_foreground(gc, &huex[o->color]);
-	x1 = o->x - o->vx - game_state.x;
-	y1 = o->y - o->vy - game_state.y + (SCREEN_HEIGHT/2);  
 	x2 = o->x - game_state.x; 
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
-	if (x1 > 0 && x2 > 0) 
+	x1 = x2 - o->vx;
+	y1 = y2 - o->vy;
+	if (x1 > 0 && x2 > 0 && x1 < SCREEN_WIDTH && x2 < SCREEN_WIDTH) 
 		gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
 }
 
@@ -6724,6 +6724,7 @@ int main(int argc, char *argv[])
     gtk_main ();
 
     stop_portaudio();
+    free_debris_forms();
     
     return 0;
 }
