@@ -179,6 +179,9 @@ int timer = 0;
 int next_timer = 0;
 int timer_event = 0;
 int total_radar_noise;
+int nframes = 0;
+struct timeval start_time, end_time;
+
 #define BLINK_EVENT 1
 #define READY_EVENT 2
 #define SET_EVENT 3
@@ -4168,7 +4171,7 @@ void draw_objs(GtkWidget *w)
 				}
 				x2 = o->x + v->p[j+1].x - game_state.x; 
 				y2 = o->y + v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y;
-				if (x1 > 0 && x2 > 0)
+				if (x1 > 0 && x2 > 0 && (x1 < SCREEN_WIDTH || x2 < SCREEN_WIDTH))
 					gdk_draw_line(w->window, gc, x1, y1, x2, y2); 
 				x1 = x2;
 				y1 = y2;
@@ -5522,8 +5525,8 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		return 0;
 	}
 
-	sx1 = game_state.x - SCREEN_WIDTH / 3;
-	sx2 = game_state.x + 4*SCREEN_WIDTH/3;
+	sx1 = game_state.x - 20;
+	sx2 = game_state.x + SCREEN_WIDTH + 20;
 
 
 	while (terrain.x[last_lowx] < sx1 && last_lowx+1 < TERRAIN_LENGTH)
@@ -5907,6 +5910,7 @@ gint advance_game(gpointer data)
 			add_sound(MISSILE_LOCK_SIREN_SOUND, ANY_SLOT);
 	}
 	gtk_widget_queue_draw(main_da);
+	nframes++;
 	// printf("ndead=%d, nalive=%d\n", ndead, nalive);
 	gdk_threads_leave();
 #if 0
@@ -6153,6 +6157,10 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		game_state.music_on = !game_state.music_on;
 		return TRUE;
 	case GDK_Escape:
+		    gettimeofday(&end_time, NULL);
+		    printf("%d frames / %d seconds, %g frames/sec\n", 
+				nframes, (int) (end_time.tv_sec - start_time.tv_sec),
+				(0.0 + nframes) / (0.0 + end_time.tv_sec - start_time.tv_sec));
 		destroy_event(widget, NULL);
 		return TRUE;	
 	case GDK_q:
@@ -6733,8 +6741,9 @@ int main(int argc, char *argv[])
 
     g_thread_init(NULL);
     gdk_threads_init();
-    gtk_main ();
 
+    gettimeofday(&start_time, NULL);
+    gtk_main ();
     stop_portaudio();
     free_debris_forms();
     
