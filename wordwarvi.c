@@ -1328,7 +1328,7 @@ struct tentacle_data {
 
 struct floating_message_data {
 	int font;
-	char msg[21];
+	unsigned char msg[21];
 };
 
 struct human_data {
@@ -1661,9 +1661,10 @@ void jammer_draw(struct game_obj_t *o, GtkWidget *w)
 	gdk_draw_line(w->window, gc, x1, y2+12, x2, y2+12); 
 }
 
+int ground_level(int x, int *xi);
 void cron_draw(struct game_obj_t *o, GtkWidget *w)
 {
-	int x1, y1, x2, y2, gy, xi, tx, ty, dist2;
+	int x1, y1, x2, y2, gy, xi;
 	draw_generic(o, w);
 
 #if 0
@@ -1746,11 +1747,12 @@ void draw_lightning( GtkWidget *w, int x1, int y1, int x2, int y2)
 	draw_lightning(w, x3, y3, x2, y2);	
 }
 
-static void xy_draw_string(GtkWidget *w, unsigned char *s, int font, int x, int y) ;
+static void xy_draw_string(GtkWidget *w, char *s, int font, int x, int y) ;
 void floating_message_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	gdk_gc_set_foreground(gc, &huex[o->color]);
-	xy_draw_string(w, o->tsd.floating_message.msg, o->tsd.floating_message.font, o->x, o->y) ;
+	xy_draw_string(w, (char *) o->tsd.floating_message.msg, 
+		o->tsd.floating_message.font, o->x, o->y) ;
 }
 
 void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
@@ -1758,6 +1760,10 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 	int i;
 	int x1, y1, x2, y2;
 	int angle = 0;
+
+	x2 = 0; /* make compiler happy */
+	y2 = 0; /* make compiler happy */
+
 	gdk_gc_set_foreground(gc, &huex[o->color]);
 	x1 = o->x - game_state.x;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
@@ -1909,6 +1915,8 @@ void octopus_move(struct game_obj_t *o)
 	
 
 	if (o->tsd.octopus.awake) {
+		dvx = 0; /* make compiler happy */
+		dvy = 0; /* make compiler happy */
 		tx = o->tsd.octopus.tx;
 		ty = o->tsd.octopus.ty;
 		if (o->x < tx && tx - o->x > GDB_DX_THRESHOLD)
@@ -1989,7 +1997,7 @@ static void add_bullet(int x, int y, int vx, int vy,
 	int time, int color, struct game_obj_t *bullseye);
 void cron_move(struct game_obj_t *o)
 {
-	int xdist, ydist;
+	int xdist;
 	int dvx, dvy, tx, ty;
 	int gy, dgy, xi;
 	int done, dist2, i;
@@ -2183,6 +2191,9 @@ void gdb_move(struct game_obj_t *o)
 	
 
 	if (o->tsd.gdb.awake) {
+	
+		dvx = 0; /* make compiler happy */
+		dvy = 0; /* make compiler happy */ 	
 		tx = o->tsd.gdb.tx;
 		ty = o->tsd.gdb.ty;
 		if (o->x < tx && tx - o->x > GDB_DX_THRESHOLD)
@@ -3391,8 +3402,8 @@ void move_harpoon(struct game_obj_t *o)
 void move_bullet(struct game_obj_t *o)
 {
 	struct game_obj_t *target_obj;
-	int dx, dy, desired_vx, desired_vy;
-	int exvx,exvy,deepest;
+	int dx, dy;
+	int deepest;
 
 	/* move one step... */
 	o->x += o->vx;
@@ -3400,7 +3411,7 @@ void move_bullet(struct game_obj_t *o)
 	
 	o->alive--;
 	deepest = find_ground_level(o);
-	if (o->alive <= 0 || deepest != GROUND_OOPS && o->y > deepest) {
+	if (o->alive <= 0 || (deepest != GROUND_OOPS && o->y > deepest)) {
 		o->alive = 0;
 		if (o->target) {
 			remove_target(o->target);
@@ -4043,7 +4054,7 @@ void init_radar_noise()
 void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 {
 	int radarx, radary;
-	int x1, x2, y1, y2, size; 
+	int x1, x2, y1, y2; 
 
 	radary = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((o->y * RADAR_HEIGHT) / 1500);
 	radary = radary + y_correction;
@@ -4219,7 +4230,7 @@ static void draw_strings(GtkWidget *w)
 		livecursorx = textline[i].x;
 		livecursory = textline[i].y;
 		set_font(textline[i].font);
-		draw_string(w, textline[i].string);
+		draw_string(w, (unsigned char *) textline[i].string);
 	}
 }
 
@@ -4243,7 +4254,7 @@ static void abs_xy_draw_letter(GtkWidget *w, struct my_vect_obj **font,
 	}
 }
 
-static void abs_xy_draw_string(GtkWidget *w, unsigned char *s, int font, int x, int y) 
+static void abs_xy_draw_string(GtkWidget *w, char *s, int font, int x, int y) 
 {
 
 	int i;	
@@ -4275,14 +4286,14 @@ static void xy_draw_letter(GtkWidget *w, struct my_vect_obj **font,
 	}
 }
 
-static void xy_draw_string(GtkWidget *w, unsigned char *s, int font, int x, int y) 
+static void xy_draw_string(GtkWidget *w, char *s, int font, int x, int y) 
 {
 
 	int i;	
 	int deltax = font_scale[font]*2 + letter_spacing[font];
 
 	for (i=0;s[i];i++)
-		xy_draw_letter(w, gamefont[font], s[i], x + deltax*i, y);  
+		xy_draw_letter(w, gamefont[font], (unsigned char) s[i], x + deltax*i, y);  
 }
 
 
@@ -4323,7 +4334,7 @@ static void add_floating_message(char *msg, int font, int x, int y, int vx, int 
 		OBJ_TYPE_FLOATING_MESSAGE, time);
 	if (o == NULL)
 		return;
-	strncpy(o->tsd.floating_message.msg, msg, 20);
+	strncpy((char *) o->tsd.floating_message.msg, msg, 20);
 	o->tsd.floating_message.font = font;
 }
 
@@ -4923,6 +4934,7 @@ static int find_dip(struct terrain_t *t, int n, int *px1, int *px2, int minlengt
 
 	found=0;
 	x1 = 0;
+	x2 = 0; /* make the compiler quit bitching. */
 	for (i=0;i<n;i++) {
 		for (;x1<TERRAIN_LENGTH-100;x1++) {
 			for (x2=x1+5; t->x[x2] - t->x[x1] < minlength; x2++)
@@ -5566,7 +5578,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 			SCREEN_WIDTH, KERNEL_Y_BOUNDARY - game_state.y + SCREEN_HEIGHT/2);
 		livecursorx = (SCREEN_WIDTH - abs(game_state.x) % SCREEN_WIDTH);
 		livecursory = KERNEL_Y_BOUNDARY - game_state.y + SCREEN_HEIGHT/2 - 10;
-		draw_string(w, "Kernel Space");
+		draw_string(w, (unsigned char *) "Kernel Space");
 	}
 
 	if (game_state.x > terrain.x[TERRAIN_LENGTH] - SCREEN_WIDTH)
