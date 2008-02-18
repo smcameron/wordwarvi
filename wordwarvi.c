@@ -1487,14 +1487,18 @@ struct target_t *remove_target(struct target_t *t)
 	return next;
 }
 
-int randomn(int n)
+static inline int randomn(int n)
 {
-	return (int) (((random() + 0.0) / (RAND_MAX + 0.0)) * (n + 0.0));
+	/* return (int) (((random() + 0.0) / (RAND_MAX + 0.0)) * (n + 0.0)); */
+	/* floating point divide?  No. */
+	return ((random() & 0x0000ffff) * n) >> 16;
 }
 
-int randomab(int a, int b)
+#define min(a,b) ((a) > (b) ? (b) : (a))
+
+static inline int randomab(int a, int b)
 {
-	int x, y;
+	/* int x, y;
 	if (a > b) {
 		x = b;
 		y = a;
@@ -1502,7 +1506,10 @@ int randomab(int a, int b)
 		x = a;
 		y = b;
 	}
-	return (int) (((random() + 0.0) / (RAND_MAX + 0.0)) * (y - x + 0.0)) + x;
+	return (int) (((random() + 0.0) / (RAND_MAX + 0.0)) * (y - x + 0.0)) + x; */
+	int n;
+	n = abs(a - b);
+	return (((random() & 0x0000ffff) * n) >> 16) + min(a,b);
 }
 
 void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
@@ -3745,8 +3752,10 @@ void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
 	int vx, vy, i;
 
 	for (i=0;i<nsparks;i++) {
-		vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivx));
-		vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivy));
+		// vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivx));
+		// vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivy));
+		vx = randomn(v) - (v>>1) + ivx;
+		vy = randomn(v) - (v>>1) + ivy;
 		add_spark(x, y, vx, vy, time); 
 		/* printf("%d,%d, v=%d,%d, time=%d\n", x,y, vx, vy, time); */
 	}
@@ -4526,8 +4535,10 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 		o->alive = 5*FRAME_RATE_HZ + randomn(FRAME_RATE_HZ);	
 		o->color = victim->color;
 		o->radar_image = 1;
-		o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
-		o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));
+		// o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
+		// o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));
+		o->vx = randomn(r) - (r >> 1) + vx;	
+		o->vy = randomn(r) - (r >> 1) + vy;	
 		o->target = NULL;
 		o->v = debris_vect[randomn(NDEBRIS_FORMS)];
 	}
@@ -4551,8 +4562,10 @@ static void add_debris(int x, int y, int vx, int vy, int r, struct game_obj_t **
 		o->destroy = generic_destroy_func;
 		o->alive = 30;	
 		o->color = WHITE;
-		o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
-		o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));
+		// o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
+		// o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));
+		o->vx = randomn(r) - (r >> 1) + vx;	
+		o->vy = randomn(r) - (r >> 1) + vy;	
 		o->target = NULL;
 		o->v = make_debris_vect();
 		if (o->v == NULL)
