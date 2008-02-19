@@ -2864,7 +2864,6 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
-static void add_debris(int x, int y, int vx, int vy, int r, struct game_obj_t **victim);
 void no_draw(struct game_obj_t *o, GtkWidget *w);
 void move_player(struct game_obj_t *o)
 {
@@ -2885,7 +2884,7 @@ void move_player(struct game_obj_t *o)
 		player->move = bridge_move;
 		explode(player->x, player->y, player->vx, player->vy, 90, 350, 30);
 		player->draw = no_draw;
-		add_debris(o->x, o->y, o->vx, o->vy, 20, &player);
+		spray_debris(o->x, o->y, o->vx, o->vy, 70, o);
 		add_sound(LARGE_EXPLOSION_SOUND, ANY_SLOT);
 		printf("decrementing lives %d.\n", game_state.lives);
 		game_state.lives--;
@@ -2900,7 +2899,7 @@ void move_player(struct game_obj_t *o)
 			} else {
 				timer_event = READY_EVENT;
 				game_state.lives = 3;
-				next_timer = timer + 30;
+				next_timer = timer + 60;
 			}
 		} else {
 			next_timer = timer + 30;
@@ -3072,8 +3071,10 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 			o->vx = -3;
 			o->vy += 1;
 		}
-		if (o->alive == 1 && o->otype == OBJ_TYPE_BRIDGE) 
+		if (o->alive == 1) {
 			o->move = NULL;
+			o->radar_image = 0;
+		}
 	}
 }
 
@@ -4484,41 +4485,10 @@ void generate_terrain(struct terrain_t *t)
 	generate_sub_terrain(t, 0, t->npoints-1);
 }
 
-static struct my_vect_obj *make_debris_vect()
-{
-	int i, n;
-	struct my_point_t *p;
-	struct my_vect_obj *v;
-
-	/* FIXME, this malloc'ing is a memory leak, */
-	
-	n = randomab(5,10);
-	v = (struct my_vect_obj *) malloc(sizeof(*v));
-	p = (struct my_point_t *) malloc(sizeof(*p) * n);
-	if (!v || !p) {
-		if (v)
-			free(v);
-		if (p)
-			free (p);
-		return NULL;
-	}
-
-	v->p = &p[0];
-	v->npoints = n;
-	
-	for (i=0;i<n;i++) {
-		p[i].x = randomn(20)-10;
-		p[i].y = randomn(10)-5;
-	}
-	return v;
-}
-
 static struct my_vect_obj *init_debris_vect(struct my_vect_obj **v, struct my_point_t **p)
 {
 	int i, n;
 
-	/* FIXME, this malloc'ing is a memory leak, */
-	
 	n = randomab(2,5);
 	*v = (struct my_vect_obj *) malloc(sizeof(**v));
 	*p = (struct my_point_t *) malloc(sizeof(**p) * n);
@@ -4587,43 +4557,16 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 	}
 }
 
-static void add_debris(int x, int y, int vx, int vy, int r, struct game_obj_t **victim)
+static int initial_x_location() 
 {
-	int i, z; 
-	struct game_obj_t *o;
-
-	for (i=0;i<=12;i++) {
-		z = find_free_obj();
-		if (z < 0)
-			return;
-		o = &game_state.go[z];
-		o->last_xi = -1;
-		o->x = x;
-		o->y = y;
-		o->move = bridge_move;
-		o->draw = draw_generic;
-		o->destroy = generic_destroy_func;
-		o->alive = 30;	
-		o->color = WHITE;
-		// o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
-		// o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));
-		o->vx = randomn(r) - (r >> 1) + vx;	
-		o->vy = randomn(r) - (r >> 1) + vy;	
-		o->target = NULL;
-		o->v = make_debris_vect();
-		if (o->v == NULL)
-			o->draw = no_draw;
-		if (i==0)
-			*victim = o;
-	}
+	return randomn(TERRAIN_LENGTH - 40) + 40;
 }
 
 static void add_flak_guns(struct terrain_t *t)
 {
 	int i, xi;
 	for (i=0;i<level.nflak;i++) {
-		xi = (int) (((0.0 + random()) / RAND_MAX) * 
-			(TERRAIN_LENGTH - 40) + 40);
+		xi = initial_x_location();
 		add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
 			move_flak, draw_flak, GREEN, &flak_vect, 1, OBJ_TYPE_GUN, 1);
 	}
@@ -4633,7 +4576,7 @@ static void add_rockets(struct terrain_t *t)
 {
 	int i, xi;
 	for (i=0;i<level.nrockets;i++) {
-		xi = (int) (((0.0 + random()) / RAND_MAX) * (TERRAIN_LENGTH - 40) + 40);
+		xi = initial_x_location();
 		add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
 			move_rocket, NULL, WHITE, &rocket_vect, 1, OBJ_TYPE_ROCKET, 1);
 	}
@@ -5148,7 +5091,7 @@ static void add_cron(struct terrain_t *t)
 	int xi, i;
 	struct game_obj_t *o;
 	for (i=0;i<level.ncron;i++) {
-		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		xi = initial_x_location();
 		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
 			cron_move, cron_draw, GREEN, &cron_vect, 1, OBJ_TYPE_CRON, 1);
 		if (o != NULL) {
@@ -5167,7 +5110,7 @@ static void add_jammers(struct terrain_t *t)
 	int xi, i;
 	struct game_obj_t *o;
 	for (i=0;i<level.njammers;i++) {
-		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		xi = initial_x_location();
 		o = add_generic_object(t->x[xi], t->y[xi], 0, 0, 
 			no_move, jammer_draw, GREEN, &jammer_vect, 1, OBJ_TYPE_JAMMER, 1);
 		if (o) {
@@ -5184,7 +5127,7 @@ static void add_fuel(struct terrain_t *t)
 {
 	int xi, i;
 	for (i=0;i<level.nfueltanks;i++) {
-		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		xi = initial_x_location();
 		add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
 			no_move, NULL, ORANGE, &fuel_vect, 1, OBJ_TYPE_FUEL, 1);
 	}
@@ -5195,7 +5138,7 @@ static void add_ships(struct terrain_t *t)
 	struct game_obj_t *o;
 	int xi, i;
 	for (i=0;i<level.nships;i++) {
-		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		xi = initial_x_location();
 		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
 			ship_move, NULL, ORANGE, &ship_vect, 1, OBJ_TYPE_SHIP, 50*PLAYER_LASER_DAMAGE);
 		if (o)
@@ -5210,7 +5153,7 @@ static void add_octopi(struct terrain_t *t)
 	count = 0;
 	struct game_obj_t *o;
 	for (i=0;i<level.noctopi;i++) {
-		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		xi = initial_x_location();
 		o = add_generic_object(t->x[xi], t->y[xi]-50 - randomn(100), 0, 0, 
 			octopus_move, NULL, YELLOW, &octopus_vect, 1, OBJ_TYPE_OCTOPUS, 1);
 		if (o != NULL) {
@@ -5265,7 +5208,7 @@ static void add_gdbs(struct terrain_t *t)
 	// count = 0;
 	struct game_obj_t *o;
 	for (i=0;i<level.ngdbs;i++) {
-		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		xi = initial_x_location();
 		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
 			gdb_move, gdb_draw, CYAN, &gdb_vect_left, 1, OBJ_TYPE_GDB, 1);
 		if (o != NULL) {
@@ -5321,7 +5264,7 @@ static void add_tentacles(struct terrain_t *t)
 	for (j=0;j<level.ntentacles;j++) {
 		length = randomn(30) + 9;
 		length_factor = 0.90;
-		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		xi = initial_x_location();
 		o = add_generic_object(t->x[xi], t->y[xi], 0, 0,
 			tentacle_move, tentacle_draw, CYAN, NULL, 1, OBJ_TYPE_TENTACLE, 1);
 		if (o != NULL) {
@@ -5356,7 +5299,7 @@ static void add_SAMs(struct terrain_t *t)
 {
 	int xi, i;
 	for (i=0;i<level.nsams;i++) {
-		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		xi = initial_x_location();
 		add_generic_object(t->x[xi], t->y[xi], 0, 0, 
 			sam_move, NULL, WHITE, &SAM_station_vect, 1, OBJ_TYPE_SAM_STATION, 1);
 	}
@@ -5368,7 +5311,7 @@ static void add_humanoids(struct terrain_t *t)
 	struct game_obj_t *o;
 
 	for (i=0;i<level.nhumanoids;i++) {
-		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		xi = initial_x_location();
 		o = add_generic_object(t->x[xi], t->y[xi], 0, 0, 
 			humanoid_move, NULL, MAGENTA, &humanoid_vect, 1, OBJ_TYPE_HUMAN, 1);
 		human[i] = o;
@@ -5387,7 +5330,7 @@ static void add_airships(struct terrain_t *t)
 	int xi, i;
 	struct game_obj_t *o;
 	for (i=0;i<level.nairships;i++) {
-		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		xi = initial_x_location();
 		o = add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
 			airship_move, NULL, CYAN, &airship_vect, 1, OBJ_TYPE_AIRSHIP, 300*PLAYER_LASER_DAMAGE);
 		if (o) {
@@ -5408,7 +5351,7 @@ static void add_balloons(struct terrain_t *t)
 	struct game_obj_t *o;
 	int xi, i;
 	for (i=0;i<NBALLOONS;i++) {
-		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		xi = initial_x_location();
 		o = add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
 			balloon_move, NULL, CYAN, &balloon_vect, 1, OBJ_TYPE_BALLOON, 1);
 		if (o) 
@@ -6715,6 +6658,7 @@ int main(int argc, char *argv[])
 	GtkWidget *window;
 	GtkWidget *button;
 	GtkWidget *vbox;
+	GdkRectangle cliprect;
 	int i;
 
 	struct timeval tm;
@@ -6828,6 +6772,13 @@ int main(int argc, char *argv[])
 	gc = gdk_gc_new(GTK_WIDGET(main_da)->window);
 	gdk_gc_set_foreground(gc, &huex[BLUE]);
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
+
+	gdk_gc_set_clip_origin(gc, 0, 0);
+	cliprect.x = 0;	
+	cliprect.y = 0;	
+	cliprect.width = SCREEN_WIDTH;	
+	cliprect.height = SCREEN_HEIGHT;	
+	gdk_gc_set_clip_rectangle(gc, &cliprect);
 
     timer_tag = g_timeout_add(1000 / FRAME_RATE_HZ, advance_game, NULL);
     
