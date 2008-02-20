@@ -6652,6 +6652,23 @@ void setup_spark_colors()
 	}
 }
 
+void paint_it_black()
+{
+	int i;
+	unsigned int avg;
+	for (i=0;i<NCOLORS + NSPARKCOLORS;i++) {
+		avg = huex[i].red + huex[i].green + huex[i].blue;
+		avg = avg / 3;
+		if (avg > 200)
+			avg = 0;
+		else
+			avg = 32767*2;
+		huex[i].red = avg;
+		huex[i].green = avg;
+		huex[i].blue = avg;
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	/* GtkWidget is the storage type for widgets */
@@ -6660,10 +6677,14 @@ int main(int argc, char *argv[])
 	GtkWidget *vbox;
 	GdkRectangle cliprect;
 	int i;
+	int no_colors_any_more = 0;
 
 	struct timeval tm;
 	gettimeofday(&tm, NULL);
 	srandom(tm.tv_usec);	
+
+	if (argc > 1 && strcmp(argv[1],"--bw") == 0)
+		no_colors_any_more = 1;
 
 #ifdef WITHAUDIOSUPPORT
 	if (initialize_portaudio() != paNoError)
@@ -6685,6 +6706,8 @@ int main(int argc, char *argv[])
 	/* Set up the spark colors. */
 	setup_spark_colors();
 
+	if (no_colors_any_more)
+		paint_it_black();
  
     /* create a new window */
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
