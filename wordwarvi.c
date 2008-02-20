@@ -132,6 +132,9 @@ int add_sound(int which_sound, int which_slot);
 #define NBRIDGES 2
 #define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
+#define FUELTANK_CAPACITY 30
+#define REFUEL_RATE 3 /* lower numbers = faster */
+#define REFILL_RATE (FRAME_RATE_HZ * 3) /* lower numbers == faster */
 #define NJAMMERS 1
 #define NCRON 20 
 #define NSHIPS 1
@@ -204,7 +207,7 @@ struct timeval start_time, end_time;
 #define KEYS1_EVENT 18
 #define KEYS2_EVENT 19
 
-#define NCOLORS 9
+#define NCOLORS 10 
 #define NSPARKCOLORS 25 
 
 GdkColor huex[NCOLORS + NSPARKCOLORS];
@@ -220,6 +223,7 @@ GdkColor *sparkcolor;
 #define ORANGE 6
 #define CYAN 7
 #define MAGENTA 8
+#define DARKGREEN 9
 
 
 /* Object types */
@@ -1351,6 +1355,10 @@ struct jammer_data {
 	int direction;
 };
 
+struct fuel_data {
+	int level;
+};
+
 union type_specific_data {
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
@@ -1361,6 +1369,7 @@ union type_specific_data {
 	struct cron_data cron;
 	struct human_data human;
 	struct jammer_data jammer;
+	struct fuel_data fuel;
 };
 
 struct game_obj_t {
@@ -1545,6 +1554,26 @@ void move_laserbolt(struct game_obj_t *o)
 	age_object(o);
 }
 
+void fuel_move(struct game_obj_t *o)
+{
+	int xdist, ydist;
+
+	xdist = abs(player->x - (o->x + 20));
+	ydist = abs(player->y - o->y);
+	if (xdist <= HUMANOID_DIST*3 && 
+		ydist <= HUMANOID_DIST*5 &&
+		(timer % REFUEL_RATE) == 0 && 
+		o->tsd.fuel.level > 0 && 
+		game_state.health < MAXHEALTH ) {
+			o->tsd.fuel.level--;
+			game_state.health++;
+	} else 
+		/* tanks refill at one unit per 3 secs */
+		if (o->tsd.fuel.level < FUELTANK_CAPACITY && 
+			(timer % REFILL_RATE == 0))
+			o->tsd.fuel.level++;
+}
+
 static void add_laserbolt(int x, int y, int vx, int vy, int time);
 void move_flak(struct game_obj_t *o)
 {
@@ -1647,6 +1676,33 @@ void sam_move(struct game_obj_t *o)
 }
 
 void draw_generic(struct game_obj_t *o, GtkWidget *w);
+
+void fuel_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	int x1, y1, x2, y2;
+	int xdist, ydist;
+
+	xdist = abs(player->x - o->x);
+	ydist = abs(player->y - o->y);
+		
+	x1 = o->x - game_state.x - 25;
+	x2 = o->x - game_state.x + 25;
+	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2) + 
+		30 - (45 * o->tsd.fuel.level / FUELTANK_CAPACITY);
+	if (o->tsd.fuel.level > 0) {
+		gdk_gc_set_foreground(gc, &huex[DARKGREEN]);
+		// wwvi_draw_line(w->window, gc, x1, y1, x2, y1);
+		gdk_draw_rectangle(w->window, gc, TRUE, x1, y1, 50, o->tsd.fuel.level * 45 / FUELTANK_CAPACITY);
+	}
+	draw_generic(o, w);
+	if (xdist <= HUMANOID_DIST*3 && ydist <= HUMANOID_DIST*5) {
+		x1 = o->x - game_state.x;
+		y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);
+		x2 = player->x - game_state.x;
+		y2 = player->y - game_state.y + (SCREEN_HEIGHT/2);
+		wwvi_draw_line(w->window, gc, x1, y1, x2, y2);
+	}
+}
 
 void jammer_draw(struct game_obj_t *o, GtkWidget *w)
 {
@@ -2686,11 +2742,11 @@ void bomb_move(struct game_obj_t *o)
 						kill_object(t->o);
 						// t->o->alive = 0;
 						t->o->destroy(t->o);
-						if (t->o->otype == OBJ_TYPE_FUEL) {
+						/* if (t->o->otype == OBJ_TYPE_FUEL) {
 							game_state.health += 10;
 							if (game_state.health > MAXHEALTH)
 								game_state.health = MAXHEALTH;
-						}
+						} */
 						t = remove_target(t);
 						removed = 1;
 					}
@@ -3170,11 +3226,11 @@ void laser_move(struct game_obj_t *o)
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 					spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o);
 					kill_object(t->o);
-					if (t->o->otype == OBJ_TYPE_FUEL) {
+					/* if (t->o->otype == OBJ_TYPE_FUEL) {
 						game_state.health += 10;
 						if (game_state.health > MAXHEALTH)
 							game_state.health = MAXHEALTH;
-					}
+					} */
 					t->o->destroy(t->o);
 					t = remove_target(t);
 					removed = 1;
@@ -5129,10 +5185,13 @@ static void add_jammers(struct terrain_t *t)
 static void add_fuel(struct terrain_t *t)
 {
 	int xi, i;
+	struct game_obj_t *o;
 	for (i=0;i<level.nfueltanks;i++) {
 		xi = initial_x_location();
-		add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
-			no_move, NULL, ORANGE, &fuel_vect, 1, OBJ_TYPE_FUEL, 1);
+		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
+			fuel_move, fuel_draw, ORANGE, &fuel_vect, 1, OBJ_TYPE_FUEL, 1);
+		if (o) 
+			o->tsd.fuel.level = FUELTANK_CAPACITY;
 	}
 }
 
@@ -6700,6 +6759,7 @@ int main(int argc, char *argv[])
 	gdk_color_parse("blue", &huex[BLUE]);
 	gdk_color_parse("black", &huex[BLACK]);
 	gdk_color_parse("green", &huex[GREEN]);
+	gdk_color_parse("darkgreen", &huex[DARKGREEN]);
 	gdk_color_parse("yellow", &huex[YELLOW]);
 	gdk_color_parse("red", &huex[RED]);
 	gdk_color_parse("orange", &huex[ORANGE]);
