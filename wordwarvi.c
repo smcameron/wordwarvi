@@ -148,7 +148,7 @@ int add_sound(int which_sound, int which_slot);
 #define MIN_ALT 50
 #define MAXHEALTH 100
 #define RADAR_FRITZ_HEALTH 30
-#define NAIRSHIPS 0
+#define NAIRSHIPS 1
 #define NBALLOONS 2 
 #define MAX_BALLOON_HEIGHT 300
 #define MIN_BALLOON_HEIGHT 50
@@ -1175,16 +1175,19 @@ struct my_vect_obj octopus_vect;
 struct my_vect_obj sail_segment;
 struct my_vect_obj ships_hull;
 
-struct my_vect_obj **gamefont[3];
+struct my_vect_obj **gamefont[4];
 #define BIG_FONT 0
 #define SMALL_FONT 1
 #define TINY_FONT 2
+#define NANO_FONT 3
 #define BIG_FONT_SCALE 14 
 #define SMALL_FONT_SCALE 5 
 #define TINY_FONT_SCALE 3 
+#define NANO_FONT_SCALE 2 
 #define BIG_LETTER_SPACING (10)
 #define SMALL_LETTER_SPACING (5)
 #define TINY_LETTER_SPACING (3)
+#define NANO_LETTER_SPACING (2)
 #define MAXTEXTLINES 20
 int current_color = WHITE;
 int current_font = BIG_FONT;
@@ -1192,8 +1195,8 @@ int cursorx = 0;
 int cursory = 0;
 int livecursorx = 0;
 int livecursory = 0;
-int font_scale[] = { BIG_FONT_SCALE, SMALL_FONT_SCALE, TINY_FONT_SCALE };
-int letter_spacing[] = { BIG_LETTER_SPACING, SMALL_LETTER_SPACING, TINY_LETTER_SPACING };
+int font_scale[] = { BIG_FONT_SCALE, SMALL_FONT_SCALE, TINY_FONT_SCALE, NANO_FONT_SCALE };
+int letter_spacing[] = { BIG_LETTER_SPACING, SMALL_LETTER_SPACING, TINY_LETTER_SPACING, NANO_LETTER_SPACING };
 
 int ntextlines = 0;
 struct text_line_t {
@@ -1359,6 +1362,10 @@ struct fuel_data {
 	int level;
 };
 
+struct airship_data {
+	int bannerline;
+};
+
 union type_specific_data {
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
@@ -1370,6 +1377,7 @@ union type_specific_data {
 	struct human_data human;
 	struct jammer_data jammer;
 	struct fuel_data fuel;
+	struct airship_data airship;
 };
 
 struct game_obj_t {
@@ -3779,6 +3787,100 @@ void airship_leak_lisp(struct game_obj_t *o)
 	}
 }
 
+static void abs_xy_draw_string(GtkWidget *w, char *s, int font, int x, int y);
+
+char *blimp_message[] = {
+"",
+"",
+"        vi vi vi...",
+"",
+"   The editor of the",
+"",
+"       B E A S T !",
+"",
+"",
+"    MMMMMMMMMMMMMMMMMMMMM     ",
+" MMMMMMMMMWX0dxxKNWMMMMMMMMM  ",
+"MMMMMMMM0:   'xO0kdXMMMMMMMMM ",
+"MMMMMMX,   .,lONWMxokWMMMMMMMM",
+"MMMMM0.   .,:cx0NMWlllNMMMMMMM",
+"MMMMN.     ..:,.;0WXcloKWMMMMM",
+"MMMMO    ... d0clKWMx,dloXMMMM",
+"MMMMO   .....;docOMMW:,;::OMMM",
+"MMMX,    ..   .,:dKKd;.::;;xMM",
+"MMMK.         .'':cc,'..,,,;lX",
+"l:,         ..'':;,;,',.;:,,:;",
+"            ..',,,'cc;...,::c:",
+"            .......co.... ',:;",
+"                 .''.. .  ...;",
+"                  .  .     . .",
+"",
+"       Bow down before",
+"        St. IGNUcius,",
+"         heathen!!!",
+"",
+"",
+"",
+"  Using vi is not a sin,",
+"",
+"    It is a penance!",
+"",
+"",
+"",
+"",
+"    G N U   E M A C S",
+"",
+"        Rules!!!!",
+"",
+"     vi drools!!!!",
+"",
+"",
+"",
+"       XXX  X  X X   X",
+"      X   X XX X X   X",
+"      X     XX X X   X",
+"      X XXX X XX X   X",
+"      X   X X XX X   X",
+"       XXX  X  X  XXX",
+"",
+"",
+"",
+NULL,
+}; 
+void airship_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	int x, y, i, line;
+
+	draw_generic(o, w);
+
+	x = o->x - game_state.x - 90;
+	y = o->y - game_state.y + (SCREEN_HEIGHT/2) - 130;
+
+	/* 
+	for (i=0;i<7;i++) {
+		abs_xy_draw_string(w, "012345678901234567890123456789", NANO_FONT, x, y);
+		y = y + 15;
+	} */
+
+	line = o->tsd.airship.bannerline;
+	for (i=0;i<7;i++) {
+		if (blimp_message[line] == NULL)
+			line = 0;
+		abs_xy_draw_string(w, blimp_message[line], NANO_FONT, x, y);
+		y = y + 15;
+		line++;
+	}
+
+	/* advance to the next line */
+	if ((timer % 15) == 0) {
+		o->tsd.airship.bannerline++;
+		if (blimp_message[o->tsd.airship.bannerline] == NULL)
+			o->tsd.airship.bannerline = 0;
+	}
+
+}
+
+
 void airship_move(struct game_obj_t *o)
 {
 	if (!o->alive)
@@ -4062,6 +4164,7 @@ void init_vects()
 	make_font(&gamefont[BIG_FONT], font_scale[BIG_FONT], font_scale[BIG_FONT]);
 	make_font(&gamefont[SMALL_FONT], font_scale[SMALL_FONT], font_scale[SMALL_FONT]);
 	make_font(&gamefont[TINY_FONT], font_scale[TINY_FONT], font_scale[TINY_FONT]);
+	make_font(&gamefont[NANO_FONT], font_scale[NANO_FONT], font_scale[NANO_FONT]);
 	set_font(BIG_FONT);
 }
 
@@ -5394,10 +5497,11 @@ static void add_airships(struct terrain_t *t)
 	for (i=0;i<level.nairships;i++) {
 		xi = initial_x_location();
 		o = add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
-			airship_move, NULL, CYAN, &airship_vect, 1, OBJ_TYPE_AIRSHIP, 300*PLAYER_LASER_DAMAGE);
+			airship_move, airship_draw, CYAN, &airship_vect, 1, OBJ_TYPE_AIRSHIP, 300*PLAYER_LASER_DAMAGE);
 		if (o) {
 			o->counter = 0;
 			o->radar_image = 4;
+			o->tsd.airship.bannerline = 0;
 		}
 	}
 }
