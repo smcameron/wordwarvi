@@ -1453,6 +1453,7 @@ struct game_state_t {
 struct game_obj_t * human[MAXHUMANS];
 
 struct game_obj_t *player = &game_state.go[0];
+int lasthuman = 0;
 
 GdkGC *gc = NULL;
 GtkWidget *main_da;
@@ -2973,8 +2974,17 @@ void move_player(struct game_obj_t *o)
 			timer_event = READY_EVENT;
 		}
 	} 
+	deepest = find_ground_level(player);
 	if (abs(o->vx) < 5 || game_state.health <= 0) {
-		o->vy+=1;
+		if (deepest != GROUND_OOPS) {
+			if (o->y < deepest) 
+				o->vy+=1;
+			else if (o->vx < 0)
+				o->vx += 1;
+			else if (o->vx > 0)
+				o->vx -= 1;
+		}
+		
 		if (o->vy > MAX_VY)
 			o->vy = MAX_VY;
 		if (was_healthy)
@@ -3010,13 +3020,12 @@ void move_player(struct game_obj_t *o)
 
 	/* Detect smashing into the ground */
 	deepest = find_ground_level(player);
-	if (deepest != GROUND_OOPS && player->y > deepest) {
-		player->y = deepest - 5;
+	if (deepest != GROUND_OOPS && player->y >= deepest) {
+		player->y = deepest;
 		if (abs(player->vy) > 7) 
 			player->vy = -0.65 * abs(player->vy);
 		else
 			player->vy = 0;
-		player->vx = 0.65 * player->vx;
 		if (player->vy < -15) {
 			player->vy = -15;
 		}
@@ -3025,6 +3034,8 @@ void move_player(struct game_obj_t *o)
 			add_sound(OWMYSPINE_SOUND, ANY_SLOT);
 			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 			game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
+			player->vy = -5;
+			player->vx = player->vx >> 1;
 		}
 	}
 
@@ -6492,6 +6503,17 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		//	return TRUE;
 		do_game_pause(widget, NULL);
 		return TRUE;
+	case GDK_n:
+		if (game_state.health <= 0 || credits <= 0)
+			return TRUE;
+		player->x = human[lasthuman]->x;
+		player->y = human[lasthuman]->y - 50;
+		game_state.x = player->x;
+		game_state.y = player->y - 50;
+		lasthuman++;
+		if (lasthuman >= level.nhumanoids)
+			lasthuman = 0;
+		break;
 	case GDK_i:
 		gettimeofday(&game_state.finish_time, NULL);
 		timer_event = START_INTERMISSION_EVENT;
