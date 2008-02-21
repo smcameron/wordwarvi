@@ -136,7 +136,7 @@ int add_sound(int which_sound, int which_slot);
 #define REFUEL_RATE 3 /* lower numbers = faster */
 #define REFILL_RATE (FRAME_RATE_HZ * 3) /* lower numbers == faster */
 #define NJAMMERS 1
-#define NCRON 20 
+#define NCRON 5 
 #define NSHIPS 1
 #define NGDBS 3 
 #define NOCTOPI 0 
@@ -148,7 +148,7 @@ int add_sound(int which_sound, int which_slot);
 #define MIN_ALT 50
 #define MAXHEALTH 100
 #define RADAR_FRITZ_HEALTH 30
-#define NAIRSHIPS 1
+#define NAIRSHIPS 2
 #define NBALLOONS 2 
 #define MAX_BALLOON_HEIGHT 300
 #define MIN_BALLOON_HEIGHT 50
@@ -3100,6 +3100,23 @@ void move_player(struct game_obj_t *o)
 	/* End attract mode */
 }
 
+void bounce(int *vx, int *vy, int slope, double bouncefactor)
+{
+
+	if (slope < 25) {
+		*vx = (*vx * bouncefactor) + (randomn(7));  /* bounce a bit to the right */
+		*vy = -(*vy * bouncefactor) + (randomn(7)); 
+	} else if (slope < -25) {
+		*vx = (*vx * bouncefactor) - (randomn(7));  /* bounce a bit to the left */
+		*vy = -(*vy * bouncefactor) + (randomn(7)); 
+	} else {
+		*vy = -(*vy * bouncefactor) + (randomn(7)); 
+		*vx = (*vx * bouncefactor) + (randomn(10)-6); /* bounce a bit left or right */
+	}
+	
+	return;	
+}
+
 void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 {
 	int i;
@@ -3110,11 +3127,6 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 	o->vy++;
 	if (o->alive >1)
 		age_object(o);
-	if (o->otype == OBJ_TYPE_DEBRIS) {
-		if  (o->alive == 2)
-			kill_object(o);	
-		if (o->alive > FRAME_RATE_HZ*4) explode(o->x, o->y, 0, 0, 16, 3, 10);
-	}		
 
 	/* Detect smashing into the ground */
 	deepest = 64000;
@@ -3122,21 +3134,36 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 		if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
 			deepest = interpolate(o->x, terrain.x[i], terrain.y[i],
 					terrain.x[i+1], terrain.y[i+1]);
+			if (deepest == 64000)
+				return;
 			slope = (100*(terrain.y[i+1] - terrain.y[i])) / 
 					(terrain.x[i+1] - terrain.x[i]);
 			break;
 		}
 	}
-	if (deepest != 64000 && o->y > deepest) {
-		o->y = deepest-2;
-		o->vx = 0;
-		o->vy = 0;
-		if (slope > 25 && o->alive > 1) {
-			o->vx = 3;
-			o->vy += 1;
-		} else if (slope < -25 && o->alive > 1) {
-			o->vx = -3;
-			o->vy += 1;
+
+	if (o->otype == OBJ_TYPE_DEBRIS) {
+		if  (o->alive == 2)
+			kill_object(o);	
+		if (o->alive > FRAME_RATE_HZ*4 || o->y < deepest-2) 
+			explode(o->x, o->y, 0, 0, 16, 3, 10);
+	}		
+
+	if (o->y >= deepest) {
+		if (o->vy > 4) {
+			o->y = deepest-2;
+			bounce(&o->vx, &o->vy, slope, 0.4);
+		} else {
+			o->y = deepest-2;
+			o->vx = 0;
+			o->vy = 0;
+			if (slope > 25 && o->alive > 1) {
+				o->vx = 3;
+				o->vy += 1;
+			} else if (slope < -25 && o->alive > 1) {
+				o->vx = -3;
+				o->vy += 1;
+			}
 		}
 		if (o->alive == 1) {
 			o->move = NULL;
