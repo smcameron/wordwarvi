@@ -14,10 +14,10 @@ endif
 
 #DEBUG=-g
 # DEBUG=
-PROFILE_FLAG=-pg
+#PROFILE_FLAG=-pg
 #PROFILE_FLAG=
 #OPTIMIZE_FLAG=
-# OPTIMIZE_FLAG=-O2
+OPTIMIZE_FLAG=-O2
 
 LDFLAGS=${PROFILE_FLAG}
 
@@ -29,11 +29,15 @@ all:	wordwarvi
 
 endif
 
+joystick.o:	joystick.c joystick.h Makefile
+
 thesounds:
 	( cd sounds ; make  )
 
-wordwarvi:	wordwarvi.c
-	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -Wall  ${SNDFLAGS} wordwarvi.c -o wordwarvi -lm ${SNDLIBS} `pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0` `pkg-config --libs gthread-2.0`
+wordwarvi:	wordwarvi.c joystick.c joystick.h Makefile
+	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -Wall  ${SNDFLAGS} joystick.o \
+		wordwarvi.c -o wordwarvi -lm ${SNDLIBS} \
+		`pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0` `pkg-config --libs gthread-2.0`
 
 tarball:
 	mkdir -p d/wordwarvi-${VERSION}/sounds

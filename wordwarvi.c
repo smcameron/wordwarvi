@@ -35,6 +35,8 @@
 #include <sndfile.h>
 #endif
 
+#include "joystick.h"
+
 #define SAMPLE_RATE   (44100)
 #define FRAMES_PER_BUFFER  (1024)
 #ifndef M_PI
@@ -116,7 +118,7 @@ int add_sound(int which_sound, int which_slot);
 #define LASER_PROXIMITY 300 /* square root of 300 */
 #define BOMB_PROXIMITY 10000 /* square root of 30000 */
 #define BOMB_X_PROXIMITY 100
-#define CRON_SHOT_CHANCE 5
+#define CRON_SHOT_CHANCE 40 
 #define CRON_SHOT_DIST_SQR (300*300) 
 #define CRON_DX_THRESHOLD 14 
 #define CRON_DY_THRESHOLD 14 
@@ -186,6 +188,7 @@ int total_radar_noise;
 int nframes = 0;
 unsigned int free_obj_bitmap[NBITBLOCKS] = {0};
 struct timeval start_time, end_time;
+int jsfd = -1;
 
 #define BLINK_EVENT 1
 #define READY_EVENT 2
@@ -2080,7 +2083,7 @@ static void add_bullet(int x, int y, int vx, int vy,
 	int time, int color, struct game_obj_t *bullseye);
 void cron_move(struct game_obj_t *o)
 {
-	int xdist;
+	int xdist, ydist;
 	int dvx, dvy, tx, ty;
 	int gy, dgy, xi;
 	int done, dist2, i;
@@ -2127,10 +2130,15 @@ void cron_move(struct game_obj_t *o)
 		o->tsd.cron.ty = dgy-140;
 		ty = o->tsd.cron.ty;
 		o->tsd.cron.tmp_ty_offset = 0;
-		if (o->tsd.cron.myhuman != NULL && o->tsd.cron.myhuman->tsd.human.picked_up == 0) {
-			o->tsd.cron.myhuman->tsd.human.picked_up = 1;
-			o->tsd.cron.myhuman->tsd.human.on_ground = 0;
-			add_sound(ABDUCTED_SOUND, ANY_SLOT);
+		if (o->tsd.cron.myhuman != NULL) {
+			ydist = abs(o->y - o->tsd.cron.myhuman->y); 
+			xdist = abs(o->x - o->tsd.cron.myhuman->x); 
+			if (o->tsd.cron.myhuman->tsd.human.picked_up == 0 &&
+				xdist <= CRON_DX_THRESHOLD && ydist <= CRON_DY_THRESHOLD) {
+				o->tsd.cron.myhuman->tsd.human.picked_up = 1;
+				o->tsd.cron.myhuman->tsd.human.on_ground = 0;
+				add_sound(ABDUCTED_SOUND, ANY_SLOT);
+			}
 		}
 	}
 	if (xdist > CRON_DX_THRESHOLD) {
@@ -2163,7 +2171,7 @@ void cron_move(struct game_obj_t *o)
 		dvx = -CRON_MAX_VX;
 	}
 
-	if (randomn(100) <= CRON_SHOT_CHANCE) {
+	if (randomn(100) <= CRON_SHOT_CHANCE && timer % 10 == 0) {
 		dist2 = (player->x - o->x) * (player->x - o->x) + 
 			(player->y - o->y) * (player->y - o->y);
 		if (dist2 <= CRON_SHOT_DIST_SQR) {
@@ -3154,8 +3162,10 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 	}
 
 	if (o->otype == OBJ_TYPE_DEBRIS) {
-		if  (o->alive == 2)
+		if  (o->alive == 2) {
 			kill_object(o);	
+			remove_target(o->target);
+		}
 		if (o->alive > FRAME_RATE_HZ*4 || o->y < deepest-2) 
 			explode(o->x, o->y, 0, 0, 16, 3, 10);
 	}		
@@ -3345,11 +3355,11 @@ void draw_harpoon(struct game_obj_t *o, GtkWidget *w)
 	dy = -dy_from_vxy(o->vx, o->vy);
 	gdk_gc_set_foreground(gc, &huex[o->color]);
 	wwvi_draw_line(w->window, gc, x1, y1, x1+dx*2, y1+dy*2); 
-	if (o->tsd.harpoon.gdb->alive && o->tsd.harpoon.gdb->otype == OBJ_TYPE_GDB) {
+	/* if (o->tsd.harpoon.gdb->alive && o->tsd.harpoon.gdb->otype == OBJ_TYPE_GDB) {
 		x2 = o->tsd.harpoon.gdb->x - game_state.x;
 		y2 = o->tsd.harpoon.gdb->y - game_state.y + (SCREEN_HEIGHT/2);  
 		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
-	}
+	} */
 }
 
 void move_missile(struct game_obj_t *o)
@@ -4748,6 +4758,7 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 		o->alive = 5*FRAME_RATE_HZ + randomn(FRAME_RATE_HZ);	
 		o->color = victim->color;
 		o->radar_image = 1;
+		o->target = add_target(o);
 		// o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
 		// o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));
 		o->vx = randomn(r) - (r >> 1) + vx;	
@@ -6105,6 +6116,8 @@ void timer_expired()
 	}
 }
 
+void deal_with_joystick();
+
 gint advance_game(gpointer data)
 {
 	int i, ndead, nalive;
@@ -6112,6 +6125,9 @@ gint advance_game(gpointer data)
 	if (game_pause == 1) {
 		return TRUE;
 	}
+
+	if (jsfd >= 0)
+		deal_with_joystick();
 
 	gdk_threads_enter();
 	ndead = 0;
@@ -6351,6 +6367,76 @@ void advance_level()
 
 	initialize_game_state_new_level();
 	/* start_level(); */
+}
+
+void deal_with_joystick()
+{
+	static struct wwvi_js_event jse = { 0 };
+	int rc;
+#define JOYSTICK_SENSITIVITY 5000
+
+	memset(&jse.button[0], 0, sizeof(jse.button[0]*10));
+	rc = get_joystick_status(&jse);
+	if (rc != 0)
+		return;
+	if (game_state.health <= 0 || credits <= 0)
+		return;
+
+	/* Stick 1 horizontal movement */	
+	if (jse.stick1_x < -JOYSTICK_SENSITIVITY) {
+		if (game_state.direction != -1) {
+			player->vx = player->vx / 2;
+			game_state.direction = -1;
+			player->v = &left_player_vect;
+		} else if (abs(player->vx + game_state.direction) < MAX_VX)
+				player->vx += game_state.direction;
+	} else if (jse.stick1_x > JOYSTICK_SENSITIVITY) {
+		if (game_state.direction != 1) {
+			player->vx = player->vx / 2;
+			game_state.direction = 1;
+			player->v = &player_vect;
+		} else if (abs(player->vx + game_state.direction) < MAX_VX)
+				player->vx += game_state.direction;
+	} else {
+		;
+#if 0
+		if (player->vx > 0 && (timer % 5) == 0)
+			player->vx--;
+		else if (player->vx < 0 && (timer % 5) == 0)
+			player->vx++;
+#endif
+	}
+
+	/* Stick 1 vertical movement */
+	if (jse.stick1_y > JOYSTICK_SENSITIVITY) {
+		if (player->vy < MAX_VY)
+			// player->vy = MAX_VY * jse.stick2_y / 32767;
+			player->vy += 2;
+			//player->vy += 4;
+	} else if (jse.stick1_y < -JOYSTICK_SENSITIVITY) {
+		if (player->vy > -MAX_VY)
+			// player->vy = MAX_VY * jse.stick2_y / 32767;
+			player->vy -= 4;
+			//player->vy -= 4;
+	} else {
+		if (player->vy > 0)
+			player->vy--;
+		else if (player->vy < 0)
+			player->vy++;
+	}
+
+	/* Buttons... */
+	if (jse.button[5] == 1 || jse.button[2] == 1 || jse.button[1] == 1) {
+		drop_bomb();
+	} 
+
+	if (jse.button[7] == 1 || jse.button[6] == 1 || jse.button[3] == 1 || jse.button[4] == 1) {
+		player_fire_laser();
+	} 
+
+	if (jse.button[0] == 1) {
+		drop_chaff();
+	}
 }
 
 static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
@@ -6901,6 +6987,10 @@ int main(int argc, char *argv[])
 	if (argc > 1 && strcmp(argv[1],"--bw") == 0)
 		no_colors_any_more = 1;
 
+	jsfd = open_joystick();
+	if (jsfd < 0) {
+		printf("No joystick...\n");
+	};
 #ifdef WITHAUDIOSUPPORT
 	if (initialize_portaudio() != paNoError)
 		printf("Guess sound's not working...\n");
@@ -7032,6 +7122,7 @@ int main(int argc, char *argv[])
     gtk_main ();
     stop_portaudio();
     free_debris_forms();
+	close_joystick();
     
     return 0;
 }
