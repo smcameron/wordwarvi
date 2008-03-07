@@ -135,10 +135,10 @@ int add_sound(int which_sound, int which_slot);
 #define MAXBUILDING_WIDTH 9
 #define NFUELTANKS 20
 #define FUELTANK_CAPACITY 30
-#define REFUEL_RATE 3 /* lower numbers = faster */
+#define REFUEL_RATE 1 /* lower numbers = faster */
 #define REFILL_RATE (FRAME_RATE_HZ * 3) /* lower numbers == faster */
 #define NJAMMERS 1
-#define NCRON 5 
+#define NCRON 15 
 #define NSHIPS 1
 #define NGDBS 3 
 #define NOCTOPI 0 
@@ -6373,24 +6373,26 @@ void deal_with_joystick()
 {
 	static struct wwvi_js_event jse = { 0 };
 	int rc;
+
+	if (game_state.health <= 0 || credits <= 0)
+		return;
+
 #define JOYSTICK_SENSITIVITY 5000
 
 	memset(&jse.button[0], 0, sizeof(jse.button[0]*10));
 	rc = get_joystick_status(&jse);
 	if (rc != 0)
 		return;
-	if (game_state.health <= 0 || credits <= 0)
-		return;
 
 	/* Stick 1 horizontal movement */	
-	if (jse.stick1_x < -JOYSTICK_SENSITIVITY) {
+	if (jse.stick2_x < -JOYSTICK_SENSITIVITY) {
 		if (game_state.direction != -1) {
 			player->vx = player->vx / 2;
 			game_state.direction = -1;
 			player->v = &left_player_vect;
 		} else if (abs(player->vx + game_state.direction) < MAX_VX)
 				player->vx += game_state.direction;
-	} else if (jse.stick1_x > JOYSTICK_SENSITIVITY) {
+	} else if (jse.stick2_x > JOYSTICK_SENSITIVITY) {
 		if (game_state.direction != 1) {
 			player->vx = player->vx / 2;
 			game_state.direction = 1;
