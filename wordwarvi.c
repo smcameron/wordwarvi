@@ -2400,9 +2400,12 @@ void cron_move(struct game_obj_t *o)
 				o->tsd.cron.beam_speed = 0; /* turn off beam */
 		}
 	}
+	/* don't let the beam get too far to the left or right of the cron job. */
 	if (((o->tsd.cron.beam_speed < 0 && o->tsd.cron.beam_pos < -300)) || 
 		((o->tsd.cron.beam_speed > 0 && o->tsd.cron.beam_pos > 300)))
 		o->tsd.cron.beam_speed = -o->tsd.cron.beam_speed;
+
+	/* move the beam. */
 	o->tsd.cron.beam_pos += o->tsd.cron.beam_speed;
 		
 	// explode(o->x - dvx + randomn(4)-2, o->y - dvy + randomn(4)-2, -dvx, -dvy, 4, 8, 9);
@@ -2448,6 +2451,8 @@ void gdb_move(struct game_obj_t *o)
 	
 		dvx = 0; /* make compiler happy */
 		dvy = 0; /* make compiler happy */ 	
+
+		/* compute a desired velocity which will move towards target coords */
 		tx = o->tsd.gdb.tx;
 		ty = o->tsd.gdb.ty;
 		if (o->x < tx && tx - o->x > GDB_DX_THRESHOLD)
@@ -2467,15 +2472,19 @@ void gdb_move(struct game_obj_t *o)
 		else if (o->y > ty)
 			dvy = 0;
 
+		/* If we aren't close to the destination, every once in awhile, */
+		/* change the distination a bit.  This makes it a little less predictable */
 		if (abs(player->x - tx) > GDB_DX_THRESHOLD ||
 			abs(player->y - ty) > GDB_DY_THRESHOLD || randomn(100) < 3) {
 			o->tsd.gdb.tx = player->x + randomn(300)-150;
 			o->tsd.gdb.ty = player->y + randomn(300)-150;
 		}
 
+		/* avoid the ground. */
 		if (o->y > gy - 100 && dvy > -3)
 			dvy = -10;	
 
+		/* adjust velocity towards desired velocity. */
 		if (o->vx < dvx)
 			o->vx++;
 		else if (o->vx > dvx)
@@ -2485,12 +2494,12 @@ void gdb_move(struct game_obj_t *o)
 		else if (o->vy > dvy)
 			o->vy -= 2;
 
-		o->x += o->vx;
+		o->x += o->vx; /* move... */
 		o->y += o->vy;
 
 		o->vy++; /* gravity */
 
-		
+		/* shoot out some exhaust. */	
 		explode(o->x - dvx + randomn(4)-2, o->y - dvy + randomn(4)-2, -dvx, -dvy, 4, 8, 9);
 	}
 
@@ -2503,6 +2512,7 @@ void gdb_move(struct game_obj_t *o)
 			add_harpoon(o->x+10, o->y, 0, 0, 300, MAGENTA, player, o);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 			if (!o->tsd.gdb.awake) {
+				/* if we weren't awake when we fired the missile, we are now. */
 				o->tsd.gdb.awake = 1;
 				o->tsd.gdb.tx = player->x + randomn(200)-100;
 				o->tsd.gdb.ty = player->y + randomn(200)-100;
@@ -2644,29 +2654,31 @@ void player_fire_laser()
 	int y;
 
 	p = &game_state.go[0];
+
+	/* Fire laser... cmd muliplier times. */
 	y = p->y - ((game_state.cmd_multiplier-1)/2) * 10;
 	for (j=0;j<game_state.cmd_multiplier;j++) {
-	i = find_free_obj();
-	o = &game_state.go[i];
+		i = find_free_obj();
+		o = &game_state.go[i];
 
-	if (p != player) {
-		printf("p != player!\n");
-	} 
+		if (p != player) {
+			printf("p != player!\n");
+		} 
 
-	o->last_xi = -1;
-	o->x = p->x+(30 * game_state.direction);
-	o->y = y;
-	y += 10;
-	o->vx = p->vx + LASER_SPEED * game_state.direction;
-	o->vy = 0;
-	o->v = &right_laser_vect;
-	o->draw = NULL;
-	o->move = laser_move;
-	o->destroy = generic_destroy_func;
-	o->otype = OBJ_TYPE_LASER;
-	o->color = GREEN;
-	o->alive = 20;
-	o->target = NULL;
+		o->last_xi = -1;
+		o->x = p->x+(30 * game_state.direction);
+		o->y = y;
+		y += 10;
+		o->vx = p->vx + LASER_SPEED * game_state.direction;
+		o->vy = 0;
+		o->v = &right_laser_vect;
+		o->draw = NULL;
+		o->move = laser_move;
+		o->destroy = generic_destroy_func;
+		o->otype = OBJ_TYPE_LASER;
+		o->color = GREEN;
+		o->alive = 20;
+		o->target = NULL;
 	}
 	game_state.cmd_multiplier = 1;
 	add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
@@ -2676,9 +2688,11 @@ int interpolate(int x, int x1, int y1, int x2, int y2)
 {
 	/* return corresponding y on line x1,y1,x2,y2 for value x */
 	/*
-		(y2 -y1)/(x2 - x1) = (y - y1) / (x - x1)
-		(x -x1) * (y2 -y1)/(x2 -x1) = y - y1
-		y = (x - x1) * (y2 - y1) / (x2 -x1) + y1;
+		(y2 -y1)/(x2 - x1) = (y - y1) / (x - x1)     by similar triangles.
+		(x -x1) * (y2 -y1)/(x2 -x1) = y - y1	     a little algebra...
+		y = (x - x1) * (y2 - y1) / (x2 -x1) + y1;    I think there's one more step
+	                                                     which would optimize this a bit more.
+							     but I forget how it goes. 
 	*/
 	if (x2 == x1)
 		return y1;
@@ -2689,15 +2703,18 @@ int interpolate(int x, int x1, int y1, int x2, int y2)
 #define GROUND_OOPS 64000
 int ground_level(int x, int *xi)
 {
-	/* Find the level of the ground at position x */
+
+/* Find the level (y value) of the ground at position x, 
+ * return index into terrain array in *xi.  */
 	int deepest, i;
 
 	*xi = -1;
-	/* Detect smashing into the ground */
 	deepest = GROUND_OOPS;
+
+	/* find the terrain segment spanning x. */
 	for (i=0;i<TERRAIN_LENGTH-1;i++) {
 		if (x >= terrain.x[i] && x < terrain.x[i+1]) {
-			*xi = i;
+			*xi = i; /* tell caller the index, and find the exact y value. */
 			deepest = interpolate(x, terrain.x[i], terrain.y[i],
 					terrain.x[i+1], terrain.y[i+1]);
 			break;
@@ -2708,17 +2725,25 @@ int ground_level(int x, int *xi)
 
 int find_ground_level(struct game_obj_t *o)
 {
+
+	/* optimized way to find the ground level (y value) at an object's */
+	/* x position.  Each object tracks the terrain segment it was last at. */
+	/* This means, the linear search of the terrain array is mostly eliminated */
+
 	int xi1, xi2, i;
-	xi1 = o->last_xi;
+	xi1 = o->last_xi; /* try the terrain segment we used last time. */
 	xi2 = xi1 + 1;
 
-	if (xi1 < 0 || xi2 >= TERRAIN_LENGTH)
-		return ground_level(o->x, &o->last_xi);
+	if (xi1 < 0 || xi2 >= TERRAIN_LENGTH) /* Do we have a last one? No? */
+		return ground_level(o->x, &o->last_xi); /* do it the hard way. */
 
+	/* Is the last terrain segment the correct one? */
 	if (terrain.x[xi1] <= o->x && terrain.x[xi2] >= o->x)
-		return interpolate(o->x, terrain.x[xi1], terrain.y[xi1],
+		return interpolate(o->x, terrain.x[xi1], terrain.y[xi1],  /* do it the easy way. */
 				terrain.x[xi2], terrain.y[xi2]);
 
+	/* The last one wasn't correct.  Have to search. */
+	/* The correct one is to the left.  Search left. */
 	if (terrain.x[xi1] > o->x) {
 		for (i=xi1;i>=0;i--) {
 			if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
@@ -2727,8 +2752,8 @@ int find_ground_level(struct game_obj_t *o)
 						terrain.x[i+1], terrain.y[i+1]);
 			}
 		}
-	} else if (terrain.x[xi2] < o->x) {
-		for (i=xi1;i<=TERRAIN_LENGTH-10;i++) {
+	} else if (terrain.x[xi2] < o->x) { /* Correct one is to the right. */
+		for (i=xi1;i<=TERRAIN_LENGTH-10;i++) { /* search to the right. */
 			if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
 				o->last_xi = i;
 				return interpolate(o->x, terrain.x[i], terrain.y[i],
@@ -2736,6 +2761,9 @@ int find_ground_level(struct game_obj_t *o)
 			}
 		}
 	}
+
+	/* What?  there *is* no correct answer.  Object must have fallen off */
+	/* the edge of the planet. (it happens sometimes -- though that is a bug. ) */
 	o->last_xi = GROUND_OOPS;
 	return GROUND_OOPS;
 	
@@ -2743,12 +2771,16 @@ int find_ground_level(struct game_obj_t *o)
 
 void generic_destroy_func(struct game_obj_t *o)
 {
+	/* so far, nothing needs to be done in this. */
 	return;
 }
 
 void octopus_destroy(struct game_obj_t *o)
 {
 	int i;
+
+	/* when an octopus is destroyed, his tentacles aren't.  They fall off */
+	/* and proceed on their own. */
 	for (i=0;i<8;i++) {
 		struct game_obj_t *tentacle;
 		tentacle = o->tsd.octopus.tentacle[i];
@@ -2765,6 +2797,7 @@ void octopus_destroy(struct game_obj_t *o)
 
 void cron_destroy(struct game_obj_t *o)
 {
+	/* Drop any human the cron job is carrying. */
 	if (o->tsd.cron.myhuman != NULL && 
 		o->tsd.cron.myhuman->tsd.human.picked_up &&
 		o->tsd.cron.myhuman->tsd.human.abductor == o) {
@@ -2773,7 +2806,7 @@ void cron_destroy(struct game_obj_t *o)
 		o->tsd.cron.myhuman->tsd.human.on_ground = 0;
 		/* printf("Human released, alive=%d, x=%d, y=%d.\n", o->tsd.cron.myhuman->x, o->tsd.cron.myhuman->y,
 			o->tsd.cron.myhuman->alive); */
-		o->tsd.cron.myhuman->vx = o->vx;
+		o->tsd.cron.myhuman->vx = o->vx; /* <-- this doesn't seem to be working... FIXME */
 		o->tsd.cron.myhuman = NULL;
 		add_sound(SCREAM_SOUND, ANY_SLOT);
 	}
@@ -2796,8 +2829,9 @@ void bomb_move(struct game_obj_t *o)
 		return;
 	o->x += o->vx;
 	o->y += o->vy;
-	o->vy++;
+	o->vy++; /* gravity */
 
+	/* Scan the target list to see if we've hit anything. */
 	for (t=target_head;t != NULL;) {
 		if (!t->o->alive) {
 			t=t->next;
@@ -2816,9 +2850,10 @@ void bomb_move(struct game_obj_t *o)
 			case OBJ_TYPE_GUN:
 			/* case OBJ_TYPE_BOMB:  no, bomb can't bomb himself... */
 			case OBJ_TYPE_SAM_STATION:  {
+				/* find distance squared... don't take square root. */
 				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
 					(o->y - t->o->y)*(o->y - t->o->y);
-				if (dist2 < LASER_PROXIMITY) { /* a hit */
+				if (dist2 < LASER_PROXIMITY) { /* a hit (LASER_PROXIMITY is already squared.) */
 					if (t->o->otype == OBJ_TYPE_ROCKET) {
 						game_state.score += ROCKET_SCORE;
 						add_score_floater(t->o->x, t->o->y, ROCKET_SCORE);
@@ -2849,6 +2884,8 @@ void bomb_move(struct game_obj_t *o)
 					kill_object(o);
 					// o->alive = 0;
 					o->destroy(o);
+
+					/* I think this stuff should be moved into the above similar ifs... */
 					if (t->o->otype == OBJ_TYPE_SAM_STATION)
 						game_state.sams_killed++;
 					else if (t->o->otype == OBJ_TYPE_ROCKET)
@@ -2869,7 +2906,8 @@ void bomb_move(struct game_obj_t *o)
 			default:
 				break;
 		}
-		if (!removed)
+		/* Careful.  if we removed a target, then the current one *is* the "next" one. */
+		if (!removed)  
 			t=t->next;
 	}
 
@@ -2908,6 +2946,7 @@ void bomb_move(struct game_obj_t *o)
 					dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
 						(o->y - t->o->y)*(o->y - t->o->y);
 					if (dist2 < BOMB_PROXIMITY) { /* a hit */
+						/* FIXME -- need to adjust kill counts. */
 						if (t->o->otype == OBJ_TYPE_ROCKET) {
 							game_state.score += ROCKET_SCORE;
 							add_score_floater(t->o->x, t->o->y, ROCKET_SCORE);
@@ -2940,8 +2979,9 @@ void bomb_move(struct game_obj_t *o)
 				}
 				break;
 
+				/* this is where pieces of bridges hit by bombs get set in motion. */
 				case OBJ_TYPE_BRIDGE:
-				case OBJ_TYPE_DEBRIS:
+				case OBJ_TYPE_DEBRIS: /* <--- this doesn't seem to work.  FIXME */
 					if (abs(o->x - t->o->x) < BOMB_X_PROXIMITY) { /* a hit */
 						/* "+=" instead of "=" in case multiple bombs */
 						if (t->o->move == no_move) /* only get the points once. */
@@ -2955,16 +2995,23 @@ void bomb_move(struct game_obj_t *o)
 				default:
 					break;
 			}
+			/* careful, if target removed, next == current. */
 			if (!removed)
 				t = t->next;
 		}
 	}
+	/* if bomb exploded, it's dead and gone. */
 	if (!o->alive) {
 		remove_target(o->target);
 		o->target = NULL;
+		/* FIXME.  Don't we need to kill_object() here? */
 	}
 }
 
+/* Consider removing the entire concept of chaff from the game. */
+/* I think it may harm game play fun, by confusing the missiles */
+/* too easily.  At the very least, fix the missiles so they */
+/* aren't *permanently* confused by the chaff. */
 void chaff_move(struct game_obj_t *o)
 {
 	int deepest;
@@ -2973,17 +3020,17 @@ void chaff_move(struct game_obj_t *o)
 		return;
 	o->x += o->vx;
 	o->y += o->vy;
-	o->vy++;
+	o->vy++; /* gravity */
 	age_object(o);
 
+	/* air resistance reduces horizontal velocity with time. */
 	if (o->vx > 0)
 		o->vx--;
 	else if (o->vx < 0);
 		o->vx++;
 
-	explode(o->x, o->y, 0, 0, 10, 7, 19);
-	/* Detect smashing into the ground */
-	deepest = find_ground_level(o);
+	explode(o->x, o->y, 0, 0, 10, 7, 19);	/* throw some sparks.*/
+	deepest = find_ground_level(o); 	/* Detect smashing into the ground */
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		kill_object(o);
 		o->destroy(o);
@@ -3000,6 +3047,7 @@ void drop_chaff()
 	struct game_obj_t *o;
 	struct target_t *t;
 
+	/* Throw three pieces of chaff each time... */
 	for (j=0;j<3;j++) {
 		i[j] = find_free_obj();
 		if (i[j] < 0)
@@ -3008,9 +3056,9 @@ void drop_chaff()
 		o->last_xi = -1;
 		o->x = player->x;
 		o->y = player->y;
-		o->vx = player->vx + ((j-1) * 7);
+		o->vx = player->vx + ((j-1) * 7); /* -7, 0, 7 are x velocities */
 		o->vy = player->vy + 7;
-		o->v = &spark_vect;
+		o->v = &spark_vect; /* used? */
 		o->move = chaff_move;
 		o->otype = OBJ_TYPE_CHAFF;
 		o->target = add_target(o);
@@ -3021,14 +3069,16 @@ void drop_chaff()
 	for (t=target_head;t != NULL;t=t->next) {
 		if (t->o->otype != OBJ_TYPE_MISSILE)
 			continue;
+		/* make the missile chase the chaff instead of the player -- sometimes. */
 		if (t->o->bullseye == player) {
 			j = randomn(3);
 			if (j >= 0 && j <= 3 && i[j] > 0 && randomn(100) < 50)
 				t->o->bullseye = &game_state.go[i[j]];
 		}
 	}
-	/* Bug: when (bullseye->alive == 0) some new object will allocate there
-	   and become the new target... probably a spark. */
+	/* FIXME Bug: when (bullseye->alive == 0) some new object will allocate there
+	   and become the new target... probably a spark.  The missiles will not 
+	   re-aquire the proper target. */
 }
 
 void drop_bomb()
@@ -3036,6 +3086,7 @@ void drop_bomb()
 	int i, j;
 	struct game_obj_t *o;
 
+	/* Player drops cmd_multiplier bombs.  */
 	for (j=0;j<game_state.cmd_multiplier;j++) {
 		if (game_state.nbombs == 0)
 			return;
@@ -3070,9 +3121,11 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 	int i, countdir;
 	double scale, scalefactor;
 
-	if (player->tsd.epd.count == 0)
+	if (player->tsd.epd.count == 0) /* normal case, just draw the player normally. */
 		draw_generic(o, w);
 	else {
+		/* this is the insanity that makes the player "zoom" into the game */
+		/* at the start of levels. */
 		if (player->tsd.epd.count > 0) {
 			scale = 1.07;
 			scalefactor = 1.07;
@@ -3083,6 +3136,11 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 			countdir = -1;
 		}
 
+		/* Each frame, we draw a bunch of images of the player, each scaled */
+		/* to a different size.  With each frame, the number of images reduces by 1.  */
+		/* o->tsd.epd.count2 is this number of images. */
+		/* o->tsd.epd.count is the number of frame iterations it takes to reduce */
+		/* things down to normal. It's a bit funky, but it works. */
 		for (i = 0; i<o->tsd.epd.count2; i++) {
 			int j;
 			int x1, y1, x2, y2;
@@ -3115,8 +3173,8 @@ void move_player(struct game_obj_t *o)
 {
 	int i;
 	int deepest;
-	static int was_healthy = 1;
-	o->x += o->vx;
+	static int was_healthy = 1; /* notice this is static. */
+	o->x += o->vx; /* move him... */
 	o->y += o->vy;
 
 	if (game_state.health > 0) {
@@ -3125,34 +3183,36 @@ void move_player(struct game_obj_t *o)
 		if (credits > 0 && o->vy < 0)
 			o->vy++;
 		was_healthy = 1;
-	} else if (was_healthy) {
-		was_healthy = 0;
-		player->move = bridge_move;
-		explode(player->x, player->y, player->vx, player->vy, 90, 350, 30);
-		player->draw = no_draw;
-		spray_debris(o->x, o->y, o->vx, o->vy, 70, o);
-		add_sound(LARGE_EXPLOSION_SOUND, ANY_SLOT);
-		printf("decrementing lives %d.\n", game_state.lives);
-		game_state.lives--;
-		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d", 
+	} else if (was_healthy) { /* has player _just_ died, just this frame? */
+		was_healthy = 0;  /* remember he's died, for next time. */
+		player->move = bridge_move; /* bridge move makes the player fall. */
+		explode(player->x, player->y, player->vx, player->vy, 90, 350, 30); /* bunch of sparks. */
+		player->draw = no_draw;				/* Make player invisible. */
+		spray_debris(o->x, o->y, o->vx, o->vy, 70, o);	/* Throw hunks of metal around, */
+		add_sound(LARGE_EXPLOSION_SOUND, ANY_SLOT);	/* and make a lot of noise */
+		// printf("decrementing lives %d.\n", game_state.lives);
+		game_state.lives--;				/* lost a life. */
+		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d",  /* adjust onscreen life count. */
 			credits, game_state.lives);
-		if (game_state.lives <= 0 || credits <= 0) {
+		if (game_state.lives <= 0 || credits <= 0) { /* last life? */
 			if (credits > 0) 
-				credits--;
+				credits--;			/* reduce credits */
 			if (credits <= 0) {
-				timer_event = GAME_ENDED_EVENT;
+				timer_event = GAME_ENDED_EVENT; /* game is over. */
 				next_timer = timer + 30;
-			} else {
-				timer_event = READY_EVENT;
-				game_state.lives = 3;
-				next_timer = timer + 60;
+			} else {				/* game not over... */
+				timer_event = READY_EVENT; 	/* back to beginning of level. */
+				game_state.lives = 3;		/* 3 more lives, on next credit. */
+				next_timer = timer + 60;	/* give them a little breather. */
 			}
-		} else {
-			next_timer = timer + 30;
-			timer_event = READY_EVENT;
+		} else {					/* same game, no new credit, no new lives */
+			next_timer = timer + 30;		/* 30 sec breather */
+			timer_event = READY_EVENT;		/* back to beginning of level. */
 		}
 	} 
 	deepest = find_ground_level(player);
+
+	/* if the player flies too slow, gravity starts pulling him down. */
 	if (abs(o->vx) < 5 || game_state.health <= 0) {
 		if (deepest != GROUND_OOPS) {
 			if (o->y < deepest) 
@@ -3169,7 +3229,17 @@ void move_player(struct game_obj_t *o)
 			explode(o->x-(13 * game_state.direction), o->y, -(7*game_state.direction), 0, 7, 10, 9);
 	} else
 		if (was_healthy)
+			/* make some exhaust */
 			explode(o->x-(13 * game_state.direction), o->y, -((abs(o->vx)+7)*game_state.direction), 0, 10, 10, 9);
+
+
+	/* This stuff is to make the viewport track the player */
+	/* if he's facing right, then the viewport puts him at 1/3 */
+	/* the way across the screen, if left, then 2/3rds across the */
+	/* screen.  If he switches direction, the transition is not abrupt */
+	/* instead the velocity of the viewport is adjusted relative to the */
+	/* player's velocity so that the viewport and player kind of slide */
+	/* relative to one another to get the viewport in the right place. */
 	if (game_state.direction == 1) {
 		if (player->x - game_state.x > SCREEN_WIDTH/3) {
 			/* going off screen to the right... rein back in */
@@ -3199,6 +3269,7 @@ void move_player(struct game_obj_t *o)
 	/* Detect smashing into the ground */
 	deepest = find_ground_level(player);
 	if (deepest != GROUND_OOPS && player->y >= deepest) {
+		/* keep player from sinking through the ground. */
 		player->y = deepest;
 		if (abs(player->vy) > 7) 
 			player->vy = -0.65 * abs(player->vy);
@@ -3207,6 +3278,8 @@ void move_player(struct game_obj_t *o)
 		if (player->vy < -15) {
 			player->vy = -15;
 		}
+
+		/* if player smacks the ground too hard, sparks, noise, damage ensue. */
 		if (abs(player->vx) > 5 || abs(player->vy) > 5) {
 			add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
 			add_sound(OWMYSPINE_SOUND, ANY_SLOT);
@@ -3217,7 +3290,7 @@ void move_player(struct game_obj_t *o)
 		}
 	}
 
-	/* Detect smashing into sides and roof */
+	/* Detect smashing into sides and roof, similar to above ground detecting code */
 	if (player->y < KERNEL_Y_BOUNDARY) {
 		player->y = KERNEL_Y_BOUNDARY + 10;
 		if (abs(player->vy) > 7) 
@@ -3264,6 +3337,9 @@ void move_player(struct game_obj_t *o)
 	/* Autopilot, "attract mode", if credits <= 0 */
 	if (credits <= 0) {
 		for (i=0;i<TERRAIN_LENGTH;i++) {
+			/* adjust player's vy to make him move towards a desired altitude. */
+			/* which is MIN_ALT above the section of ground 100 units ahead of */
+			/* the player */
 			if (terrain.x[i] - player->x > 100 && (terrain.x[i] - player->x) < 300) {
 				if (terrain.y[i] - player->y > MAX_ALT) {
 					player->vy += 1;
@@ -3278,12 +3354,13 @@ void move_player(struct game_obj_t *o)
 				game_state.vy = player->vy;
 				break;
 			}
+			/* keep moving */
 			if (player->vx < PLAYER_SPEED)
 				player->vx++; 
 		}
-		if (randomn(40) < 4)
+		if (randomn(40) < 4)	/* fire laser randomly */
 			player_fire_laser();
-		if (randomn(100) < 2)
+		if (randomn(100) < 2)	/* drop bombs randomly */
 			drop_bomb();
 	}
 	/* End attract mode */
@@ -3291,6 +3368,14 @@ void move_player(struct game_obj_t *o)
 
 void bounce(int *vx, int *vy, int slope, double bouncefactor)
 {
+
+	/* When flaming hunks of debris from an explosion hit the ground, they bounce. */
+
+	/* thought about doing the whole "find the normal, calculate a reflected angle */
+	/* thing, but then I figured, what's bouncing is flaming hunks of metal wreckage */
+	/* a simpler, faster algorithm with a bit of randomness thrown in will work just */
+	/* as well.  Might have a bit too much bounciness in this algorithm, may want to */
+	/* damp it just a bit. */
 
 	if (slope < 25) {
 		*vx = (*vx * bouncefactor) + (randomn(7));  /* bounce a bit to the right */
@@ -3310,11 +3395,12 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 {
 	int i;
 	int deepest;
-	int slope;
+	int slope = 0;
+
 	o->x += o->vx;
 	o->y += o->vy;
-	o->vy++;
-	if (o->alive >1)
+	o->vy++;		/* gravity */
+	if (o->alive >1)	/* don't age all the way down to one, stop at 2. */
 		age_object(o);
 
 	/* Detect smashing into the ground */
@@ -3325,6 +3411,8 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 					terrain.x[i+1], terrain.y[i+1]);
 			if (deepest == 64000)
 				return;
+
+			/* calculate the slope of the ground at point of impact. */
 			slope = (100*(terrain.y[i+1] - terrain.y[i])) / 
 					(terrain.x[i+1] - terrain.x[i]);
 			break;
@@ -3332,22 +3420,29 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 	}
 
 	if (o->otype == OBJ_TYPE_DEBRIS) {
+		/* debris doesn't last forever, and disappears when age == 2. */
 		if  (o->alive == 2) {
 			kill_object(o);	
 			remove_target(o->target);
 		}
+		/* flying debris will throw sparks for 4 seconds or until it hits the ground. */
 		if (o->alive > FRAME_RATE_HZ*4 || o->y < deepest-2) 
 			explode(o->x, o->y, 0, 0, 16, 3, 10);
 	}		
 
+	/* hit the ground? */
 	if (o->y >= deepest) {
+		/* if it's falling pretty fast, then bounce, taking slope into account... */
 		if (o->vy > 4) {
 			o->y = deepest-2;
 			bounce(&o->vx, &o->vy, slope, 0.4);
 		} else {
+			/* hit the ground, no bounce, stop. */
 			o->y = deepest-2;
 			o->vx = 0;
 			o->vy = 0;
+
+			/* But slide downhill if it's steep... */
 			if (slope > 25 && o->alive > 1) {
 				o->vx = 3;
 				o->vy += 1;
@@ -3357,6 +3452,7 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 			}
 		}
 		if (o->alive == 1) {
+			/* FIXME, does this ever execute?  I think maybe it doesn't. */
 			o->move = NULL;
 			o->radar_image = 0;
 		}
@@ -6541,8 +6637,11 @@ void advance_level()
 
 void deal_with_joystick()
 {
-	static struct wwvi_js_event jse = { 0 };
 	int rc;
+	/* why can I get away with this kind of initializer */
+	/* in the linux kernel, but not here?  Well, not without the */
+	/* compiler moaning, anyway. */
+	static struct wwvi_js_event jse = { 0 }; 
 
 	if (game_state.health <= 0 || credits <= 0)
 		return;
