@@ -3035,9 +3035,15 @@ void bomb_move(struct game_obj_t *o)
 
 void volcano_move(struct game_obj_t *o)
 {
-	if (timer % (FRAME_RATE_HZ*3) == 0) {
-		if (randomn(100) < 60) 
-			spray_debris(o->x, o->y, 0, -40, 40, o);
+	if (timer % (FRAME_RATE_HZ*2) == 0) {
+		if (randomn(100) < 25)  {
+			spray_debris(o->x, o->y, 0, -30, 30, o);
+			spray_debris(o->x, o->y, 0, -20, 20, o);
+			spray_debris(o->x, o->y, 0, -10, 10, o);
+		} else {
+			if (randomn(100) < 50) 
+				spray_debris(o->x, o->y, 0, -10, 10, o);
+		}
 	}
 }
 
