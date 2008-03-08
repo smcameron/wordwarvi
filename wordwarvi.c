@@ -1545,6 +1545,9 @@ struct game_state_t {
 #define     RADAR_RUNNING (0)
 #define     RADAR_FRITZED (-1)
 #define     RADAR_BOOTUP (5 * FRAME_RATE_HZ) /* How long it takes the radar to boot up. */
+	int nextbombtime;
+	int nextlasertime;
+	int nextchafftime;
 
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
 
@@ -2678,6 +2681,10 @@ void player_fire_laser()
 	int j;
 	int y;
 
+	if (timer < game_state.nextlasertime)
+		return;
+	game_state.nextlasertime = timer + (FRAME_RATE_HZ >> 3);
+
 	p = &game_state.go[0];
 
 	/* Fire laser... cmd muliplier times. */
@@ -3086,6 +3093,10 @@ void drop_chaff()
 	struct game_obj_t *o;
 	struct target_t *t;
 
+	if (game_state.nextchafftime > timer)
+		return;
+	game_state.nextchafftime = timer + (FRAME_RATE_HZ);
+
 	/* Throw three pieces of chaff each time... */
 	for (j=0;j<3;j++) {
 		i[j] = find_free_obj();
@@ -3124,6 +3135,10 @@ void drop_bomb()
 {
 	int i, j;
 	struct game_obj_t *o;
+
+	if (game_state.nextbombtime > timer)
+		return;
+	game_state.nextbombtime = timer + (FRAME_RATE_HZ >> 2);
 
 	/* Player drops cmd_multiplier bombs.  */
 	for (j=0;j<game_state.cmd_multiplier;j++) {
@@ -6643,6 +6658,9 @@ void initialize_game_state_new_level()
 	game_state.rockets_killed = 0;
 	game_state.cmd_multiplier = 1;
 	game_state.radar_state = RADAR_BOOTUP;
+	game_state.nextlasertime = timer;
+	game_state.nextbombtime = timer;
+	game_state.nextchafftime = timer;
 }
 
 void start_level()
@@ -6792,6 +6810,12 @@ void advance_level()
 	/* start_level(); */
 }
 
+int yjstable[] = { 1,1,1,1,1,1,1,1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,  3, 3, 3, 3, 3, 3,
+	4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10,
+	11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 
+	19, 20, 21, 22, 23, 24, 25 };
+int nyjstable = (sizeof(yjstable)/sizeof(yjstable[0]));
+
 void deal_with_joystick()
 {
 	int rc;
@@ -6799,11 +6823,14 @@ void deal_with_joystick()
 	/* in the linux kernel, but not here?  Well, not without the */
 	/* compiler moaning, anyway. */
 	static struct wwvi_js_event jse = { 0 }; 
+	int index = 0;
+	int newvy, diff;
 
 	if (game_state.health <= 0 || credits <= 0)
 		return;
 
 #define JOYSTICK_SENSITIVITY 5000
+#define XJOYSTICK_THRESHOLD 30000
 
 	memset(&jse.button[0], 0, sizeof(jse.button[0]*10));
 	rc = get_joystick_status(&jse);
@@ -6811,14 +6838,14 @@ void deal_with_joystick()
 		return;
 
 	/* Stick 1 horizontal movement */	
-	if (jse.stick2_x < -JOYSTICK_SENSITIVITY) {
+	if (jse.stick1_x < -XJOYSTICK_THRESHOLD) {
 		if (game_state.direction != -1) {
 			player->vx = player->vx / 2;
 			game_state.direction = -1;
 			player->v = &left_player_vect;
 		} else if (abs(player->vx + game_state.direction) < MAX_VX)
 				player->vx += game_state.direction;
-	} else if (jse.stick2_x > JOYSTICK_SENSITIVITY) {
+	} else if (jse.stick1_x > XJOYSTICK_THRESHOLD) {
 		if (game_state.direction != 1) {
 			player->vx = player->vx / 2;
 			game_state.direction = 1;
@@ -6838,13 +6865,37 @@ void deal_with_joystick()
 	/* Stick 1 vertical movement */
 	if (jse.stick1_y > JOYSTICK_SENSITIVITY) {
 		if (player->vy < MAX_VY)
-			// player->vy = MAX_VY * jse.stick2_y / 32767;
-			player->vy += 2;
+			index = nyjstable * jse.stick1_y / 32767;
+			if (index < 0)
+				index = 0;
+			else if (index > nyjstable-1)
+				index = nyjstable-1;
+			newvy = yjstable[index];
+			diff = newvy - player->vy;
+			if (abs(diff) > 4)
+				player->vy = player->vy + (diff >> 1);
+			else 
+				player->vy = player->vy + 2;
+			// player->vy = yjstable[index];	
+			// player->vy = MAX_VY * jse.stick1_y / 32767;
+			// player->vy += 2;
 			//player->vy += 4;
 	} else if (jse.stick1_y < -JOYSTICK_SENSITIVITY) {
 		if (player->vy > -MAX_VY)
-			// player->vy = MAX_VY * jse.stick2_y / 32767;
-			player->vy -= 4;
+			index = -nyjstable * jse.stick1_y / 32767;
+			if (index < 0)
+				index = 0;
+			else if (index > nyjstable-1)
+				index = nyjstable-1;
+			newvy = -yjstable[index];
+			diff = newvy - player->vy;
+			if (abs(diff) > 4)
+				player->vy = player->vy + (diff >> 1);
+			else 
+				player->vy = player->vy - 2;
+			// player->vy = -yjstable[index];	
+			// player->vy = MAX_VY * jse.stick1_y / 32767;
+			// player->vy -= 4;
 			//player->vy -= 4;
 	} else {
 		if (player->vy > 0)
