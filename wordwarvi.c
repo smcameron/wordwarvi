@@ -289,6 +289,7 @@ int planet_color[] = {
 #define OBJ_TYPE_PLAYER '1'
 #define OBJ_TYPE_DEBRIS 'D'
 #define OBJ_TYPE_JAMMER 'J'
+#define OBJ_TYPE_VOLCANO 'v'
 
 int current_level = 0;		/* current level of the game, starts at zero */
 struct level_parameters_t {
@@ -3014,6 +3015,14 @@ void bomb_move(struct game_obj_t *o)
 	}
 }
 
+void volcano_move(struct game_obj_t *o)
+{
+	if (timer % (FRAME_RATE_HZ*3) == 0) {
+		if (randomn(100) < 60) 
+			spray_debris(o->x, o->y, 0, -40, 40, o);
+	}
+}
+
 /* Consider removing the entire concept of chaff from the game. */
 /* I think it may harm game play fun, by confusing the missiles */
 /* too easily.  At the very least, fix the missiles so they */
@@ -3441,7 +3450,7 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 		/* if it's falling pretty fast, then bounce, taking slope into account... */
 		if (o->vy > 4) {
 			o->y = deepest-2;
-			bounce(&o->vx, &o->vy, slope, 0.4);
+			bounce(&o->vx, &o->vy, slope, 0.3);
 		} else {
 			/* hit the ground, no bounce, stop. */
 			o->y = deepest-2;
@@ -4980,6 +4989,7 @@ void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 	generate_sub_terrain(t, midxi, xi2);
 }
 
+static void add_volcano(struct terrain_t *t, int x, int y);
 void generate_terrain(struct terrain_t *t)
 {
 	int volcanox, volcanoi;
@@ -5022,6 +5032,8 @@ void generate_terrain(struct terrain_t *t)
 	generate_sub_terrain(t, vi3, vi4);
 	generate_sub_terrain(t, vi4, vi5);
 	generate_sub_terrain(t, vi5, t->npoints-1);
+
+	add_volcano(t, volcanox, t->y[vi3]);
 }
 
 static struct my_vect_obj *init_debris_vect(struct my_vect_obj **v, struct my_point_t **p)
@@ -5652,6 +5664,11 @@ static void add_cron(struct terrain_t *t)
 			o->radar_image = 1;
 		}
 	}
+}
+
+static void add_volcano(struct terrain_t *t, int x, int y)
+{
+	(void) add_generic_object(x, y, 0, 0, volcano_move, no_draw, RED, NULL, 0, OBJ_TYPE_VOLCANO, 1);
 }
 
 static void add_jammers(struct terrain_t *t)
