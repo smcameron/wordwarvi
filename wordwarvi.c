@@ -110,7 +110,7 @@ int add_sound(int which_sound, int which_slot);
 
 #define NFLAK 10			/* Number of flak guns (laser turrets) */
 #define NROCKETS 20 			/* Number of rockets sprinkled into the terrain */ 
-#define LAUNCH_DIST 500			/* How close player can get in x dimension before rocket launches */
+#define LAUNCH_DIST 1200			/* How close player can get in x dimension before rocket launches */
 #define MAX_ROCKET_SPEED -32		/* max vertical speed of rocket */
 #define SAM_LAUNCH_DIST 400		/* How close player can get in x deminsion before SAM might launch */
 #define GDB_LAUNCH_DIST 700		/* How close player can get in x deminsion before GDB might launch */
@@ -1746,18 +1746,35 @@ void move_rocket(struct game_obj_t *o)
 	if (!o->alive)
 		return;
 
+	/* Should probably make a rocket-station, which launches rockets */
+	/* instead of just having bare rockets sitting on the ground which */
+	/* launch once, blow up, then that's the end of them. */
+
 	/* see if rocket should launch... */
 	xdist = abs(o->x - player->x);
-	if (xdist < LAUNCH_DIST) {
-		/* yes, launch... */
+	if (xdist < LAUNCH_DIST && o->alive != 2 && randomn(100) < 20) {
 		ydist = o->y - player->y;
-		if ((xdist <= ydist && ydist > 0) || o->vy != 0) {
-			if (o->vy == 0) /* only add the sound once. */
+		if (((xdist<<1) <= ydist && ydist > 0) || o->vy != 0) {
+			if (o->vy == 0) { /* only add the sound once. */
 				add_sound(ROCKET_LAUNCH_SOUND, ANY_SLOT);
-			if (o->vy > MAX_ROCKET_SPEED)
-				o->vy--;
+				o->alive = 2; /* launched. */
+				o->vy = -6; /* give them a little boost. */
+			}
 		}
+	}
+	if (o->alive == 2) {
+		if (o->vy > MAX_ROCKET_SPEED - (o->number % 5))
+			o->vy--;
 
+		/* let the rockets veer slightly left or right. */
+		if (player->x < o->x && player->vx < 0)
+			o->vx = -2;
+		else if (player->x > o->x && player->vx > 0)
+			o->vx = 2;
+		else 
+			o->vx = 0;
+
+		ydist = o->y - player->y;
 		if ((ydist*ydist + xdist*xdist) < 400) { /* hit the player? */
 			add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 			explode(o->x, o->y, o->vx, 1, 70, 150, 20);
@@ -1767,6 +1784,7 @@ void move_rocket(struct game_obj_t *o)
 			return;
 		}
 	}
+
 
 	/* move the rocket... */
 	o->x += o->vx;
