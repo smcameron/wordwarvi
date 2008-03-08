@@ -256,6 +256,10 @@ GdkColor *sparkcolor;	/* a pointer into the huex[] array where the spark colors 
 #define MAGENTA 8
 #define DARKGREEN 9
 
+int planet_color[] = {
+	RED, GREEN, YELLOW, ORANGE, MAGENTA, CYAN
+};
+
 
 /* Object types, just arbitrary constants used to uniquely id object types */
 #define OBJ_TYPE_AIRSHIP 'a'
@@ -313,6 +317,7 @@ struct level_parameters_t {
 	/* how the terrain looks.  Starts out smooth, later levels more mountainous */
 	double large_scale_roughness;
 	double small_scale_roughness;
+	int ground_color;
 } level = {
 	/* initial values */
 	31415927, /* constant, so the games are all the same from play to play. */
@@ -333,6 +338,7 @@ struct level_parameters_t {
 	LASER_FIRE_CHANCE,
 	LARGE_SCALE_ROUGHNESS,
 	SMALL_SCALE_ROUGHNESS,
+	0,
 };
 
 /**** LETTERS and stuff *****/
@@ -6125,7 +6131,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		last_highx++;
 	}
 
-	gdk_gc_set_foreground(gc, &huex[RED]);
+	gdk_gc_set_foreground(gc, &huex[planet_color[level.ground_color]]);
 
 	for (i=last_lowx;i<last_highx;i++) {
 #if 0
@@ -6153,6 +6159,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		wwvi_draw_line(w->window, gc, terrain.x[i] - game_state.x, terrain.y[i]+(SCREEN_HEIGHT/2) - game_state.y,  
 					 terrain.x[i+1] - game_state.x, terrain.y[i+1]+(SCREEN_HEIGHT/2) - game_state.y);
 	}
+	gdk_gc_set_foreground(gc, &huex[RED]);
 
 	/* draw "system memory boundaries" (ha!) */
 	if (game_state.x > terrain.x[0] - SCREEN_WIDTH)
@@ -6705,6 +6712,7 @@ void advance_level()
 	level.laser_fire_chance += 3; /* this is bad. */
 	if (level.laser_fire_chance > 100)
 		level.laser_fire_chance = 100;
+	level.ground_color = (level.ground_color + 1) % (sizeof(planet_color) / sizeof(planet_color[0]));
 
 	initialize_game_state_new_level();
 	/* start_level(); */
