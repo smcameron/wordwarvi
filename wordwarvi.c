@@ -45,11 +45,11 @@
 #define TWOPI (M_PI * 2.0)
 #define NCLIPS (26)
 #define MAX_CONCURRENT_SOUNDS (16)
-#define CLIPLEN (12100) 
+
+/* define sound clip constants, and dedicated sound queue slots. */
 int add_sound(int which_sound, int which_slot);
 #define ANY_SLOT (-1)
 #define MUSIC_SLOT (0)
-
 #define PLAYER_LASER_SOUND 0
 #define BOMB_IMPACT_SOUND 1
 #define ROCKET_LAUNCH_SOUND 2
@@ -77,119 +77,141 @@ int add_sound(int which_sound, int which_slot);
 #define USETHESOURCE_SOUND 24
 #define OOF_SOUND 25
 
-
-#define NHUMANOIDS 4
-#define MAXHUMANS 10
-#define RADAR_HEIGHT 50
-#define RADAR_XMARGIN 10
-#define	RADAR_YMARGIN 10
-#define MAX_RADAR_NOISE 2000
-
 /* ...End of audio stuff */
 
+#define NHUMANOIDS 4 /* number of vi .swp files, initially */
+#define MAXHUMANS 10 /* maxiumum number possible of vi .swp files */
+#define RADAR_HEIGHT 50  /* height, in pixels, of radar screen */
+#define RADAR_XMARGIN 10 /* space to leave, in pixels left/right of radar screen to window edge. */
+#define	RADAR_YMARGIN 10 /* space to leave, in pixels from bottom edge of radar to bottom of window */
+#define MAX_RADAR_NOISE 2000 /* maximum number of noise pixels placed by radar jammers, increasing */
+			     /* this may adversely affect performance, as this number of x's are */
+			     /* drawn EVERY FRAME when in close proximity to jammer. */
 
-#define FRAME_RATE_HZ 30
-#define TERRAIN_LENGTH 1000
-#define SCREEN_WIDTH 800
-#define SCREEN_HEIGHT 600
-#define WORLDWIDTH (SCREEN_WIDTH * 40)
-#define KERNEL_Y_BOUNDARY (-1000)
+#define FRAME_RATE_HZ 30	/* target frame rate at which gtk callback fires */
+#define TERRAIN_LENGTH 1000	/* length, in number of line segments, of terrain */
+#define SCREEN_WIDTH 800        /* window width, in pixels */
+#define SCREEN_HEIGHT 600       /* window height, in pixels */
+#define WORLDWIDTH (SCREEN_WIDTH * 40)  /* width of world, 40 screens wide. */
+#define KERNEL_Y_BOUNDARY (-1000) /* basically, an arbitrary altitude limit on movement of player. */
 
-#define LARGE_SCALE_ROUGHNESS (0.04)
-#define SMALL_SCALE_ROUGHNESS (0.09)
-#define MAXOBJS 8500
+#define LARGE_SCALE_ROUGHNESS (0.04)   /* limits roughness, on large scale, of fractal terrain algorithm */
+#define SMALL_SCALE_ROUGHNESS (0.09)   /* limits roughtness, on small scale, of fractal terrain algorithm */
+#define MAXOBJS 8500		       /* arbitrary, maximum number of objects in game, ~4000 are commonly seen. */
+
+
+					/* object allocation algorithm uses a bit per object to indicate */
+					/* free/allocated... how many 32 bit blocks do we need?  NBITBLOCKS. */
 #define NBITBLOCKS ((MAXOBJS >> 5) + 1)  /* 5, 2^5 = 32, 32 bits per int. */
-#define NFLAK 10
-#define LASER_BOLT_DAMAGE 5 /* damage done by flak guns to player */
-#define PLAYER_LASER_DAMAGE 20
-#define NROCKETS 20 
-// #define NROCKETS 0
-#define LAUNCH_DIST 500
-#define MAX_ROCKET_SPEED -32
-#define SAM_LAUNCH_DIST 400
-#define GDB_LAUNCH_DIST 700
-#define SAM_LAUNCH_CHANCE 15 
-#define PLAYER_SPEED 8 
-#define MAX_VX 15
-#define MAX_VY 25
-#define LASER_FIRE_CHANCE 20
-#define LASERLEAD (11)
-#define LASER_SPEED 40
-#define LASER_PROXIMITY 300 /* square root of 300 */
-#define BOMB_PROXIMITY 10000 /* square root of 30000 */
-#define BOMB_X_PROXIMITY 100
-#define CRON_SHOT_CHANCE 40 
-#define CRON_SHOT_DIST_SQR (300*300) 
-#define CRON_DX_THRESHOLD 14 
-#define CRON_DY_THRESHOLD 14 
-#define CRON_MAX_VX 8 
+
+
+#define LASER_BOLT_DAMAGE 5 		/* damage done by flak guns to player */
+#define PLAYER_LASER_DAMAGE 20		/* damage done by player's laser (to blimps, clipper ships */
+
+#define NFLAK 10			/* Number of flak guns (laser turrets) */
+#define NROCKETS 20 			/* Number of rockets sprinkled into the terrain */ 
+#define LAUNCH_DIST 500			/* How close player can get in x dimension before rocket launches */
+#define MAX_ROCKET_SPEED -32		/* max vertical speed of rocket */
+#define SAM_LAUNCH_DIST 400		/* How close player can get in x deminsion before SAM might launch */
+#define GDB_LAUNCH_DIST 700		/* How close player can get in x deminsion before GDB might launch */
+#define SAM_LAUNCH_CHANCE 15 		/* chances out of 100 if in ranch, missile will be launched */
+#define PLAYER_SPEED 8 			/* max X player speed, in pixels per frame */
+#define MAX_VX 15			/* Hmm... another max X player speed?  a bug, I think. */
+#define MAX_VY 25			/* Max player y speed, pixels per frame. */
+#define LASER_FIRE_CHANCE 20		/* INITIAL chance/1000 that flak guns (laser turrets) will fire if in range */
+#define LASERLEAD (11)			/* How many pixels left/right to lead the player in aiming flak guns */	
+#define LASER_SPEED 40			/* Speed of player's laser beams, pixels/frame */
+#define LASER_PROXIMITY 300 /* square root of 300, how close laser has to be to be considered a "hit", squared */
+#define BOMB_PROXIMITY 10000 /* square root of 30000, how close bomb has to be to be considered a "hit", squared. */
+#define BOMB_X_PROXIMITY 100 /* X proximity to hit, for bombs which impact the ground. */
+
+#define CRON_SHOT_CHANCE 40  /* chance out of 100 that cron jobs take a shot if in range, and timer % 10 == 0 */
+#define CRON_SHOT_DIST_SQR (300*300)  /* 300 pixels dist for cron to consider player "in range" */
+#define CRON_DX_THRESHOLD 14  /* dist must be <= this many pixels for cron to consider himself to have */
+#define CRON_DY_THRESHOLD 14  /* reached his destination. */
+#define CRON_MAX_VX 8 	      /* max x and y velocities of cron jobs */
 #define CRON_MAX_VY 5 
-#define GDB_DX_THRESHOLD 250
-#define GDB_DY_THRESHOLD 250
-#define GDB_MAX_VX 13 
+
+#define GDB_DX_THRESHOLD 250  /* dist must be <= this many pixels for gdb to consider himself to have */
+#define GDB_DY_THRESHOLD 250  /* reached it's destination.  It's large, so they won't just sit on the */
+			      /* player's face. */
+#define GDB_MAX_VX 13 	      /* max x and y velocities of GDBs. */
 #define GDB_MAX_VY 13 
-#define LINE_BREAK (-999)
-#define COLOR_CHANGE (-1000) /* note, color change can ONLY follow LINE_BREAK */
-#define NBUILDINGS 15 
-#define NBRIDGES 2
-#define MAXBUILDING_WIDTH 9
-#define NFUELTANKS 20
-#define FUELTANK_CAPACITY 30
-#define REFUEL_RATE 1 /* lower numbers = faster */
-#define REFILL_RATE (FRAME_RATE_HZ * 3) /* lower numbers == faster */
-#define NJAMMERS 1
-#define NCRON 15 
-#define NSHIPS 1
-#define NGDBS 3 
-#define NOCTOPI 0 
-#define NTENTACLES 2 
-#define NSAMS 3
-#define BOMB_SPEED 10
-#define NBOMBS 100
-#define MAX_ALT 100
-#define MIN_ALT 50
-#define MAXHEALTH 100
-#define RADAR_FRITZ_HEALTH 30
-#define NAIRSHIPS 2
-#define NBALLOONS 2 
-#define MAX_BALLOON_HEIGHT 300
-#define MIN_BALLOON_HEIGHT 50
-#define MAX_MISSILE_VELOCITY 19 
-#define MISSILE_DAMAGE 20
-#define BULLET_SPEED 25
-#define BULLET_DAMAGE 20
-#define BULLET_PROXIMITY 10
-#define BULLET_LEAD_TIME 15
-#define MISSILE_PROXIMITY 10
-#define MISSILE_FIRE_PERIOD (FRAME_RATE_HZ)
-#define HUMANOID_PICKUP_SCORE 1000
-#define HUMANOID_DIST 15
-#define MAX_TENTACLE_SEGS 40
-#define MAX_SEG_ANGLE 60
+
+
+#define NBUILDINGS 15 		/* initial number of buildings on the terrain */
+#define NBRIDGES 2		/* max initial number of bridges in terrain (less, if no valleys) */
+#define MAXBUILDING_WIDTH 9	/* max building width, in terrain line segments */
+#define NFUELTANKS 20		/* Initial number of fuel tanks sprinkled around the terrain */
+#define FUELTANK_CAPACITY 30	/* How many hit points a fuel tank contains */
+#define REFUEL_RATE 1 		/* lower numbers = faster, used as modulo of timer */
+#define REFILL_RATE (FRAME_RATE_HZ * 3) /* lower numbers == faster, used as modulo of timer */
+#define NJAMMERS 1		/* Initial number of radar jammers sprinkled through the terrain */
+#define NCRON 15 		/* Initial number of cron jobs sprinkeled through the terrain */
+#define NSHIPS 1		/* Initial number of clipper ships sprinkeled through the terrain */
+#define NGDBS 3 		/* Initial number of gdbs sprinkeled through the terrain */
+#define NOCTOPI 0 		/* Initial number of octopi sprinkled through the terrain */
+#define NTENTACLES 2 		/* Initial number of tentacles sprinkled through the terrain */
+#define NSAMS 3			/* Initial number of SAM stations sprinkled through the terrain */
+#define BOMB_SPEED 10		/* differential x velocity of bomb as it leaves player's ship */
+#define NBOMBS 100		/* Number of bombs allocated to player at beginning of levels */
+
+#define MAX_ALT 100		/* for "attract mode", max altitude above ground player flies. */
+#define MIN_ALT 50		/* for "attract mode", min altitude above ground player flies. */
+
+#define MAXHEALTH 100		/* Max, and initial health value of player */
+#define RADAR_FRITZ_HEALTH 30   /* If player's health drops below this, the radar goes on the fritz */
+#define NAIRSHIPS 2		/* Initial number of blimps sprinkled through the terrain */
+#define NBALLOONS 2 		/* Initial number of balloons sprinkled through the terrain */
+
+#define MAX_BALLOON_HEIGHT 300  /* these two control blimps, balloons, and clipper ships */
+#define MIN_BALLOON_HEIGHT 50   /* limiting their altitude to a range above the ground (pixels) */
+
+#define MAX_MISSILE_VELOCITY 19 /* Max x and y missile/harpoon velocities */
+#define MISSILE_DAMAGE 20	/* amount of damage missile/harpoon inflict on player */
+#define MISSILE_PROXIMITY 10	/* x and y proximity for missiles to be considered a hit (pixels) */
+#define MISSILE_FIRE_PERIOD (FRAME_RATE_HZ * 1)	/* time which must elapse between firings of missiles */
+
+#define BULLET_SPEED 25		/* max x/y velocities of bullets (cron jobs shoot) */
+#define BULLET_DAMAGE 20	/* amount of damage bullets inflict on player */
+#define BULLET_PROXIMITY 10	/* x and y proximity for bullet to be considered a hit (pixels) */
+#define BULLET_LEAD_TIME 15	/* pixels per unit of velocity to lead player while aiming bullets */
+
+#define HUMANOID_PICKUP_SCORE 1000 /* score for picking up a .swp file */
+#define HUMANOID_DIST 15	   /* proximity to pick up a .swp file */
+
+#define MAX_TENTACLE_SEGS 40	   /* max number of segments of a tentacle */
+#define MAX_SEG_ANGLE 60	   /* max angle a tentacle may bend with the one next to it */
+				/* macro to compute initial tentacle angles */
 #define TENTACLE_RANGE(t) (randomn(t.upper_angle - t.lower_angle) + t.lower_angle)
+
 /* Scoring stuff */
-#define ROCKET_SCORE 200
-#define BRIDGE_SCORE 10 
-#define FLAK_SCORE 250
-#define OCTOPUS_SCORE 800 
-#define SAM_SCORE 400
-#define GDB_SCORE 400
-#define CRON_SCORE 400
 
+#define ROCKET_SCORE 200	/* score for killing a rocket */
+#define BRIDGE_SCORE 10 	/* score for moving a piece of a bridge (zillions of them, so should be small) */
+#define FLAK_SCORE 250		/* score for killing a flak gun (laser turret) */
+#define OCTOPUS_SCORE 800 	/* score for killing an octopus */
+#define SAM_SCORE 400		/* score for killing a SAM station. */
+#define GDB_SCORE 400		/* score for killing a GDB */
+#define CRON_SCORE 400		/* score for killing a cron job */
 
-int game_pause = 0;
-int attract_mode = 0;
-int credits = 0;
-int toggle = 0;
-int timer = 0;
-int next_timer = 0;
-int timer_event = 0;
-int total_radar_noise;
-int nframes = 0;
-unsigned int free_obj_bitmap[NBITBLOCKS] = {0};
-struct timeval start_time, end_time;
-int jsfd = -1;
+/* some globals... maybe should be in game_state */
+int game_pause = 0;		/* is game paused? */
+int attract_mode = 0;		/* is game in attract mode */
+int credits = 0;		/* how many quarters have been put in, but not played? */
+// int toggle = 0;		
+//
+int total_radar_noise;		/* count of how much radar noise has been drawn in a given frame */
+				/* This is to limit things, so if there are 10 radar jammers in */
+				/* close range, we don't draw 10x the amount of noise necessary */
+				/* to obscure things. If the radar is totally obscured, obscuring */
+				/* it 10 more times is wasting cpu. */
 
+int timer = 0;			/* monotonically increases by 1 with every frame */
+int next_timer = 0;		/* when timer reaches this value, timer_expired() is called */
+int timer_event = 0;		/* timer_expired() switches on this value... */ 
+
+/* timer_event values. */
 #define BLINK_EVENT 1
 #define READY_EVENT 2
 #define SET_EVENT 3
@@ -210,13 +232,19 @@ int jsfd = -1;
 #define KEYS1_EVENT 18
 #define KEYS2_EVENT 19
 
-#define NCOLORS 10 
-#define NSPARKCOLORS 25 
+int nframes = 0;		/* count of total frames drawn, used for calculating actual frame rate */
+struct timeval start_time, end_time;		/* start and end time of game, for calc'ing frame rate */
 
-GdkColor huex[NCOLORS + NSPARKCOLORS];
+unsigned int free_obj_bitmap[NBITBLOCKS] = {0}; /* bitmaps for object allocater free/allocated status */
+int jsfd = -1;
 
-GdkColor *sparkcolor;
+#define NCOLORS 10		/* number of "cardinal" colors */
+#define NSPARKCOLORS 25 	/* 25 shades from yellow to red for the sparks */
 
+GdkColor huex[NCOLORS + NSPARKCOLORS]; /* all the colors we have to work with are in here */
+GdkColor *sparkcolor;	/* a pointer into the huex[] array where the spark colors begin */
+
+/* cardinal color indexes into huex array */
 #define WHITE 0
 #define BLUE 1
 #define BLACK 2
@@ -229,7 +257,7 @@ GdkColor *sparkcolor;
 #define DARKGREEN 9
 
 
-/* Object types */
+/* Object types, just arbitrary constants used to uniquely id object types */
 #define OBJ_TYPE_AIRSHIP 'a'
 #define OBJ_TYPE_BOMB 'p'
 #define OBJ_TYPE_BALLOON 'B'
@@ -258,9 +286,11 @@ GdkColor *sparkcolor;
 #define OBJ_TYPE_DEBRIS 'D'
 #define OBJ_TYPE_JAMMER 'J'
 
-int current_level = 0;
+int current_level = 0;		/* current level of the game, starts at zero */
 struct level_parameters_t {
-	int random_seed;
+	int random_seed;	/* so the games always have the same terrain, setup, etc. */
+
+	/* numbers of various objects on a given level */
 	int nrockets;
 	int nbridges;
 	int nflak;
@@ -276,11 +306,16 @@ struct level_parameters_t {
 	int nbuildings;
 	int nbombs;
 	int nairships;
+
+	/* how often flak guns (laser turrets) fire. */
 	int laser_fire_chance;
+
+	/* how the terrain looks.  Starts out smooth, later levels more mountainous */
 	double large_scale_roughness;
 	double small_scale_roughness;
 } level = {
-	31415927,
+	/* initial values */
+	31415927, /* constant, so the games are all the same from play to play. */
 	NROCKETS,
 	NBRIDGES,
 	NFLAK,
@@ -302,6 +337,9 @@ struct level_parameters_t {
 
 /**** LETTERS and stuff *****/
 
+/* special values to do with drawing shapes. */
+#define LINE_BREAK (-999)
+#define COLOR_CHANGE (-1000) /* note, color change can ONLY follow LINE_BREAK */
 
 typedef unsigned char stroke_t;
 
@@ -331,6 +369,10 @@ typedef unsigned char stroke_t;
 The grid numbers can be decoded into (x,y) coords like:
 	x = ((n % 3) * xscale);
 	y = (x/3) * yscale;     // truncating division.
+
+	(not sure the above actually works)
+
+	instead, use decode_glyph[] to get x and y values -- see below
 ***************************/
 stroke_t glyph_Z[] = { 0, 2, 12, 14, 99 };
 stroke_t glyph_Y[] = { 0, 7, 2, 21, 7, 13, 99 };
@@ -411,13 +453,15 @@ stroke_t glyph_r[] = { 12, 6, 21, 9,7,8,99 };
 
 
 
-struct target_t;
+struct target_t; /* linked list of possible target objects to */
+		 /* avoid searching through vast majority of */
+		 /* non-targetable objects (e.g., sparks) */
 
 struct my_point_t {
 	int x,y;
 };
 
-
+/* x and y offsets for decoding stroke_t's, above */
 struct my_point_t decode_glyph[] = {
 	{ 0, -4 },
 	{ 1, -4 },
@@ -446,13 +490,22 @@ struct my_point_t decode_glyph[] = {
 };
 /**** end of LETTERS and stuff */
 
+/* vxy_2_dxy is a 2d array which translates a vx and vy velocity vextor
+ * into an x,y vector in the same direction but a fixed magnitude.  The array
+ * caches precomputed values.  This is used for drawing the missiles.  If the
+ * missiles are travelling at vx, vy, then this array allows us to compute x,y
+ * offsets to draw the missile pointing in the right direction with just a 
+ * table lookup.  See init_vxy_2_dxy() function, below. */
 #define MAX_VELOCITY_TO_COMPUTE 20 
 #define V_MAGNITUDE (20.0)
 struct my_point_t vxy_2_dxy[MAX_VELOCITY_TO_COMPUTE+1][MAX_VELOCITY_TO_COMPUTE+1];
 
+/* these hold cached values of sine and cosine functions for 0-360 degress */
 double sine[361];
 double cosine[361];
 
+/* Below, arrays of points telling how to draw the various objects in */
+/* the game. */
 struct my_point_t octopus_points[] = {
 	{ -7, 0 },
 	{ 7, 0 },
@@ -1125,6 +1178,8 @@ struct my_point_t ships_hull_points[] = {
 };
 
 /* These debris things will get filled in procedurally */
+/* these drawings are used when something explodes, to add */
+/* flying debris objects into the explosion. See make_debris_forms().  */
 #define NDEBRIS_FORMS 25
 struct my_point_t *debris_point[NDEBRIS_FORMS] = { 0 };
 struct my_vect_obj *debris_vect[NDEBRIS_FORMS] = { 0 };
@@ -1149,11 +1204,13 @@ char randomlisp[] = "(let ((arg (if (consp (car args)) (caar args) (car args)))"
 	":value-to-external (lambda (widget value)"
 	"(if value (append (list (car value)) (cadr value)))))";
 
+/* Just a grouping of arrays of points with the number of points in the array */
 struct my_vect_obj {
 	int npoints;
 	struct my_point_t *p;	
 };
 
+/* contains instructions on how to draw all the objects */
 struct my_vect_obj player_vect;
 struct my_vect_obj left_player_vect;
 struct my_vect_obj rocket_vect;
@@ -1178,29 +1235,42 @@ struct my_vect_obj octopus_vect;
 struct my_vect_obj sail_segment;
 struct my_vect_obj ships_hull;
 
+/* There are 4 home-made "fonts" in the game, all the same "typeface", but 
+ * different sizes */
 struct my_vect_obj **gamefont[4];
+/* indexes into the gamefont array */
 #define BIG_FONT 0
 #define SMALL_FONT 1
 #define TINY_FONT 2
 #define NANO_FONT 3
+
+/* sizes of the fonts... in arbitrary units */
 #define BIG_FONT_SCALE 14 
 #define SMALL_FONT_SCALE 5 
 #define TINY_FONT_SCALE 3 
 #define NANO_FONT_SCALE 2 
+
+/* spacing of letters between the fonts, pixels */
 #define BIG_LETTER_SPACING (10)
 #define SMALL_LETTER_SPACING (5)
 #define TINY_LETTER_SPACING (3)
 #define NANO_LETTER_SPACING (2)
+
+/* max text lines that fit on the screen, used in attract mode */
 #define MAXTEXTLINES 20
+/* State of the game text printing system for the attract mode */
 int current_color = WHITE;
 int current_font = BIG_FONT;
 int cursorx = 0;
 int cursory = 0;
 int livecursorx = 0;
 int livecursory = 0;
+
+/* for getting at the font scales and letter spacings, given  only font numbers */
 int font_scale[] = { BIG_FONT_SCALE, SMALL_FONT_SCALE, TINY_FONT_SCALE, NANO_FONT_SCALE };
 int letter_spacing[] = { BIG_LETTER_SPACING, SMALL_LETTER_SPACING, TINY_LETTER_SPACING, NANO_LETTER_SPACING };
 
+/* more stuff for the attract mode's idea of how the "text screen" works. */
 int ntextlines = 0;
 struct text_line_t {
 	int x, y, font;
@@ -1214,6 +1284,8 @@ struct text_line_t {
 #define GAME_OVER 1
 #define CREDITS 0
 
+/* I can switch out the line drawing function with these macros */
+/* in case I come across something faster than gdk_draw_line */
 #define DEFAULT_LINE_STYLE gdk_draw_line
 #define wwvi_draw_line DEFAULT_LINE_STYLE
 
@@ -1244,6 +1316,7 @@ void init_vxy_2_dxy()
 	}
 }
 
+/* These two functions use the vxy_2_dxy array, but correct for negative x or y */
 static inline int dx_from_vxy(int vx, int vy) 
 {
 	if ((abs(vx) > MAX_VELOCITY_TO_COMPUTE) || (abs(vy) > MAX_VELOCITY_TO_COMPUTE))
@@ -1258,6 +1331,8 @@ static inline int dy_from_vxy(int vx, int vy)
 	return (vy < 0) ?  -vxy_2_dxy[abs(vx)][abs(vy)].y : vxy_2_dxy[abs(vx)][abs(vy)].y;
 }
 
+
+/* attract mode text screen related functions */
 void set_font(int fontnumber)
 {
 	current_font = fontnumber;
@@ -1293,83 +1368,92 @@ void gameprint(char *s)
 
 int current_font_scale = BIG_FONT_SCALE;
 
+/* every object in the game is a game_obj_t, defined below... */
 struct game_obj_t;
 
-typedef void obj_move_func(struct game_obj_t *o);
-typedef void obj_draw_func(struct game_obj_t *o, GtkWidget *w);
-typedef void obj_destroy_func(struct game_obj_t *o);
+/* some function pointers which game_obj_t's may have */
+typedef void obj_move_func(struct game_obj_t *o);		/* moves and object, called once per frame */
+typedef void obj_draw_func(struct game_obj_t *o, GtkWidget *w); /* draws object, called 1/frame, if onscreen */
+typedef void obj_destroy_func(struct game_obj_t *o);		/* called when an object is killed */
 
-struct extra_player_data {
-	int count;
+/* Various object type specific data structures are defined below. */
+/* these are all put into a union in the game_obj_t structure. */
+
+struct extra_player_data {  /* these are used when drawing the player zooming into the game */
+	int count;	    /* at the beginning of levels. */
 	int count2;
 };
 
-struct harpoon_data {
-	struct game_obj_t *gdb;
+struct harpoon_data {		
+	struct game_obj_t *gdb;	/* which gdb this harpoon came from */
 };
 
 struct octopus_data {
-	int awake;
-	int tx, ty;
-	struct game_obj_t *tentacle[8];
+	int awake;			/* is octopus awake? */
+	int tx, ty;			/* target x and y to which he's moving, in game coords */
+	struct game_obj_t *tentacle[8];	/* the octopus's tentacles are separate objs. */
 };
 
 struct gdb_data {
-	int awake;
-	int tx, ty;
+	int awake;			/* is gdb awake? */
+	int tx, ty;			/* target x and y, game coords */
 	// struct game_obj_t *tentacle[8];
 };
 
 struct cron_data {
-	int beam_speed;
-	int beam_pos;
-	int tmp_ty_offset;
-	int tx, ty;
-	int eyepos;
-	struct game_obj_t *myhuman;
+	int beam_speed;			/* speed at which beam is sweeping across ground. */
+	int beam_pos;			/* x coord, in game coords of beam */
+	int tmp_ty_offset;		/* if destination is a long way off, ty may be offset randomly */
+					/* this keeps cron job from just sitting at a constant altitude */
+					/* which would make him an easy target */
+	int tx, ty;			/* destination x,y, in game coords */
+	int eyepos;			/* the cron job has a little eye, this traks the eye's movement */
+	struct game_obj_t *myhuman;	/* the vi .swp file which the cron job is cleaning up (abducting) */
 };
 
 struct tentacle_seg_data {
-	int angle;
-	int length;
-	int angular_v;
-	int dest_angle;
+	int angle;			/* angle of this tentacle segment relative to previous one, in degrees */
+	int length;			/* length of tentacle seg, pixels */
+	int angular_v;			/* angular velocity, degrees/frame */
+	int dest_angle;			/* target angle towards which tentacle seg is moving. */
 };
 
 struct tentacle_data {
-	struct game_obj_t *attached_to;
-	int angle;
-	int nsegs;
-	int upper_angle, lower_angle;
-	struct tentacle_seg_data *seg;
+	struct game_obj_t *attached_to;	/* the octopus's head */
+	int angle;			/* angle of attachment of first segment */
+	int nsegs;			/* how many segments? */
+	int upper_angle, lower_angle;	/* limits on attachment angle (keeps tentacles mostly pointing down) */
+	struct tentacle_seg_data *seg;	/* array of tentacle segments */
 };
 
-struct floating_message_data {
+struct floating_message_data { 		/* for those floating text messages, like "Help!", "Woohoo!", and scores */
 	int font;
 	unsigned char msg[21];
 };
 
 struct human_data {
-	struct game_obj_t *abductor;
-	int picked_up;
-	int on_ground;
-	int human_number;
+	struct game_obj_t *abductor;	/* cron job which has abducted him */
+	int picked_up;			/* is he currently picked up? */
+	int on_ground;			/* is he on the ground? */
+	int human_number;		/* there are a number of humans, he must know which one he is. */
 };
 
-struct jammer_data {
-	int width;
-	int direction;
+struct jammer_data {			/* these are used in the drawing of radar jammers */
+	int width;			/* the spinning antenna uses these values. */
+	int direction;			/* expanding or contracting */
 };
 
 struct fuel_data {
-	int level;
+	int level;			/* how much fuel is in the fuel tank? */
 };
 
 struct airship_data {
-	int bannerline;
+	int bannerline;			/* blimps have scrolling text on the side */
+					/* bannerline keeps track of where in the */
+					/* script of text that scrolls by we are. */
 };
 
-union type_specific_data {
+union type_specific_data {		/* union of all the typs specific data */
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
 	struct octopus_data octopus;
@@ -1384,55 +1468,58 @@ union type_specific_data {
 };
 
 struct game_obj_t {
-	int number;
-	obj_move_func *move;
+	int number;			/* offset into the go[] (game object) array */
+	obj_move_func *move; 
 	obj_draw_func *draw;
 	obj_destroy_func *destroy;
-	struct my_vect_obj *v;
-	struct target_t *target;
-	int x, y;
-	int vx, vy;
-	int color;
-	int alive;
-	int otype;
-	struct game_obj_t *bullseye;
-	int last_xi;
-	int counter;
-	union type_specific_data tsd;
-	int missile_timer;
-	int radar_image;
+	struct my_vect_obj *v;		/* drawing instructions */
+	struct target_t *target;	/* keeps track of himself in the target list */
+	int x, y;			/* current position, in game coords */
+	int vx, vy;			/* velocity */
+	int color;			/* initial color */
+	int alive;			/* alive?  Or dead? */
+	int otype;			/* object type */
+	struct game_obj_t *bullseye;	/* point to object this object is chasing */
+	int last_xi;			/* the last x index into the terrain array which */
+					/* corresponds to the segment directly underneath */
+					/* this object -- used for detecting when an object */
+					/* smacks into the ground. */
+	int counter;			/* a counter various object types used for var. purposes */
+	union type_specific_data tsd;	/* the Type Specific Data for this object */
+	int missile_timer;		/* to keep missiles from firing excessively rapidly */
+	int radar_image;		/* Does this object show up on radar? */ 
 };
 
 GtkWidget *score_label;
 GtkWidget *bombs_label;
 
-struct target_t {
-	struct game_obj_t *o;
+struct target_t {			/* doubly linked list of objects which may be hit */
+	struct game_obj_t *o;		/* saves us from searching through all objects. */ 
 	struct target_t *prev, *next;
 } *target_head = NULL;
 
-struct terrain_t {
+struct terrain_t {			/* x,y points of the ground, in game coords */
 	int npoints;
 	int x[TERRAIN_LENGTH];
 	int y[TERRAIN_LENGTH];
 } terrain;
 
 struct game_state_t {
-	int x;
-	int y;
-	int last_x1, last_x2;
-	int vx;
-	int vy;
-	int lives;
-	int nobjs;
-	int direction;
-	int health;
-	int score;
-	int prev_score;
-	int nbombs;
-	int prev_bombs;
-	int humanoids;
-	int gdbs_killed;
+	int x;				/* x position of left edge of screen, in game coords */
+	int y;				/* y position of top of screen, in game coords */
+	// int last_x1, last_x2;	/* not used... */
+	int vx;				/* x velocity of viewport.  Usually the same as player's vx */
+	int vy;				/* y velocity of viewport.  Usually the same as player's vy */
+	int lives;			/* How many lives the player has left in this game. */
+	int nobjs;			/* max number of objects in the game */
+	int direction;			/* direction player is facing. 1 = left, -1 = right. */
+	int health;			/* Think of this as the player's hit points. */
+	int score;			/* Player's score */
+	int prev_score;			/* Used to detect changes in score for drawing routine efficiency. */
+	int nbombs;			/* number of bombs in the player's possession */
+	int prev_bombs;			/* Used to detect changes in bombs for drawing routine efficiency */
+	int humanoids;			/* Number of humanoids the player has picked up */
+	int gdbs_killed;		/* etc.*/
 	int crons_killed;
 	int guns_killed;
 	int sams_killed;
@@ -1440,28 +1527,31 @@ struct game_state_t {
 	int octos_killed;
 	int emacs_killed;
 	int rockets_killed;
-	int missile_locked;
-	struct timeval start_time, finish_time;
-	struct game_obj_t go[MAXOBJS];
-	int cmd_multiplier;
-	int music_on;
-	int sound_effects_on;
-	int radar_state;
+	int missile_locked;		/* Indicates whether a missile is after the player, for alarm sound */
+	struct timeval start_time, 	/* Used to calculate how long player took to finish a level */
+		finish_time;
+	struct game_obj_t go[MAXOBJS];	/* all the objects in the game are in this array. */
+	int cmd_multiplier;		/* If you prefix keystrokes with a number... like editing in vi. */
+	int music_on;			/* Whether music is turned on or off */
+	int sound_effects_on;		/* Whether sound effects are turned on or off */
+	int radar_state;		/* Whether the radar is booting up, fritzed, or operational */
 #define     RADAR_RUNNING (0)
 #define     RADAR_FRITZED (-1)
-#define     RADAR_BOOTUP (5 * FRAME_RATE_HZ)
+#define     RADAR_BOOTUP (5 * FRAME_RATE_HZ) /* How long it takes the radar to boot up. */
 
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
 
-struct game_obj_t * human[MAXHUMANS];
+struct game_obj_t * human[MAXHUMANS];	/* Keep a special array of just the humans so we can scan it quickly */
 
-struct game_obj_t *player = &game_state.go[0];
-int lasthuman = 0;
+struct game_obj_t *player = &game_state.go[0];	/* The player is object zero. */
+int lasthuman = 0;				/* debug code... for 'n' key. */
 
-GdkGC *gc = NULL;
-GtkWidget *main_da;
-gint timer_tag;
+GdkGC *gc = NULL;		/* our graphics context. */
+GtkWidget *main_da;		/* main drawing area. */
+gint timer_tag;			/* for our gtk 30 times per second timer function */
 
+
+/* add an object to the list of targets... */
 struct target_t *add_target(struct game_obj_t *o)
 {
 	struct target_t *t;
@@ -1485,6 +1575,7 @@ struct target_t *add_target(struct game_obj_t *o)
 	return target_head;
 }
 
+/* for debugging... */
 void print_target_list()
 {
 	struct target_t *t;
@@ -1494,6 +1585,8 @@ void print_target_list()
 	}
 	printf("end of list.\n");
 }
+
+/* remove an object from the target list */
 struct target_t *remove_target(struct target_t *t)
 {
 
@@ -1514,6 +1607,7 @@ struct target_t *remove_target(struct target_t *t)
 	return next;
 }
 
+/* get a random number between 0 and n-1... fast and loose algorithm.  */
 static inline int randomn(int n)
 {
 	/* return (int) (((random() + 0.0) / (RAND_MAX + 0.0)) * (n + 0.0)); */
@@ -1523,6 +1617,7 @@ static inline int randomn(int n)
 
 #define min(a,b) ((a) > (b) ? (b) : (a))
 
+/* get a random number between a and b. */
 static inline int randomab(int a, int b)
 {
 	/* int x, y;
@@ -1543,18 +1638,19 @@ void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
 static inline void kill_object(struct game_obj_t *o);
 static inline void age_object(struct game_obj_t *o);
 
+
 void move_laserbolt(struct game_obj_t *o)
 {
 	int dy;
 	if (!o->alive)
 		return;
 	dy = (o->y - player->y);
-	if (dy < -1000) {
+	if (dy < -1000) { /* if laser bolt is very far away, just get forget about it. */
 		kill_object(o);
 		o->destroy(o);
 		return;
 	}
-	if (abs(dy) < 9 && abs(player->x - o->x) < 15) {
+	if (abs(dy) < 9 && abs(player->x - o->x) < 15) { /* hit the player? */
 		explode(o->x, o->y, o->vx, 1, 70, 20, 20);
 		add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 		game_state.health -= LASER_BOLT_DAMAGE;
@@ -1573,11 +1669,11 @@ void fuel_move(struct game_obj_t *o)
 	xdist = abs(player->x - (o->x + 20));
 	ydist = abs(player->y - o->y);
 	if (xdist <= HUMANOID_DIST*3 && 
-		ydist <= HUMANOID_DIST*5 &&
-		(timer % REFUEL_RATE) == 0 && 
-		o->tsd.fuel.level > 0 && 
-		game_state.health < MAXHEALTH ) {
-			o->tsd.fuel.level--;
+		ydist <= HUMANOID_DIST*5 &&		/* player close enough? */
+		(timer % REFUEL_RATE) == 0 && 		/* control refuel rate... */
+		o->tsd.fuel.level > 0 && 		/* there is some fuel to dispense? */
+		game_state.health < MAXHEALTH ) {	/* player's tank not full? */
+			o->tsd.fuel.level--;		/* ...give player some fuel. */
 			game_state.health++;
 	} else 
 		/* tanks refill at one unit per 3 secs */
@@ -1592,12 +1688,15 @@ void move_flak(struct game_obj_t *o)
 	int xdist;
 	int dx, dy, bx,by;
 	int x1, y1;
-	xdist = abs(o->x - player->x);
+	xdist = abs(o->x - player->x); /* in range? */
 	if (xdist < SCREEN_WIDTH && randomn(1000) < level.laser_fire_chance) {
+		/* we're going to fire the laser... */
 		dx = player->x+LASERLEAD*player->vx - o->x;
 		dy = player->y+LASERLEAD*player->vy - o->y;
 
 		add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
+		/* whichever is farther, x or y, make that vx or vy be the max */
+		/* then calculate the other one by similar triangles. */
 		if (dy >= 0) {
 			if (player->x+player->vx*LASERLEAD < o->x)
 				bx = -20;
@@ -1640,17 +1739,19 @@ void move_rocket(struct game_obj_t *o)
 	if (!o->alive)
 		return;
 
+	/* see if rocket should launch... */
 	xdist = abs(o->x - player->x);
 	if (xdist < LAUNCH_DIST) {
+		/* yes, launch... */
 		ydist = o->y - player->y;
 		if ((xdist <= ydist && ydist > 0) || o->vy != 0) {
-			if (o->vy == 0)
+			if (o->vy == 0) /* only add the sound once. */
 				add_sound(ROCKET_LAUNCH_SOUND, ANY_SLOT);
 			if (o->vy > MAX_ROCKET_SPEED)
 				o->vy--;
 		}
 
-		if ((ydist*ydist + xdist*xdist) < 400) {
+		if ((ydist*ydist + xdist*xdist) < 400) { /* hit the player? */
 			add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 			explode(o->x, o->y, o->vx, 1, 70, 150, 20);
 			kill_object(o);
@@ -1659,17 +1760,21 @@ void move_rocket(struct game_obj_t *o)
 			return;
 		}
 	}
+
+	/* move the rocket... */
 	o->x += o->vx;
 	o->y += o->vy;
 	if (o->vy != 0)
-		explode(o->x, o->y, 0, 9, 8, 7, 13);
+		explode(o->x, o->y, 0, 9, 8, 7, 13); /* spray out some exhaust */
 	if (o->y - player->y < -1000 && o->vy != 0) {
+		/* if the rocket is way off the top of the screen, just forget about it. */
 		kill_object(o);
 		remove_target(o->target);
 		o->destroy(o);
 	}
 }
 
+/* move sam stations. */
 void sam_move(struct game_obj_t *o)
 {
 	int xdist, ydist;
@@ -1677,9 +1782,11 @@ void sam_move(struct game_obj_t *o)
 		return;
 
 	xdist = abs(o->x - player->x);
-	if (xdist < SAM_LAUNCH_DIST) {
+	if (xdist < SAM_LAUNCH_DIST) { /* player in range? */
 		ydist = o->y - player->y;
+		/* should we launch?  And not too many at once... */
 		if (ydist > 0 && randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
+			/* launching a missile... */
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
 			add_missile(o->x+20, o->y-30, 0, -10, 300, GREEN, player);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
@@ -1697,16 +1804,19 @@ void fuel_draw(struct game_obj_t *o, GtkWidget *w)
 	xdist = abs(player->x - o->x);
 	ydist = abs(player->y - o->y);
 		
+	/* draw the fuel in the tank. */
 	x1 = o->x - game_state.x - 25;
 	x2 = o->x - game_state.x + 25;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2) + 
 		30 - (45 * o->tsd.fuel.level / FUELTANK_CAPACITY);
 	if (o->tsd.fuel.level > 0) {
 		gdk_gc_set_foreground(gc, &huex[DARKGREEN]);
-		// wwvi_draw_line(w->window, gc, x1, y1, x2, y1);
 		gdk_draw_rectangle(w->window, gc, TRUE, x1, y1, 50, o->tsd.fuel.level * 45 / FUELTANK_CAPACITY);
 	}
-	draw_generic(o, w);
+
+	draw_generic(o, w); /* draw the fuel tank in the usual way... */
+
+	/* if the player is close, draw a refueling hose... */
 	if (xdist <= HUMANOID_DIST*3 && ydist <= HUMANOID_DIST*5) {
 		x1 = o->x - game_state.x;
 		y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);
@@ -1716,12 +1826,13 @@ void fuel_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
+/* draw a radar jammer */
 void jammer_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, x2, y1, y2, x3, x4, x5;
 	draw_generic(o, w); /* will set the color too. */
 
-	/* this draws a sort of spinning rectangular radar dish */
+	/* this draws a sort of spinning rectangular gridded radar dish */
 	o->tsd.jammer.width += o->tsd.jammer.direction;
 	if (o->tsd.jammer.width > 8) {
 		o->tsd.jammer.direction = -1;
@@ -1751,6 +1862,7 @@ int ground_level(int x, int *xi);
 void cron_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, y1, x2, y2, gy, xi;
+
 	draw_generic(o, w);
 
 #if 0
@@ -1767,17 +1879,21 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 #endif
 
+	/* draw the cron job's eye... */
 	x1 = o->x - game_state.x + o->tsd.cron.eyepos;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2) - 5;  
 	x2 = x1 + 3;
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
 	wwvi_draw_line(w->window, gc, x1, y1, x2, y1); /* draw eye */
+
+	/* move the cron job's eye */
 	o->tsd.cron.eyepos +=1;
 	if (o->tsd.cron.eyepos > 10)
 		o->tsd.cron.eyepos = -10;
 	
 
-	if (o->tsd.cron.beam_speed != 0) {
+	/* draw the cron job's scanning beam... */
+	if (o->tsd.cron.beam_speed != 0) { /* beam on? */
 		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS)]);
 		gy = ground_level(o->x + o->tsd.cron.beam_pos, &xi);
 		if (xi != -1) {
@@ -1785,22 +1901,24 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 			y1 = o->y + 7 - game_state.y + (SCREEN_HEIGHT/2);  
 			x2 = o->x + o->tsd.cron.beam_pos - game_state.x; 
 			y2 = gy + (SCREEN_HEIGHT/2) - game_state.y;
-			if (x1 > 0 && x2 > 0)
-				wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
-			explode(o->x + o->tsd.cron.beam_pos, gy, 0, 1, 20, 3, 10);
+			if (x1 > 0 && x2 > 0) /* on screen? */
+				wwvi_draw_line(w->window, gc, x1, y1, x2, y2);  /* draw beam. */
+			explode(o->x + o->tsd.cron.beam_pos, gy, 0, 1, 20, 3, 10); /* make sparks. */
 		}
 	}
 }
 
-void gdb_draw(struct game_obj_t *o, GtkWidget *w)
+void gdb_draw(struct game_obj_t *o, GtkWidget *w) /* draw a gdb. */
 {
-	if (o->vx < 0)
+	/* make him point left or right, depending which way he's going. */
+	if (o->vx < 0)		
 		o->v = &gdb_vect_left;
 	else if (o->vx > 0)
 		o->v = &gdb_vect_right;
 	draw_generic(o, w);
 }
 
+/* recursive routine to draw a fractal lightning bolt between x1,y1 and x2,y2 */
 void draw_lightning( GtkWidget *w, int x1, int y1, int x2, int y2) 
 {
 	int x3, y3, dx, dy;
@@ -1808,11 +1926,13 @@ void draw_lightning( GtkWidget *w, int x1, int y1, int x2, int y2)
 	dx = abs(x2 - x1);
 	dy = abs(y2 - y1);
 
+	/* terminal case, x1, y1, and x2, y2 are very close, just draw a line. */
 	if (dx < 10 && dy < 10) {
 		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
 		return;
 	}
 
+	/* find the midpoint between x1,y1, x2, y2.  Call this midpoint x3,y3. */
 	if (y2 > y1)
 		y3 = (y2 - y1) / 2 + y1;
 	else if (y2 < y1)
@@ -1826,16 +1946,21 @@ void draw_lightning( GtkWidget *w, int x1, int y1, int x2, int y2)
 	else
 		x3 = x1;
 
+	/* perturb the midpoint a bit */
 	x3 += (int) (0.2 * (randomn(2*dx) - dx)); 
 	y3 += (int) (0.2 * (randomn(2*dy) - dy)); 
 
+	/* draw lightning between x1,y1 and x3,y3, and between x3,y3, and x2,y2. */
 	draw_lightning(w, x1, y1, x3, y3);	
 	draw_lightning(w, x3, y3, x2, y2);	
 }
 
+
 static void xy_draw_string(GtkWidget *w, char *s, int font, int x, int y) ;
 void floating_message_draw(struct game_obj_t *o, GtkWidget *w)
 {
+	/* draw a floating message -- a game object that is text living in game coords. */
+	/* this is for bonus scores, "Help!" and "Woohoo!" messages the .swp files "say." */
 	gdk_gc_set_foreground(gc, &huex[o->color]);
 	xy_draw_string(w, (char *) o->tsd.floating_message.msg, 
 		o->tsd.floating_message.font, o->x, o->y) ;
@@ -1850,6 +1975,8 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 	x2 = 0; /* make compiler happy */
 	y2 = 0; /* make compiler happy */
 
+	/* draw each tentacle, accumulating relative angles as you go, */
+	/* alternating colors of segments between yellow and blue.  */
 	gdk_gc_set_foreground(gc, &huex[o->color]);
 	x1 = o->x - game_state.x;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
@@ -1869,6 +1996,8 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 		x1 = x2;
 		y1 = y2;
 	}
+
+	/* Shoot lightning at the player occasionally if he gets too close. */
 	if (randomn(1000) < 20 && abs(o->x - player->x) < 100 && abs(o->y - player->y) < 300) {
 		gdk_gc_set_foreground(gc, &huex[WHITE]);
 		draw_lightning(w, x2, y2, player->x - game_state.x, player->y - game_state.y + (SCREEN_HEIGHT/2));
@@ -1885,22 +2014,25 @@ void tentacle_move(struct game_obj_t *o)
 	struct tentacle_seg_data *t;
 	int i, gy;
 
+	/* if we're off screen, bail right away. */
 	if (abs(o->x - game_state.x) > SCREEN_WIDTH*1.5)
 		return;
 
+	/* loose tentacle? */
 	if (o->tsd.tentacle.attached_to == NULL) {	
 		o->x += o->vx;
 		o->y += o->vy;
-		o->vy += 1;
+
+		o->vy += 1; /* make loose tentacle fall to the ground. */
 
 		gy = find_ground_level(o);
-
 		if (o->y >= gy) {
 			o->vy = 0;
 			o->vx = 0;
 			o->y = gy;
 		}
 
+		/* keep tentacle from jumping off the edges of the earth. */
 		if (o->x < 0) {
 			o->x = 0;
 			o->vx = 20;
@@ -1910,12 +2042,16 @@ void tentacle_move(struct game_obj_t *o)
 			o->vx = -20;
 		}
 	} else {
+		/* attached tentacles don't fall, but remain with whatever they're */
+		/* attached to, usually an octupus head. */
 		o->x = o->tsd.tentacle.attached_to->x;
 		o->y = o->tsd.tentacle.attached_to->y;
 	}
 
-	for (i=0;i<o->tsd.tentacle.nsegs;i++) {
+	for (i=0;i<o->tsd.tentacle.nsegs;i++) { /* for each segment of the tentacle.... */
 		int da;
+
+		/* set the angular velocity to move the segment towards it's desired angle. */
 		t = &o->tsd.tentacle.seg[i];
 		if (i==0)
 			t->dest_angle = o->tsd.tentacle.angle;
@@ -1934,23 +2070,30 @@ void tentacle_move(struct game_obj_t *o)
 			else
 				t->angular_v = 0;
 		}
-		t->angle += t->angular_v;
+
+		t->angle += t->angular_v; /* move segment towards desired angle... */
+
+		/* don't hyper-rotate segment... */
 		if (i != 0 && t->angle > MAX_SEG_ANGLE)
 			t->angle = MAX_SEG_ANGLE;
 		else if (i != 0 && t->angle < -MAX_SEG_ANGLE)
 			t->angle = -MAX_SEG_ANGLE;
 	}
 
-	if (randomn(1000) < 50) {
+	if (randomn(1000) < 50) { /* every once in awhile... */
 
+		/* change the tentacle's idea of what a desirable angle is. */
 		o->tsd.tentacle.angle = TENTACLE_RANGE(o->tsd.tentacle);
 		if (o->tsd.tentacle.angle < 0)
 			o->tsd.tentacle.angle += 360; 
 		if (o->tsd.tentacle.angle > 360)
 			o->tsd.tentacle.angle -= 360; 
 
+		/* set the tentacle's segments' desired angles... */
 		switch (randomn(11)) {
 
+			/* mostly, set tentacle segment desired angles  */
+			/* to random values, but in range... */
 		case 0:
 		case 1:
 		case 2:
@@ -1964,6 +2107,9 @@ void tentacle_move(struct game_obj_t *o)
 			}
 			break;
 		case 10: if (o->tsd.tentacle.attached_to == NULL) {
+				/* sometimes, straighten a tentacle out, */
+				/* and make it jump in the direction */
+				/* it's pointing... very weird. */
 				for (i=1;i<o->tsd.tentacle.nsegs;i++) {
 					t = &o->tsd.tentacle.seg[i];
 					t->dest_angle = 0;
@@ -1973,12 +2119,14 @@ void tentacle_move(struct game_obj_t *o)
 			}
 			break;
 		case 5:
+			/* sometimes, make tentacles curl up clockwise... */
 			for (i=0;i<o->tsd.tentacle.nsegs;i++) {
 				t = &o->tsd.tentacle.seg[i];
 				t->angular_v = -1;
 			}
 			break;
 		case 9:
+			/* sometimes, make tentacles curl up counterclockwise... */
 			for (i=0;i<o->tsd.tentacle.nsegs;i++) {
 				t = &o->tsd.tentacle.seg[i];
 				t->angular_v = 1;
@@ -2005,6 +2153,8 @@ void octopus_move(struct game_obj_t *o)
 		dvy = 0; /* make compiler happy */
 		tx = o->tsd.octopus.tx;
 		ty = o->tsd.octopus.ty;
+
+		/* compute a "desired" vx, vy which is towards the player. */
 		if (o->x < tx && tx - o->x > GDB_DX_THRESHOLD)
 			dvx = GDB_MAX_VX;
 		else if (o->x < tx)
@@ -2022,15 +2172,19 @@ void octopus_move(struct game_obj_t *o)
 		else if (o->y > ty)
 			dvy = 0;
 
+		/* if we're not already close enough, sometimes choose a destination near */
+		/* the player's location. */
 		if (abs(player->x - tx) > GDB_DX_THRESHOLD ||
 			abs(player->y - ty) > GDB_DY_THRESHOLD || randomn(100) < 3) {
 			o->tsd.octopus.tx = player->x + randomn(300)-150;
 			o->tsd.octopus.ty = player->y + randomn(300)-150;
 		}
 
+		/* don't sink through the ground... */
 		if (o->y > gy - 100 && dvy > -3)
 			dvy = -10;	
 
+		/* adjust velocity to make it close to the desired vx,vy computed earlier. */
 		if (o->vx < dvx)
 			o->vx++;
 		else if (o->vx > dvx)
@@ -2040,13 +2194,14 @@ void octopus_move(struct game_obj_t *o)
 		else if (o->vy > dvy)
 			o->vy--;
 
-		o->x += o->vx;
+		o->x += o->vx; /* move... */
 		o->y += o->vy;
 
-		
+		/* put out some exhaust in the direction opposite what we're moving. */	
 		explode(o->x - dvx + randomn(4)-2, o->y - dvy + randomn(4)-2, -dvx, -dvy, 4, 8, 9);
 	}
-	
+
+	/* see if we're close to the player, and if so, and we're not awake, then wake up. */	
 	xdist = abs(o->x - player->x);
 	if (xdist < GDB_LAUNCH_DIST) {
 		ydist = o->y - player->y;
@@ -2064,6 +2219,7 @@ void octopus_move(struct game_obj_t *o)
 #endif
 	}
 
+	/* move the tentacles along with us. */
 	for (i=0;i<8;i++) {
 		if (o->tsd.octopus.tentacle[i]) {
 			o->tsd.octopus.tentacle[i]->x = o->x;
@@ -2071,6 +2227,9 @@ void octopus_move(struct game_obj_t *o)
 		}
 	}
 
+
+	/* hmm, I forget what this is for.  Seems to say, if octopus smacks into ground, */
+	/* blow up and die.... but why? */	
 	if (o->y >= gy + 3) {
 		kill_object(o);
 		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
@@ -2091,6 +2250,7 @@ void cron_move(struct game_obj_t *o)
 	if (!o->alive)
 		return;
 
+	/* Try to find a human that you want to abduct... */
 	if (o->tsd.cron.myhuman == NULL && ((timer % 10) == 0)) {
 		/* check for unpursued humans. */
 		for (i=0;i<level.nhumanoids;i++) {
@@ -2164,6 +2324,7 @@ void cron_move(struct game_obj_t *o)
 	else
 		dvy = 0;
 
+	/* watch out for bug... I think this is fixed now. */
 	if (done && dvx == 0 && dvy == 0) {
 		printf("Arg!  Stuck.  tx=%d,ty=%d, x=%d, y=%d\n", 
 			tx, ty, o->x, o->y);
@@ -2171,6 +2332,7 @@ void cron_move(struct game_obj_t *o)
 		dvx = -CRON_MAX_VX;
 	}
 
+	/* should we take a shot at the player? */
 	if (randomn(100) <= CRON_SHOT_CHANCE && timer % 10 == 0) {
 		dist2 = (player->x - o->x) * (player->x - o->x) + 
 			(player->y - o->y) * (player->y - o->y);
@@ -2209,6 +2371,7 @@ void cron_move(struct game_obj_t *o)
 	/* if (o->y > gy - 100 && dvy > -3)
 		dvy = -10;	 */
 
+	/* adjust velocity towards desired velocity. */
 	if (o->vx < dvx)
 		o->vx++;
 	else if (o->vx > dvx)
@@ -2218,7 +2381,7 @@ void cron_move(struct game_obj_t *o)
 	else if (o->vy > dvy)
 		o->vy -= 2;
 
-	o->x += o->vx;
+	o->x += o->vx; /* move... */
 	o->y += o->vy;
 
 	o->vy++; /* gravity */
@@ -2330,7 +2493,8 @@ void gdb_move(struct game_obj_t *o)
 		
 		explode(o->x - dvx + randomn(4)-2, o->y - dvy + randomn(4)-2, -dvx, -dvy, 4, 8, 9);
 	}
-	
+
+	/* launch a missile? */	
 	xdist = abs(o->x - player->x);
 	if (xdist < GDB_LAUNCH_DIST) {
 		ydist = o->y - player->y;
@@ -2346,6 +2510,7 @@ void gdb_move(struct game_obj_t *o)
 		}
 	}
 
+	/* why this? */
 	if (o->y >= gy + 3) {
 		kill_object(o);
 		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
@@ -2362,11 +2527,13 @@ void humanoid_move(struct game_obj_t *o)
 	}
 	if (o->alive != 1) printf("human%d, alive=%d\n", o->tsd.human.human_number, o->alive);
 
+	/* humans move around with their abductors. */
 	if (o->tsd.human.picked_up && o->tsd.human.abductor != NULL) {
 		o->x = o->tsd.human.abductor->x + 10 * (o->tsd.human.human_number - ((level.nhumanoids >> 1)));
 		o->y = o->tsd.human.abductor->y + 30;
 	}
 
+	/* not on ground, not picked up -- we're falling... */
 	if (o->tsd.human.on_ground == 0 && o->tsd.human.picked_up == 0) {
 		int gy;
 		/* we got dropped */
@@ -2385,7 +2552,7 @@ void humanoid_move(struct game_obj_t *o)
 	xdist = abs(o->x - player->x);
 	ydist = abs(o->y - player->y);
 	if (xdist < HUMANOID_DIST) {
-		if (ydist < HUMANOID_DIST) {
+		if (ydist < HUMANOID_DIST) {	/* close enough for pickup? */
 			add_sound(CARDOOR_SOUND, ANY_SLOT);
 			add_sound(WOOHOO_SOUND, ANY_SLOT);
 			add_floater_message(o->x, o->y, "Woohoo!");
@@ -2402,6 +2569,8 @@ void humanoid_move(struct game_obj_t *o)
 			game_state.score += HUMANOID_PICKUP_SCORE;
 			game_state.humanoids++;
 		} else {
+			/* counter tracks if player has left the general vicinity of the human lately. */
+			/* keeps human from saying "Help up/down here!" more than once at a time. */
 			if (o->counter == 0) {
 				add_floater_message(o->x, o->y, "Help!");
 				if (o->y > player->y)
@@ -2412,7 +2581,7 @@ void humanoid_move(struct game_obj_t *o)
 			}
 		}
 	} else if (xdist > 1000) 
-		o->counter = 0;
+		o->counter = 0; /* reset counter if player is far enough away. */
 }
 
 void advance_level();
@@ -2422,6 +2591,7 @@ void socket_move(struct game_obj_t *o)
 	if (!o->alive)
 		return;
 
+	/* see if player entered ths socket... */
 	xdist = abs(o->x - player->x);
 	ydist = abs(o->y - player->y);
 	/* HUMANOID_DIST is close enough */
@@ -2445,7 +2615,7 @@ void socket_move(struct game_obj_t *o)
 static inline void free_object(int i)
 {
 	game_state.go[i].alive = 0;
-	free_obj_bitmap[i >> 5] &= ~(1 << (i % 32));
+	free_obj_bitmap[i >> 5] &= ~(1 << (i % 32)); /* clear the proper bit. */
 }
 
 static inline void age_object(struct game_obj_t *o)
