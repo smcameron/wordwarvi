@@ -6023,7 +6023,11 @@ void draw_radar(GtkWidget *w)
 {
 	int xoffset, height, width, yoffset; 
 	int x1, y1, x2, y2;
-
+/*
+	int viewport_left, viewport_right, viewport_top, viewport_bottom;
+	int y_correction;
+*/
+	
 	height = RADAR_HEIGHT;
 	xoffset = RADAR_XMARGIN;
 	yoffset = RADAR_YMARGIN;
@@ -6033,12 +6037,50 @@ void draw_radar(GtkWidget *w)
 	y1 = y2 - height;
 	x1 = xoffset;
 	x2 = SCREEN_WIDTH - xoffset;
+
 	gdk_gc_set_foreground(gc, &huex[RED]);
+
 	wwvi_draw_line(w->window, gc, x1, y1, x1, y2);
 	wwvi_draw_line(w->window, gc, x1, y2, x2, y2);
 	wwvi_draw_line(w->window, gc, x2, y2, x2, y1);
 	wwvi_draw_line(w->window, gc, x2, y1, x1, y1);
+#if 0
+	/* calculate viewport edges projected onto radar screen. */
 
+	viewport_left = ((SCREEN_WIDTH - (2*RADAR_XMARGIN)) * game_state.x) / WORLDWIDTH + RADAR_XMARGIN;
+	viewport_right = ((SCREEN_WIDTH - (2*RADAR_XMARGIN)) * (game_state.x + SCREEN_WIDTH)) / WORLDWIDTH + RADAR_XMARGIN;
+	viewport_top = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((game_state.y * RADAR_HEIGHT) / 1500);
+	viewport_bottom = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + (((game_state.y+SCREEN_HEIGHT) * RADAR_HEIGHT) / 1500);
+
+	y_correction = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((player->y * RADAR_HEIGHT) / 1500);
+	y_correction = (SCREEN_HEIGHT - (RADAR_HEIGHT >> 1)) - y_correction;
+
+	viewport_bottom += y_correction;
+	viewport_top += y_correction;
+
+	if (viewport_top < y1) 
+		viewport_top = y1;
+	if (viewport_top > y2)
+		viewport_top = y2;
+	if (viewport_bottom < y1) 
+		viewport_bottom = y1;
+	if (viewport_bottom > y2)
+		viewport_bottom = y2;
+
+	if (viewport_left < x1) 
+		viewport_left = x1;
+	if (viewport_left > x2)
+		viewport_left = x2;
+	if (viewport_right < x1) 
+		viewport_right = x1;
+	if (viewport_right > x2)
+		viewport_right = x2;
+
+	wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_left, viewport_bottom);
+	wwvi_draw_line(w->window, gc, viewport_right, viewport_top, viewport_right, viewport_bottom);
+	wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_right, viewport_top);
+	wwvi_draw_line(w->window, gc, viewport_left, viewport_bottom, viewport_right, viewport_bottom);
+#endif
 	if (game_state.radar_state == RADAR_RUNNING)
 		return;
 
