@@ -4982,13 +4982,46 @@ void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 
 void generate_terrain(struct terrain_t *t)
 {
+	int volcanox, volcanoi;
+	int vi1, vi2, vi3, vi4, vi5;
+
 	t->npoints = TERRAIN_LENGTH;
 	t->x[0] = 0;
 	t->y[0] = 100;
 	t->x[t->npoints-1] = WORLDWIDTH;
 	t->y[t->npoints-1] = t->y[0];
 
-	generate_sub_terrain(t, 0, t->npoints-1);
+	// generate_sub_terrain(t, 0, t->npoints-1);
+	
+	/* put a volcano in... */
+
+	volcanox = WORLDWIDTH / 15;
+	volcanoi = t->npoints / 15;
+
+	vi1 = volcanoi - 30;
+	vi2 = volcanoi - 3;
+	vi3 = volcanoi;
+	vi4 = volcanoi + 3;
+	vi5 = volcanoi + 30;
+
+	t->x[vi1] = volcanox - (WORLDWIDTH * 30 / TERRAIN_LENGTH);
+	t->x[vi2] = volcanox - (WORLDWIDTH * 5 / TERRAIN_LENGTH);
+	t->x[vi3] = volcanox;
+	t->x[vi4] = volcanox + (WORLDWIDTH * 5 / TERRAIN_LENGTH);
+	t->x[vi5] = volcanox + (WORLDWIDTH * 30 / TERRAIN_LENGTH);
+	
+	t->y[vi1] = 100;
+	t->y[vi2] = -550;
+	t->y[vi3] = -500;
+	t->y[vi4] = -550;
+	t->y[vi5] = 100;
+
+	generate_sub_terrain(t, 0, vi1);
+	generate_sub_terrain(t, vi1, vi2);
+	generate_sub_terrain(t, vi2, vi3);
+	generate_sub_terrain(t, vi3, vi4);
+	generate_sub_terrain(t, vi4, vi5);
+	generate_sub_terrain(t, vi5, t->npoints-1);
 }
 
 static struct my_vect_obj *init_debris_vect(struct my_vect_obj **v, struct my_point_t **p)
