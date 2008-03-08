@@ -3475,6 +3475,7 @@ void laser_move(struct game_obj_t *o)
 	o->x += o->vx;
 	o->y += o->vy;
 
+	/* search the list of potential targets and see if we've hit anything. */
 	for (t=target_head;t != NULL;) {
 		if (!t->o->alive) {
 			t = t->next;
@@ -3484,14 +3485,14 @@ void laser_move(struct game_obj_t *o)
 		switch (t->o->otype) {
 			case OBJ_TYPE_SHIP:
 			case OBJ_TYPE_AIRSHIP:
-				if (abs(o->x - t->o->x) < 3*60 &&
+				if (abs(o->x - t->o->x) < 3*60 &&	/* hit a blimp or clipper ship? */
 					o->y - t->o->y <= 0 &&
 					o->y - t->o->y > -50*3) {
-					explode(o->x, o->y, o->vx/2, 1, 70, 20, 20);
-					kill_object(o);
+					explode(o->x, o->y, o->vx/2, 1, 70, 20, 20); /* make sparks */
+					kill_object(o);		/* get rid of laser beam object. */
 					o->destroy(o);
-					t->o->alive -= PLAYER_LASER_DAMAGE;
-					if (t->o->alive <= 0) {
+					t->o->alive -= PLAYER_LASER_DAMAGE;	/* damage enemy */
+					if (t->o->alive <= 0) {			/* killed him? */
 						game_state.emacs_killed++;
 						kill_object(t->o);
 						t->o->destroy(t->o);
@@ -3564,6 +3565,7 @@ void laser_move(struct game_obj_t *o)
 			default:
 				break;
 		}
+		/* careful, if we removed something, next == current */
 		if (!removed)
 			t=t->next;
 	}
@@ -3577,7 +3579,7 @@ void laser_move(struct game_obj_t *o)
 
 void move_obj(struct game_obj_t *o)
 {
-	o->x += o->vx;
+	o->x += o->vx; /* generic move function */
 	o->y += o->vy;
 }
 
@@ -3585,6 +3587,7 @@ void draw_spark(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, y1, x2, y2;
 
+	/* draw sparks using their velocities as offsets. */
 	gdk_gc_set_foreground(gc, &huex[o->color]);
 	x2 = o->x - game_state.x; 
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
@@ -3599,6 +3602,7 @@ void draw_missile(struct game_obj_t *o, GtkWidget *w)
 	int x1, y1;
 	int dx, dy;
 
+	/* similar to sparks, but with a constant length.  Offsets are precomputed */
 	x1 = o->x - game_state.x;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 	dx = dx_from_vxy(o->vx, o->vy);
@@ -3613,6 +3617,8 @@ void draw_harpoon(struct game_obj_t *o, GtkWidget *w)
 	int x1, y1, x2, y2;
 	int dx, dy;
 
+	/* exactly like missiles, used to have a line back to the gdb which */
+	/* fired the missile... but I didn't really like it, so commented it out. */
 	x1 = o->x - game_state.x;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 	x2 = o->tsd.harpoon.gdb->x - game_state.x;
@@ -3637,7 +3643,8 @@ void move_missile(struct game_obj_t *o)
 	/* move one step... */
 	o->x += o->vx;
 	o->y += o->vy;
-	
+
+	/* detect smashing into the ground. */	
 	deepest = find_ground_level(o);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
@@ -3651,6 +3658,7 @@ void move_missile(struct game_obj_t *o)
 		return;
 	}
 
+	/* missiles don't last forever... when they run out of fuel, they explode. */
 	age_object(o);
 	if (o->alive <= 0) { 
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
@@ -3663,15 +3671,17 @@ void move_missile(struct game_obj_t *o)
 		return;
 	}
 
-	/* Figure out where we're trying to go */
+	/* Figure out where we're trying to go, dx,dy */
 	target_obj = o->bullseye;
 	if (target_obj == player) {
-		game_state.missile_locked = 1;
+		/* this is so we know to sound the alarm. */
+		game_state.missile_locked = 1; 
 		/* printf("mlock1\n"); */
 	}
 	dx = target_obj->x + target_obj->vx - o->x;
 	dy = target_obj->y + target_obj->vy - o->y;
 
+	/* have we hit the target? */
 	if ((abs(dx) < MISSILE_PROXIMITY) && (abs(dy) < MISSILE_PROXIMITY)) {
 		/* We've hit the target */
 		if (player == o->bullseye)
@@ -3707,7 +3717,7 @@ void move_missile(struct game_obj_t *o)
 			desired_vy = ((dy < 0) ? -1 : 1 ) * MAX_MISSILE_VELOCITY;
 	}
 
-	/* Try to get to desired vx,vy, but, only once every other clock tick */
+	/* Adjust velocity towards desired vx,vy, but, only once every other clock tick */
 	if ((timer % 2) == 0) {
 		if (o->vx < desired_vx)
 			o->vx++;
@@ -3731,10 +3741,15 @@ void move_harpoon(struct game_obj_t *o)
 	int dx, dy, desired_vx, desired_vy;
 	int exvx,exvy,deepest;
 
+	/* this is exactly like the missile code above. */
+	/* Was trying to make the gdb's have a different weapon */
+	/* but for now, it's just missiles. */
+
 	/* move one step... */
 	o->x += o->vx;
 	o->y += o->vy;
 	
+	/* detect smashing into the ground. */	
 	deepest = find_ground_level(o);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
@@ -3748,6 +3763,7 @@ void move_harpoon(struct game_obj_t *o)
 		return;
 	}
 
+	/* missiles don't last forever... when they run out of fuel, they explode. */
 	age_object(o);
 	if (o->alive <= 0) { 
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
@@ -3760,15 +3776,17 @@ void move_harpoon(struct game_obj_t *o)
 		return;
 	}
 
-	/* Figure out where we're trying to go */
+	/* Figure out where we're trying to go, dx,dy */
 	target_obj = o->bullseye;
 	if (target_obj == player) {
+		/* this is so we know to sound the alarm. */
 		game_state.missile_locked = 1;
 		/* printf("mlock2\n"); */
 	}
 	dx = target_obj->x + target_obj->vx - o->x;
 	dy = target_obj->y + target_obj->vy - o->y;
 
+	/* have we hit the target? */
 	if ((abs(dx) < MISSILE_PROXIMITY) && (abs(dy) < MISSILE_PROXIMITY)) {
 		/* We've hit the target */
 		if (player == o->bullseye)
@@ -3803,7 +3821,7 @@ void move_harpoon(struct game_obj_t *o)
 			desired_vy = ((dy < 0) ? -1 : 1 ) * MAX_MISSILE_VELOCITY;
 	}
 
-	/* Try to get to desired vx,vy, but, only once every other clock tick */
+	/* Adjust velocity towards desired vx,vy, but, only once every other clock tick */
 	if ((timer % 2) == 0) {
 		if (o->vx < desired_vx)
 			o->vx++;
@@ -3831,6 +3849,7 @@ void move_bullet(struct game_obj_t *o)
 	o->x += o->vx;
 	o->y += o->vy;
 
+	/* bullets don't last forever... */
 	age_object(o);	
 	deepest = find_ground_level(o);
 	if (o->alive <= 0 || (deepest != GROUND_OOPS && o->y > deepest)) {
@@ -3843,11 +3862,12 @@ void move_bullet(struct game_obj_t *o)
 		return;
 	}
 
-	/* Figure out where we're trying to go */
+	/* Figure out where we were trying to go, dx,dy */
 	target_obj = o->bullseye;
 	dx = target_obj->x + target_obj->vx - o->x;
 	dy = target_obj->y + target_obj->vy - o->y;
 
+	/* did we hit? */
 	if ((abs(dx) < BULLET_PROXIMITY) && (abs(dy) < BULLET_PROXIMITY)) {
 		/* We've hit the target */
 		if (player == o->bullseye)
@@ -4397,6 +4417,10 @@ int make_font(struct my_vect_obj ***font, int xscale, int yscale)
 void init_object_numbers()
 {
 	int i;
+	/* every object must known its position in the array, because */
+	/* it needs to be able to free itself, and that involves knowing */
+	/* which bit to clear -- which involves knowing the position in */
+	/* the array. */
 	for (i=0;i<MAXOBJS;i++)
 		game_state.go[i].number = i;
 }
@@ -5341,20 +5365,29 @@ int find_free_obj()
 	int i, j, answer;
 	unsigned int block;
 
+	/* this might be optimized by find_first_zero_bit, or whatever */
+	/* it's called that's in the linux kernel.  But, it's pretty */
+	/* fast as is, and this is portable without writing asm code. */
+	/* Er, portable, except for assuming an int is 32 bits. */
+
 	for (i=0;i<NBITBLOCKS;i++) {
-		if (free_obj_bitmap[i] != 0xffffffff) {
-			block = free_obj_bitmap[i];			
-			for (j=0;j<32;j++) {
-				if (block & 0x01) {
-					block = block >> 1;
-					continue;
-				}
-				free_obj_bitmap[i] |= (1 << j);
-				answer = (i * 32 + j);
-				if (answer < MAXOBJS)
-					return answer;
-				return -1;
+		if (free_obj_bitmap[i] == 0xffffffff) /* is this block full?  continue. */
+			continue;
+
+		/* Not full. There is an empty slot in this block, find it. */
+		block = free_obj_bitmap[i];			
+		for (j=0;j<32;j++) {
+			if (block & 0x01) {	/* is bit j set? */
+				block = block >> 1;
+				continue;	/* try the next bit. */
 			}
+
+			/* Found free bit, bit j.  Set it, marking it non free.  */
+			free_obj_bitmap[i] |= (1 << j);
+			answer = (i * 32 + j);	/* return the corresponding array index, if in bounds. */
+			if (answer < MAXOBJS)
+				return answer;
+			return -1;
 		}
 	}
 	return -1;
