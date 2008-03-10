@@ -586,19 +586,19 @@ struct my_point_t gdb_points_right[] = {
 };
 
 struct my_point_t humanoid_points[] = {
-	{ -2, 0 }, /* waist */
-	{  2, 0 },
+	{ -1, 0 }, /* waist */
+	{  1, 0 },
 	{  4, -6 }, /* shoulders */
 	{  -4, -6 },
-	{ -2, 0 }, 
+	{ -1, 0 }, 
 	{ LINE_BREAK, LINE_BREAK },
-	{ COLOR_CHANGE, BLUE },
-	{ -2, 0 }, /* left leg */
+	{ COLOR_CHANGE, CYAN },
+	{ -1, 0 }, /* left leg */
 	{ -3, 4 },
 	{ -3, 7 },
 	{ LINE_BREAK, LINE_BREAK },
-	{ 2, 0 }, /* right leg */
-	{ 3, 7 },
+	{ 1, 0 }, /* right leg */
+	{ 3, 4 },
 	{ 3, 7 },
 	{ LINE_BREAK, LINE_BREAK },
 	{ COLOR_CHANGE, MAGENTA },
@@ -2577,7 +2577,7 @@ void humanoid_move(struct game_obj_t *o)
 		/* we got dropped */
 		o->vy += 1;
 		o->y += o->vy;
-		o->vx += o->vx;
+		o->x += o->vx;
 		gy = find_ground_level(o);
 		if (gy == -1 || o->y >= gy) {
 			o->y = gy;
@@ -2589,7 +2589,7 @@ void humanoid_move(struct game_obj_t *o)
 
 	xdist = abs(o->x - player->x);
 	ydist = abs(o->y - player->y);
-	if (xdist < HUMANOID_DIST) {
+	if (xdist < HUMANOID_DIST && o->tsd.human.picked_up == 0) {
 		if (ydist < HUMANOID_DIST) {	/* close enough for pickup? */
 			add_sound(CARDOOR_SOUND, ANY_SLOT);
 			add_sound(WOOHOO_SOUND, ANY_SLOT);
@@ -3467,6 +3467,8 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 				return;
 
 			/* calculate the slope of the ground at point of impact. */
+			/* we use this later when bouncing things, and making them */
+			/* slide downhill. */
 			slope = (100*(terrain.y[i+1] - terrain.y[i])) / 
 					(terrain.x[i+1] - terrain.x[i]);
 			break;
@@ -3947,7 +3949,9 @@ static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
 	obj_draw_func *draw_func,
 	int color, 
 	struct my_vect_obj *vect, 
-	int target, char otype, int alive)
+	int target,  /* can this object be a target? hit by laser, etc? */
+	char otype, 
+	int alive)
 {
 	int j;
 	struct game_obj_t *o;
@@ -3956,7 +3960,7 @@ static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
 	if (j < 0)
 		return NULL;
 	o = &game_state.go[j];
-	o->last_xi = -1;
+	o->last_xi = -1; /* don't know, so use -1 at first, this gets fixed up later */
 	o->x = x;
 	o->y = y;
 	o->vx = vx;
@@ -4177,6 +4181,7 @@ void airship_leak_lisp(struct game_obj_t *o)
 
 static void abs_xy_draw_string(GtkWidget *w, char *s, int font, int x, int y);
 
+/* this is the text which scrolls up on the side of the blimp. */
 char *blimp_message[] = {
 "",
 "",
@@ -4187,14 +4192,14 @@ char *blimp_message[] = {
 "       B E A S T !",
 "",
 "",
-"    MMMMMMMMMMMMMMMMMMMMM     ",
-" MMMMMMMMMWX0dxxKNWMMMMMMMMM  ",
-"MMMMMMMM0:   'xO0kdXMMMMMMMMM ",
-"MMMMMMX,   .,lONWMxokWMMMMMMMM",
-"MMMMM0.   .,:cx0NMWlllNMMMMMMM",
-"MMMMN.     ..:,.;0WXcloKWMMMMM",
-"MMMMO    ... d0clKWMx,dloXMMMM",
-"MMMMO   .....;docOMMW:,;::OMMM",
+"    MMMMMMMMMMMMMMMMMMMMM     ", /* Richard Stallman as ascii art. */
+" MMMMMMMMMWX0dxxKNWMMMMMMMMM  ", /* Done from a copyright-free photo */
+"MMMMMMMM0:   'xO0kdXMMMMMMMMM ", /* found on wikipedia run through gimp */
+"MMMMMMX,   .,lONWMxokWMMMMMMMM", /* to adjust contrast, and then jp2a */
+"MMMMM0.   .,:cx0NMWlllNMMMMMMM", /* to convert the jpeg to ascii. */
+"MMMMN.     ..:,.;0WXcloKWMMMMM", /* It looks better with light text */
+"MMMMO    ... d0clKWMx,dloXMMMM", /* dark background -- hightlight it */
+"MMMMO   .....;docOMMW:,;::OMMM", /* with the mouse to see for yourself. */
 "MMMX,    ..   .,:dKKd;.::;;xMM",
 "MMMK.         .'':cc,'..,,,;lX",
 "l:,         ..'':;,;,',.;:,,:;",
@@ -4233,7 +4238,7 @@ char *blimp_message[] = {
 "",
 "",
 "",
-NULL,
+NULL, /* mark the end. */
 }; 
 void airship_draw(struct game_obj_t *o, GtkWidget *w)
 {
@@ -4241,6 +4246,9 @@ void airship_draw(struct game_obj_t *o, GtkWidget *w)
 
 	draw_generic(o, w);
 
+	/* the -90 and -130 were arrived at empirically, as were the dimensions */
+	/* of the text field.  The commented out code below with 0123456... is */
+	/* part of the testing done to figure that out. */
 	x = o->x - game_state.x - 90;
 	y = o->y - game_state.y + (SCREEN_HEIGHT/2) - 130;
 
@@ -4250,6 +4258,7 @@ void airship_draw(struct game_obj_t *o, GtkWidget *w)
 		y = y + 15;
 	} */
 
+	/* Write out 7 lines of text from the loop, starting at our current position. */
 	line = o->tsd.airship.bannerline;
 	for (i=0;i<7;i++) {
 		if (blimp_message[line] == NULL)
@@ -4259,7 +4268,7 @@ void airship_draw(struct game_obj_t *o, GtkWidget *w)
 		line++;
 	}
 
-	/* advance to the next line */
+	/* advance to the next line 2x per second */
 	if ((timer % 15) == 0) {
 		o->tsd.airship.bannerline++;
 		if (blimp_message[o->tsd.airship.bannerline] == NULL)
@@ -4288,6 +4297,7 @@ void ship_move(struct game_obj_t *o)
 	/* flying_thing_shoot_missile(o); */
 }
 
+/* this is called VERY often.  Don't do anything slow in here. */
 void move_spark(struct game_obj_t *o)
 {
 	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
@@ -4301,6 +4311,7 @@ void move_spark(struct game_obj_t *o)
 	age_object(o);
 	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
 
+	/* Fade the colors. */
 	if (o->alive >= NSPARKCOLORS)
 		o->color = NCOLORS + NSPARKCOLORS - 1; 
 	else if (o->alive < 0) 
@@ -4308,6 +4319,7 @@ void move_spark(struct game_obj_t *o)
 	else
 		o->color = NCOLORS + o->alive;
 
+	/* air resistance */
 	if (o->vx > 0)
 		o->vx--;
 	else if (o->vx < 0)
@@ -4317,10 +4329,15 @@ void move_spark(struct game_obj_t *o)
 	else if (o->vy < 0)
 		o->vy++;
 
+	/* no gravity on the sparks, I've tried it, I like it better without it. */
+
+	/* If the sparks reach speed of zero due to air resistance, kill them. */
 	if (o->vx == 0 && o->vy == 0) {
 		kill_object(o);
 		o->draw = NULL;
 	}
+
+	/* If the sparks are too far away, kill them so we won't have to process them. */
 	if (abs(o->y - player->y) > 2000 || o->x > 2000+WORLDWIDTH || o->x < -2000) {
 		kill_object(o);
 		o->draw = NULL;
@@ -4329,6 +4346,12 @@ void move_spark(struct game_obj_t *o)
 
 static void add_spark(int x, int y, int vx, int vy, int time);
 
+/* Make a bunch of sparks going in random directions. 
+ * x, and y are where, ivx,ivy are initial vx, vy, v is the
+ * radial velocity, think of it as the "power" of the explosion
+ * and nsparks is how many sparks to make.  time is how long
+ * the sparks are set to live. 
+ */
 void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
 {
 	int vx, vy, i;
@@ -4343,6 +4366,12 @@ void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
 	}
 }
 
+/* This converts a stroke_t, which is a sort of slightly compressed coding 
+ * of how to draw a letter, lifted from Hofstadter's book, and converts it
+ * into a set of line segments and breaks, like all the other objects in
+ * the game, while also scaling it by some amount.  It is used in making
+ * a particular font size
+ */
 struct my_vect_obj *prerender_glyph(stroke_t g[], int xscale, int yscale)
 {
 	int i, x, y;
@@ -4379,6 +4408,10 @@ struct my_vect_obj *prerender_glyph(stroke_t g[], int xscale, int yscale)
 	return v;
 }
 
+/* This makes a font, by prerendering all the known glyphs into
+ * prescaled sets of line segments that the drawing routines know
+ * how to draw.
+ */
 int make_font(struct my_vect_obj ***font, int xscale, int yscale) 
 {
 	struct my_vect_obj **v;
@@ -4479,10 +4512,23 @@ void init_object_numbers()
 		game_state.go[i].number = i;
 }
 
+/* this is just cramming arrays, and counts into structures... it's kind of
+ * stupid.  There are a few times when some mirror images are computed, and
+ * some things are scaled, since when I made the lists of points, mostly
+ * I just kind of imagined the thing in my head and typed in the numbers,
+ * (quite a lot of trial and error and correcting of points in that 
+ * process, but after awhile, you get pretty good at it.)  But, sometimes
+ * I'd get the scale off, and have to scale things a bit to make them the
+ * right size -- big enough or small enough, or long and skinny enough
+ * or whatever.
+ */
 void init_vects()
 {
 	int i;
 
+/* Stuck this precalculation of sines and cosines in here as I know
+ * this gets called exactly once.
+ */
 	for (i=0;i<=360;i++) {
 		sine[i] = sin((double)i * 3.1415927 * 2.0 / 360.0);
 		cosine[i] = cos((double)i * 3.1415927 * 2.0 / 360.0);
@@ -4492,6 +4538,9 @@ void init_vects()
 	/* memset(&game_state.go[0], 0, sizeof(game_state.go[0])*MAXOBJS); */
 	player_vect.p = player_ship_points;
 	player_vect.npoints = sizeof(player_ship_points) / sizeof(player_ship_points[0]);
+
+	/* The left player ship oints are a copy of the right player ship points. */
+	/* I just duplicated them in the source.  So we have to flip them */
 	left_player_vect.p = left_player_ship_points;
 	left_player_vect.npoints = sizeof(left_player_ship_points) / sizeof(left_player_ship_points[0]);
 	for (i=0;i<left_player_vect.npoints;i++) {
@@ -4499,6 +4548,7 @@ void init_vects()
 			left_player_ship_points[i].x != LINE_BREAK)
 			left_player_ship_points[i].x *= -1;
 	}
+
 	rocket_vect.p = rocket_points;
 	rocket_vect.npoints = sizeof(rocket_points) / sizeof(rocket_points[0]);
 	spark_vect.p = spark_points;
@@ -4513,29 +4563,39 @@ void init_vects()
 	cron_vect.npoints = sizeof(cron_points) / sizeof(cron_points[0]);
 	ship_vect.p = ships_hull_points;
 	ship_vect.npoints = sizeof(ships_hull_points) / sizeof(ships_hull_points[0]);
+
+	/* This scaling was here when I was typing in the ship point numbers just to */
+	/* make it easier to see where things were a little off. */
 	/* for (i=0;i<ship_vect.npoints;i++) {
 		if (ship_vect.p[i].x != LINE_BREAK && ship_vect.p[i].x != COLOR_CHANGE) {
 			ship_vect.p[i].x *= 2;
 			ship_vect.p[i].y = (ship_vect.p[i].y+20) * 2;
 		}
 	} */
+
 	octopus_vect.p = octopus_points;
 	octopus_vect.npoints = sizeof(octopus_points) / sizeof(octopus_points[0]);
 	bullet_vect.p = bullet_points;
 	bullet_vect.npoints = sizeof(bullet_points) / sizeof(bullet_points[0]);
 	gdb_vect_right.p = gdb_points_right;
 	gdb_vect_right.npoints = sizeof(gdb_points_right) / sizeof(gdb_points_right[0]);
+
+	/* left gdb points are mirror image of right points. */
 	gdb_vect_left.p = gdb_points_left;
 	gdb_vect_left.npoints = sizeof(gdb_points_left) / sizeof(gdb_points_left[0]);
 	for (i=0;i<gdb_vect_right.npoints;i++)
 		if (gdb_vect_right.p[i].x != LINE_BREAK && gdb_vect_right.p[i].x != COLOR_CHANGE) 
 			gdb_vect_right.p[i].x = -gdb_vect_left.p[i].x;
+
 	bomb_vect.p = bomb_points;
 	bomb_vect.npoints = sizeof(bomb_points) / sizeof(bomb_points[0]);
 	bridge_vect.p = bridge_points;
 	bridge_vect.npoints = sizeof(bridge_points) / sizeof(bridge_points[0]);
 	flak_vect.p = flak_points;
 	flak_vect.npoints = sizeof(flak_points) / sizeof(flak_points[0]);
+
+	/* I had to scale and translate the airship points as I made it too small */
+	/* and picked a poor origin. */
 	airship_vect.p = airship_points;
 	airship_vect.npoints = sizeof(airship_points) / sizeof(airship_points[0]);
 	for (i=0;i<airship_vect.npoints;i++) {
@@ -4544,6 +4604,7 @@ void init_vects()
 			airship_vect.p[i].y = (airship_vect.p[i].y+20) * 3;
 		}
 	}
+
 	balloon_vect.p = balloon_points;
 	balloon_vect.npoints = sizeof(balloon_points) / sizeof(balloon_points[0]);
 	SAM_station_vect.p = SAM_station_points;
@@ -4553,6 +4614,7 @@ void init_vects()
 	socket_vect.p = socket_points;
 	socket_vect.npoints = sizeof(socket_points) / sizeof(socket_points[0]);
 
+	/* Make the line segment lists from the stroke_t structures. */
 	make_font(&gamefont[BIG_FONT], font_scale[BIG_FONT], font_scale[BIG_FONT]);
 	make_font(&gamefont[SMALL_FONT], font_scale[SMALL_FONT], font_scale[SMALL_FONT]);
 	make_font(&gamefont[TINY_FONT], font_scale[TINY_FONT], font_scale[TINY_FONT]);
@@ -4565,6 +4627,11 @@ void no_draw(struct game_obj_t *o, GtkWidget *w)
 	return;
 }
 
+/* this is what can draw a list of line segments with line
+ * breaks and color changes...  This gets called quite a lot,
+ * so try to make sure it's fast.  There is an inline version
+ * of this in draw_objs(), btw. 
+ */
 void draw_generic(struct game_obj_t *o, GtkWidget *w)
 {
 	int j;
@@ -4603,6 +4670,10 @@ void draw_flak(struct game_obj_t *o, GtkWidget *w)
 	dx = player->x+LASERLEAD*player->vx - o->x;
 	dy = player->y+LASERLEAD*player->vy - o->y;
 
+	/* figure which is the larger distance, dx, or dy */
+	/* Whichever is larger, the offset for that axis will be 20 */
+	/* (adjusted for direction to be positive or negative) */
+	/* Then, the other axis is calculated by similar triangles */
 	if (dy >= 0) {
 		if (player->x + LASERLEAD*player->vx < o->x)
 			bx = -20;
@@ -4632,7 +4703,20 @@ void draw_flak(struct game_obj_t *o, GtkWidget *w)
 	wwvi_draw_line(w->window, gc, x1+10, y1, x1+bx+6, y1+by); 
 }
 
-#define XRADARN 3313 /* should be 2 unequal primes */
+
+/* this is an array of random values for use in picking
+ * coordinates and colors for noise in the little radar 
+ * screen.  We have to precompute and store this because
+ * it's like snow on a tv tuned to no channel.  There's
+ * a lot of it and it has to be painted FAST, and it's
+ * CPU intensive.
+ *
+ * Why so much, why those values?  Empirically, these values
+ * produce believable noise with no discernable pattern.
+ * (smaller values had patterns I could see sometimes,
+ * not that these values are ideal, but they work.)
+ */
+#define XRADARN 3313 /* should be 3 unequal primes */
 #define YRADARN 223 
 #define CRADARN 47
 
@@ -4662,6 +4746,7 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 	int radarx, radary;
 	int x1, x2, y1, y2; 
 
+	/* project game coordinates onto the radar coordiantes. */
 	radary = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((o->y * RADAR_HEIGHT) / 1500);
 	radary = radary + y_correction;
 
@@ -4672,16 +4757,22 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 
 	radarx = ((SCREEN_WIDTH - (2*RADAR_XMARGIN)) * o->x) / WORLDWIDTH + RADAR_XMARGIN;
 
+	/* o->radar image is mostly a boolean 0 or 1, indicating whether something's */
+	/* on the radar at all, but I used value 2 to make bigger items on the radar. */
+	/* and us it in calculating how to draw the little 'x' */
 	x1 = radarx - o->radar_image;
 	x2 = radarx + o->radar_image;
 	y1 = radary - o->radar_image;
 	y2 = radary + o->radar_image;
 
-	
+
+	/* draw a little x.... */	
 	gdk_gc_set_foreground(gc, &huex[o->color]);
 	wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
 	wwvi_draw_line(w->window, gc, x1, y2, x2, y1); 
 	if (o->otype == OBJ_TYPE_HUMAN || o->otype == OBJ_TYPE_PLAYER) {
+		/* for the player and the humans, make them a little more */
+		/* prominent. */
 		wwvi_draw_line(w->window, gc, x1, y2, x1, y1); 
 		wwvi_draw_line(w->window, gc, x1, y1, x2, y1); 
 		wwvi_draw_line(w->window, gc, x2, y1, x2, y2); 
@@ -4689,6 +4780,11 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 		return;
 	}
 
+	/* Here's where we put noise on the screen. total_radar_noise */
+	/* keeps track of how much noise we've already put on, as there's */
+	/* no sense, once the maximum amount of noise has been reached, */
+	/* to paint more noise over something already completely obscured */
+	/* by noise.  Save the time by skipping, in that case. */
 	if (o->otype == OBJ_TYPE_JAMMER && total_radar_noise < MAX_RADAR_NOISE) {
 		int xdist, noisecount, i, nx, ny, nc;
 
@@ -4699,8 +4795,11 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 		if (ny >= YRADARN) ny = 0;
 		if (nc >= CRADARN) nc = 0;
 
+		/* based on distance from jammer, figure how much noise to paint. */
 		xdist = abs(player->x - o->x);
 		noisecount = 2000 - xdist;
+
+		/* paint the noise... */
 		for (i=0;i<noisecount;i++) {
 			int x1, y1, x2, y2;
 			gdk_gc_set_foreground(gc, &huex[cradarnoise[nc]]);
@@ -4720,6 +4819,8 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 	}
 }
 
+/* This gets called FRAME_RATE_HZ times every second (normally 30 times a sec) */
+/* by main_da_expose().  Don't do anything slow in here. */
 void draw_objs(GtkWidget *w)
 {
 	int i, j, x1, y1, x2, y2, radary;
@@ -4728,17 +4829,19 @@ void draw_objs(GtkWidget *w)
 	radary = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((player->y * RADAR_HEIGHT) / 1500);
 	radary = (SCREEN_HEIGHT - (RADAR_HEIGHT >> 1)) - radary;
 
-	total_radar_noise = 0;
+	total_radar_noise = 0; /* Each frame gets it's own allotment of noise. */
 	for (i=0;i<MAXOBJS;i++) {
 		struct my_vect_obj *v = game_state.go[i].v;
 		struct game_obj_t *o = &game_state.go[i];
 
 		if (!o->alive)
-			continue;
+			continue; /* skip dead things. */
 
+		/* Draw each radar imageable object on the radar screen. */
 		if (o->radar_image && game_state.radar_state == RADAR_RUNNING)
 			draw_on_radar(w, o, radary);
 
+		/* Don't draw offscreen things. */
 		if (o->x < (game_state.x - (SCREEN_WIDTH/3)))
 			continue;
 		if (o->x > (game_state.x + 4*(SCREEN_WIDTH/3)))
@@ -4756,6 +4859,10 @@ void draw_objs(GtkWidget *w)
 		if (o->v == &rocket_vect)
 			printf("r");
 #endif
+
+		/* If there's no special drawing function, and the object has */
+		/* a list of line segments to draw, draw them.  This is an */
+		/* inline version of the draw_generic function. */
 		if (o->draw == NULL && o->v != NULL) {
 			gdk_gc_set_foreground(gc, &huex[o->color]);
 			x1 = o->x + v->p[0].x - game_state.x;
@@ -4780,7 +4887,7 @@ void draw_objs(GtkWidget *w)
 				y1 = y2;
 			}
 		} else if (o->draw != NULL)
-			o->draw(o, w);
+			o->draw(o, w); /* Call object's specialized drawing function. */
 	}
 }
 
@@ -6810,6 +6917,20 @@ void advance_level()
 	/* start_level(); */
 }
 
+/* this is just a table to map joystick positions to numbers.  Notice there are more
+ * lower numbers than higher numbers.  The idea is motion is finer in the middle, and
+ * coarser at the edges.  I just pulled these numbers out of my ass, really.
+ *
+ * The -32767 to 0 range, and the 0 to 32767 range are mapped onto this array,
+ * linearly, then the values in the array are used -- mapping it to nonlinear values.
+ * This is used for the y axis.  
+ *
+ * The x axis of the joystick mostly has a big dead zone in the center, with
+ * only things happening at the extreme edges of the stick's travel.
+ *
+ * Not sure that's the best way, but it seems to be sort of working ok,
+ * which my previous schemes weren't really ok.
+ */
 int yjstable[] = { 1,1,1,1,1,1,1,1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,  3, 3, 3, 3, 3, 3,
 	4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10,
 	11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 
