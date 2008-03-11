@@ -95,6 +95,8 @@ int add_sound(int which_sound, int which_slot);
 #define WORLDWIDTH (SCREEN_WIDTH * 40)  /* width of world, 40 screens wide. */
 #define KERNEL_Y_BOUNDARY (-1000) /* basically, an arbitrary altitude limit on movement of player. */
 
+#define VOLCANO_XFRACTION (15)	 /* volcano x pos is 1/VOLCANO_XFRACTION of the way across the world. */
+
 #define LARGE_SCALE_ROUGHNESS (0.04)   /* limits roughness, on large scale, of fractal terrain algorithm */
 #define SMALL_SCALE_ROUGHNESS (0.09)   /* limits roughtness, on small scale, of fractal terrain algorithm */
 #define MAXOBJS 8500		       /* arbitrary, maximum number of objects in game, ~4000 are commonly seen. */
@@ -1416,6 +1418,17 @@ struct cron_data {
 	int tx, ty;			/* destination x,y, in game coords */
 	int eyepos;			/* the cron job has a little eye, this traks the eye's movement */
 	struct game_obj_t *myhuman;	/* the vi .swp file which the cron job is cleaning up (abducting) */
+
+	int pissed_off_timer;
+	int state;			/* initially, SEEKING_HUMAN, then when he finds a human */
+					/* he carries him to the volcano, then seeks another human. */
+					/* occasionally he'll get pissed off at the player and chase */
+					/* him for awhile (until pissed_off_timer gets to zero. */
+					/* then, depending if he's carrying a human, back to seeking, */
+					/* or back to the volcano. */
+#define CRON_STATE_SEEKING_HUMAN 1
+#define CRON_STATE_CARRYING_HUMAN_TO_VOLCANO 2
+#define CRON_STATE_PISSED_OFF 3
 };
 
 struct tentacle_seg_data {
@@ -1553,6 +1566,7 @@ struct game_state_t {
 
 struct game_obj_t * human[MAXHUMANS];	/* Keep a special array of just the humans so we can scan it quickly */
 
+struct game_obj_t *volcano_obj;
 struct game_obj_t *player = &game_state.go[0];	/* The player is object zero. */
 int lasthuman = 0;				/* debug code... for 'n' key. */
 
@@ -2279,12 +2293,24 @@ void cron_move(struct game_obj_t *o)
 		return;
 
 	/* Try to find a human that you want to abduct... */
-	if (o->tsd.cron.myhuman == NULL && ((timer % 10) == 0)) {
+	if (o->tsd.cron.state == CRON_STATE_SEEKING_HUMAN && 
+		(o->tsd.cron.myhuman == NULL) &&
+		((timer & 0x0f) == 0)) {
+
 		/* check for unpursued humans. */
 		for (i=0;i<level.nhumanoids;i++) {
 			if (human[i] == NULL)
 				continue;
 			if (human[i]->tsd.human.abductor == NULL) {
+				int hvx;
+
+				/* If the human is already at the volcano, don't consider him. */
+				hvx = abs(human[i]->x - volcano_obj->x);
+				if (hvx < 20)
+					continue;
+			
+				/* Found an un-abducted human, not too close to the volcano */	
+				/* go after him. */
 				o->tsd.cron.myhuman = human[i];
 				human[i]->tsd.human.abductor = o;
 				human[i]->tsd.human.picked_up = 0;
@@ -2301,34 +2327,79 @@ void cron_move(struct game_obj_t *o)
 	tx = o->tsd.cron.tx;
 	ty = o->tsd.cron.ty;
 
+	/* See how far we still have to travel... */
 	xdist = abs(o->x - tx);
 
 	if (xdist < CRON_DX_THRESHOLD * 2)
+		/* It's not far, don't screw around, just go there... */
 		o->tsd.cron.tmp_ty_offset = 0;
-	else
+	else {
+		/* Still pretty far away, so, sometimes... */
 		if (randomn(100) <= 30)
+			/* screw around a bit and offset our y dest by a bit. */
+			/* This makes us bob up and down a bit, a less easy target. */
 			o->tsd.cron.tmp_ty_offset = -randomn(150);
+	}
+
 	/* if we made it to our dest, pick a new dest. */
 	if (xdist <= CRON_DX_THRESHOLD  && abs(o->y - ty) <= CRON_DY_THRESHOLD ) {
 		/* pick a new target location */
 		done = 1;
-		o->tsd.cron.tx = terrain.x[randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1)];
-		tx = o->tsd.cron.tx;
-		dgy = ground_level(tx, &xi);
-		o->tsd.cron.ty = dgy-140;
-		ty = o->tsd.cron.ty;
-		o->tsd.cron.tmp_ty_offset = 0;
-		if (o->tsd.cron.myhuman != NULL) {
-			ydist = abs(o->y - o->tsd.cron.myhuman->y); 
-			xdist = abs(o->x - o->tsd.cron.myhuman->x); 
-			if (o->tsd.cron.myhuman->tsd.human.picked_up == 0 &&
-				xdist <= CRON_DX_THRESHOLD && ydist <= CRON_DY_THRESHOLD) {
-				o->tsd.cron.myhuman->tsd.human.picked_up = 1;
-				o->tsd.cron.myhuman->tsd.human.on_ground = 0;
-				add_sound(ABDUCTED_SOUND, ANY_SLOT);
+
+
+		/* See if we have carried a human to the volcano... */
+		if (o->tsd.cron.state == CRON_STATE_CARRYING_HUMAN_TO_VOLCANO &&
+			o->tsd.cron.myhuman != NULL &&		/* carrying human? */
+			o->tsd.cron.myhuman->tsd.human.picked_up == 1 &&	/* human is being carried? */
+			o->tsd.cron.myhuman->tsd.human.abductor == o &&	/* by me? */
+			o->tsd.cron.tx == volcano_obj->x) {	/* we're headed to the volcano? */
+
+			/* We have carried a human to the volcano.  Drop him in. */
+
+			o->tsd.cron.myhuman->tsd.human.abductor = NULL; /* human isn't abducted anymore. */
+			o->tsd.cron.myhuman->x = o->x;	      /* drop him off _here_ */
+			o->tsd.cron.myhuman->y = o->y;
+			o->tsd.cron.myhuman->tsd.human.picked_up = 0;   /* he's not picked up. */
+			o->tsd.cron.myhuman->tsd.human.on_ground = 0;   /* he's not on the ground. */
+			o->tsd.cron.myhuman = NULL;
+			o->tsd.cron.state = CRON_STATE_SEEKING_HUMAN; /* start looking for another one. */
+		} else {
+		
+			/* Pick a new random destination... */	
+			o->tsd.cron.tx = terrain.x[randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1)];
+			tx = o->tsd.cron.tx;
+			dgy = ground_level(tx, &xi);
+			o->tsd.cron.ty = dgy-140;
+			ty = o->tsd.cron.ty;
+			o->tsd.cron.tmp_ty_offset = 0;
+
+			/* If we are seeking a human... */
+			if (o->tsd.cron.myhuman != NULL && 
+				o->tsd.cron.state == CRON_STATE_SEEKING_HUMAN) {
+				/* Check to see if we've reached him. */
+				ydist = abs(o->y - o->tsd.cron.myhuman->y); 
+				xdist = abs(o->x - o->tsd.cron.myhuman->x); 
+				if (o->tsd.cron.myhuman->tsd.human.picked_up == 0 &&
+					xdist <= CRON_DX_THRESHOLD && ydist <= CRON_DY_THRESHOLD) {
+
+					/* We got him... pick him up. */
+					o->tsd.cron.myhuman->tsd.human.picked_up = 1;
+					o->tsd.cron.myhuman->tsd.human.on_ground = 0;
+					o->tsd.cron.state = CRON_STATE_CARRYING_HUMAN_TO_VOLCANO;
+					o->tsd.cron.tx = volcano_obj->x;
+					o->tsd.cron.ty = volcano_obj->y - 150;
+					add_sound(ABDUCTED_SOUND, ANY_SLOT);
+
+					/* Take him to the volcano. */
+					o->tsd.cron.state = CRON_STATE_CARRYING_HUMAN_TO_VOLCANO;
+				}
 			}
 		}
 	}
+
+
+	/* If it's a ways off to our destination, screw around a little bit */
+	/* with the y coord of the destination to make us bob up and down */
 	if (xdist > CRON_DX_THRESHOLD) {
 		ty += o->tsd.cron.tmp_ty_offset;
 
@@ -2337,6 +2408,7 @@ void cron_move(struct game_obj_t *o)
 			ty = gy-15;
 	}
 		else ty = o->tsd.cron.ty;
+
 	
 	/* move towards the destination */	
 	if (o->x < tx && tx - o->x > CRON_DX_THRESHOLD)
@@ -2352,7 +2424,8 @@ void cron_move(struct game_obj_t *o)
 	else
 		dvy = 0;
 
-	/* watch out for bug... I think this is fixed now. */
+
+	/* watch out for bug...  This isn't fixed, but don't know how we get in here.. */
 	if (done && dvx == 0 && dvy == 0) {
 		printf("Arg!  Stuck.  tx=%d,ty=%d, x=%d, y=%d\n", 
 			tx, ty, o->x, o->y);
@@ -2591,21 +2664,24 @@ void humanoid_move(struct game_obj_t *o)
 	ydist = abs(o->y - player->y);
 	if (xdist < HUMANOID_DIST && o->tsd.human.picked_up == 0) {
 		if (ydist < HUMANOID_DIST) {	/* close enough for pickup? */
-			add_sound(CARDOOR_SOUND, ANY_SLOT);
-			add_sound(WOOHOO_SOUND, ANY_SLOT);
-			add_floater_message(o->x, o->y, "Woohoo!");
-			o->x = -1000; /* take him off screen. */
-			o->y = -1000;
-			if (o->tsd.human.abductor != NULL) {
-				o->tsd.human.abductor->tsd.cron.myhuman = NULL;
-				o->tsd.human.abductor->tsd.cron.ty -= 50;
-				o->tsd.human.abductor = NULL;
+			if (o->tsd.human.abductor == NULL) {
+				add_sound(CARDOOR_SOUND, ANY_SLOT);
+				add_sound(WOOHOO_SOUND, ANY_SLOT);
+				add_floater_message(o->x, o->y, "Woohoo!");
+				o->x = -1000; /* take him off screen. */
+				o->y = -1000;
 				o->tsd.human.abductor = player;
 				o->tsd.human.picked_up = 1;
+				if (o->tsd.human.on_ground == 0) {
+					add_floater_message(o->x, o->y+15, "Nice catch, man! +1000!");
+					game_state.score += 1000;
+				}
 				o->tsd.human.on_ground = 0;
+				game_state.score += HUMANOID_PICKUP_SCORE;
+				game_state.humanoids++;
+			} else {
+				; /* do nothing. */
 			}
-			game_state.score += HUMANOID_PICKUP_SCORE;
-			game_state.humanoids++;
 		} else {
 			/* counter tracks if player has left the general vicinity of the human lately. */
 			/* keeps human from saying "Help up/down here!" more than once at a time. */
@@ -5135,7 +5211,7 @@ void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 	generate_sub_terrain(t, midxi, xi2);
 }
 
-static void add_volcano(struct terrain_t *t, int x, int y);
+static struct game_obj_t *add_volcano(struct terrain_t *t, int x, int y);
 void generate_terrain(struct terrain_t *t)
 {
 	int volcanox, volcanoi;
@@ -5151,8 +5227,8 @@ void generate_terrain(struct terrain_t *t)
 	
 	/* put a volcano in... */
 
-	volcanox = WORLDWIDTH / 15;
-	volcanoi = t->npoints / 15;
+	volcanox = WORLDWIDTH / VOLCANO_XFRACTION;
+	volcanoi = t->npoints / VOLCANO_XFRACTION;
 
 	vi1 = volcanoi - 30;
 	vi2 = volcanoi - 3;
@@ -5179,7 +5255,7 @@ void generate_terrain(struct terrain_t *t)
 	generate_sub_terrain(t, vi4, vi5);
 	generate_sub_terrain(t, vi5, t->npoints-1);
 
-	add_volcano(t, volcanox, t->y[vi3]);
+	volcano_obj = add_volcano(t, volcanox, t->y[vi3]);
 }
 
 static struct my_vect_obj *init_debris_vect(struct my_vect_obj **v, struct my_point_t **p)
@@ -5808,13 +5884,15 @@ static void add_cron(struct terrain_t *t)
 			o->tsd.cron.myhuman = NULL;
 			o->tsd.cron.eyepos = 0;
 			o->radar_image = 1;
+			o->tsd.cron.state = CRON_STATE_SEEKING_HUMAN;
+			o->tsd.cron.pissed_off_timer = 0;
 		}
 	}
 }
 
-static void add_volcano(struct terrain_t *t, int x, int y)
+static struct game_obj_t *add_volcano(struct terrain_t *t, int x, int y)
 {
-	(void) add_generic_object(x, y, 0, 0, volcano_move, no_draw, RED, NULL, 0, OBJ_TYPE_VOLCANO, 1);
+	return add_generic_object(x, y, 0, 0, volcano_move, no_draw, RED, NULL, 0, OBJ_TYPE_VOLCANO, 1);
 }
 
 static void add_jammers(struct terrain_t *t)
