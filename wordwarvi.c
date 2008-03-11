@@ -3765,7 +3765,7 @@ void draw_harpoon(struct game_obj_t *o, GtkWidget *w)
 	dx = dx_from_vxy(o->vx, o->vy);
 	dy = -dy_from_vxy(o->vx, o->vy);
 	gdk_gc_set_foreground(gc, &huex[o->color]);
-	wwvi_draw_line(w->window, gc, x1, y1, x1+dx*2, y1+dy*2); 
+	wwvi_draw_line(w->window, gc, x1, y1, x1+dx, y1+dy); 
 	/* if (o->tsd.harpoon.gdb->alive && o->tsd.harpoon.gdb->otype == OBJ_TYPE_GDB) {
 		x2 = o->tsd.harpoon.gdb->x - game_state.x;
 		y2 = o->tsd.harpoon.gdb->y - game_state.y + (SCREEN_HEIGHT/2);  
@@ -3960,8 +3960,10 @@ void move_harpoon(struct game_obj_t *o)
 			desired_vy = ((dy < 0) ? -1 : 1 ) * MAX_MISSILE_VELOCITY;
 	}
 
-	/* Adjust velocity towards desired vx,vy, but, only once every other clock tick */
-	if ((timer % 2) == 0) {
+	/* Adjust velocity towards desired vx,vy, */
+	/* unlike missiles -- every clock tick. */
+	/* This might be a little too ferocious... */
+	// if ((timer % 2) == 0) {
 		if (o->vx < desired_vx)
 			o->vx++;
 		else if (o->vx > desired_vx)
@@ -3970,7 +3972,7 @@ void move_harpoon(struct game_obj_t *o)
 			o->vy++;
 		else if (o->vy > desired_vy)
 			o->vy--;
-	}
+	// }
 
 	/* make some exhaust sparks. */
 	exvx = -dx_from_vxy(o->vx, o->vy) + randomn(2)-1;
