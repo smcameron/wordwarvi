@@ -2,19 +2,27 @@
 .SH NAME
 wordwarvi \- Old school '80's style side scrolling space shoot'em up game.
 .SH SYNOPSIS
-.B wordwarvi
+.B wordwarvi [ --bw ] [ --version ]
 .SH DESCRIPTION
 .\" Add any additional description here
 .PP
 wordwarvi, or "Word War vi", is an old school '80's style side 
 scrolling space shoot'em up video game.  It relies on Gnome for
 graphics platform, and libsndfile and libportaudio for sound.
-.PP You pilot your "vi-per" craft through core memory, trying to
+.PP 
+You pilot your "vi-per" craft through core memory, trying to
 avoid OS defenses and wipe out the memory hogging emacs processes
-and rescue lost vi-per pilots stranded from crashed vi sessions
-before heading through the socket to the next node in the cluster
-to do it all over again.
-.PPControls:
+and rescue lost vi-per pilots (.swp files) stranded from crashed 
+vi sessions before heading through the socket to the next node 
+in the cluster to do it all over again.
+.SH Options:
+.TP
+\fB\--bw\fR
+No color, just black and white.
+.TP
+\fB\--version\fR
+Print the program's version number and exit.
+.SH Controls:
 .PP 
 Arrow keys control movement (or vi's hjkl keys will work too,
 of course.)
@@ -26,19 +34,36 @@ Z fires a laser
 C drops chaff (to confuse heat seeking missiles).
 .PP
 B drops bombs.
+.PP
+Additionally, a game pad or joystick may be used.  I have only tried
+using a Logitech Dual Action Rumble USB gamepad.  On this, the first
+(left) joystick controls your ship, and the top right trigger button
+fires the laser, while the bottom right trigger button drops bombs.
+(Just press all the buttons to see what they do.)
 
-.SH ENEMIES
+.SH ENEMIES AND OTHER THINGS YOU MAY ENCOUNTER
 .PP 
 Rockets.  Avoid hitting them.
 .PP 
 Heat seeking SAMs.  Avoid.
 .PP 
-Tentacles.  Shoot lightning.  Avoid.
+Octo-viruses and tentacles.  Shoot lightning.  Avoid.
 .PP 
 Blimps (representing emacs).  Will shoot heat seeking missiles.  
 Will leak LISP code.
 .PP 
 GDB processes.  Will attempt to ptrace you with heat seeking probes.  Avoid and/or kill.
+.PP 
+Cron Jobs.  Will shoot projectiles at you.  Will attempt to collect the vi .swp files
+and carry them to caldera of the volcano, Mount /dev/null. 
+.PP
+Fuel tanks.  Refuel by hovering over the fuel tanks momentarily.
+.PP 
+Laser cannons.  They will shoot laser bolts at you (obviously).
+.PP
+WINE bottles.  Bill Gates's finest warship is outfitted with a
+giant WINE bottle to enable it to travel through the linux CORE.
+Beware of viruses which may be living inside.
 .PP 
 .SH GOOD LUCK
 .SH FILES

@@ -1,5 +1,5 @@
 /* 
-    (C) Copyright 2005,2006, Stephen M. Cameron.
+    (C) Copyright 2007,2008, Stephen M. Cameron.
 
     This file is part of wordwarvi.
 
@@ -36,6 +36,7 @@
 #endif
 
 #include "joystick.h"
+#include "version.h"
 
 #define SAMPLE_RATE   (44100)
 #define FRAMES_PER_BUFFER  (1024)
@@ -7737,11 +7738,18 @@ int main(int argc, char *argv[])
 	int no_colors_any_more = 0;
 
 	struct timeval tm;
-	gettimeofday(&tm, NULL);
-	srandom(tm.tv_usec);	
 
+	/* Probably should use getopt, or maybe some gnome-ish */
+	/* option processing here. */
 	if (argc > 1 && strcmp(argv[1],"--bw") == 0)
 		no_colors_any_more = 1;
+	if (argc > 1 && strcmp(argv[1],"--version") == 0) {
+		printf("Wordwarvi version %s\n", WORDWARVI_VERSION);
+		exit(0);
+	}
+
+	gettimeofday(&tm, NULL);
+	srandom(tm.tv_usec);	
 
 	jsfd = open_joystick();
 	if (jsfd < 0) {
