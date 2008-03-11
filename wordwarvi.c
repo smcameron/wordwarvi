@@ -4203,10 +4203,12 @@ static void flying_thing_shoot_missile(struct game_obj_t *o)
 	xdist = abs(o->x - player->x);
 	ydist = abs(o->y - player->y);
 	if (xdist < SAM_LAUNCH_DIST && ydist < SAM_LAUNCH_DIST) {
-		if (xdist < SAM_LAUNCH_DIST/2)
-			gambling = 2;
 		if (xdist < SAM_LAUNCH_DIST/3)
 			gambling = 4;
+		else if (xdist < SAM_LAUNCH_DIST/2)
+			gambling = 2;
+		else
+			gambling = 0;
 		
 		if (randomn(2000) < (SAM_LAUNCH_CHANCE+gambling) && timer >= o->missile_timer) {
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
