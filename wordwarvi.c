@@ -3305,6 +3305,18 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
+static void ground_smack_sound()
+{
+	static int nexttime = 0;
+
+	/* Only allow this to enter the sound queue once per every 3 seconds */
+	if (timer > nexttime) {
+		nexttime = timer + FRAME_RATE_HZ*3;
+		add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
+		add_sound(OWMYSPINE_SOUND, ANY_SLOT);
+	}
+}
+
 void no_draw(struct game_obj_t *o, GtkWidget *w);
 void move_player(struct game_obj_t *o)
 {
@@ -3418,8 +3430,7 @@ void move_player(struct game_obj_t *o)
 
 		/* if player smacks the ground too hard, sparks, noise, damage ensue. */
 		if (abs(player->vx) > 5 || abs(player->vy) > 5) {
-			add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
-			add_sound(OWMYSPINE_SOUND, ANY_SLOT);
+			ground_smack_sound();
 			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 			game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 			player->vy = -5;
@@ -3438,22 +3449,19 @@ void move_player(struct game_obj_t *o)
 		if (player->vy > 15)
 			player->vy = 15;
 		if (abs(player->vx) > 5 || abs(player->vy) > 5) {
-			add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
-			add_sound(OWMYSPINE_SOUND, ANY_SLOT);
+			ground_smack_sound();
 			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 			game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 		}
 	}
 	if (player->x < 0) {
-		add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
-		add_sound(OWMYSPINE_SOUND, ANY_SLOT);
+		ground_smack_sound();
 		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 		game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 		player->x = 20;
 		player->vx = 5;
 	} else if (player->x > terrain.x[TERRAIN_LENGTH - 1]) {
-		add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
-		add_sound(OWMYSPINE_SOUND, ANY_SLOT);
+		ground_smack_sound();	
 		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 		game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 		player->x = terrain.x[TERRAIN_LENGTH - 1] - 20;
@@ -3747,7 +3755,7 @@ void draw_missile(struct game_obj_t *o, GtkWidget *w)
 	dx = dx_from_vxy(o->vx, o->vy);
 	dy = -dy_from_vxy(o->vx, o->vy);
 	gdk_gc_set_foreground(gc, &huex[o->color]);
-	if (x1 > 0 && x1+dx*2 > 0) 
+	if (x1 > 0 && x1+dx*2 > 0)
 		wwvi_draw_line(w->window, gc, x1, y1, x1+dx*2, y1+dy*2); 
 }
 
