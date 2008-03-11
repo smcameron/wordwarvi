@@ -5000,6 +5000,9 @@ void draw_objs(GtkWidget *w)
 	}
 }
 
+/* This is used by the "attract mode" screen for drawing the letters */
+/* livecursorx, and livecursory are coords of a "cursor" which this */
+/* routine automatically advances. */
 static void draw_letter(GtkWidget *w, struct my_vect_obj **font, unsigned char letter)
 {
 	int i, x1, y1, x2, y2;
@@ -5035,6 +5038,7 @@ static void draw_letter(GtkWidget *w, struct my_vect_obj **font, unsigned char l
 	livecursorx += font_scale[current_font]*2 + letter_spacing[current_font];
 }
 
+/* Draws a string for the "attract mode", */
 static void draw_string(GtkWidget *w, unsigned char *s) 
 {
 
@@ -5044,6 +5048,7 @@ static void draw_string(GtkWidget *w, unsigned char *s)
 		draw_letter(w, gamefont[current_font], *i);  
 }
 
+/* draws a bunch of strings for the "attract mode." */
 static void draw_strings(GtkWidget *w)
 {
 	int i;
@@ -5060,6 +5065,7 @@ static void draw_strings(GtkWidget *w)
 	}
 }
 
+/* Draws a letter in the given font at an absolute x,y coords on the screen. */
 static void abs_xy_draw_letter(GtkWidget *w, struct my_vect_obj **font, 
 		unsigned char letter, int x, int y)
 {
@@ -5080,6 +5086,8 @@ static void abs_xy_draw_letter(GtkWidget *w, struct my_vect_obj **font,
 	}
 }
 
+/* Used for floating labels in the game. */
+/* Draws a string at an absolute x,y position on the screen. */ 
 static void abs_xy_draw_string(GtkWidget *w, char *s, int font, int x, int y) 
 {
 
@@ -5091,6 +5099,7 @@ static void abs_xy_draw_string(GtkWidget *w, char *s, int font, int x, int y)
 }
 
 
+/* FIXME: what is the difference between thise, and the "abs" versions?  I forget. */
 static void xy_draw_letter(GtkWidget *w, struct my_vect_obj **font, 
 		unsigned char letter, int x, int y)
 {
@@ -5112,6 +5121,7 @@ static void xy_draw_letter(GtkWidget *w, struct my_vect_obj **font,
 	}
 }
 
+/* FIXME, what is the diff between this and the "abs" version? */
 static void xy_draw_string(GtkWidget *w, char *s, int font, int x, int y) 
 {
 
@@ -5135,6 +5145,9 @@ static void add_spark(int x, int y, int vx, int vy, int time)
 		YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
 }
 
+/* Modify *value by a random amount that is a percentage of a difference. */
+/* This is used by the recursive routine which makes the ground fractal */
+/* to displace the midpoints */
 void perturb(int *value, int lower, int upper, double percent)
 {
 	double perturbation;
@@ -5144,6 +5157,7 @@ void perturb(int *value, int lower, int upper, double percent)
 	return;
 }
 
+/* Used to add the lisp code that leaks out of the blimps. */
 static void add_symbol(int c, int myfont, int x, int y, int vx, int vy, int time)
 {	
 	struct my_vect_obj **font = gamefont[myfont];
@@ -5152,6 +5166,7 @@ static void add_symbol(int c, int myfont, int x, int y, int vx, int vy, int time
 			WHITE, font[c], 0, OBJ_TYPE_SYMBOL, time);
 }
 
+/* Used to add the floating scores, "Woohoo!" and "Help!" messages */
 static void add_floating_message(char *msg, int font, int x, int y, int vx, int vy, int time)
 {
 	struct game_obj_t *o;
@@ -5195,6 +5210,8 @@ static void add_floater_message(int x, int y, char *msg)
 	add_floating_message(msg, SMALL_FONT, x, y, game_state.go[0].vx * 2, -7, 20);
 }
 
+/* recurseive function to generate a terrain map between indexes
+ * xi1 and xi2 in the terrain array. */ 
 void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 {
 	int midxi;
@@ -5202,10 +5219,13 @@ void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 	int x1, x2, x3;
 
 
+	/* find the middle index, if there is no in between */
+	/* index, we're done, it's a terminal case. */
 	midxi = (xi2 - xi1) / 2 + xi1;
 	if (midxi == xi2 || midxi == xi1)
 		return;
 
+	/* Find the midpoint, x3,y3 between the given end points, x1,y1, x2,y2. */
 	y1 = t->y[xi1];
 	y2 = t->y[xi2];
 	if (y1 > y2) {
@@ -5224,6 +5244,9 @@ void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 	}
 	x3 = ((x2 - x1) / 2) + x1;
 
+	/* if there is a relatively large scale distance between the given */
+	/* endpoints, perturb the midpoint by a factor apprpriate to the */
+	/* large scale, otherwise by a factor apppropriate for the small scale. */
 	if ((x2 - x1) > 1000) {	
 		perturb(&x3, x2, x1, level.large_scale_roughness);
 		do { 
@@ -5240,6 +5263,8 @@ void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 	t->y[midxi] = y3;
 	// printf("gst %d %d\n", x3, y3);
 
+	/* recursively generate more terrain between x1,y1, x3,y3, */
+	/* and between x3,y3, and x2,y2 */
 	generate_sub_terrain(t, xi1, midxi);
 	generate_sub_terrain(t, midxi, xi2);
 }
@@ -5250,6 +5275,7 @@ void generate_terrain(struct terrain_t *t)
 	int volcanox, volcanoi;
 	int vi1, vi2, vi3, vi4, vi5;
 
+	/* Set up the intial endpoints of the terrain. */
 	t->npoints = TERRAIN_LENGTH;
 	t->x[0] = 0;
 	t->y[0] = 100;
@@ -5259,7 +5285,6 @@ void generate_terrain(struct terrain_t *t)
 	// generate_sub_terrain(t, 0, t->npoints-1);
 	
 	/* put a volcano in... */
-
 	volcanox = WORLDWIDTH / VOLCANO_XFRACTION;
 	volcanoi = t->npoints / VOLCANO_XFRACTION;
 
@@ -5281,6 +5306,7 @@ void generate_terrain(struct terrain_t *t)
 	t->y[vi4] = -550;
 	t->y[vi5] = 100;
 
+	/* generate the terrain around and including the volcano. */
 	generate_sub_terrain(t, 0, vi1);
 	generate_sub_terrain(t, vi1, vi2);
 	generate_sub_terrain(t, vi2, vi3);
@@ -5288,9 +5314,12 @@ void generate_terrain(struct terrain_t *t)
 	generate_sub_terrain(t, vi4, vi5);
 	generate_sub_terrain(t, vi5, t->npoints-1);
 
+	/* Put the volcano where he needs to be. */
 	volcano_obj = add_volcano(t, volcanox, t->y[vi3]);
 }
 
+/* allocate and create a set of random connected lines near a point
+ * to use as the shapes for debris. */
 static struct my_vect_obj *init_debris_vect(struct my_vect_obj **v, struct my_point_t **p)
 {
 	int i, n;
@@ -5334,6 +5363,8 @@ static void free_debris_forms()
 	}
 }
 
+/* Spray chunks of debris from a given point x,y, with initial velocity vx,vy
+ * and with radiating velocity r.  Used in explosions. */
 static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t *victim)
 {
 	int i, z; 
@@ -5364,6 +5395,7 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 	}
 }
 
+/* for picking random locations of objects at level startup. */
 static int initial_x_location() 
 {
 	return randomn(TERRAIN_LENGTH - 40) + 40;
@@ -5390,6 +5422,8 @@ static void add_rockets(struct terrain_t *t)
 }
 
 /* Insert the points in one list into the middle of another list */
+/* This is used by the routines which create the building shapes to */
+/* embelish the buildings with various ornamentation. */
 static void insert_points(struct my_point_t host_list[], int *nhost, 
 		struct my_point_t injection[], int ninject, 
 		int injection_point)
@@ -5716,7 +5750,7 @@ static void add_building(struct terrain_t *t, int xi)
 	if (objnum == -1)
 		return;
 
-	height = randomab(50, 100);
+	height = randomab(50, 100); 
 	width = randomab(5,MAXBUILDING_WIDTH);
 	scratch[0].x = t->x[xi];	
 	scratch[0].y = t->y[xi];	
@@ -5724,6 +5758,8 @@ static void add_building(struct terrain_t *t, int xi)
 	scratch[1].y = scratch[0].y - height;
 	scratch[2].x = t->x[xi+width];
 	scratch[2].y = scratch[1].y; /* make roof level, even if ground isn't. */
+				     /* FIXME< roof level may be _below_ of */
+				     /*of the gournd points, not good.. */
 	scratch[3].x = scratch[2].x;
 	scratch[3].y = t->y[xi+width];
 	npoints = 4;
@@ -5988,6 +6024,7 @@ static void add_octopi(struct terrain_t *t)
 			o->tsd.octopus.awake = 0;
 			o->radar_image = 1;
 
+			/* Make the tentacles. */
 			for (j=0;j<8;j++) {
 				int length = randomn(30) + 9;
 				double length_factor = 0.90;
@@ -6081,6 +6118,7 @@ static void add_gdbs(struct terrain_t *t)
 	}
 }
 
+/* Adds a bunch of loose tentacles sprinkled around the terrain. */
 static void add_tentacles(struct terrain_t *t)
 {
 	int xi, i,j, length;
@@ -6415,6 +6453,8 @@ void draw_radar(GtkWidget *w)
 	}
 }
 
+/* This is the expose function of the main drawing area.  This is */
+/* where everything gets drawn. */
 static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 {
 	int i;
