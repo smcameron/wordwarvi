@@ -1548,6 +1548,7 @@ struct game_state_t {
 	int emacs_killed;
 	int rockets_killed;
 	int missile_locked;		/* Indicates whether a missile is after the player, for alarm sound */
+	int corrosive_atmosphere;
 	struct timeval start_time, 	/* Used to calculate how long player took to finish a level */
 		finish_time;
 	struct game_obj_t go[MAXOBJS];	/* all the objects in the game are in this array. */
@@ -3128,6 +3129,12 @@ void volcano_move(struct game_obj_t *o)
 				spray_debris(o->x, o->y, 0, -10, 10, o);
 		}
 	}
+	if (abs(player->x - o->x) < 250) {
+		game_state.corrosive_atmosphere = 1;
+		if ((timer & 0x03) == 3) 
+			game_state.health--;
+	} else
+		game_state.corrosive_atmosphere = 0;
 }
 
 /* Consider removing the entire concept of chaff from the game. */
@@ -6363,6 +6370,11 @@ void draw_radar(GtkWidget *w)
 	wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_right, viewport_top);
 	wwvi_draw_line(w->window, gc, viewport_left, viewport_bottom, viewport_right, viewport_bottom);
 #endif
+
+	if (game_state.corrosive_atmosphere && game_state.radar_state == RADAR_RUNNING) {
+		gdk_gc_set_foreground(gc, &huex[GREEN]);
+		abs_xy_draw_string(w, "Corrosive atmosphere detected!  Vacate the area immediately!", TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2);
+	}
 	if (game_state.radar_state == RADAR_RUNNING)
 		return;
 
