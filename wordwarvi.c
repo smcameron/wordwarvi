@@ -1456,6 +1456,7 @@ struct human_data {
 	int picked_up;			/* is he currently picked up? */
 	int on_ground;			/* is he on the ground? */
 	int human_number;		/* there are a number of humans, he must know which one he is. */
+	int seat_number;
 };
 
 struct jammer_data {			/* these are used in the drawing of radar jammers */
@@ -2389,6 +2390,7 @@ void cron_move(struct game_obj_t *o)
 					o->tsd.cron.state = CRON_STATE_CARRYING_HUMAN_TO_VOLCANO;
 					o->tsd.cron.tx = volcano_obj->x;
 					o->tsd.cron.ty = volcano_obj->y - 150;
+					o->tsd.cron.myhuman->tsd.human.seat_number = 0;
 					add_sound(ABDUCTED_SOUND, ANY_SLOT);
 
 					/* Take him to the volcano. */
@@ -2641,7 +2643,8 @@ void humanoid_move(struct game_obj_t *o)
 
 	/* humans move around with their abductors. */
 	if (o->tsd.human.picked_up && o->tsd.human.abductor != NULL) {
-		o->x = o->tsd.human.abductor->x + 10 * (o->tsd.human.human_number - ((level.nhumanoids >> 1)));
+		o->x = 10 + o->tsd.human.abductor->x + (o->tsd.human.seat_number * 8) - (game_state.humanoids * 4);
+		// o->x = o->tsd.human.abductor->x + 10 * (o->tsd.human.human_number - ((level.nhumanoids >> 1)));
 		o->y = o->tsd.human.abductor->y + 30;
 	}
 
@@ -2665,24 +2668,21 @@ void humanoid_move(struct game_obj_t *o)
 	ydist = abs(o->y - player->y);
 	if (xdist < HUMANOID_DIST && o->tsd.human.picked_up == 0) {
 		if (ydist < HUMANOID_DIST) {	/* close enough for pickup? */
-			if (o->tsd.human.abductor == NULL) {
-				add_sound(CARDOOR_SOUND, ANY_SLOT);
-				add_sound(WOOHOO_SOUND, ANY_SLOT);
-				add_floater_message(o->x, o->y, "Woohoo!");
-				o->x = -1000; /* take him off screen. */
-				o->y = -1000;
-				o->tsd.human.abductor = player;
-				o->tsd.human.picked_up = 1;
-				if (o->tsd.human.on_ground == 0) {
-					add_floater_message(o->x, o->y+15, "Nice catch, man! +1000!");
-					game_state.score += 1000;
-				}
-				o->tsd.human.on_ground = 0;
-				game_state.score += HUMANOID_PICKUP_SCORE;
-				game_state.humanoids++;
-			} else {
-				; /* do nothing. */
+			add_sound(CARDOOR_SOUND, ANY_SLOT);
+			add_sound(WOOHOO_SOUND, ANY_SLOT);
+			add_floater_message(o->x, o->y, "Woohoo!");
+			o->x = -1000; /* take him off screen. */
+			o->y = -1000;
+			o->tsd.human.abductor = player;
+			o->tsd.human.picked_up = 1;
+			o->tsd.human.seat_number = game_state.humanoids;
+			if (o->tsd.human.on_ground == 0) {
+				add_floater_message(o->x, o->y+15, "Nice catch, man! +1000!");
+				game_state.score += 1000;
 			}
+			o->tsd.human.on_ground = 0;
+			game_state.score += HUMANOID_PICKUP_SCORE;
+			game_state.humanoids++;
 		} else {
 			/* counter tracks if player has left the general vicinity of the human lately. */
 			/* keeps human from saying "Help up/down here!" more than once at a time. */
