@@ -7744,7 +7744,13 @@ int main(int argc, char *argv[])
 	if (argc > 1 && strcmp(argv[1],"--bw") == 0)
 		no_colors_any_more = 1;
 	if (argc > 1 && strcmp(argv[1],"--version") == 0) {
-		printf("Wordwarvi version %s\n", WORDWARVI_VERSION);
+		printf("Wordwarvi, version %s, (c) 2007,2008 Stephen M. Cameron.\n",
+			WORDWARVI_VERSION);
+		printf("Released under the GNU GPL v. 2.0 or later.  See the file\n");
+		printf("COPYING, which should have accompanied this program, for\n");
+		printf("information about redistributing this program.\n");
+		printf("See http://wordwarvi.sourceforge.net for more information\n");
+		printf("about this program.\n");
 		exit(0);
 	}
 
