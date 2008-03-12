@@ -2380,6 +2380,7 @@ void cron_move(struct game_obj_t *o)
 			o->tsd.cron.myhuman->tsd.human.on_ground = 0;   /* he's not on the ground. */
 			o->tsd.cron.myhuman = NULL;
 			o->tsd.cron.state = CRON_STATE_SEEKING_HUMAN; /* start looking for another one. */
+			add_sound(SCREAM_SOUND, ANY_SLOT);
 		} else {
 		
 			/* Pick a new random destination... */	
