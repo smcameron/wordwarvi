@@ -1,0 +1,78 @@
+Changelog for wordwarvi:
+
+-------------------------------------------------------------------------------
+Wed Mar 12 07:17:15 CST 2008
+Changes between version 0.03 and 0.04:
+
+* Added radar jamming stations.
+* Made drawing of sparks a bit more efficient
+* Fix compiler warnings, turn on optimization in make file
+* Calculate frame rate
+* Tighten up test to avoid drawing things off screen.
+Log:
+* Got rid of the floating point calculations in the random number generation
+  in the "real time" areas of the code.
+* Speeded up the object allocator
+* Factored out code to choose initial locations of objects
+* Set clipping rectangle for drawing area (I think this gets
+  rid of some weird things that happen with gdk_draw_line with
+  segments that go out of bounds.)
+* Removed unused old debris making code which was superceded by
+  the new code.
+* Added a black and white mode, just for the hell of it.
+* Setup to replace gdk_draw_line with whatever I want
+* Changed the behavior of fuel tanks on the ground.  Now, instead of bombing
+  the fuel tanks to repair damage, you hover over them, and suck out fuel,
+  which powers your sheilds.  This makes a hell of a lot more sense than
+  somehow getting damage repaired by bombing fuel tanks, a concept which
+  I've always hated, but put in out of laziness, and trying to make the game
+  work a bit better.  This change really affects the game play, because it's
+  no longer a good strategy to just sort of randomly carpet bomb, as you'll
+  destroy your fuel source.  Not sure if it's better or worse game play.
+  Will have to live with this for awhile and see.
+* Now the blimp has scrolling messages on its side.  :-D
+* Made flaming debris bounce around a bit when it hits the ground.
+* Now, press 'n' to go immediately to next humanoid.  (for debugging only).
+* Made the player's ship interact with the ground a bit better (got rid of
+  vibrating).
+* Added support for joysticks.  Doesn't really work very well though.
+  Not sure this game is suited to using a joystick, but it if is, my
+  code needs considerable tweaking, I think.
+* Try two stick joystick control... not much better, meh.
+* Increase number of "cron jobs"
+* Increase refueling rate to jack up the action factor a bit
+  (not sitting around on fuel tanks waiting to refuel so much)
+* Added a lot of comments.
+* Fixed Makefile problem that wordwarvi wasn't set to depend on joystick.o
+* Now ground color changes each time you advance a level.
+* Added a big volcano
+* Reduced the bounciness of debris... looked a little too bouncy.
+* Made the rockets slightly less predictable.  They're still pretty lame.
+* I think I made the joystick controls a bit better.
+* Fixed bug that you could snatch a human right from a cron job
+  just by running over him.
+* Improved appearance of humanoids.
+* Fixed bug that humans x velocity was not inherited from their
+  abductor when their abductor was shot.
+* Now the cron jobs pick up the humans then drop them into the
+  volcano.
+* Fixed bug, uninitialized variabe.  Occasionally made blimps shoot out
+  too many missiles, I think.
+* Ship is now damaged by volcano's corrosive atmosphere.
+* Radar warns of corrosive atmosphere.
+* Fixed a bug that prevented humans from being picked up by the player.
+* Made humans line up under player's ship a bit more sensibly.
+* Made the missiles which gdb's fire shorter, and ablt to turn faster
+  and accellerate faster.
+* Prevent the "Ow! My spine!" sound from playing more than once per 3 seconds.
+* Put Bill Gates' state of the art warship inside a WINE bottle.
+* Added --version option.
+* Updated man page
+* Updated copyright notices.
+* Make the .swp files scream when the cron jobs drop them into the
+  caldera of Mount /dev/null.
+* Now, when debris hits the ground and bounces, it makes a sound.
+
+Changelog begins after version 0.03
+-------------------------------------------------------------------------------
+
