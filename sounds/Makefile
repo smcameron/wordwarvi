@@ -27,7 +27,23 @@ all:	18382_inferno_hvylas.wav \
 	bodyslam.wav \
 	fallingscreamhi.wav \
 	UseTheSource.wav \
-	ooooof.wav
+	ooooof.wav \
+	stonebang1.wav \
+	stonebang2.wav \
+	stonebang3.wav \
+	stonebang4.wav \
+	stonebang5.wav \
+	stonebang6.wav \
+	stonebang7.wav \
+	stonebang8.wav \
+	metalbang1.wav \
+	metalbang2.wav \
+	metalbang3.wav \
+	metalbang4.wav \
+	metalbang5.wav \
+	metalbang6.wav \
+	metalbang7.wav \
+	metalbang8.wav
 
 clean:
 	/bin/rm -f *.wav

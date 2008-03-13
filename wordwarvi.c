@@ -44,7 +44,7 @@
 #define M_PI  (3.14159265)
 #endif
 #define TWOPI (M_PI * 2.0)
-#define NCLIPS (26)
+#define NCLIPS (46)
 #define MAX_CONCURRENT_SOUNDS (16)
 
 /* define sound clip constants, and dedicated sound queue slots. */
@@ -77,6 +77,22 @@ int add_sound(int which_sound, int which_slot);
 #define BODYSLAM_SOUND 23
 #define USETHESOURCE_SOUND 24
 #define OOF_SOUND 25
+#define METALBANG1 26
+#define METALBANG2 27
+#define METALBANG3 28
+#define METALBANG4 29
+#define METALBANG5 30 
+#define METALBANG6 31
+#define METALBANG7 32
+#define METALBANG8 33
+#define STONEBANG1 34
+#define STONEBANG2 35
+#define STONEBANG3 36
+#define STONEBANG4 37
+#define STONEBANG5 38
+#define STONEBANG6 39
+#define STONEBANG7 40
+#define STONEBANG8 41
 
 /* ...End of audio stuff */
 
@@ -1489,6 +1505,12 @@ struct airship_data {
 					/* script of text that scrolls by we are. */
 };
 
+struct debris_data {
+	int debris_type;		/* controls what sounds debris makes when */
+#define DEBRIS_TYPE_STONE 0		/* it bounces. */
+#define DEBRIS_TYPE_METAL 1
+};
+
 union type_specific_data {		/* union of all the typs specific data */
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
@@ -1501,6 +1523,7 @@ union type_specific_data {		/* union of all the typs specific data */
 	struct jammer_data jammer;
 	struct fuel_data fuel;
 	struct airship_data airship;
+	struct debris_data debris;
 };
 
 struct game_obj_t {
@@ -2941,7 +2964,7 @@ void cron_destroy(struct game_obj_t *o)
 void bridge_move(struct game_obj_t *o);
 void no_move(struct game_obj_t *o);
 static void add_score_floater(int x, int y, int score);
-static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t *victim);
+static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t *victim, int metal);
 
 void bomb_move(struct game_obj_t *o)
 {
@@ -3000,7 +3023,7 @@ void bomb_move(struct game_obj_t *o)
 					}
 					add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
-					spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o);
+					spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
 					// t->o->alive = 0;
 					kill_object(t->o);
 					t->o->destroy(t->o);
@@ -3089,7 +3112,7 @@ void bomb_move(struct game_obj_t *o)
 							add_score_floater(t->o->x, t->o->y, OCTOPUS_SCORE);
 						}
 						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
-						spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o);
+						spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
 						kill_object(t->o);
 						// t->o->alive = 0;
 						t->o->destroy(t->o);
@@ -3137,12 +3160,12 @@ void volcano_move(struct game_obj_t *o)
 {
 	if (timer % (FRAME_RATE_HZ*2) == 0) {
 		if (randomn(100) < 25)  {
-			spray_debris(o->x, o->y, 0, -30, 30, o);
-			spray_debris(o->x, o->y, 0, -20, 20, o);
-			spray_debris(o->x, o->y, 0, -10, 10, o);
+			spray_debris(o->x, o->y, 0, -30, 30, o, 0);
+			spray_debris(o->x, o->y, 0, -20, 20, o, 0);
+			spray_debris(o->x, o->y, 0, -10, 10, o, 0);
 		} else {
 			if (randomn(100) < 50) 
-				spray_debris(o->x, o->y, 0, -10, 10, o);
+				spray_debris(o->x, o->y, 0, -10, 10, o, 0);
 		}
 	}
 	if (abs(player->x - o->x) < 250) {
@@ -3321,6 +3344,22 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
+static void add_stone_sound()
+{
+	int i;
+
+	i = randomn(8);
+	add_sound(STONEBANG1 + i, ANY_SLOT);
+}
+
+static void add_metal_sound()
+{
+	int i;
+
+	i = randomn(16);
+	add_sound(METALBANG1 + i, ANY_SLOT);
+}
+
 static void ground_smack_sound()
 {
 	static int nexttime = 0;
@@ -3353,7 +3392,7 @@ void move_player(struct game_obj_t *o)
 		player->move = bridge_move; /* bridge move makes the player fall. */
 		explode(player->x, player->y, player->vx, player->vy, 90, 350, 30); /* bunch of sparks. */
 		player->draw = no_draw;				/* Make player invisible. */
-		spray_debris(o->x, o->y, o->vx, o->vy, 70, o);	/* Throw hunks of metal around, */
+		spray_debris(o->x, o->y, o->vx, o->vy, 70, o, 1);/* Throw hunks of metal around, */
 		add_sound(LARGE_EXPLOSION_SOUND, ANY_SLOT);	/* and make a lot of noise */
 		// printf("decrementing lives %d.\n", game_state.lives);
 		game_state.lives--;				/* lost a life. */
@@ -3598,7 +3637,13 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 		/* if it's falling pretty fast, then bounce, taking slope into account... */
 		if (o->vy > 4) {
 			o->y = deepest-2;
+			if (o->vy > 12 && o->otype == OBJ_TYPE_DEBRIS && abs(o->x - player->x) < 800) {
+				if (o->tsd.debris.debris_type == DEBRIS_TYPE_METAL) /* metal? */
+					add_metal_sound();
+				else
+					add_stone_sound();
 			bounce(&o->vx, &o->vy, slope, 0.3);
+			}
 		} else {
 			/* hit the ground, no bounce, stop. */
 			o->y = deepest-2;
@@ -3710,7 +3755,7 @@ void laser_move(struct game_obj_t *o)
 					}
 					add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
-					spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o);
+					spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
 					kill_object(t->o);
 					/* if (t->o->otype == OBJ_TYPE_FUEL) {
 						game_state.health += 10;
@@ -5367,7 +5412,7 @@ static void free_debris_forms()
 
 /* Spray chunks of debris from a given point x,y, with initial velocity vx,vy
  * and with radiating velocity r.  Used in explosions. */
-static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t *victim)
+static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t *victim, int metal)
 {
 	int i, z; 
 	struct game_obj_t *o;
@@ -5393,6 +5438,7 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 		o->vx = randomn(r) - (r >> 1) + vx;	
 		o->vy = randomn(r) - (r >> 1) + vy;	
 		o->target = NULL;
+		o->tsd.debris.debris_type = metal;
 		o->v = debris_vect[randomn(NDEBRIS_FORMS)];
 	}
 }
@@ -7487,6 +7533,21 @@ int init_clips()
 	read_clip(BODYSLAM_SOUND, "sounds/bodyslam.wav");
 	read_clip(USETHESOURCE_SOUND, "sounds/UseTheSource.wav");
 	read_clip(OOF_SOUND, "sounds/ooooof.wav");
+	read_clip(METALBANG1, "sounds/metalbang1.wav");
+	read_clip(METALBANG2, "sounds/metalbang2.wav");
+	read_clip(METALBANG3, "sounds/metalbang3.wav");
+	read_clip(METALBANG4, "sounds/metalbang4.wav");
+	read_clip(METALBANG5, "sounds/metalbang5.wav");
+	read_clip(METALBANG6, "sounds/metalbang6.wav");
+	read_clip(METALBANG7, "sounds/metalbang7.wav");
+	read_clip(METALBANG1, "sounds/metalbang1.wav");
+	read_clip(STONEBANG2, "sounds/stonebang2.wav");
+	read_clip(STONEBANG3, "sounds/stonebang3.wav");
+	read_clip(STONEBANG4, "sounds/stonebang4.wav");
+	read_clip(STONEBANG5, "sounds/stonebang5.wav");
+	read_clip(STONEBANG6, "sounds/stonebang6.wav");
+	read_clip(STONEBANG7, "sounds/stonebang7.wav");
+	read_clip(STONEBANG8, "sounds/stonebang8.wav");
 	return 0;
 }
 
