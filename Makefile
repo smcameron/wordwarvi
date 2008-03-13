@@ -46,6 +46,7 @@ tarball:
 	cp sounds/*.ogg d/wordwarvi-${VERSION}/sounds
 	cp sounds/Attribution.txt d/wordwarvi-${VERSION}/sounds
 	cp sounds/Makefile d/wordwarvi-${VERSION}/sounds
+	cp changelog.txt d/wordwarvi-${VERSION}
 	chown -R root:root d;
 	( cd d; tar cvf ../wordwarvi-${VERSION}.tar ./wordwarvi-${VERSION} )
 	gzip wordwarvi-${VERSION}.tar
