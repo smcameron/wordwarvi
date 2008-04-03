@@ -5,7 +5,7 @@ freesound.iua.upf.edu.
 Heavily used is the UnitFXsound sample pack by freesound user "inferno"
 See: http://freesound.iua.upf.edu/packsViewSingle.php?id=1094
 
-All these samples are licensed under the 
+The samples below are licensed under the 
 Creative Commons Sampling Plus 1.0 License.
 
 See: http://creativecommons.org/licenses/sampling+/1.0/
@@ -31,11 +31,6 @@ See: http://creativecommons.org/licenses/sampling+/1.0/
   is licensed under Creative Commons Sampling Plus 1.0 License.
   oniwe is http://freesound.iua.upf.edu/usersViewSingle.php?id=193786
 
-* us_quarter.wav is something I (Stephen M. Cameron) 
-  recorded (quarter dropping into a metal can
-  full of quarters)  It is licensed under 
-  the Creative Commons Sampling Plus 1.0 License.
-
 * lucky13-steve-mono-mix.wav is composed and recorded
   by me (Stephen M. Cameron) and Marty Kiel.  I did the
   guitar, Marty did the synth and drums.  It is 
@@ -52,20 +47,38 @@ See: http://creativecommons.org/licenses/sampling+/1.0/
 	COPYRIGHT=2007 by freesound user Shades.  See http://freesound.iua.upf.edu/samplesViewSingle.php?id=37236
 	LICENSE=Creative Commons Sampling Plus 1.0 License http://creativecommons.org/licenses/sampling+/1.0/
 
-* abducted.ogg 
-	LICENSE=Creative Commons Sampling Plus 1.0 License 
-		http://creativecommons.org/licenses/sampling+/1.0/
-	COPYRIGHT=2008 by Stephen M. Cameron
-
-* clang.ogg 
-	LICENSE=Creative Commons Sampling Plus 1.0 License
-		http://creativecommons.org/licenses/sampling+/1.0/
-	COPYRIGHT=2008 by Stephen M. Cameron
-
-* help_up_here.ogg 
-	LICENSE=Creative Commons Sampling Plus 1.0 License
-		http://creativecommons.org/licenses/sampling+/1.0/
-	COPYRIGHT=2008 by Stephen M. Cameron
 
 
+
+The sounds below are all (c) Copyright 2008 Stephen M. Cameron
+and released under Creative Commons Attribution-Share Alike unported 3.0
+license.  See: http://creativecommons.org/licenses/by-sa/3.0/
+
+	us_quarter.ogg
+	woohoo.ogg
+	ow_my_spine.ogg
+	help_down_here.ogg
+	clang.ogg
+	abducted.ogg
+	help_up_here.ogg
+	UseTheSource.ogg
+	ooooof.ogg
+	fallingscreamhi.ogg
+	bodyslam.ogg
+	stonebang8.ogg
+	stonebang7.ogg
+	stonebang6.ogg
+	stonebang5.ogg
+	stonebang4.ogg
+	stonebang3.ogg
+	stonebang1.ogg
+	stonebang2.ogg
+	metalbang8.ogg
+	metalbang7.ogg
+	metalbang6.ogg
+	metalbang5.ogg
+	metalbang4.ogg
+	metalbang3.ogg
+	metalbang2.ogg
+	metalbang1.ogg
 
