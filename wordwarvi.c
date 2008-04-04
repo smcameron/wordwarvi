@@ -27,6 +27,7 @@
 #include <unistd.h>
 
 #include <gdk/gdkkeysyms.h>
+#include <stdint.h>
 #include <math.h>
 
 #define GNU_SOURCE
@@ -7463,7 +7464,7 @@ struct sound_clip {
 	int active;
 	int nsamples;
 	int pos;
-	double *sample;
+	int16_t *sample;
 } clip[NCLIPS];
 
 struct sound_clip audio_queue[MAX_CONCURRENT_SOUNDS];
@@ -7493,15 +7494,15 @@ int read_clip(int clipnum, char *filename)
 	printf("sections = %d\n", sfinfo.sections);
 	printf("seekable = %d\n", sfinfo.seekable);
 */
-	clip[clipnum].sample = (double *) 
-		malloc(sizeof(double) * sfinfo.channels * sfinfo.frames);
+	clip[clipnum].sample = (int16_t *) 
+		malloc(sizeof(int16_t) * sfinfo.channels * sfinfo.frames);
 	if (clip[clipnum].sample == NULL) {
 		printf("Can't get memory for sound data for %llu frames in %s\n", 
 			sfinfo.frames, filename);
 		goto error;
 	}
 
-	nframes = sf_readf_double(f, clip[clipnum].sample, sfinfo.frames);
+	nframes = sf_readf_short(f, clip[clipnum].sample, sfinfo.frames);
 	if (nframes != sfinfo.frames) {
 		printf("Read only %llu of %llu frames from %s\n", 
 			nframes, sfinfo.frames, filename);
@@ -7599,11 +7600,11 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 				continue;
 			}
 			if (j != MUSIC_SLOT && game_state.sound_effects_on)
-				output += audio_queue[j].sample[sample];
+				output += (float) audio_queue[j].sample[sample] / (float) (INT16_MAX) ;
 			else if (j == MUSIC_SLOT && game_state.music_on)
-				output += audio_queue[j].sample[sample];
+				output += (float) audio_queue[j].sample[sample] / (float) (INT16_MAX);
 		}
-		*out++ = (float) output / 2; /* (output / count); */
+		*out++ = (float) output / 2.0; /* (output / count); */
         }
 	for (i=0;i<NCLIPS;i++) {
 		if (!audio_queue[i].active)
