@@ -29,6 +29,9 @@
 #include <gdk/gdkkeysyms.h>
 #include <math.h>
 
+#define GNU_SOURCE
+#include <getopt.h>
+
 #ifdef WITHAUDIOSUPPORT
 /* For Audio stuff... */
 #include "portaudio.h"
@@ -45,9 +48,10 @@
 #endif
 #define TWOPI (M_PI * 2.0)
 #define NCLIPS (46)
-#define MAX_CONCURRENT_SOUNDS (16)
+#define MAX_CONCURRENT_SOUNDS (26)
 
 /* define sound clip constants, and dedicated sound queue slots. */
+int sound_device = -1; /* default sound device for port audio. */
 int add_sound(int which_sound, int which_slot);
 #define ANY_SLOT (-1)
 #define MUSIC_SLOT (0)
@@ -93,6 +97,7 @@ int add_sound(int which_sound, int which_slot);
 #define STONEBANG6 39
 #define STONEBANG7 40
 #define STONEBANG8 41
+#define CORROSIVE_SOUND 42
 
 /* ...End of audio stuff */
 
@@ -3156,6 +3161,7 @@ void bomb_move(struct game_obj_t *o)
 	}
 }
 
+// static void corrosive_atmosphere_sound();
 void volcano_move(struct game_obj_t *o)
 {
 	if (timer % (FRAME_RATE_HZ*2) == 0) {
@@ -3170,6 +3176,7 @@ void volcano_move(struct game_obj_t *o)
 	}
 	if (abs(player->x - o->x) < 250) {
 		game_state.corrosive_atmosphere = 1;
+		// corrosive_atmosphere_sound();
 		if ((timer & 0x03) == 3) 
 			game_state.health--;
 	} else
@@ -3359,6 +3366,19 @@ static void add_metal_sound()
 	i = randomn(16);
 	add_sound(METALBANG1 + i, ANY_SLOT);
 }
+
+#if 0
+static void corrosive_atmosphere_sound()
+{
+	static int nexttime = 0;
+
+	/* Only allow this to enter the sound queue once per every 3 seconds */
+	if (timer > nexttime) {
+		nexttime = timer + FRAME_RATE_HZ*10;
+		add_sound(CORROSIVE_SOUND, ANY_SLOT);
+	}
+}
+#endif
 
 static void ground_smack_sound()
 {
@@ -7473,7 +7493,6 @@ int read_clip(int clipnum, char *filename)
 	printf("sections = %d\n", sfinfo.sections);
 	printf("seekable = %d\n", sfinfo.seekable);
 */
-
 	clip[clipnum].sample = (double *) 
 		malloc(sizeof(double) * sfinfo.channels * sfinfo.frames);
 	if (clip[clipnum].sample == NULL) {
@@ -7548,6 +7567,7 @@ int init_clips()
 	read_clip(STONEBANG6, "sounds/stonebang6.wav");
 	read_clip(STONEBANG7, "sounds/stonebang7.wav");
 	read_clip(STONEBANG8, "sounds/stonebang8.wav");
+	// read_clip(CORROSIVE_SOUND, "sounds/corrosive_atmosphere.wav");
 	return 0;
 }
 
@@ -7622,14 +7642,26 @@ int initialize_portaudio()
 #ifdef WITHAUDIOSUPPORT
 	PaStreamParameters outparams;
 	PaError rc;
+	PaDeviceIndex device_count;
 
 	init_clips();
 
 	rc = Pa_Initialize();
 	if (rc != paNoError)
 		goto error;
+
+	device_count = Pa_GetDeviceCount();
+	printf("Portaudio reports %d sound devices.\n", device_count);
     
 	outparams.device = Pa_GetDefaultOutputDevice();  /* default output device */
+
+	printf("Portaudio says the default device is: %d\n", outparams.device);
+
+	if (sound_device != -1) {
+		printf("Using sound device %d\n", sound_device);
+		outparams.device = sound_device;  /* default output device */
+	}
+
 	outparams.channelCount = 1;                      /* mono output */
 	outparams.sampleFormat = paFloat32;              /* 32 bit floating point output */
 	outparams.suggestedLatency = 
@@ -7789,6 +7821,12 @@ void paint_it_black()
 	}
 }
 
+static struct option wordwarvi_options[] = {
+	{ "bw", 0, NULL, 0 },
+	{ "sounddevice", 1, NULL, 1 },
+	{ "version", 0, NULL, 2 },
+};
+
 int main(int argc, char *argv[])
 {
 	/* GtkWidget is the storage type for widgets */
@@ -7798,22 +7836,39 @@ int main(int argc, char *argv[])
 	GdkRectangle cliprect;
 	int i;
 	int no_colors_any_more = 0;
+	int opt;
 
 	struct timeval tm;
 
-	/* Probably should use getopt, or maybe some gnome-ish */
-	/* option processing here. */
-	if (argc > 1 && strcmp(argv[1],"--bw") == 0)
-		no_colors_any_more = 1;
-	if (argc > 1 && strcmp(argv[1],"--version") == 0) {
-		printf("Wordwarvi, version %s, (c) 2007,2008 Stephen M. Cameron.\n",
-			WORDWARVI_VERSION);
-		printf("Released under the GNU GPL v. 2.0 or later.  See the file\n");
-		printf("COPYING, which should have accompanied this program, for\n");
-		printf("information about redistributing this program.\n");
-		printf("See http://wordwarvi.sourceforge.net for more information\n");
-		printf("about this program.\n");
-		exit(0);
+	while (1) {
+		int rc, n; 
+		rc = getopt_long_only(argc, argv, "", wordwarvi_options, &opt);
+		if (rc == -1)
+			break;
+		switch (rc) {
+			case 0: no_colors_any_more = 1; /* --bw option */
+				break;
+
+			case 1: n = sscanf(optarg, "%d", &sound_device); /* --sounddevice option */
+				if (n != 1) {
+					fprintf(stderr, "wordwarvi: Bad sound device argument"
+						" '%s', using 0.\n", optarg);
+					sound_device = 0;
+				}
+				break;
+			case 2: /* --version option */
+				printf("Wordwarvi, version %s, (c) 2007,2008 Stephen M. Cameron.\n",
+					WORDWARVI_VERSION);
+				printf("Released under the GNU GPL v. 2.0 or later.  See the file\n");
+				printf("COPYING, which should have accompanied this program, for\n");
+				printf("information about redistributing this program.\n");
+				printf("See http://wordwarvi.sourceforge.net for more information\n");
+				printf("about this program.\n");
+				exit(0);
+			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
+				exit(0);
+				
+		}
 	}
 
 	gettimeofday(&tm, NULL);
