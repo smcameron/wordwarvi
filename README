@@ -1,10 +1,12 @@
 
 To build, just type "make"
 
-You'll need libportaudio and libsndfile 
+You'll need portaudio (v 19, not 18) and libsndfile 
 (portaudio-devel and libsndfile-devel rpm packages)
 and oggdec (vorbis-tools rpm package) to decode the 
 included ogg files for sound to work.
+
+See: http://www.portaudio.com/ and http://www.mega-nerd.com/libsndfile/
 
 To build without any sound support, type "make WITHAUDIO=no" 
 
