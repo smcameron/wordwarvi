@@ -1,5 +1,14 @@
 Changelog for wordwarvi:
 
+Tue Apr  8 09:23:50 CDT 2008
+-------------------------------------------------------------------------------
+
+Changes between version 0.04 and 0.05
+* Added a new volcano eruption sound.
+* Replaced all CC Sampling 1.0 licensed sound files from freesound
+  with sound files of my own devising, licensed under CC Attribution-Share
+  Alike 3.0.
+
 -------------------------------------------------------------------------------
 Wed Mar 12 07:17:15 CST 2008
 Changes between version 0.03 and 0.04:
