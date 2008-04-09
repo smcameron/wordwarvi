@@ -2,25 +2,12 @@
 %.wav:	%.ogg
 	oggdec $<
 
-all:	18382_inferno_hvylas.wav \
-	18384_inferno_largex.wav \
-	18385_inferno_laserbeam.wav \
-	18386_inferno_lightrl.wav \
-	18390_inferno_plascanh.wav \
-	18395_inferno_rltx.wav \
-	18399_inferno_stormplas.wav \
-	34561__DrNI__ob12_triangular_growling_wailing.wav \
-	9679__dobroide__firecracker.04_modified.wav \
-	dtox3monomix.wav \
-	ground_smack.wav \
+all:	dtox3monomix.wav \
 	lucky13-steve-mono-mix.wav \
-	thunder.wav \
 	us_quarter.wav \
-	cardoor.wav \
 	ow_my_spine.wav \
 	help_down_here.wav \
 	woohoo.wav \
-	37236_Shades_Gun_Pistol_one_shot_.wav \
 	clang.wav \
 	abducted.wav \
 	help_up_here.wav \
@@ -43,7 +30,23 @@ all:	18382_inferno_hvylas.wav \
 	metalbang5.wav \
 	metalbang6.wav \
 	metalbang7.wav \
-	metalbang8.wav
+	metalbang8.wav \
+	volcano_eruption.wav \
+	synthetic_bomb.wav \
+	synthetic_laser.wav \
+	rocket_exhaust_1.wav \
+	missile_alarm.wav \
+	big_explosion.wav \
+	flak_gun_sound.wav \
+	missile_launch_2.wav \
+	flak_hit.wav \
+	bombexplosion.wav \
+	synthetic_gunshot_2.wav \
+	missile_explosion.wav \
+	new_ground_smack.wav \
+	synthetic_thunder_short.wav \
+	toyota_celica_cardoor_sample.wav
+
 
 clean:
-	/bin/rm -f *.wav
+		/bin/rm -f *.wav

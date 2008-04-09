@@ -48,7 +48,7 @@
 #define M_PI  (3.14159265)
 #endif
 #define TWOPI (M_PI * 2.0)
-#define NCLIPS (46)
+#define NCLIPS (47)
 #define MAX_CONCURRENT_SOUNDS (26)
 
 /* define sound clip constants, and dedicated sound queue slots. */
@@ -99,6 +99,7 @@ int add_sound(int which_sound, int which_slot);
 #define STONEBANG7 40
 #define STONEBANG8 41
 #define CORROSIVE_SOUND 42
+#define VOLCANO_ERUPTION 43
 
 /* ...End of audio stuff */
 
@@ -3165,17 +3166,25 @@ void bomb_move(struct game_obj_t *o)
 // static void corrosive_atmosphere_sound();
 void volcano_move(struct game_obj_t *o)
 {
+	int player_dist;
+
+	player_dist = abs(player->x - o->x);
 	if (timer % (FRAME_RATE_HZ*2) == 0) {
 		if (randomn(100) < 25)  {
 			spray_debris(o->x, o->y, 0, -30, 30, o, 0);
 			spray_debris(o->x, o->y, 0, -20, 20, o, 0);
 			spray_debris(o->x, o->y, 0, -10, 10, o, 0);
+			if (player_dist < 1500)
+				add_sound(VOLCANO_ERUPTION, ANY_SLOT);
 		} else {
-			if (randomn(100) < 50) 
+			if (randomn(100) < 50) {
 				spray_debris(o->x, o->y, 0, -10, 10, o, 0);
+				if (player_dist < 1500)
+					add_sound(VOLCANO_ERUPTION, ANY_SLOT);
+			}
 		}
 	}
-	if (abs(player->x - o->x) < 250) {
+	if (player_dist < 250) {
 		game_state.corrosive_atmosphere = 1;
 		// corrosive_atmosphere_sound();
 		if ((timer & 0x03) == 3) 
@@ -7527,25 +7536,25 @@ int init_clips()
 {
 	memset(&audio_queue, 0, sizeof(audio_queue));
 
-	read_clip(PLAYER_LASER_SOUND, "sounds/18385_inferno_laserbeam.wav");
-	read_clip(BOMB_IMPACT_SOUND, "sounds/18390_inferno_plascanh.wav");
-	read_clip(ROCKET_LAUNCH_SOUND, "sounds/18386_inferno_lightrl.wav");
-	read_clip(FLAK_FIRE_SOUND, "sounds/18382_inferno_hvylas.wav");
-	read_clip(LARGE_EXPLOSION_SOUND, "sounds/18384_inferno_largex.wav");
-	read_clip(ROCKET_EXPLOSION_SOUND, "sounds/9679__dobroide__firecracker.04_modified.wav");
-	read_clip(LASER_EXPLOSION_SOUND, "sounds/18399_inferno_stormplas.wav");
-	read_clip(GROUND_SMACK_SOUND, "sounds/ground_smack.wav");
+	read_clip(PLAYER_LASER_SOUND, "sounds/synthetic_laser.wav");
+	read_clip(BOMB_IMPACT_SOUND, "sounds/bombexplosion.wav");
+	read_clip(ROCKET_LAUNCH_SOUND, "sounds/rocket_exhaust_1.wav");
+	read_clip(FLAK_FIRE_SOUND, "sounds/flak_gun_sound.wav");
+	read_clip(LARGE_EXPLOSION_SOUND, "sounds/big_explosion.wav");
+	read_clip(ROCKET_EXPLOSION_SOUND, "sounds/missile_explosion.wav");
+	read_clip(LASER_EXPLOSION_SOUND, "sounds/flak_hit.wav");
+	read_clip(GROUND_SMACK_SOUND, "sounds/new_ground_smack.wav");
 	read_clip(INSERT_COIN_SOUND, "sounds/us_quarter.wav");
 	read_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.wav");
-	read_clip(SAM_LAUNCH_SOUND, "sounds/18395_inferno_rltx.wav");
-	read_clip(THUNDER_SOUND, "sounds/thunder.wav");
+	read_clip(SAM_LAUNCH_SOUND, "sounds/missile_launch_2.wav");
+	read_clip(THUNDER_SOUND, "sounds/synthetic_thunder_short.wav");
 	read_clip(INTERMISSION_MUSIC_SOUND, "sounds/dtox3monomix.wav");
-	read_clip(MISSILE_LOCK_SIREN_SOUND, "sounds/34561__DrNI__ob12_triangular_growling_wailing.wav");
-	read_clip(CARDOOR_SOUND, "sounds/cardoor.wav");
+	read_clip(MISSILE_LOCK_SIREN_SOUND, "sounds/missile_alarm.wav");
+	read_clip(CARDOOR_SOUND, "sounds/toyota_celica_cardoor_sample.wav");
 	read_clip(WOOHOO_SOUND, "sounds/woohoo.wav");
 	read_clip(OWMYSPINE_SOUND, "sounds/ow_my_spine.wav");
 	read_clip(HELPDOWNHERE_SOUND, "sounds/help_down_here.wav");
-	read_clip(CRONSHOT, "sounds/37236_Shades_Gun_Pistol_one_shot_.wav");
+	read_clip(CRONSHOT, "sounds/synthetic_gunshot_2.wav");
 	read_clip(HELPUPHERE_SOUND, "sounds/help_up_here.wav");
 	read_clip(ABDUCTED_SOUND, "sounds/abducted.wav");
 	read_clip(CLANG_SOUND, "sounds/clang.wav");
@@ -7568,6 +7577,7 @@ int init_clips()
 	read_clip(STONEBANG6, "sounds/stonebang6.wav");
 	read_clip(STONEBANG7, "sounds/stonebang7.wav");
 	read_clip(STONEBANG8, "sounds/stonebang8.wav");
+	read_clip(VOLCANO_ERUPTION, "sounds/volcano_eruption.wav");
 	// read_clip(CORROSIVE_SOUND, "sounds/corrosive_atmosphere.wav");
 	return 0;
 }
