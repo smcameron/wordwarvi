@@ -2,53 +2,12 @@
 Here is the attribution of audio files which I used from 
 freesound.iua.upf.edu.
 
-Heavily used is the UnitFXsound sample pack by freesound user "inferno"
-See: http://freesound.iua.upf.edu/packsViewSingle.php?id=1094
-
-The samples below are licensed under the 
-Creative Commons Sampling Plus 1.0 License.
-
-See: http://creativecommons.org/licenses/sampling+/1.0/
-
-        By dobroide (http://freesound.iua.upf.edu/usersViewSingle.php?id=8043)
-            firecracker.04.flac (http://freesound.iua.upf.edu/samplesViewSingle.php?id=9679)
-            (I modified the file slightly, to make it louder, noisier, etc.)
-	By inferno (http://freesound.iua.upf.edu/usersViewSingle.php?id=71614)
-	    1094_inferno_unitFXsound.zip (http://freesound.iua.upf.edu/packsViewSingle.php?id=1094)
-	By oniwe (http://freesound.iua.upf.edu/usersViewSingle.php?id=193786)
-             http://freesound.iua.upf.edu/samplesViewSingle.php?id=32871
-             (used in creation of ground_smack.wav) 
-	By genghis attenborough (http://freesound.iua.upf.edu/usersViewSingle.php?id=205108)
-            Thunder_edited.wav (http://freesound.iua.upf.edu/samplesViewSingle.php?id=28071)
-	By Jesse Stephens (http://freesound.iua.upf.edu/usersViewSingle.php?id=481069)
-            cardoor.wav (http://freesound.iua.upf.edu/samplesViewSingle.php?id=46917
-
-* ground_smack.wav is a combination of something I recorded
-  (hammer banging on metal pipes) and something recorded by 
-  freesound user oniwe, this:
-  http://freesound.iua.upf.edu/samplesViewSingle.php?id=32871
-  "stones falling in quarry binaural.wav".  ground_smack.wav
-  is licensed under Creative Commons Sampling Plus 1.0 License.
-  oniwe is http://freesound.iua.upf.edu/usersViewSingle.php?id=193786
-
 * lucky13-steve-mono-mix.wav is composed and recorded
   by me (Stephen M. Cameron) and Marty Kiel.  I did the
   guitar, Marty did the synth and drums.  It is 
   licensed under the Creative Commons Attribution 2.0 license
   http://creativecommons.org/licenses/by/2.0/
   (Note, this is different than the other audio clips.)
-
-* thunder.wav is derived from 28071__genghis_attenborough__Thunder_edited.wav
-  by fresound user genghis attenborough.
-
-* 37236_Shades_Gun_Pistol_one_shot_.ogg: (heavily edited by Stephen Cameron,
-  with phaser and leveller, speeding up, etc..
-	DESCRIPTION=Sound of gunshot
-	COPYRIGHT=2007 by freesound user Shades.  See http://freesound.iua.upf.edu/samplesViewSingle.php?id=37236
-	LICENSE=Creative Commons Sampling Plus 1.0 License http://creativecommons.org/licenses/sampling+/1.0/
-
-
-
 
 The sounds below are all (c) Copyright 2008 Stephen M. Cameron
 and released under Creative Commons Attribution-Share Alike unported 3.0
@@ -81,4 +40,19 @@ license.  See: http://creativecommons.org/licenses/by-sa/3.0/
 	metalbang3.ogg
 	metalbang2.ogg
 	metalbang1.ogg
+	volcano_eruption.ogg
+	toyota_celica_cardoor_sample.ogg
+	synthetic_thunder_short.ogg
+	synthetic_laser.ogg
+	synthetic_gunshot_2.ogg
+	synthetic_bomb.ogg
+	rocket_exhaust_1.ogg
+	new_ground_smack.ogg
+	missile_launch_2.ogg
+	missile_explosion.ogg
+	missile_alarm.ogg
+	flak_hit.ogg
+	flak_gun_sound.ogg
+	bombexplosion.ogg
+	big_explosion.ogg
 
