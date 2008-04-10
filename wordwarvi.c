@@ -146,8 +146,9 @@ int add_sound(int which_sound, int which_slot);
 #define MAX_VY 25			/* Max player y speed, pixels per frame. */
 #define LASER_FIRE_CHANCE 20		/* INITIAL chance/1000 that flak guns (laser turrets) will fire if in range */
 #define LASERLEAD (11)			/* How many pixels left/right to lead the player in aiming flak guns */	
-#define LASER_SPEED 40			/* Speed of player's laser beams, pixels/frame */
-#define LASER_PROXIMITY 300 /* square root of 300, how close laser has to be to be considered a "hit", squared */
+#define LASER_SPEED 50			/* Speed of player's laser beams, pixels/frame */
+#define LASER_PROXIMITY 300
+#define LASER_Y_PROXIMITY 5
 #define BOMB_PROXIMITY 10000 /* square root of 30000, how close bomb has to be to be considered a "hit", squared. */
 #define BOMB_X_PROXIMITY 100 /* X proximity to hit, for bombs which impact the ground. */
 
@@ -2702,7 +2703,8 @@ void humanoid_move(struct game_obj_t *o)
 	if (o->tsd.human.on_ground == 0 && o->tsd.human.picked_up == 0) {
 		int gy;
 		/* we got dropped */
-		o->vy += (timer & 0x01); /* make them easier to catch. */
+		if ((timer & 0x03) == 0)
+			o->vy++; /* make them easier to catch. */
 		o->y += o->vy;
 		o->x += o->vx;
 		gy = find_ground_level(o);
@@ -2811,7 +2813,7 @@ void player_fire_laser()
 
 	if (timer < game_state.nextlasertime)
 		return;
-	game_state.nextlasertime = timer + (FRAME_RATE_HZ >> 3);
+	game_state.nextlasertime = timer + (FRAME_RATE_HZ / 12);
 
 	p = &game_state.go[0];
 
@@ -2826,7 +2828,7 @@ void player_fire_laser()
 		} 
 
 		o->last_xi = -1;
-		o->x = p->x+(30 * game_state.direction);
+		o->x = p->x+(0 * game_state.direction);
 		o->y = y;
 		y += 10;
 		o->vx = p->vx + LASER_SPEED * game_state.direction;
@@ -3724,12 +3726,14 @@ void laser_draw(struct game_obj_t *o,  GtkWidget *w)
 	else
 		x2 = x1 + (15) * (20 - o->alive);
 	wwvi_draw_line(w->window, gc, x1, y1, x2, y1);
+	wwvi_draw_line(w->window, gc, x1, y1-1, x2, y1-1);
+	wwvi_draw_line(w->window, gc, x1, y1+1, x2, y1+1);
 }
 
 void laser_move(struct game_obj_t *o)
 {
 	struct target_t *t;
-	int dist2;
+	int hit;
 	int removed;
 
 	if (!o->alive)
@@ -3775,10 +3779,20 @@ void laser_move(struct game_obj_t *o)
 			case OBJ_TYPE_BOMB:
 			case OBJ_TYPE_SAM_STATION:
 			case OBJ_TYPE_MISSILE:{
-				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
-					(o->y - t->o->y)*(o->y - t->o->y);
+
+				/* check y value first. */
+				hit = 0;
+				if (abs(o->y - t->o->y) <= LASER_Y_PROXIMITY) {
+					if (o->vx > 0) {
+						if (o->x > t->o->x && o->x - o->vx < t->o->x)
+							hit=1;
+					} else {
+						if (o->x < t->o->x && o->x - o->vx > t->o->x)
+							hit=1;
+					}
+				}
 				// printf("dist2 = %d\n", dist2);
-				if (dist2 < LASER_PROXIMITY) { /* a hit */
+				if (hit) { /* a hit */
 					if (t->o->otype == OBJ_TYPE_ROCKET) {
 						game_state.score += ROCKET_SCORE;
 						game_state.rockets_killed++;
