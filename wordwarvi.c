@@ -266,9 +266,12 @@ int jsfd = -1;
 
 #define NCOLORS 10		/* number of "cardinal" colors */
 #define NSPARKCOLORS 25 	/* 25 shades from yellow to red for the sparks */
+#define NRAINBOWSTEPS (16)
+#define NRAINBOWCOLORS (NRAINBOWSTEPS*3)
 
-GdkColor huex[NCOLORS + NSPARKCOLORS]; /* all the colors we have to work with are in here */
-GdkColor *sparkcolor;	/* a pointer into the huex[] array where the spark colors begin */
+GdkColor huex[NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS]; /* all the colors we have to work with are in here */
+GdkColor *sparkcolor;		/* a pointer into the huex[] array where the spark colors begin */
+GdkColor *rainbow_color;	/* a pointer into the huex[] array where the rainbow colors begin */
 
 /* cardinal color indexes into huex array */
 #define WHITE 0
@@ -1607,6 +1610,7 @@ struct game_state_t {
 #define     RADAR_BOOTUP (5 * FRAME_RATE_HZ) /* How long it takes the radar to boot up. */
 	int nextbombtime;
 	int nextlasertime;
+	int nextlasercolor;
 	int nextchafftime;
 
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
@@ -1983,7 +1987,7 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 
 	/* draw the cron job's scanning beam... */
 	if (o->tsd.cron.beam_speed != 0) { /* beam on? */
-		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS)]);
+		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS+NRAINBOWCOLORS)]);
 		gy = ground_level(o->x + o->tsd.cron.beam_pos, &xi);
 		if (xi != -1) {
 			x1 = o->x - game_state.x;
@@ -2698,7 +2702,7 @@ void humanoid_move(struct game_obj_t *o)
 	if (o->tsd.human.on_ground == 0 && o->tsd.human.picked_up == 0) {
 		int gy;
 		/* we got dropped */
-		o->vy += 1;
+		o->vy += (timer & 0x01); /* make them easier to catch. */
 		o->y += o->vy;
 		o->x += o->vx;
 		gy = find_ground_level(o);
@@ -2770,7 +2774,7 @@ void socket_move(struct game_obj_t *o)
 		// advance_level();
 	}
 	if (xdist < SCREEN_WIDTH)
-		o->color = randomn(NCOLORS + NSPARKCOLORS);
+		o->color = randomn(NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS);
 }
 
 static inline void free_object(int i)
@@ -2795,6 +2799,7 @@ static inline void kill_object(struct game_obj_t *o)
 int find_free_obj();
 
 void laser_move(struct game_obj_t *o);
+void laser_draw(struct game_obj_t *o,  GtkWidget *w);
 void generic_destroy_func(struct game_obj_t *o);
 
 void player_fire_laser()
@@ -2827,13 +2832,17 @@ void player_fire_laser()
 		o->vx = p->vx + LASER_SPEED * game_state.direction;
 		o->vy = 0;
 		o->v = &right_laser_vect;
-		o->draw = NULL;
+		o->draw = laser_draw;
 		o->move = laser_move;
 		o->destroy = generic_destroy_func;
 		o->otype = OBJ_TYPE_LASER;
-		o->color = GREEN;
+		o->color = game_state.nextlasercolor;
 		o->alive = 20;
 		o->target = NULL;
+	
+		game_state.nextlasercolor++;
+		if  (game_state.nextlasercolor >= NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS)
+			game_state.nextlasercolor = NCOLORS + NSPARKCOLORS;
 	}
 	game_state.cmd_multiplier = 1;
 	add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
@@ -3700,6 +3709,21 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 void no_move(struct game_obj_t *o)
 {
 	return;
+}
+
+void laser_draw(struct game_obj_t *o,  GtkWidget *w)
+{
+	int j;
+	int x1, y1, x2;
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+	x1 = o->x - game_state.x;
+	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
+
+	if (o->vx > 0)
+		x2 = x1 - (15) * (20 - o->alive);
+	else
+		x2 = x1 + (15) * (20 - o->alive);
+	wwvi_draw_line(w->window, gc, x1, y1, x2, y1);
 }
 
 void laser_move(struct game_obj_t *o)
@@ -6519,7 +6543,7 @@ void draw_radar(GtkWidget *w)
 		return;
 
 	if (game_state.radar_state == RADAR_FRITZED) {
-		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS)]);
+		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS+NRAINBOWCOLORS)]);
 		wwvi_draw_line(w->window, gc, x1, y1 + timer % RADAR_HEIGHT, 
 			x2,  y1 + timer % RADAR_HEIGHT);
 	} else if (game_state.radar_state <= RADAR_BOOTUP) { /* radar is booting up, display bootup message. */
@@ -7000,6 +7024,7 @@ void initialize_game_state_new_level()
 	game_state.cmd_multiplier = 1;
 	game_state.radar_state = RADAR_BOOTUP;
 	game_state.nextlasertime = timer;
+	game_state.nextlasercolor = NCOLORS + NSPARKCOLORS;
 	game_state.nextbombtime = timer;
 	game_state.nextchafftime = timer;
 }
@@ -7778,6 +7803,69 @@ void cancel_all_sounds()
 /* End of AUDIO related code                                     */
 /***********************************************************************/
 
+void setup_rainbow_colors()
+{
+
+	int i, r, g, b, dr, dg, db, c;
+
+	rainbow_color = &huex[NCOLORS + NSPARKCOLORS];
+
+	
+	r = 32766*2;
+	g = 0;
+	b = 0;
+
+	dr = -r / NRAINBOWSTEPS;
+	dg = r / NRAINBOWSTEPS;
+	db = 0;
+
+	c = 0;
+
+	for (i=0;i<NRAINBOWSTEPS;i++) {
+		rainbow_color[c].red = (unsigned short) r;
+		rainbow_color[c].green = (unsigned short) g;
+		rainbow_color[c].blue = (unsigned short) b;
+
+		r += dr;
+		g += dg;
+		b += db;
+
+		c++;
+	}
+
+	dg = (-32766*2) / NRAINBOWSTEPS;
+	db = -dg;
+	dr = 0;
+
+	for (i=0;i<NRAINBOWSTEPS;i++) {
+		rainbow_color[c].red = (unsigned short) r;
+		rainbow_color[c].green = (unsigned short) g;
+		rainbow_color[c].blue = (unsigned short) b;
+
+		r += dr;
+		g += dg;
+		b += db;
+
+		c++;
+	}
+
+	db = (-32766*2) / NRAINBOWSTEPS;
+	dr = -db;
+	dg = 0;
+
+	for (i=0;i<NRAINBOWSTEPS;i++) {
+		rainbow_color[c].red = (unsigned short) r;
+		rainbow_color[c].green = (unsigned short) g;
+		rainbow_color[c].blue = (unsigned short) b;
+
+		r += dr;
+		g += dg;
+		b += db;
+
+		c++;
+	}
+}
+
 void setup_spark_colors()
 {
 
@@ -7819,7 +7907,7 @@ void paint_it_black()
 {
 	int i;
 	unsigned int avg;
-	for (i=0;i<NCOLORS + NSPARKCOLORS;i++) {
+	for (i=0;i<NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS;i++) {
 		avg = huex[i].red + huex[i].green + huex[i].blue;
 		avg = avg / 3;
 		if (avg > 200)
@@ -7909,6 +7997,7 @@ int main(int argc, char *argv[])
 
 	/* Set up the spark colors. */
 	setup_spark_colors();
+	setup_rainbow_colors();
 
 	if (no_colors_any_more)
 		paint_it_black();
@@ -7975,7 +8064,7 @@ int main(int argc, char *argv[])
 
 	// print_target_list();
 
-	for (i=0;i<NCOLORS+NSPARKCOLORS;i++)
+	for (i=0;i<NCOLORS+NSPARKCOLORS + NRAINBOWCOLORS;i++)
 		gdk_colormap_alloc_color(gtk_widget_get_colormap(main_da), &huex[i], FALSE, FALSE);
 	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &huex[BLACK]);
 
