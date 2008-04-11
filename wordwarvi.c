@@ -1630,6 +1630,7 @@ int lasthuman = 0;				/* debug code... for 'n' key. */
 GdkGC *gc = NULL;		/* our graphics context. */
 GtkWidget *main_da;		/* main drawing area. */
 gint timer_tag;			/* for our gtk 30 times per second timer function */
+int next_quarter_time = -1;	/* Used to limit rate at which quarters can be put in. */
 
 
 /* add an object to the list of targets... */
@@ -3439,6 +3440,10 @@ void move_player(struct game_obj_t *o)
 		was_healthy = 1;
 	} else if (was_healthy) { /* has player _just_ died, just this frame? */
 		was_healthy = 0;  /* remember he's died, for next time. */
+
+		/* force 10 secs to elapse before another quarter can go in. */
+		next_quarter_time = timer + (FRAME_RATE_HZ * 10);
+
 		player->move = bridge_move; /* bridge move makes the player fall. */
 		explode(player->x, player->y, player->vx, player->vy, 90, 350, 30); /* bunch of sparks. */
 		player->draw = no_draw;				/* Make player invisible. */
@@ -7224,6 +7229,28 @@ void advance_level()
 	/* start_level(); */
 }
 
+void cancel_all_sounds();
+
+void insert_quarter()
+{
+	credits++;
+	if (credits == 1) {
+		cancel_all_sounds();
+		add_sound(INSERT_COIN_SOUND, ANY_SLOT);
+		sleep(2);
+		ntextlines = 1;
+		game_ended();
+		/* initialize_game_state_new_level();
+		init_levels_to_beginning();
+		start_level(); */
+		init_levels_to_beginning();
+		timer_event = READY_EVENT;
+		next_timer = timer+1;
+	} else
+		add_sound(INSERT_COIN_SOUND, ANY_SLOT);
+	sprintf(textline[CREDITS].string, "Credits: %d Lives: %d", credits, game_state.lives);
+}
+
 /* this is just a table to map joystick positions to numbers.  Notice there are more
  * lower numbers than higher numbers.  The idea is motion is finer in the middle, and
  * coarser at the edges.  I just pulled these numbers out of my ass, really.
@@ -7254,9 +7281,6 @@ void deal_with_joystick()
 	int index = 0;
 	int newvy, diff;
 
-	if (game_state.health <= 0 || credits <= 0)
-		return;
-
 #define JOYSTICK_SENSITIVITY 5000
 #define XJOYSTICK_THRESHOLD 30000
 
@@ -7264,6 +7288,12 @@ void deal_with_joystick()
 	rc = get_joystick_status(&jse);
 	if (rc != 0)
 		return;
+
+	if (game_state.health <= 0 && credits >= 1)
+		return;
+
+	if (credits <= 0)
+		goto no_credits;
 
 	/* Stick 1 horizontal movement */	
 	if (jse.stick1_x < -XJOYSTICK_THRESHOLD) {
@@ -7344,6 +7374,33 @@ void deal_with_joystick()
 	if (jse.button[0] == 1) {
 		drop_chaff();
 	}
+
+	/* buttons 8 or 9 on joystick will put in a quarter. */
+	if ((jse.button[8] == 1 || jse.button[9] == 1) && timer > next_quarter_time) {
+		insert_quarter();
+		next_quarter_time = timer + (FRAME_RATE_HZ);
+	}
+	return;
+
+no_credits:
+	/* If credits are zero, or health is zero -- ANY button on the joystick */
+	/* will put in a quarter. */
+	if (timer > next_quarter_time) {
+		if (jse.button[0] == 1 ||
+			jse.button[1] == 1 ||
+			jse.button[2] == 1 ||
+			jse.button[3] == 1 ||
+			jse.button[4] == 1 ||
+			jse.button[5] == 1 ||
+			jse.button[6] == 1 ||
+			jse.button[7] == 1 ||
+			jse.button[8] == 1 ||
+			jse.button[9] == 1) {
+			
+			insert_quarter();
+			next_quarter_time = timer + FRAME_RATE_HZ;
+		}
+	}
 }
 
 static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
@@ -7399,6 +7456,8 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		destroy_event(widget, NULL);
 		return TRUE;	
 	case GDK_q:
+		insert_quarter();
+#if 0
 		add_sound(INSERT_COIN_SOUND, ANY_SLOT);
 		credits++;
 		if (credits == 1) {
@@ -7414,6 +7473,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 			next_timer = timer+1;
 		}
 		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d", credits, game_state.lives);
+#endif
 		return TRUE;
 #if 0
 	case GDK_Home:
