@@ -3725,7 +3725,9 @@ void laser_draw(struct game_obj_t *o,  GtkWidget *w)
 		x2 = x1 - (15) * (20 - o->alive);
 	else
 		x2 = x1 + (15) * (20 - o->alive);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
 	wwvi_draw_line(w->window, gc, x1, y1, x2, y1);
+	gdk_gc_set_foreground(gc, &huex[o->color]);
 	wwvi_draw_line(w->window, gc, x1, y1-1, x2, y1-1);
 	wwvi_draw_line(w->window, gc, x1, y1+1, x2, y1+1);
 }
