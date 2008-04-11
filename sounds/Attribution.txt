@@ -9,6 +9,14 @@ freesound.iua.upf.edu.
   http://creativecommons.org/licenses/by/2.0/
   (Note, this is different than the other audio clips.)
 
+* dtox3monomix.ogg was composed, performed, and recorded by me
+  (Stephen M. Cameron).  It is licensed under the Creative
+  Commons Attribution-Share Alike 3.0 license.
+  See: http://creativecommons.org/licenses/by-sa/3.0/
+  (Incidentally the drums (not that their anything special) 
+  were done with Gneutronica, a MIDI-drum sequencer which 
+  I wrote, see: http://gneutronica.sourceforge.net )
+
 The sounds below are all (c) Copyright 2008 Stephen M. Cameron
 and released under Creative Commons Attribution-Share Alike unported 3.0
 license.  See: http://creativecommons.org/licenses/by-sa/3.0/
@@ -55,4 +63,5 @@ license.  See: http://creativecommons.org/licenses/by-sa/3.0/
 	flak_gun_sound.ogg
 	bombexplosion.ogg
 	big_explosion.ogg
+	dtox3monomix.ogg
 
