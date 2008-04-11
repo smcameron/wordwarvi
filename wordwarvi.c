@@ -2720,6 +2720,11 @@ void humanoid_move(struct game_obj_t *o)
 	ydist = abs(o->y - player->y);
 	if (xdist < HUMANOID_DIST && o->tsd.human.picked_up == 0) {
 		if (ydist < HUMANOID_DIST) {	/* close enough for pickup? */
+			if (o->tsd.human.on_ground == 0 && 
+				o->tsd.human.picked_up == 0) { /* midair catch */
+				add_floater_message(o->x, o->y + 25, "Nice Catch! +1000!");
+				game_state.score += 1000;
+			}
 			add_sound(CARDOOR_SOUND, ANY_SLOT);
 			add_sound(WOOHOO_SOUND, ANY_SLOT);
 			add_floater_message(o->x, o->y, "Woohoo!");
@@ -2728,17 +2733,16 @@ void humanoid_move(struct game_obj_t *o)
 			o->tsd.human.abductor = player;
 			o->tsd.human.picked_up = 1;
 			o->tsd.human.seat_number = game_state.humanoids;
-			if (o->tsd.human.on_ground == 0) {
-				add_floater_message(o->x, o->y+15, "Nice catch, man! +1000!");
-				game_state.score += 1000;
-			}
 			o->tsd.human.on_ground = 0;
 			game_state.score += HUMANOID_PICKUP_SCORE;
 			game_state.humanoids++;
 		} else {
 			/* counter tracks if player has left the general vicinity of the human lately. */
 			/* keeps human from saying "Help up/down here!" more than once at a time. */
-			if (o->counter == 0) {
+			/* If the player is in the middle of falling, he doesn't say anything. */ 
+			/* Too busy screaming. */
+			if (o->counter == 0 && (o->tsd.human.on_ground != 0 || 
+				o->tsd.human.picked_up != 0)) {
 				add_floater_message(o->x, o->y, "Help!");
 				if (o->y > player->y)
 					add_sound(HELPDOWNHERE_SOUND, ANY_SLOT);
