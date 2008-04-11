@@ -4985,9 +4985,16 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 	radary = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((o->y * RADAR_HEIGHT) / 1500);
 	radary = radary + y_correction;
 
-	if (radary < SCREEN_HEIGHT - RADAR_HEIGHT - RADAR_YMARGIN)
+	/* If object is off top or bottom of radar screen, don't draw it. */ 
+	/* However, if it is a radar jammer, don't bail just yet. as we */
+	/* still have to draw the noise that it makes, otherwise, the player */
+	/* can subvert the jammer just by flying high enough that the jammer */
+	/* goes off the bottom of the radar screen. */
+	if (radary < SCREEN_HEIGHT - RADAR_HEIGHT - RADAR_YMARGIN 
+		&& o->otype != OBJ_TYPE_JAMMER)
 		return;
-	if (radary > SCREEN_HEIGHT - RADAR_YMARGIN)
+	if (radary > SCREEN_HEIGHT - RADAR_YMARGIN 
+		&& o->otype != OBJ_TYPE_JAMMER)
 		return;
 
 	radarx = ((SCREEN_WIDTH - (2*RADAR_XMARGIN)) * o->x) / WORLDWIDTH + RADAR_XMARGIN;
@@ -5001,18 +5008,22 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 	y2 = radary + o->radar_image;
 
 
-	/* draw a little x.... */	
-	gdk_gc_set_foreground(gc, &huex[o->color]);
-	wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
-	wwvi_draw_line(w->window, gc, x1, y2, x2, y1); 
-	if (o->otype == OBJ_TYPE_HUMAN || o->otype == OBJ_TYPE_PLAYER) {
-		/* for the player and the humans, make them a little more */
-		/* prominent. */
-		wwvi_draw_line(w->window, gc, x1, y2, x1, y1); 
-		wwvi_draw_line(w->window, gc, x1, y1, x2, y1); 
-		wwvi_draw_line(w->window, gc, x2, y1, x2, y2); 
-		wwvi_draw_line(w->window, gc, x2, y2, x1, y2); 
-		return;
+	/* Don't draw anything for radar jammer's themselves, */
+	/* but do draw other stuff.. */	
+	if (o->otype != OBJ_TYPE_JAMMER) {
+		/* draw a little x.... */	
+		gdk_gc_set_foreground(gc, &huex[o->color]);
+		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+		wwvi_draw_line(w->window, gc, x1, y2, x2, y1); 
+		if (o->otype == OBJ_TYPE_HUMAN || o->otype == OBJ_TYPE_PLAYER) {
+			/* for the player and the humans, make them a little more */
+			/* prominent. */
+			wwvi_draw_line(w->window, gc, x1, y2, x1, y1); 
+			wwvi_draw_line(w->window, gc, x1, y1, x2, y1); 
+			wwvi_draw_line(w->window, gc, x2, y1, x2, y2); 
+			wwvi_draw_line(w->window, gc, x2, y2, x1, y2); 
+			return;
+		}
 	}
 
 	/* Here's where we put noise on the screen. total_radar_noise */
