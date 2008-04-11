@@ -148,7 +148,7 @@ int add_sound(int which_sound, int which_slot);
 #define LASERLEAD (11)			/* How many pixels left/right to lead the player in aiming flak guns */	
 #define LASER_SPEED 50			/* Speed of player's laser beams, pixels/frame */
 #define LASER_PROXIMITY 300
-#define LASER_Y_PROXIMITY 5
+#define LASER_Y_PROXIMITY 8
 #define BOMB_PROXIMITY 10000 /* square root of 30000, how close bomb has to be to be considered a "hit", squared. */
 #define BOMB_X_PROXIMITY 100 /* X proximity to hit, for bombs which impact the ground. */
 
@@ -3715,7 +3715,6 @@ void no_move(struct game_obj_t *o)
 
 void laser_draw(struct game_obj_t *o,  GtkWidget *w)
 {
-	int j;
 	int x1, y1, x2;
 	gdk_gc_set_foreground(gc, &huex[o->color]);
 	x1 = o->x - game_state.x;
@@ -6345,6 +6344,7 @@ static void add_balloons(struct terrain_t *t)
 static void draw_strings(GtkWidget *w);
 void setup_text();
 
+int bonus_points_this_round;
 static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 {
 	static int intermission_stage = 0;
@@ -6366,6 +6366,8 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 	if (timer >= intermission_timer) {
 		add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 		intermission_stage++;
+		/* printf("intermission_stage  %d -> %d\n", 
+ * 			intermission_stage-1,intermission_stage); */
 		intermission_timer = timer + (intermission_stage == 10 ? 4 : 1) * FRAME_RATE_HZ;
 	}
 
@@ -6381,105 +6383,114 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 			next_timer = timer + 1;
 			intermission_timer = 0;
 			intermission_stage = 0;
+			game_state.score += bonus_points_this_round;
+			/* printf("added %d points to score --> %d\n", 
+				bonus_points_this_round, game_state.score); */
 			cleartext();
 			gotoxy(0,0);
 			sprintf(s, "Credits: %d Lives: %d", credits, game_state.lives);
-			game_state.score += add_bonus;
 			gameprint(s);
 			break;
 		case 10: 
-			gotoxy(8, 10+3);
+			gotoxy(5, 10+3);
 			elapsed_secs = game_state.finish_time.tv_sec - game_state.start_time.tv_sec;
 			if (elapsed_secs < 90)
-				inc_bonus = (90 - elapsed_secs) * 10;
+				inc_bonus = (90 - elapsed_secs) * 100;
 			else
 				inc_bonus = 0;
-			sprintf(s, "Elapsed time                  %d:%d      %d pts",
+			sprintf(s, "Elapsed time               %02d:%02d    %5d",
 				elapsed_secs / 60, elapsed_secs % 60, inc_bonus);
 			bonus_points += inc_bonus;	
 			add_bonus = bonus_points;
 			gameprint(s);
 		case 9: 
-			gotoxy(8, 9+2);
+			gotoxy(5, 9+2);
 			if (game_state.sams_killed >= level.nsams)
 				inc_bonus = 50;
 			else
 				inc_bonus = 0;
 			bonus_points += inc_bonus;
-			sprintf(s, "SAM stations destroyed:       %d/%d     %d pts",
+			sprintf(s, "SAM stations destroyed:    %2d/%2d    %5d",
 				game_state.sams_killed, level.nsams, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 8: 
-			gotoxy(8, 8+2);
+			gotoxy(5, 8+2);
 			if (game_state.guns_killed >= level.nflak)
 				inc_bonus = 50;
 			else
 				inc_bonus = 0;
-			sprintf(s, "Laser turrets killed:         %d/%d    %d pts", 
+			sprintf(s, "Laser turrets killed:      %2d/%2d    %5d", 
 				game_state.guns_killed, level.nflak, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 7: 
-			gotoxy(8, 7+2);
-			sprintf(s, "Missiles killed:              %d       0 pts",
-				game_state.missiles_killed);
+			gotoxy(5, 7+2);
+			sprintf(s, "Missiles killed:              %2d    %5d",
+				game_state.missiles_killed, 0);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 6: 
-			gotoxy(8, 6+2);
+			gotoxy(5, 6+2);
 			if (game_state.rockets_killed >= level.nrockets)
 				inc_bonus = 50;
 			else
 				inc_bonus = 0;
-			sprintf(s, "Rockets killed:               %d/%d   %d pts",
+			sprintf(s, "Rockets killed:            %2d/%2d    %5d",
 				game_state.rockets_killed, level.nrockets, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 5: 
-			gotoxy(8, 5+2);
+			gotoxy(5, 5+2);
 			if (game_state.octos_killed >= level.noctopi)
 				inc_bonus = 50;
 			else
 				inc_bonus = 0;
-			sprintf(s, "Octo-viruses killed:          %d/%d   %d pts",
+			sprintf(s, "Octo-viruses killed:       %2d/%2d    %5d",
 				game_state.octos_killed, level.noctopi, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 4: 
-			gotoxy(8, 4+2);
+			gotoxy(5, 4+2);
 			if (game_state.gdbs_killed >= level.ngdbs)
-				inc_bonus = 50;
+				inc_bonus = 5000;
 			else
-				inc_bonus = 0;
-			sprintf(s, "gdb processes killed:         %d/%d   %d pts",
+				inc_bonus = 10*game_state.gdbs_killed;
+			sprintf(s, "gdb processes killed:      %2d/%2d    %5d",
 				game_state.gdbs_killed, level.ngdbs, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 3: 
-			gotoxy(8, 3+2);
+			gotoxy(5, 3+2);
 			inc_bonus = game_state.emacs_killed * 100;
-			sprintf(s, "Emacs processes terminated:   %d/%d   %d pts",
+			if (game_state.emacs_killed == level.nairships)
+				inc_bonus += 20000;
+			sprintf(s, "Emacs processes killed:    %2d/%2d    %5d",
 				game_state.emacs_killed, level.nairships, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 2: 
-			gotoxy(8, 2+2);
-			inc_bonus = game_state.humanoids * 100;
-			sprintf(s, "vi .swp files rescued:        %d/%d   %d pts", 
+			gotoxy(5, 2+2);
+			inc_bonus = game_state.humanoids * 1000;
+			if (game_state.humanoids == level.nhumanoids)
+				inc_bonus = game_state.humanoids * 5000;
+			sprintf(s, "vi .swp files rescued:     %2d/%2d    %5d", 
 				game_state.humanoids, level.nhumanoids, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 1: 
-			add_bonus = 0;
-			gotoxy(8, 1);
-			sprintf(s, "Node cleared!  Total bonus points: %d\n", bonus_points);
+			gotoxy(5, 1);
+			sprintf(s, "Node cleared! Total bonus points:  %6d\n", bonus_points);
+			bonus_points_this_round = bonus_points;
 			gameprint( s);
 	}
 	if (intermission_stage != 11)
 		draw_strings(w);
-	else
+	else {
+		game_state.score += add_bonus;
+		printf("added %d points to score --> %d\n", add_bonus, game_state.score);
 		setup_text();
+	}
 	/* printf("i, timer_event = %d\n", timer_event); */
 	return 0;
 }
@@ -7218,7 +7229,7 @@ void deal_with_joystick()
 	/* why can I get away with this kind of initializer */
 	/* in the linux kernel, but not here?  Well, not without the */
 	/* compiler moaning, anyway. */
-	static struct wwvi_js_event jse = { 0 }; 
+	static struct wwvi_js_event jse; 
 	int index = 0;
 	int newvy, diff;
 
