@@ -4226,6 +4226,7 @@ static void add_bullet(int x, int y, int vx, int vy,
 	o->vy = vy;
 	o->move = move_bullet;
 	o->draw = NULL;
+	o->v = &bullet_vect;
 	o->destroy = generic_destroy_func;
 	o->bullseye = bullseye;
 	o->target = add_target(o);
