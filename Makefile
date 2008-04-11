@@ -1,3 +1,5 @@
+PREFIX=/usr
+DATADIR=${PREFIX}/share/wordwarvi
 
 # To compile withaudio, WITHAUDIO=yes, 
 # for no audio support, change to WITHAUDIO=no, 
@@ -21,6 +23,8 @@ OPTIMIZE_FLAG=-O2
 
 LDFLAGS=${PROFILE_FLAG}
 
+DEFINES=${SNDFLAGS} -DDATADIR=\"${DATADIR}/\"
+
 ifeq (${WITHAUDIO},yes)
 all:	wordwarvi thesounds
 
@@ -36,9 +40,15 @@ thesounds:
 	( cd sounds ; make  )
 
 wordwarvi:	wordwarvi.c joystick.o Makefile version.h
-	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -Wall  ${SNDFLAGS} joystick.o \
+	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -Wall  ${DEFINES} joystick.o \
 		wordwarvi.c -o wordwarvi -lm ${SNDLIBS} \
 		`pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0` `pkg-config --libs gthread-2.0`
+
+install: wordwarvi
+	mkdir -p $(PREFIX)/bin
+	mkdir -p $(DATADIR)/sounds
+	install -p -m 755 wordwarvi $(PREFIX)/bin
+	install -p -m 644 sounds/*.wav $(DATADIR)/sounds
 
 tarball:
 	mkdir -p d/wordwarvi-${VERSION}/sounds

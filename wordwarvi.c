@@ -25,6 +25,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include <gdk/gdkkeysyms.h>
 #include <stdint.h>
@@ -41,6 +42,10 @@
 
 #include "joystick.h"
 #include "version.h"
+
+#ifndef DATADIR
+#define DATADIR ""
+#endif
 
 #define SAMPLE_RATE   (44100)
 #define FRAMES_PER_BUFFER  (1024)
@@ -7544,12 +7549,18 @@ int read_clip(int clipnum, char *filename)
 	SNDFILE *f;
 	SF_INFO sfinfo;
 	sf_count_t nframes;
+	char filebuf[PATH_MAX];
 
 	memset(&sfinfo, 0, sizeof(sfinfo));
 	f = sf_open(filename, SFM_READ, &sfinfo);
 	if (f == NULL) {
-		fprintf(stderr, "sf_open('%s') failed.\n", filename);
-		return -1;
+		memset(&sfinfo, 0, sizeof(sfinfo));
+		snprintf(filebuf, PATH_MAX, DATADIR"%s", filename);
+		f = sf_open(filebuf, SFM_READ, &sfinfo);
+		if (f == NULL) {
+			fprintf(stderr, "sf_open('%s') failed.\n", filename);
+			return -1;
+		}
 	}
 /*
 	printf("Reading sound file: '%s'\n", filename);
