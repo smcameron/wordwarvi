@@ -164,8 +164,8 @@ int add_sound(int which_sound, int which_slot);
 #define CRON_MAX_VX 8 	      /* max x and y velocities of cron jobs */
 #define CRON_MAX_VY 5 
 
-#define GDB_DX_THRESHOLD 250  /* dist must be <= this many pixels for gdb to consider himself to have */
-#define GDB_DY_THRESHOLD 250  /* reached it's destination.  It's large, so they won't just sit on the */
+#define GDB_DX_THRESHOLD 25  /* dist must be <= this many pixels for gdb to consider himself to have */
+#define GDB_DY_THRESHOLD 25  /* reached it's destination.  It's large, so they won't just sit on the */
 			      /* player's face. */
 #define GDB_MAX_VX 13 	      /* max x and y velocities of GDBs. */
 #define GDB_MAX_VY 13 
@@ -2605,10 +2605,8 @@ void gdb_move(struct game_obj_t *o)
 	if (!o->alive)
 		return;
 
-	gy = find_ground_level(o);
-	
-
 	if (o->tsd.gdb.awake) {
+		gy = find_ground_level(o);
 	
 		dvx = 0; /* make compiler happy */
 		dvy = 0; /* make compiler happy */ 	
@@ -2632,13 +2630,26 @@ void gdb_move(struct game_obj_t *o)
 			dvy = -GDB_MAX_VY;
 		else if (o->y > ty)
 			dvy = 0;
-
+#if 0
 		/* If we aren't close to the destination, every once in awhile, */
 		/* change the distination a bit.  This makes it a little less predictable */
 		if (abs(player->x - tx) > GDB_DX_THRESHOLD ||
 			abs(player->y - ty) > GDB_DY_THRESHOLD || randomn(100) < 3) {
 			o->tsd.gdb.tx = player->x + randomn(300)-150;
 			o->tsd.gdb.ty = player->y + randomn(300)-150;
+		}
+#endif
+
+		{
+			int angle = ((timer * 3 + o->number*47) % 360);
+			tx = player->x + sine[angle] * 250;  
+			ty = player->y + cosine[angle] * 250;
+	
+			if (ty > gy)
+				ty -= 100;
+
+			o->tsd.gdb.tx = tx;
+			o->tsd.gdb.ty = ty;
 		}
 
 		/* avoid the ground. */
@@ -2681,7 +2692,8 @@ void gdb_move(struct game_obj_t *o)
 		}
 	}
 
-	/* why this? */
+	/* If GDB's smash into the ground... they die. */
+	/* Somewhat counteracts their bad-assitude.... */
 	if (o->y >= gy + 3) {
 		kill_object(o);
 		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
