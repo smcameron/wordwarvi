@@ -3891,13 +3891,47 @@ void draw_spark(struct game_obj_t *o, GtkWidget *w)
 	int x1, y1, x2, y2;
 
 	/* draw sparks using their velocities as offsets. */
-	gdk_gc_set_foreground(gc, &huex[o->color]);
 	x2 = o->x - game_state.x; 
-	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
+	if (x2 < 0 || x2 > SCREEN_WIDTH)
+		return;
+
 	x1 = x2 - o->vx;
+	if (x1 < 0 && x1 > SCREEN_WIDTH)
+		return;
+
+	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
 	y1 = y2 - o->vy;
-	if (x1 > 0 && x2 > 0 && x1 < SCREEN_WIDTH && x2 < SCREEN_WIDTH) 
-		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+}
+
+void draw_laserbolt(struct game_obj_t *o, GtkWidget *w)
+{
+	int x1, y1, x2, y2, dx, dy;
+
+	/* very much like sparks... */
+	x2 = o->x - game_state.x; 
+	if (x2 < 0 || x2 > SCREEN_WIDTH)
+		return;
+
+	x1 = x2 - o->vx;
+	if (x1 < 0 || x1 > SCREEN_WIDTH)
+		return;
+
+	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
+	y1 = y2 - o->vy;
+	dx = abs(x1-x2);
+	dy = abs(y1-y2);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+	if (dx > dy) {
+		wwvi_draw_line(w->window, gc, x1, y1+1, x2, y2+1); 
+		wwvi_draw_line(w->window, gc, x1, y1-1, x2, y2-1); 
+	} else {
+		wwvi_draw_line(w->window, gc, x1+1, y1, x2+1, y2); 
+		wwvi_draw_line(w->window, gc, x1-1, y1, x2-1, y2); 
+	}
 }
 
 void draw_missile(struct game_obj_t *o, GtkWidget *w)
@@ -5289,7 +5323,7 @@ static void xy_draw_string(GtkWidget *w, char *s, int font, int x, int y)
 
 static void add_laserbolt(int x, int y, int vx, int vy, int time)
 {
-	add_generic_object(x, y, vx, vy, move_laserbolt, draw_spark,
+	add_generic_object(x, y, vx, vy, move_laserbolt, draw_laserbolt,
 		CYAN, &spark_vect, 0, OBJ_TYPE_SPARK, time);
 }
 
