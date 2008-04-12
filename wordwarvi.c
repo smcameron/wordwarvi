@@ -1762,7 +1762,51 @@ void fuel_move(struct game_obj_t *o)
 			o->tsd.fuel.level++;
 }
 
-static void add_laserbolt(int x, int y, int vx, int vy, int time);
+/* Given target o, and shooter, sx,sy, and laserbolt velocity v, */
+/* Compute correct *vx, *vy */
+static void aim_vx_vy(struct game_obj_t *target, 
+		struct game_obj_t *shooter,
+		int v, int leadtime, 
+		int *vx, int *vy)
+{
+	int dx, dy;
+	dx = target->x + leadtime * target->vx - shooter->x;
+	dy = target->y + leadtime * target->vy - shooter->y;
+
+	/* whichever is farther, x or y, make that vx or vy be the max */
+	/* then calculate the other one by similar triangles. */
+
+	if (abs(dx) >= abs(dy)) {
+		if (dx < 0) {
+			*vx = -v;
+			*vy = (*vx * dy) / dx;
+		} else {
+			if (dx > 0) {
+				*vx = v;
+				*vy = (*vx * dy) / dx;
+			} else {
+				/* shooter and target are the same. */
+				*vx = 0;
+				*vy = 0;
+			}
+		}
+	} else {
+		if (dy < 0) {
+			*vy = -v;
+			*vx = (*vy * dx) / dy;
+		} else {
+			if (dy > 0) {
+				*vy = v;
+				*vx = (*vy * dx) / dy;
+			} else {
+				*vy = 0;
+				*vx = 0;
+			}
+		}
+	}
+}
+
+static void add_laserbolt(int x, int y, int vx, int vy, int color, int time);
 void move_flak(struct game_obj_t *o)
 {
 	int xdist;
@@ -1802,8 +1846,8 @@ void move_flak(struct game_obj_t *o)
 		}
 		x1 = o->x-5;
 		y1 = o->y-5;  
-		add_laserbolt(x1, y1, bx, by, 50);
-		add_laserbolt(x1+10, y1, bx, by, 50);
+		add_laserbolt(x1, y1, bx, by, CYAN, 50);
+		add_laserbolt(x1+10, y1, bx, by, CYAN, 50);
 	}
 }
 
@@ -4401,6 +4445,11 @@ void symbol_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 		o->destroy(o);
 }
 
+static void aim_vx_vy(struct game_obj_t *target, 
+		struct game_obj_t *shooter,
+		int v, int leadtime, 
+		int *vx, int *vy);
+
 static void flying_thing_shoot_missile(struct game_obj_t *o)
 {
 	int gambling, xdist, ydist;
@@ -4419,6 +4468,13 @@ static void flying_thing_shoot_missile(struct game_obj_t *o)
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
 			add_missile(o->x, o->y, 0, 0, 300, RED, player);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
+		}
+
+		if (randomn(2000) < (SAM_LAUNCH_CHANCE*2+gambling)) {
+			int vx, vy;
+			aim_vx_vy(player, o, 28, 10, &vx, &vy);
+			add_laserbolt(o->x, o->y, vx, vy, RED, 50);
+			add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
 		}
 	}
 }
@@ -5318,10 +5374,10 @@ static void xy_draw_string(GtkWidget *w, char *s, int font, int x, int y)
 }
 
 
-static void add_laserbolt(int x, int y, int vx, int vy, int time)
+static void add_laserbolt(int x, int y, int vx, int vy, int color, int time)
 {
 	add_generic_object(x, y, vx, vy, move_laserbolt, draw_laserbolt,
-		CYAN, &spark_vect, 0, OBJ_TYPE_SPARK, time);
+		color, &spark_vect, 0, OBJ_TYPE_SPARK, time);
 }
 
 static void add_spark(int x, int y, int vx, int vy, int time)
@@ -7078,6 +7134,8 @@ gint advance_game(gpointer data)
 void setup_text()
 {
 	cleartext();
+	gotoxy(4,1);
+	gameprint("");
 	set_font(BIG_FONT);
 	gotoxy(4,3);
 	gameprint(" Game Over\n");
