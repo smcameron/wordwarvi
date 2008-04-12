@@ -110,8 +110,9 @@ int add_sound(int which_sound, int which_slot);
 
 #define NHUMANOIDS 4 /* number of vi .swp files, initially */
 #define MAXHUMANS 10 /* maxiumum number possible of vi .swp files */
-#define RADAR_HEIGHT 50  /* height, in pixels, of radar screen */
-#define RADAR_XMARGIN 10 /* space to leave, in pixels left/right of radar screen to window edge. */
+#define RADAR_HEIGHT 60  /* height, in pixels, of radar screen */
+#define RADAR_LEFT_MARGIN 10 /* space to leave, in pixels left/right of radar screen to window edge. */
+#define RADAR_RIGHT_MARGIN 160 /* space to leave, in pixels left/right of radar screen to window edge. */
 #define	RADAR_YMARGIN 10 /* space to leave, in pixels from bottom edge of radar to bottom of window */
 #define MAX_RADAR_NOISE 2000 /* maximum number of noise pixels placed by radar jammers, increasing */
 			     /* this may adversely affect performance, as this number of x's are */
@@ -1565,9 +1566,6 @@ struct game_obj_t {
 	int radar_image;		/* Does this object show up on radar? */ 
 };
 
-GtkWidget *score_label;
-GtkWidget *bombs_label;
-
 struct target_t {			/* doubly linked list of objects which may be hit */
 	struct game_obj_t *o;		/* saves us from searching through all objects. */ 
 	struct target_t *prev, *next;
@@ -2600,7 +2598,7 @@ void gdb_move(struct game_obj_t *o)
 {
 	int xdist, ydist;
 	int dvx, dvy, tx, ty;
-	int gy;
+	int gy = 32756; /* big number. */
 
 	if (!o->alive)
 		return;
@@ -3463,8 +3461,7 @@ void move_player(struct game_obj_t *o)
 		add_sound(LARGE_EXPLOSION_SOUND, ANY_SLOT);	/* and make a lot of noise */
 		// printf("decrementing lives %d.\n", game_state.lives);
 		game_state.lives--;				/* lost a life. */
-		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d",  /* adjust onscreen life count. */
-			credits, game_state.lives);
+		strcpy(textline[CREDITS].string, "");
 		if (game_state.lives <= 0 || credits <= 0) { /* last life? */
 			if (credits > 0) 
 				credits--;			/* reduce credits */
@@ -5016,7 +5013,7 @@ void init_radar_noise()
 
 	for (i=0;i<XRADARN;i++) {
 		xradarnoise[i] = randomn(SCREEN_WIDTH - 
-			RADAR_XMARGIN*2) + RADAR_XMARGIN;
+			RADAR_LEFT_MARGIN - RADAR_RIGHT_MARGIN) + RADAR_LEFT_MARGIN;
 	}
 	for (i=0;i<YRADARN;i++) {
 		yradarnoise[i] = randomn(RADAR_HEIGHT) + 
@@ -5048,7 +5045,7 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 		&& o->otype != OBJ_TYPE_JAMMER)
 		return;
 
-	radarx = ((SCREEN_WIDTH - (2*RADAR_XMARGIN)) * o->x) / WORLDWIDTH + RADAR_XMARGIN;
+	radarx = ((SCREEN_WIDTH - (RADAR_LEFT_MARGIN + RADAR_RIGHT_MARGIN)) * o->x) / WORLDWIDTH + RADAR_LEFT_MARGIN;
 
 	/* o->radar image is mostly a boolean 0 or 1, indicating whether something's */
 	/* on the radar at all, but I used value 2 to make bigger items on the radar. */
@@ -6575,27 +6572,36 @@ void draw_radar(GtkWidget *w)
 {
 	int xoffset, height, width, yoffset; 
 	int x1, y1, x2, y2;
+	char statusstr[100]; 
 /*
 	int viewport_left, viewport_right, viewport_top, viewport_bottom;
 	int y_correction;
 */
 	
 	height = RADAR_HEIGHT;
-	xoffset = RADAR_XMARGIN;
+	xoffset = RADAR_LEFT_MARGIN;
 	yoffset = RADAR_YMARGIN;
-	width = SCREEN_WIDTH-(xoffset * 2);
+	width = SCREEN_WIDTH-RADAR_LEFT_MARGIN - RADAR_RIGHT_MARGIN;
 
 	y2 = SCREEN_HEIGHT - yoffset;
 	y1 = y2 - height;
 	x1 = xoffset;
-	x2 = SCREEN_WIDTH - xoffset;
+	x2 = SCREEN_WIDTH - RADAR_RIGHT_MARGIN;
 
 	gdk_gc_set_foreground(gc, &huex[RED]);
 
+	/* draw radar border */
 	wwvi_draw_line(w->window, gc, x1, y1, x1, y2);
 	wwvi_draw_line(w->window, gc, x1, y2, x2, y2);
 	wwvi_draw_line(w->window, gc, x2, y2, x2, y1);
 	wwvi_draw_line(w->window, gc, x2, y1, x1, y1);
+
+	/* draw health bar */
+	gdk_gc_set_foreground(gc, &huex[ORANGE]);
+	if (game_state.health > 0)
+		gdk_draw_rectangle(w->window, gc, TRUE, RADAR_LEFT_MARGIN, SCREEN_HEIGHT - RADAR_HEIGHT - RADAR_YMARGIN - 10, 
+			((SCREEN_WIDTH - RADAR_LEFT_MARGIN - RADAR_RIGHT_MARGIN) * game_state.health / MAXHEALTH), 
+			RADAR_YMARGIN - 5);
 #if 0
 	/* calculate viewport edges projected onto radar screen. */
 
@@ -6636,8 +6642,22 @@ void draw_radar(GtkWidget *w)
 
 	if (game_state.corrosive_atmosphere && game_state.radar_state == RADAR_RUNNING) {
 		gdk_gc_set_foreground(gc, &huex[GREEN]);
-		abs_xy_draw_string(w, "Corrosive atmosphere detected!  Vacate the area immediately!", TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2);
+		abs_xy_draw_string(w, "Corrosive atmosphere detected!  Vacate the area immediately!", 
+			TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2);
 	}
+
+	gdk_gc_set_foreground(gc, &huex[RED]);
+	sprintf(statusstr, "Score:   %7d", game_state.score);
+	abs_xy_draw_string(w, statusstr, TINY_FONT, x2 + 5, y1 + 7);
+	sprintf(statusstr, "Bombs:   %7d", game_state.nbombs);
+	abs_xy_draw_string(w, statusstr, TINY_FONT, x2 + 5, y1 + 21);
+	sprintf(statusstr, "Lives:   %7d", game_state.lives);
+	abs_xy_draw_string(w, statusstr, TINY_FONT, x2 + 5, y1 + 35);
+	sprintf(statusstr, "Credits: %7d", credits);
+	abs_xy_draw_string(w, statusstr, TINY_FONT, x2 + 5, y1 + 49);
+	sprintf(statusstr, "Humans:      %d/%d", game_state.humanoids, level.nhumanoids);
+	abs_xy_draw_string(w, statusstr, TINY_FONT, x2 + 5, y1 + 63);
+
 	if (game_state.radar_state == RADAR_RUNNING)
 		return;
 
@@ -6661,7 +6681,6 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	int i;
 	int sx1, sx2;
 	static int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
-	char score_str[100];
 	// int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
 
 
@@ -6731,27 +6750,9 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	}
 
 	if (game_state.x > terrain.x[TERRAIN_LENGTH] - SCREEN_WIDTH)
-	/* draw health bar */
-	if (game_state.health > 0)
-		gdk_draw_rectangle(w->window, gc, TRUE, 10, 10, 
-			((SCREEN_WIDTH - 20) * game_state.health / MAXHEALTH), 30);
 	draw_objs(w);
-		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d Score: %d Humans:%d/%d ", 
-			credits, game_state.lives, game_state.score, 
-			game_state.humanoids, level.nhumanoids);
 	draw_strings(w);
 	draw_radar(w);
-
-	if (game_state.prev_score != game_state.score) {
-		sprintf(score_str, "Score: %06d", game_state.score);
-		game_state.prev_score = game_state.score;
-		gtk_label_set_text(GTK_LABEL(score_label), score_str);
-	}
-	if (game_state.prev_bombs != game_state.nbombs) {
-		sprintf(score_str, "Bombs: %02d", game_state.nbombs);
-		game_state.prev_bombs = game_state.nbombs;
-		gtk_label_set_text(GTK_LABEL(bombs_label), score_str);
-	}
 
 	return 0;
 }
@@ -6854,7 +6855,6 @@ void timer_expired()
 		ntextlines = 1;
 		set_font(SMALL_FONT);
 		gotoxy(x,yline++);
-		gameprint("Credits:");
 		yline++;
 		gotoxy(x,yline++);
 		gameprint("Programming:   Stephen Cameron");
@@ -6882,7 +6882,7 @@ void timer_expired()
 		break;
 
 	case INTRO1_EVENT: {
-		int yline = 6;
+		int yline = 5;
 		int x = 12;
 		ntextlines = 1;
 		set_font(SMALL_FONT);
@@ -6942,9 +6942,7 @@ void timer_expired()
 	case READY_EVENT:
 		start_level();
 		add_sound(MUSIC_SOUND, MUSIC_SLOT);
-		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d Score: %d Humans:%d/%d ", 
-			credits, game_state.lives, game_state.score, 
-			game_state.humanoids, level.nhumanoids);
+		strcpy(textline[CREDITS].string, "");
 		strcpy(textline[GAME_OVER].string, "Ready...");
 		gettimeofday(&game_state.start_time, NULL);
 		next_timer += 30;
@@ -7080,9 +7078,6 @@ gint advance_game(gpointer data)
 void setup_text()
 {
 	cleartext();
-	set_font(SMALL_FONT);
-	gotoxy(0,0);
-	gameprint("Credits: 0 Lives: 3");
 	set_font(BIG_FONT);
 	gotoxy(4,3);
 	gameprint(" Game Over\n");
@@ -7293,7 +7288,7 @@ void insert_quarter()
 		next_timer = timer+1;
 	} else
 		add_sound(INSERT_COIN_SOUND, ANY_SLOT);
-	sprintf(textline[CREDITS].string, "Credits: %d Lives: %d", credits, game_state.lives);
+	strcpy(textline[CREDITS].string, "");
 }
 
 /* this is just a table to map joystick positions to numbers.  Notice there are more
@@ -7502,23 +7497,6 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		return TRUE;	
 	case GDK_q:
 		insert_quarter();
-#if 0
-		add_sound(INSERT_COIN_SOUND, ANY_SLOT);
-		credits++;
-		if (credits == 1) {
-			cancel_sound(MUSIC_SLOT);
-			sleep(2);
-			ntextlines = 1;
-			game_ended();
-			/* initialize_game_state_new_level();
-			init_levels_to_beginning();
-			start_level(); */
-			init_levels_to_beginning();
-			timer_event = READY_EVENT;
-			next_timer = timer+1;
-		}
-		sprintf(textline[CREDITS].string, "Credits: %d Lives: %d", credits, game_state.lives);
-#endif
 		return TRUE;
 #if 0
 	case GDK_Home:
@@ -8189,8 +8167,6 @@ int main(int argc, char *argv[])
 	g_signal_connect(G_OBJECT (main_da), "expose_event", G_CALLBACK (main_da_expose), NULL);
 
     button = gtk_button_new_with_label ("Quit");
-    score_label = gtk_label_new("Score: 000000");
-    bombs_label = gtk_label_new("Bombs: 99");
     
     /* When the button receives the "clicked" signal, it will call the
      * function hello() passing it NULL as its argument.  The hello()
@@ -8210,8 +8186,6 @@ int main(int argc, char *argv[])
 
     gtk_box_pack_start(GTK_BOX (vbox), main_da, TRUE /* expand */, FALSE /* fill */, 2);
     gtk_box_pack_start(GTK_BOX (vbox), button, FALSE /* expand */, FALSE /* fill */, 2);
-    gtk_box_pack_start(GTK_BOX (vbox), score_label, FALSE /* expand */, FALSE /* fill */, 2);
-    gtk_box_pack_start(GTK_BOX (vbox), bombs_label, FALSE /* expand */, FALSE /* fill */, 2);
     
 	init_vects();
 	init_vxy_2_dxy();
@@ -8238,9 +8212,6 @@ int main(int argc, char *argv[])
 
     gtk_widget_show (vbox);
     gtk_widget_show (main_da);
-    // gtk_widget_show (button);
-    gtk_widget_show (score_label);
-    gtk_widget_show (bombs_label);
     
     /* and the window */
     gtk_widget_show (window);
