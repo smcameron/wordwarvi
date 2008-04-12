@@ -6831,9 +6831,8 @@ void timer_expired()
 		gotoxy(x,yline++);
 		gameprint("               and Marty Kiel");
 		gotoxy(x,yline++);
-		gameprint("Sound effects: Freesound users:");
+		gameprint("Sound effects: Stephen Cameron.");
 		gotoxy(x,yline++);
-		gameprint("   dobroide, inferno and oniwe");
 		gotoxy(x,yline++);
 		timer_event = CREDITS2_EVENT;
 		next_timer = timer + 100;
