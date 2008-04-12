@@ -1,5 +1,33 @@
 Changelog for wordwarvi:
 
+Fri Apr 11 09:09:04 CDT 2008
+-------------------------------------------------------------------------------
+
+Changes between version 0.05 and 0.06
+* Now lasers look a bit cooler
+* Humanoids drop a little slower... easier to catch in midair.
+* Fixed a couple of compiler warnings.
+* Cleaned up the "intermission" screen between levels
+* fixed bug that bonus points didn't actually apply to your score.
+* Give player 1000 pt bonus for catching guys in midair.
+* Make sure the humanoids don't say anything while falling
+  (too busy screaming).
+* Fixed a bug that add_bullet didn't set o->v to
+  point to the bullet's drawing vectors.
+  Sometimes (why not always????) causing a crash.
+  Thanks to Hans de Goede for this patch.
+* Added "install" target to makefile, and made program look in a sensible
+  place for sound files if installed.  Thanks to Hans de Goede for this
+  patch.
+* Fixed a bug that the radar jammers could be subverted just by flying
+  really high.
+* Added dtox3monomix.ogg, which I'd accidentally left out.
+* Allow "quarters" to be put in with the joystick buttons.
+* Added "uninstall" target to Makefile
+* Included man page in tarball
+* "install" target installs man page now.
+* Improved the way GDB's fly around.
+
 Tue Apr  8 09:23:50 CDT 2008
 -------------------------------------------------------------------------------
 
