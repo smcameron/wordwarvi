@@ -51,6 +51,7 @@ wordwarvi.6.gz:	wordwarvi.6
 install: wordwarvi wordwarvi.6.gz
 	mkdir -p $(PREFIX)/bin
 	mkdir -p $(DATADIR)/sounds
+	mkdir -p $(MANPAGEDIR)
 	install -p -m 755 wordwarvi $(PREFIX)/bin
 	install -p -m 644 sounds/*.wav $(DATADIR)/sounds
 	install -p -m 644 wordwarvi.6.gz $(MANPAGEDIR)
