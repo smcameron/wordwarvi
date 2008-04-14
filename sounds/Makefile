@@ -45,7 +45,8 @@ all:	dtox3monomix.wav \
 	missile_explosion.wav \
 	new_ground_smack.wav \
 	synthetic_thunder_short.wav \
-	toyota_celica_cardoor_sample.wav
+	toyota_celica_cardoor_sample.wav \
+	aaaah_it_burns.wav
 
 
 clean:
