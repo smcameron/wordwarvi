@@ -53,7 +53,7 @@
 #define M_PI  (3.14159265)
 #endif
 #define TWOPI (M_PI * 2.0)
-#define NCLIPS (47)
+#define NCLIPS (48)
 #define MAX_CONCURRENT_SOUNDS (26)
 
 /* define sound clip constants, and dedicated sound queue slots. */
@@ -105,6 +105,7 @@ int add_sound(int which_sound, int which_slot);
 #define STONEBANG8 41
 #define CORROSIVE_SOUND 42
 #define VOLCANO_ERUPTION 43
+#define IT_BURNS 44
 
 /* ...End of audio stuff */
 
@@ -2772,7 +2773,14 @@ void humanoid_move(struct game_obj_t *o)
 			o->y = gy;
 			o->tsd.human.on_ground = 1;
 			add_sound(BODYSLAM_SOUND, ANY_SLOT);
-			add_sound(OOF_SOUND, ANY_SLOT);
+			if (abs(o->x - volcano_obj->x) > 20)
+				add_sound(OOF_SOUND, ANY_SLOT);
+			else {
+				add_sound(IT_BURNS, ANY_SLOT);
+				kill_object(o);
+				game_state.score -= 1000;
+				return;
+			}
 		}
 	}
 
@@ -7798,6 +7806,7 @@ int init_clips()
 	read_clip(STONEBANG7, "sounds/stonebang7.wav");
 	read_clip(STONEBANG8, "sounds/stonebang8.wav");
 	read_clip(VOLCANO_ERUPTION, "sounds/volcano_eruption.wav");
+	read_clip(IT_BURNS, "sounds/aaaah_it_burns.wav");
 	// read_clip(CORROSIVE_SOUND, "sounds/corrosive_atmosphere.wav");
 	return 0;
 }
