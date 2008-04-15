@@ -1342,10 +1342,66 @@ struct text_line_t {
 #define GAME_OVER 1
 #define CREDITS 0
 
+typedef void line_drawing_function(GdkDrawable *drawable,
+	 GdkGC *gc, gint x1, gint y1, gint x2, gint y2);
+
+typedef void rectangle_drawing_function(GdkDrawable *drawable,
+	GdkGC *gc, gboolean filled, gint x, gint y, gint width, gint height);
+
+line_drawing_function *current_draw_line = gdk_draw_line;
+rectangle_drawing_function *current_draw_rectangle = gdk_draw_rectangle;
+
 /* I can switch out the line drawing function with these macros */
 /* in case I come across something faster than gdk_draw_line */
-#define DEFAULT_LINE_STYLE gdk_draw_line
+#define DEFAULT_LINE_STYLE current_draw_line
+#define DEFAULT_RECTANGLE_STYLE current_draw_rectangle
+
 #define wwvi_draw_line DEFAULT_LINE_STYLE
+#define wwvi_draw_rectangle DEFAULT_RECTANGLE_STYLE
+
+void crazy_line(GdkDrawable *drawable,
+	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
+{
+	int angle;
+
+	int x3,y3, x4,y4;
+#if 1
+	angle = timer % 360;
+
+	x3 = ((x1 - (SCREEN_WIDTH/2)) * sine[angle]) + SCREEN_WIDTH/2;
+	x4 = ((x2 - (SCREEN_WIDTH/2)) * sine[angle]) + SCREEN_WIDTH/2;
+	y3 = ((y1 - (SCREEN_HEIGHT/2)) * cosine[angle]) + SCREEN_HEIGHT/2;
+	y4 = ((y2 - (SCREEN_HEIGHT/2)) * cosine[angle]) + SCREEN_HEIGHT/2;
+	gdk_draw_line(drawable, gc, x3, y3, x4, y4);	
+#else
+	double size;
+	size = (timer % 300) + 100;
+	size = size / 100.0;
+	x3 = ((x1 - (SCREEN_WIDTH/2)) / size) + SCREEN_WIDTH/2;
+	x4 = ((x2 - (SCREEN_WIDTH/2)) / size) + SCREEN_WIDTH/2;
+	y3 = ((y1 - (SCREEN_HEIGHT/2)) / size) + SCREEN_HEIGHT/2;
+	y4 = ((y2 - (SCREEN_HEIGHT/2)) / size) + SCREEN_HEIGHT/2;
+	gdk_draw_line(drawable, gc, x3, y3, x4, y4);	
+#endif
+	// gdk_draw_line(drawable, gc, x1, y1, x2, y2);	
+
+}
+
+void crazy_rectangle(GdkDrawable *drawable,
+	GdkGC *gc, gboolean filled, gint x, gint y, gint width, gint height)
+{
+	int x3, y3, x4, y4;
+
+	x3 = x;
+	y3 = y;
+	x4 = x + width;
+	y4 = y + height;
+
+	crazy_line(drawable, gc, x3, y3, x4, y3);
+	crazy_line(drawable, gc, x3, y4, x4, y4);
+	crazy_line(drawable, gc, x3, y3, x3, y4);
+	crazy_line(drawable, gc, x4, y3, x4, y4);
+}
 
 void init_vxy_2_dxy()
 {
@@ -1954,7 +2010,7 @@ void fuel_draw(struct game_obj_t *o, GtkWidget *w)
 		30 - (45 * o->tsd.fuel.level / FUELTANK_CAPACITY);
 	if (o->tsd.fuel.level > 0) {
 		gdk_gc_set_foreground(gc, &huex[DARKGREEN]);
-		gdk_draw_rectangle(w->window, gc, TRUE, x1, y1, 50, o->tsd.fuel.level * 45 / FUELTANK_CAPACITY);
+		wwvi_draw_rectangle(w->window, gc, TRUE, x1, y1, 50, o->tsd.fuel.level * 45 / FUELTANK_CAPACITY);
 	}
 
 	draw_generic(o, w); /* draw the fuel tank in the usual way... */
@@ -6663,7 +6719,8 @@ void draw_radar(GtkWidget *w)
 	/* draw health bar */
 	gdk_gc_set_foreground(gc, &huex[ORANGE]);
 	if (game_state.health > 0)
-		gdk_draw_rectangle(w->window, gc, TRUE, RADAR_LEFT_MARGIN, SCREEN_HEIGHT - RADAR_HEIGHT - RADAR_YMARGIN - 10, 
+		wwvi_draw_rectangle(w->window, gc, TRUE, RADAR_LEFT_MARGIN, 
+			SCREEN_HEIGHT - RADAR_HEIGHT - RADAR_YMARGIN - 10, 
 			((SCREEN_WIDTH - RADAR_LEFT_MARGIN - RADAR_RIGHT_MARGIN) * game_state.health / MAXHEALTH), 
 			RADAR_YMARGIN - 5);
 #if 0
@@ -8142,6 +8199,9 @@ int main(int argc, char *argv[])
 	int opt;
 
 	struct timeval tm;
+
+	// current_draw_line = crazy_line;
+	// current_draw_rectangle = crazy_rectangle;
 
 	while (1) {
 		int rc, n; 
