@@ -1356,8 +1356,13 @@ rectangle_drawing_function *current_draw_rectangle = gdk_draw_rectangle;
 #define DEFAULT_LINE_STYLE current_draw_line
 #define DEFAULT_RECTANGLE_STYLE current_draw_rectangle
 
-#define wwvi_draw_line DEFAULT_LINE_STYLE
-#define wwvi_draw_rectangle DEFAULT_RECTANGLE_STYLE
+// this is neat, but too much of a performance hit... esp.
+// for the radar noise.
+// #define wwvi_draw_line DEFAULT_LINE_STYLE
+// #define wwvi_draw_rectangle DEFAULT_RECTANGLE_STYLE
+
+#define wwvi_draw_line gdk_draw_line
+#define wwvi_draw_rectangle gdk_draw_rectangle
 
 void crazy_line(GdkDrawable *drawable,
 	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
@@ -5704,7 +5709,13 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 /* for picking random locations of objects at level startup. */
 static int initial_x_location() 
 {
-	return randomn(TERRAIN_LENGTH - 40) + 40;
+	int x;
+
+	/* don't put things on or near the volcano. */	
+	do {
+		x = randomn(TERRAIN_LENGTH - 40) + 40;
+	} while (abs(volcano_obj->x - terrain.x[x]) < 800);
+	return x;
 }
 
 static void add_flak_guns(struct terrain_t *t)
