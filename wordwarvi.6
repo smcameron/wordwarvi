@@ -2,7 +2,7 @@
 .SH NAME
 wordwarvi \- Old school '80's style side scrolling space shoot'em up game.
 .SH SYNOPSIS
-.B wordwarvi [ --bw ] [ --sounddevice n ] [ --version ]
+.B wordwarvi [ --bw ] [ --sounddevice n ] [ --brightsparks ] [ --version ]
 .SH DESCRIPTION
 .\" Add any additional description here
 .PP
@@ -26,6 +26,12 @@ By default, wordwarvi uses the "default" sound device as
 estimated by the PortAudio library, which is 0.  
 You can specify other numbers if you have other sound cards, or
 a multichannel sound card.
+.TP
+\fB\--brightsparks\fR
+Enables a visual effect for sparks to be rendered bigger 
+and brighter than usual, at the cost of some performance.
+It is a matter of personal preference whether it looks better
+or worse.
 .TP
 \fB\--version\fR
 Print the program's version number and exit.

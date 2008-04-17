@@ -266,6 +266,7 @@ int timer_event = 0;		/* timer_expired() switches on this value... */
 #define KEYS1_EVENT 18
 #define KEYS2_EVENT 19
 
+int brightsparks = 0;		/* controls preference for how to draw sparks */
 int nframes = 0;		/* count of total frames drawn, used for calculating actual frame rate */
 struct timeval start_time, end_time;		/* start and end time of game, for calc'ing frame rate */
 
@@ -4011,8 +4012,21 @@ void draw_spark(struct game_obj_t *o, GtkWidget *w)
 
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
 	y1 = y2 - o->vy;
-	gdk_gc_set_foreground(gc, &huex[o->color]);
-	wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+	if (brightsparks) {
+		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+		gdk_gc_set_foreground(gc, &huex[o->color]);
+		if (abs(o->vx) > abs(o->vy)) {
+			wwvi_draw_line(w->window, gc, x1, y1-1, x2, y2-1); 
+			wwvi_draw_line(w->window, gc, x1, y1+1, x2, y2+1); 
+		} else {
+			wwvi_draw_line(w->window, gc, x1-1, y1, x2-1, y2); 
+			wwvi_draw_line(w->window, gc, x1+1, y1, x2+1, y2); 
+		}
+	} else {
+		gdk_gc_set_foreground(gc, &huex[o->color]);
+		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+	}
 }
 
 void draw_laserbolt(struct game_obj_t *o, GtkWidget *w)
@@ -8196,6 +8210,7 @@ static struct option wordwarvi_options[] = {
 	{ "bw", 0, NULL, 0 },
 	{ "sounddevice", 1, NULL, 1 },
 	{ "version", 0, NULL, 2 },
+	{ "brightsparks", 0, NULL, 3 },
 };
 
 int main(int argc, char *argv[])
@@ -8239,6 +8254,9 @@ int main(int argc, char *argv[])
 				printf("See http://wordwarvi.sourceforge.net for more information\n");
 				printf("about this program.\n");
 				exit(0);
+			case 3: /* brightsparks */
+				brightsparks = 1;
+				break;
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
 				
