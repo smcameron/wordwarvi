@@ -3461,7 +3461,6 @@ void drop_bomb()
 		o->target = add_target(o);
 		o->color = ORANGE;
 		o->alive = 20;
-		o->target = add_target(o);
 	}
 	game_state.cmd_multiplier = 1;
 }
@@ -3519,12 +3518,13 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
+void add_sound_low_priority(int which_sound);
 static void add_stone_sound()
 {
 	int i;
 
 	i = randomn(8);
-	add_sound(STONEBANG1 + i, ANY_SLOT);
+	add_sound_low_priority(STONEBANG1 + i);
 }
 
 static void add_metal_sound()
@@ -3532,7 +3532,7 @@ static void add_metal_sound()
 	int i;
 
 	i = randomn(16);
-	add_sound(METALBANG1 + i, ANY_SLOT);
+	add_sound_low_priority(METALBANG1 + i);
 }
 
 #if 0
@@ -8081,6 +8081,40 @@ int add_sound(int which_sound, int which_slot)
 	return 0;
 #endif
 }
+
+void add_sound_low_priority(int which_sound)
+{
+
+	/* adds a sound if there are at least 5 empty sound slots. */
+#ifdef WITHAUDIOSUPPORT
+	int i;
+	int empty_slots = 0;
+	int last_slot;
+
+	last_slot = -1;
+	for (i=1;i<MAX_CONCURRENT_SOUNDS;i++)
+		if (audio_queue[i].active == 0) {
+			last_slot = i;
+			empty_slots++;
+			if (empty_slots >= 5)
+				break;
+	}
+
+	if (empty_slots < 5)
+		return;
+	
+	i = last_slot;
+
+	if (audio_queue[i].active == 0) {
+		audio_queue[i].nsamples = clip[which_sound].nsamples;
+		audio_queue[i].pos = 0;
+		audio_queue[i].sample = clip[which_sound].sample;
+		audio_queue[i].active = 1;
+	}
+	return;
+#endif
+}
+
 
 void cancel_sound(int queue_entry)
 {
