@@ -119,7 +119,7 @@ int add_sound(int which_sound, int which_slot);
 			     /* this may adversely affect performance, as this number of x's are */
 			     /* drawn EVERY FRAME when in close proximity to jammer. */
 
-#define FRAME_RATE_HZ 30	/* target frame rate at which gtk callback fires */
+#define FRAME_RATE_HZ 25	/* target frame rate at which gtk callback fires */
 #define TERRAIN_LENGTH 1000	/* length, in number of line segments, of terrain */
 #define SCREEN_WIDTH 800        /* window width, in pixels */
 #define SCREEN_HEIGHT 600       /* window height, in pixels */
@@ -1360,11 +1360,30 @@ rectangle_drawing_function *current_draw_rectangle = gdk_draw_rectangle;
 
 // this is neat, but too much of a performance hit... esp.
 // for the radar noise.
-// #define wwvi_draw_line DEFAULT_LINE_STYLE
-// #define wwvi_draw_rectangle DEFAULT_RECTANGLE_STYLE
+#define wwvi_draw_line DEFAULT_LINE_STYLE
+#define wwvi_draw_rectangle DEFAULT_RECTANGLE_STYLE
 
-#define wwvi_draw_line gdk_draw_line
-#define wwvi_draw_rectangle gdk_draw_rectangle
+// #define wwvi_draw_line gdk_draw_line
+// #define wwvi_draw_rectangle gdk_draw_rectangle
+
+float xscale_screen;
+float yscale_screen;
+int real_screen_width;
+int real_screen_height;
+
+void scaled_line(GdkDrawable *drawable,
+	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
+{
+	gdk_draw_line(drawable, gc, x1*xscale_screen, y1*yscale_screen,
+		x2*xscale_screen, y2*yscale_screen);
+}
+
+void scaled_rectangle(GdkDrawable *drawable,
+	GdkGC *gc, gboolean filled, gint x, gint y, gint width, gint height)
+{
+	gdk_draw_rectangle(drawable, gc, filled, x*xscale_screen, y*yscale_screen,
+		width*xscale_screen, height*yscale_screen);
+}
 
 void crazy_line(GdkDrawable *drawable,
 	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
@@ -8258,6 +8277,8 @@ static struct option wordwarvi_options[] = {
 	{ "sounddevice", 1, NULL, 1 },
 	{ "version", 0, NULL, 2 },
 	{ "brightsparks", 0, NULL, 3 },
+	{ "width", 1, NULL, 4 },
+	{ "height", 1, NULL, 5 },
 };
 
 int main(int argc, char *argv[])
@@ -8273,6 +8294,8 @@ int main(int argc, char *argv[])
 
 	struct timeval tm;
 
+	real_screen_width = SCREEN_WIDTH;
+	real_screen_height = SCREEN_HEIGHT;
 	// current_draw_line = crazy_line;
 	// current_draw_rectangle = crazy_rectangle;
 
@@ -8304,11 +8327,64 @@ int main(int argc, char *argv[])
 			case 3: /* brightsparks */
 				brightsparks = 1;
 				break;
+			case 4: /* width */
+				real_screen_width = 800;
+				current_draw_line = gdk_draw_line;
+				current_draw_rectangle = gdk_draw_rectangle;
+				n = sscanf(optarg, "%d", &real_screen_width);
+				if (n != 1) {
+					fprintf(stderr, "wordwarvi: Bad width argument"
+						" '%s', using 800.\n", optarg);
+					real_screen_width = 800;
+					current_draw_line = gdk_draw_line;
+					current_draw_rectangle = gdk_draw_rectangle;
+					break;
+				}
+				if (real_screen_width >= 100 && real_screen_width <= 3000) {
+					current_draw_line = scaled_line;
+					current_draw_rectangle = scaled_rectangle;
+				} else {
+					fprintf(stderr, "wordwarvi: Bad width argument"
+						" '%s', using 800.\n", optarg);
+					real_screen_width = 800;
+					real_screen_height = 600;
+					current_draw_line = gdk_draw_line;
+					current_draw_rectangle = gdk_draw_rectangle;
+				}
+				break;	
+			case 5: /* height */
+				real_screen_height = 600;
+				current_draw_line = gdk_draw_line;
+				current_draw_rectangle = gdk_draw_rectangle;
+				n = sscanf(optarg, "%d", &real_screen_height);
+				if (n != 1) {
+					fprintf(stderr, "wordwarvi: Bad height argument"
+						" '%s', using 600.\n", optarg);
+					real_screen_height = 600;
+					current_draw_line = gdk_draw_line;
+					current_draw_rectangle = gdk_draw_rectangle;
+					break;
+				} 
+				if (real_screen_height >= 100 && real_screen_height <= 2000) {
+					current_draw_line = scaled_line;
+					current_draw_rectangle = scaled_rectangle;
+				} else {
+					fprintf(stderr, "wordwarvi: Bad height argument"
+						" '%s', using 800.\n", optarg);
+					real_screen_width = 800;
+					real_screen_height = 600;
+					current_draw_line = gdk_draw_line;
+					current_draw_rectangle = gdk_draw_rectangle;
+				}
+				break;	
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
 				
 		}
 	}
+
+	xscale_screen = (float) real_screen_width / (float) SCREEN_WIDTH;
+	yscale_screen = (float) real_screen_height / (float) SCREEN_HEIGHT;
 
 	gettimeofday(&tm, NULL);
 	srandom(tm.tv_usec);	
@@ -8365,7 +8441,7 @@ int main(int argc, char *argv[])
 	vbox = gtk_vbox_new(FALSE, 0); 
 	main_da = gtk_drawing_area_new();
 	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &huex[WHITE]);
-	gtk_widget_set_size_request(main_da, SCREEN_WIDTH, SCREEN_HEIGHT);
+	gtk_widget_set_size_request(main_da, real_screen_width, real_screen_height);
 
 	g_signal_connect(G_OBJECT (main_da), "expose_event", G_CALLBACK (main_da_expose), NULL);
 
@@ -8425,8 +8501,8 @@ int main(int argc, char *argv[])
 	gdk_gc_set_clip_origin(gc, 0, 0);
 	cliprect.x = 0;	
 	cliprect.y = 0;	
-	cliprect.width = SCREEN_WIDTH;	
-	cliprect.height = SCREEN_HEIGHT;	
+	cliprect.width = real_screen_width;	
+	cliprect.height = real_screen_height;	
 	gdk_gc_set_clip_rectangle(gc, &cliprect);
 
     timer_tag = g_timeout_add(1000 / FRAME_RATE_HZ, advance_game, NULL);

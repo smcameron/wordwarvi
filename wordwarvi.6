@@ -1,8 +1,9 @@
-.TH WORDWARVI "6" "May 2007" "wordwarvi" "Games"
+.TH WORDWARVI "6" "April 2008" "wordwarvi" "Games"
 .SH NAME
 wordwarvi \- Old school '80's style side scrolling space shoot'em up game.
 .SH SYNOPSIS
-.B wordwarvi [ --bw ] [ --sounddevice n ] [ --brightsparks ] [ --version ]
+.B wordwarvi [ --bw ] [ --width w ] [ --height h ] 
+[ --sounddevice n ] [ --brightsparks ] [ --version ]
 .SH DESCRIPTION
 .\" Add any additional description here
 .PP
@@ -20,6 +21,10 @@ in the cluster to do it all over again.
 \fB\--bw\fR
 No color, just black and white.
 .TP
+\fB\--height h\fR
+Sets the window size to h pixels high, scaling all
+graphics as necessary.
+.TP
 \fB\--sounddevice n\fR
 Use alternate sound device n, where n is an integer.  
 By default, wordwarvi uses the "default" sound device as 
@@ -35,6 +40,10 @@ or worse.
 .TP
 \fB\--version\fR
 Print the program's version number and exit.
+.TP
+\fB\--width w\fR
+Sets the window size to w pixels wide, scaling all graphics
+as necessary.
 .SH Controls:
 .PP 
 Arrow keys control movement (or vi's hjkl keys will work too,
