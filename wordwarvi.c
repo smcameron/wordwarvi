@@ -228,6 +228,7 @@ int add_sound(int which_sound, int which_slot);
 #define SAM_SCORE 400		/* score for killing a SAM station. */
 #define GDB_SCORE 400		/* score for killing a GDB */
 #define CRON_SCORE 400		/* score for killing a cron job */
+#define TENTACLE_SCORE 100
 
 /* some globals... maybe should be in game_state */
 int game_pause = 0;		/* is game paused? */
@@ -1692,6 +1693,7 @@ GdkGC *gc = NULL;		/* our graphics context. */
 GtkWidget *main_da;		/* main drawing area. */
 gint timer_tag;			/* for our gtk 30 times per second timer function */
 int next_quarter_time = -1;	/* Used to limit rate at which quarters can be put in. */
+int next_thunder_time = -1;
 
 
 /* add an object to the list of targets... */
@@ -2133,6 +2135,15 @@ void draw_lightning( GtkWidget *w, int x1, int y1, int x2, int y2)
 
 	/* terminal case, x1, y1, and x2, y2 are very close, just draw a line. */
 	if (dx < 10 && dy < 10) {
+		gdk_gc_set_foreground(gc, &huex[BLUE]);
+		if (dx < dy) {
+			wwvi_draw_line(w->window, gc, x1-1, y1, x2-1, y2); 
+			wwvi_draw_line(w->window, gc, x1+1, y1, x2+1, y2); 
+		} else {
+			wwvi_draw_line(w->window, gc, x1, y1-1, x2, y2-1); 
+			wwvi_draw_line(w->window, gc, x1, y1+1, x2, y2+1); 
+		}
+		gdk_gc_set_foreground(gc, &huex[WHITE]);
 		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
 		return;
 	}
@@ -2203,11 +2214,16 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 
 	/* Shoot lightning at the player occasionally if he gets too close. */
-	if (randomn(1000) < 20 && abs(o->x - player->x) < 100 && abs(o->y - player->y) < 300) {
+	if (randomn(1000) < 45 && abs(o->x - player->x) < 200 && abs(o->y - player->y) < 500) {
 		gdk_gc_set_foreground(gc, &huex[WHITE]);
 		draw_lightning(w, x2, y2, player->x - game_state.x, player->y - game_state.y + (SCREEN_HEIGHT/2));
 		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
-		add_sound(THUNDER_SOUND, ANY_SLOT);
+		game_state.health -= 1; /* just take off one, the octo's are bad... */
+		/* keep thunder from going oof too much */
+		if ((next_thunder_time) < timer) {
+			next_thunder_time = timer + FRAME_RATE_HZ * 2;
+			add_sound(THUNDER_SOUND, ANY_SLOT);
+		}
 	}
 }
 
@@ -3226,12 +3242,7 @@ void bomb_move(struct game_obj_t *o)
 			}
 			removed = 0;
 			switch (t->o->otype) {
-				case OBJ_TYPE_TENTACLE: /* Doesn't hurt them, just moves them */
-					if (abs(o->x - t->o->x) < BOMB_X_PROXIMITY) { /* a hit */
-						t->o->vx = ((t->o->x < o->x) ? -1 : 1) * randomn(16);
-						t->o->vy = ((t->o->y < o->y) ? -1 : 1) * randomn(16);
-					}
-					break;
+				case OBJ_TYPE_TENTACLE: 
 				case OBJ_TYPE_ROCKET:
 				case OBJ_TYPE_HARPOON:
 				case OBJ_TYPE_MISSILE:
@@ -3262,6 +3273,8 @@ void bomb_move(struct game_obj_t *o)
 						} else if (t->o->otype == OBJ_TYPE_OCTOPUS) { 
 							game_state.score += OCTOPUS_SCORE;
 							add_score_floater(t->o->x, t->o->y, OCTOPUS_SCORE);
+						} else if (t->o->otype == OBJ_TYPE_TENTACLE) {
+							game_state.score += TENTACLE_SCORE;
 						}
 						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 						spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
