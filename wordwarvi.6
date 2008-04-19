@@ -2,7 +2,7 @@
 .SH NAME
 wordwarvi \- Old school '80's style side scrolling space shoot'em up game.
 .SH SYNOPSIS
-.B wordwarvi [ --bw ] [ --width w ] [ --height h ] 
+.B wordwarvi [ --bw ] [ --width w ] [ --height h ] [ --framerate f ]
 [ --sounddevice n ] [ --brightsparks ] [ --version ]
 .SH DESCRIPTION
 .\" Add any additional description here
@@ -21,9 +21,20 @@ in the cluster to do it all over again.
 \fB\--bw\fR
 No color, just black and white.
 .TP
+\fB\--framerate f\fR
+Sets the target frame rate to f frames per second.
+The default is 30 frames per second.  If your computer is
+too slow to achieve the specified (or default) frame rate at 
+the specified (or default) resolution, decreasing the frame 
+rate may make the game respond better.  Likewise, at lower 
+resolutions, higher framerates may be possible, or lower resolutions
+may make the game perform better at a given frame rate. 
+It should be noted that The game is designed (and tested) 
+to be played at 30 frames per second.
+.TP
 \fB\--height h\fR
 Sets the window size to h pixels high, scaling all
-graphics as necessary.
+graphics as necessary.  The default is 600 pixels.
 .TP
 \fB\--sounddevice n\fR
 Use alternate sound device n, where n is an integer.  
@@ -43,7 +54,7 @@ Print the program's version number and exit.
 .TP
 \fB\--width w\fR
 Sets the window size to w pixels wide, scaling all graphics
-as necessary.
+as necessary.  The default is 800 pixels.
 .SH Controls:
 .PP 
 Arrow keys control movement (or vi's hjkl keys will work too,

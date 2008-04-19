@@ -119,7 +119,8 @@ int add_sound(int which_sound, int which_slot);
 			     /* this may adversely affect performance, as this number of x's are */
 			     /* drawn EVERY FRAME when in close proximity to jammer. */
 
-#define FRAME_RATE_HZ 25	/* target frame rate at which gtk callback fires */
+#define FRAME_RATE_HZ 30	/* target frame rate at which gtk callback fires by default */
+int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define TERRAIN_LENGTH 1000	/* length, in number of line segments, of terrain */
 #define SCREEN_WIDTH 800        /* window width, in pixels */
 #define SCREEN_HEIGHT 600       /* window height, in pixels */
@@ -179,7 +180,7 @@ int add_sound(int which_sound, int which_slot);
 #define NFUELTANKS 20		/* Initial number of fuel tanks sprinkled around the terrain */
 #define FUELTANK_CAPACITY 30	/* How many hit points a fuel tank contains */
 #define REFUEL_RATE 1 		/* lower numbers = faster, used as modulo of timer */
-#define REFILL_RATE (FRAME_RATE_HZ * 3) /* lower numbers == faster, used as modulo of timer */
+#define REFILL_RATE (frame_rate_hz * 3) /* lower numbers == faster, used as modulo of timer */
 #define NJAMMERS 1		/* Initial number of radar jammers sprinkled through the terrain */
 #define NCRON 15 		/* Initial number of cron jobs sprinkeled through the terrain */
 #define NSHIPS 1		/* Initial number of clipper ships sprinkeled through the terrain */
@@ -204,7 +205,7 @@ int add_sound(int which_sound, int which_slot);
 #define MAX_MISSILE_VELOCITY 19 /* Max x and y missile/harpoon velocities */
 #define MISSILE_DAMAGE 20	/* amount of damage missile/harpoon inflict on player */
 #define MISSILE_PROXIMITY 10	/* x and y proximity for missiles to be considered a hit (pixels) */
-#define MISSILE_FIRE_PERIOD (FRAME_RATE_HZ * 1)	/* time which must elapse between firings of missiles */
+#define MISSILE_FIRE_PERIOD (frame_rate_hz * 1)	/* time which must elapse between firings of missiles */
 
 #define BULLET_SPEED 25		/* max x/y velocities of bullets (cron jobs shoot) */
 #define BULLET_DAMAGE 20	/* amount of damage bullets inflict on player */
@@ -1694,7 +1695,7 @@ struct game_state_t {
 	int radar_state;		/* Whether the radar is booting up, fritzed, or operational */
 #define     RADAR_RUNNING (0)
 #define     RADAR_FRITZED (-1)
-#define     RADAR_BOOTUP (5 * FRAME_RATE_HZ) /* How long it takes the radar to boot up. */
+#define     RADAR_BOOTUP (5 * frame_rate_hz) /* How long it takes the radar to boot up. */
 	int nextbombtime;
 	int nextlasertime;
 	int nextlasercolor;
@@ -2240,7 +2241,7 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 		game_state.health -= 1; /* just take off one, the octo's are bad... */
 		/* keep thunder from going oof too much */
 		if ((next_thunder_time) < timer) {
-			next_thunder_time = timer + FRAME_RATE_HZ * 2;
+			next_thunder_time = timer + frame_rate_hz * 2;
 			add_sound(THUNDER_SOUND, ANY_SLOT);
 		}
 	}
@@ -2982,7 +2983,7 @@ void player_fire_laser()
 
 	if (timer < game_state.nextlasertime)
 		return;
-	game_state.nextlasertime = timer + (FRAME_RATE_HZ / 12);
+	game_state.nextlasertime = timer + (frame_rate_hz / 12);
 
 	p = &game_state.go[0];
 
@@ -3346,7 +3347,7 @@ void volcano_move(struct game_obj_t *o)
 	int player_dist;
 
 	player_dist = abs(player->x - o->x);
-	if (timer % (FRAME_RATE_HZ*2) == 0) {
+	if (timer % (frame_rate_hz*2) == 0) {
 		if (randomn(100) < 25)  {
 			spray_debris(o->x, o->y, 0, -30, 30, o, 0);
 			spray_debris(o->x, o->y, 0, -20, 20, o, 0);
@@ -3411,7 +3412,7 @@ void drop_chaff()
 
 	if (game_state.nextchafftime > timer)
 		return;
-	game_state.nextchafftime = timer + (FRAME_RATE_HZ);
+	game_state.nextchafftime = timer + (frame_rate_hz);
 
 	/* Throw three pieces of chaff each time... */
 	for (j=0;j<3;j++) {
@@ -3454,7 +3455,7 @@ void drop_bomb()
 
 	if (game_state.nextbombtime > timer)
 		return;
-	game_state.nextbombtime = timer + (FRAME_RATE_HZ >> 2);
+	game_state.nextbombtime = timer + (frame_rate_hz >> 2);
 
 	/* Player drops cmd_multiplier bombs.  */
 	for (j=0;j<game_state.cmd_multiplier;j++) {
@@ -3561,7 +3562,7 @@ static void corrosive_atmosphere_sound()
 
 	/* Only allow this to enter the sound queue once per every 3 seconds */
 	if (timer > nexttime) {
-		nexttime = timer + FRAME_RATE_HZ*10;
+		nexttime = timer + frame_rate_hz*10;
 		add_sound(CORROSIVE_SOUND, ANY_SLOT);
 	}
 }
@@ -3573,7 +3574,7 @@ static void ground_smack_sound()
 
 	/* Only allow this to enter the sound queue once per every 3 seconds */
 	if (timer > nexttime) {
-		nexttime = timer + FRAME_RATE_HZ*3;
+		nexttime = timer + frame_rate_hz*3;
 		add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
 		add_sound(OWMYSPINE_SOUND, ANY_SLOT);
 	}
@@ -3598,7 +3599,7 @@ void move_player(struct game_obj_t *o)
 		was_healthy = 0;  /* remember he's died, for next time. */
 
 		/* force 10 secs to elapse before another quarter can go in. */
-		next_quarter_time = timer + (FRAME_RATE_HZ * 10);
+		next_quarter_time = timer + (frame_rate_hz * 10);
 
 		player->move = bridge_move; /* bridge move makes the player fall. */
 		explode(player->x, player->y, player->vx, player->vy, 90, 350, 30); /* bunch of sparks. */
@@ -3838,7 +3839,7 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 			remove_target(o->target);
 		}
 		/* flying debris will throw sparks for 4 seconds or until it hits the ground. */
-		if (o->alive > FRAME_RATE_HZ*4 || o->y < deepest-2) 
+		if (o->alive > frame_rate_hz*4 || o->y < deepest-2) 
 			explode(o->x, o->y, 0, 0, 16, 3, 10);
 	}		
 
@@ -5284,7 +5285,7 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 	}
 }
 
-/* This gets called FRAME_RATE_HZ times every second (normally 30 times a sec) */
+/* This gets called frame_rate_hz times every second (normally 30 times a sec) */
 /* by main_da_expose().  Don't do anything slow in here. */
 void draw_objs(GtkWidget *w)
 {
@@ -5738,7 +5739,7 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 		o->move = bridge_move;
 		o->draw = draw_generic;
 		o->destroy = generic_destroy_func;
-		o->alive = 5*FRAME_RATE_HZ + randomn(FRAME_RATE_HZ);	
+		o->alive = 5*frame_rate_hz + randomn(frame_rate_hz);	
 		o->color = victim->color;
 		o->radar_image = 1;
 		o->target = add_target(o);
@@ -6614,7 +6615,7 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 		intermission_stage++;
 		/* printf("intermission_stage  %d -> %d\n", 
  * 			intermission_stage-1,intermission_stage); */
-		intermission_timer = timer + (intermission_stage == 10 ? 4 : 1) * FRAME_RATE_HZ;
+		intermission_timer = timer + (intermission_stage == 10 ? 4 : 1) * frame_rate_hz;
 	}
 
 	/* printf("timer=%d, timer_event=%d, intermission_timer=%d, stage=%d\n", 
@@ -7598,7 +7599,7 @@ void deal_with_joystick()
 	/* buttons 8 or 9 on joystick will put in a quarter. */
 	if ((jse.button[8] == 1 || jse.button[9] == 1) && timer > next_quarter_time) {
 		insert_quarter();
-		next_quarter_time = timer + (FRAME_RATE_HZ);
+		next_quarter_time = timer + (frame_rate_hz);
 	}
 	return;
 
@@ -7618,7 +7619,7 @@ no_credits:
 			jse.button[9] == 1) {
 			
 			insert_quarter();
-			next_quarter_time = timer + FRAME_RATE_HZ;
+			next_quarter_time = timer + frame_rate_hz;
 		}
 	}
 }
@@ -8279,6 +8280,7 @@ static struct option wordwarvi_options[] = {
 	{ "brightsparks", 0, NULL, 3 },
 	{ "width", 1, NULL, 4 },
 	{ "height", 1, NULL, 5 },
+	{ "framerate", 1, NULL, 6 },
 };
 
 int main(int argc, char *argv[])
@@ -8296,6 +8298,7 @@ int main(int argc, char *argv[])
 
 	real_screen_width = SCREEN_WIDTH;
 	real_screen_height = SCREEN_HEIGHT;
+	frame_rate_hz = FRAME_RATE_HZ;
 	// current_draw_line = crazy_line;
 	// current_draw_rectangle = crazy_rectangle;
 
@@ -8377,6 +8380,15 @@ int main(int argc, char *argv[])
 					current_draw_rectangle = gdk_draw_rectangle;
 				}
 				break;	
+			case 6: /* frame rate */
+				n = sscanf(optarg, "%d", &frame_rate_hz);
+				if (n != 1 || frame_rate_hz < 3 || frame_rate_hz > 300) {
+					fprintf(stderr, "wordwarvi: Bad framerate argument"
+						" '%s', using default %d frames/sec.\n", 
+							optarg, FRAME_RATE_HZ);
+					frame_rate_hz = FRAME_RATE_HZ;
+				}
+				break;
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
 				
@@ -8505,7 +8517,7 @@ int main(int argc, char *argv[])
 	cliprect.height = real_screen_height;	
 	gdk_gc_set_clip_rectangle(gc, &cliprect);
 
-    timer_tag = g_timeout_add(1000 / FRAME_RATE_HZ, advance_game, NULL);
+    timer_tag = g_timeout_add(1000 / frame_rate_hz, advance_game, NULL);
     
     /* All GTK applications must have a gtk_main(). Control ends here
      * and waits for an event to occur (like a key press or
