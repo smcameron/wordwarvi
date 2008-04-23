@@ -4919,7 +4919,7 @@ void worm_move(struct game_obj_t *o)
 				}
 			}
 			o->tsd.worm.tx += randomn(MAX_WORM_VX*20) - MAX_WORM_VX*10 ;
-			o->tsd.worm.ty -= randomn(MAX_WORM_VY*20) - MAX_WORM_VY*10;
+                        o->tsd.worm.ty = ground_level(o->tsd.worm.tx, &xi) - 200 + randomn(100);
 
 			// printf("New short term dest, %d,%d\n", o->tsd.worm.tx, o->tsd.worm.ty);
 		}
