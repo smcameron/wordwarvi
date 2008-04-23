@@ -4035,6 +4035,69 @@ void laser_move(struct game_obj_t *o)
 				}
 			}
 			break;
+			case OBJ_TYPE_WORM:
+				/* check y value first. */
+				hit = 0;
+				if (abs(o->y - t->o->y) <= LASER_Y_PROXIMITY) {
+					if (o->vx > 0) {
+						if (o->x > t->o->x && o->x - o->vx < t->o->x)
+							hit=1;
+					} else {
+						if (o->x < t->o->x && o->x - o->vx > t->o->x)
+							hit=1;
+					}
+				}
+				if (!hit)
+					break;
+
+				/* cut the worm in half where it's hit. */
+				/* Disconnect the top half: */
+				if (t->o->tsd.worm.parent) {
+					struct game_obj_t *parent;
+					parent = t->o->tsd.worm.parent;
+
+					parent->tsd.worm.child = NULL;
+					if (parent->tsd.worm.parent == NULL) { /* just a head? */
+						kill_object(parent);
+						parent->destroy(parent);
+						remove_target(parent->target);
+					}
+					t->o->tsd.worm.parent->tsd.worm.child = NULL;
+				}
+			
+				/* Disconnect the bottom half */
+				if (t->o->tsd.worm.child) {
+					/* make new head become autonomous ... see worm_move() */
+					struct game_obj_t *child;
+
+					child = t->o->tsd.worm.child;
+
+					child->tsd.worm.parent = NULL;
+					child->tsd.worm.tx = child->x;
+					child->tsd.worm.ty = child->y;
+					child->tsd.worm.ltx = child->x;
+					child->tsd.worm.lty = child->y;
+
+					if (child->tsd.worm.child == NULL) {	
+						kill_object(child);
+						child->destroy(child);
+						remove_target(child->target);
+					}
+				}
+
+				/* blow away the segment we just hit. */
+				add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
+				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 25, 20);
+				spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
+
+				kill_object(t->o);
+
+				t->o->destroy(t->o);
+				t = remove_target(t);
+				removed = 1;
+				kill_object(o);
+				o->destroy(o);
+				break;
 			default:
 				break;
 		}
