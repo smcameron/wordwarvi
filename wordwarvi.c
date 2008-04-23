@@ -1620,6 +1620,7 @@ struct worm_data {
 	int i;				/* current index into x,y arrays */
 	int tx, ty;			/* short term destination x,y */
 	int ltx, lty;			/* long term destination x,y */
+	int coloroffset;
 };
 
 struct debris_data {
@@ -4835,7 +4836,7 @@ void worm_draw(struct game_obj_t *o, GtkWidget *w)
 		wwvi_draw_line(w->window, gc, x+7, y, x, y+7); 
 		wwvi_draw_line(w->window, gc, x, y+7, x-7, y); 
 	} else {
-		color = NCOLORS + NSPARKCOLORS + (timer % NRAINBOWCOLORS);
+		color = NCOLORS + NSPARKCOLORS + ((timer + o->tsd.worm.coloroffset) % NRAINBOWCOLORS);
 		gdk_gc_set_foreground(gc, &huex[color]);
 		if (o->tsd.worm.child == NULL) {
 			wwvi_draw_line(w->window, gc, x-7, y, x, y-7); 
@@ -6816,7 +6817,7 @@ static void add_humanoids(struct terrain_t *t)
 	}
 }
 
-struct game_obj_t *add_worm_tail(struct game_obj_t *parent)
+struct game_obj_t *add_worm_tail(struct game_obj_t *parent, int coloroffset)
 {
 	int j;
 	struct game_obj_t *o = NULL;
@@ -6837,12 +6838,13 @@ struct game_obj_t *add_worm_tail(struct game_obj_t *parent)
 	o->tsd.worm.ty = o->y;
 	o->tsd.worm.ltx = o->x;
 	o->tsd.worm.lty = o->y;
+	o->tsd.worm.coloroffset = coloroffset;
 	for (j=0;j<NWORM_TIME_UNITS;j++) {
 		o->tsd.worm.x[j] = o->x;
 		o->tsd.worm.y[j] = o->y;
 	}
 
-	o->tsd.worm.child = add_worm_tail(o);
+	o->tsd.worm.child = add_worm_tail(o, coloroffset - 2);
 	return o;
 }
 
@@ -6863,12 +6865,13 @@ static void add_worms(struct terrain_t *t)
 			o->tsd.worm.ty = o->y;
 			o->tsd.worm.ltx = o->x;
 			o->tsd.worm.lty = o->y;
+			o->tsd.worm.coloroffset = randomn(100)+100;
 			for (j=0;j<NWORM_TIME_UNITS;j++) {
 				o->tsd.worm.x[j] = o->x;
 				o->tsd.worm.y[j] = o->y;
 			}
 		}
-		o->tsd.worm.child = add_worm_tail(o);
+		o->tsd.worm.child = add_worm_tail(o, o->tsd.worm.coloroffset - 2);
 	}
 }
 
