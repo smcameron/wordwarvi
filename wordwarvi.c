@@ -198,6 +198,9 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define RADAR_FRITZ_HEALTH 30   /* If player's health drops below this, the radar goes on the fritz */
 #define NAIRSHIPS 2		/* Initial number of blimps sprinkled through the terrain */
 #define NBALLOONS 2 		/* Initial number of balloons sprinkled through the terrain */
+#define NWORMS 20		/* Initial number of worms sprinkled through the terrain */
+#define MAX_WORM_VX 8
+#define MAX_WORM_VY MAX_WORM_VX 
 
 #define MAX_BALLOON_HEIGHT 300  /* these two control blimps, balloons, and clipper ships */
 #define MIN_BALLOON_HEIGHT 50   /* limiting their altitude to a range above the ground (pixels) */
@@ -330,6 +333,7 @@ int planet_color[] = {
 #define OBJ_TYPE_DEBRIS 'D'
 #define OBJ_TYPE_JAMMER 'J'
 #define OBJ_TYPE_VOLCANO 'v'
+#define OBJ_TYPE_WORM 'W'
 
 int current_level = 0;		/* current level of the game, starts at zero */
 struct level_parameters_t {
@@ -351,6 +355,7 @@ struct level_parameters_t {
 	int nbuildings;
 	int nbombs;
 	int nairships;
+	int nworms;
 
 	/* how often flak guns (laser turrets) fire. */
 	int laser_fire_chance;
@@ -1606,6 +1611,17 @@ struct airship_data {
 					/* script of text that scrolls by we are. */
 };
 
+struct worm_data {
+#define NWORM_TIME_UNITS 5 
+	struct game_obj_t *parent;	/* next worm segment up towards the head */
+	struct game_obj_t *child;	/* next worm segment back towards the tail */
+	int x[NWORM_TIME_UNITS];	/* list of this segments position for the last */
+	int y[NWORM_TIME_UNITS];	/* few time units... x[i], y[i] is current pos */
+	int i;				/* current index into x,y arrays */
+	int tx, ty;			/* short term destination x,y */
+	int ltx, lty;			/* long term destination x,y */
+};
+
 struct debris_data {
 	int debris_type;		/* controls what sounds debris makes when */
 #define DEBRIS_TYPE_STONE 0		/* it bounces. */
@@ -1625,6 +1641,7 @@ union type_specific_data {		/* union of all the typs specific data */
 	struct fuel_data fuel;
 	struct airship_data airship;
 	struct debris_data debris;
+	struct worm_data worm;
 };
 
 struct game_obj_t {
@@ -2207,6 +2224,7 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 	int i;
 	int x1, y1, x2, y2;
 	int angle = 0;
+	int thickness = o->tsd.tentacle.nsegs >> 1;
 
 	x2 = 0; /* make compiler happy */
 	y2 = 0; /* make compiler happy */
@@ -2228,7 +2246,15 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 			gdk_gc_set_foreground(gc, &huex[BLUE]);
 		else
 			gdk_gc_set_foreground(gc, &huex[YELLOW]);
-		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+		if (thickness > 0) {
+			wwvi_draw_line(w->window, gc, x1-thickness, y1, x2-thickness, y2); 
+			wwvi_draw_line(w->window, gc, x1+thickness, y1, x2+thickness, y2); 
+			wwvi_draw_line(w->window, gc, x1, y1-thickness, x2, y2-thickness); 
+			wwvi_draw_line(w->window, gc, x1, y1+thickness, x2, y2+thickness); 
+			if (i & 0x01) 
+				thickness--;
+		} else 
+			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
 		x1 = x2;
 		y1 = y2;
 	}
@@ -4732,6 +4758,180 @@ void airship_draw(struct game_obj_t *o, GtkWidget *w)
 
 }
 
+void worm_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	int x, y, x2,y2;
+	int color;
+
+	x = o->x - game_state.x;
+	y = o->y - game_state.y + (SCREEN_HEIGHT/2);
+	if (o->tsd.worm.parent == NULL) {
+		gdk_gc_set_foreground(gc, &huex[o->color]);
+		wwvi_draw_line(w->window, gc, x-7, y, x, y-7); 
+		wwvi_draw_line(w->window, gc, x, y-7, x+7, y); 
+		wwvi_draw_line(w->window, gc, x+7, y, x, y+7); 
+		wwvi_draw_line(w->window, gc, x, y+7, x-7, y); 
+	} else {
+		color = NCOLORS + NSPARKCOLORS + (timer % NRAINBOWCOLORS);
+		gdk_gc_set_foreground(gc, &huex[color]);
+		if (o->tsd.worm.child == NULL) {
+			wwvi_draw_line(w->window, gc, x-7, y, x, y-7); 
+			wwvi_draw_line(w->window, gc, x, y-7, x+7, y); 
+			wwvi_draw_line(w->window, gc, x+7, y, x, y+7); 
+			wwvi_draw_line(w->window, gc, x, y+7, x-7, y); 
+		}
+	}
+
+#if 0
+	if (o->tsd.worm.parent == NULL) {
+		x2 = o->tsd.worm.tx - game_state.x;
+		y2 = o->tsd.worm.ty - game_state.y + (SCREEN_HEIGHT/2);
+		wwvi_draw_line(w->window, gc, x, y, x2, y2);
+		x2 = o->tsd.worm.ltx - game_state.x;
+		y2 = o->tsd.worm.lty - game_state.y + (SCREEN_HEIGHT/2);
+		wwvi_draw_line(w->window, gc, x, y, x2, y2);
+	} else {
+#endif
+	if (o->tsd.worm.parent != NULL) {
+		x2 = o->tsd.worm.parent->x - game_state.x;
+		y2 = o->tsd.worm.parent->y - game_state.y + (SCREEN_HEIGHT/2);
+		wwvi_draw_line(w->window, gc, x-7, y, x2-7, y2);
+		wwvi_draw_line(w->window, gc, x+7, y, x2+7, y2);
+		wwvi_draw_line(w->window, gc, x, y-7, x2, y2-7);
+		wwvi_draw_line(w->window, gc, x, y+7, x2, y2+7);
+	}
+}
+
+void worm_move(struct game_obj_t *o)
+{
+	int xi, n;
+
+	int ldx, ldy, sdx, sdy, dvx, dvy;
+
+	/* is this the head of a worm? */
+	if (o->tsd.worm.parent == NULL) {
+
+		/* long term destination reached?  Pick a new one. */
+		ldx = o->tsd.worm.ltx - o->x;
+		ldy = o->tsd.worm.lty - o->y;
+		if (abs(ldx) < 20 && abs(ldy) < 20) {
+                        o->tsd.worm.ltx = terrain.x[randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1)];
+                        o->tsd.worm.lty = ground_level(o->tsd.worm.ltx, &xi) - 340 + randomn(100);
+
+			// printf("New long term dest %d,%d\n", o->tsd.worm.ltx, o->tsd.worm.lty);
+
+			/* trigger short term destination reached code, below. */
+			o->tsd.worm.tx = o->x;
+			o->tsd.worm.ty = o->y;
+			ldx = o->tsd.worm.ltx - o->x;
+			ldy = o->tsd.worm.lty - o->y;
+		}
+
+		/* short term destination reached?  Pick a new one. */
+		sdx = o->tsd.worm.tx - o->x;
+		sdy = o->tsd.worm.ty - o->y;
+		if (abs(sdx) < 5 && abs(sdy) < 5) {
+			if (abs(ldx) > abs(ldy)) {
+				if (ldx < 0) {	
+					o->tsd.worm.tx = o->x - MAX_WORM_VX * 5;
+					o->tsd.worm.ty = o->y + (ldy * MAX_WORM_VY * 5 ) / abs(ldx);
+				} else if (ldx > 0) {
+					o->tsd.worm.tx = o->x + MAX_WORM_VX * 5;
+					o->tsd.worm.ty = o->y + (ldy * MAX_WORM_VY  * 5) / abs(ldx);
+				} else /* ldx == 0 */  {
+					o->tsd.worm.tx = o->x;
+					o->tsd.worm.ty = o->y;
+				}
+			} else {
+				if (ldy < 0) {	
+					o->tsd.worm.ty = o->y - MAX_WORM_VY * 5;
+					o->tsd.worm.tx = o->x + (ldx * MAX_WORM_VY * 5 ) / abs(ldy);
+				} else if (ldy > 0) {
+					o->tsd.worm.ty = o->y + MAX_WORM_VY * 5;
+					o->tsd.worm.tx = o->x + (ldx * MAX_WORM_VY * 5 ) / ldy;
+				} else /* ldy == 0 */ {
+					o->tsd.worm.tx = o->x;
+					o->tsd.worm.ty = o->y;
+				}
+			}
+			o->tsd.worm.tx += randomn(MAX_WORM_VX*20) - MAX_WORM_VX*10 ;
+			o->tsd.worm.ty -= randomn(MAX_WORM_VY*20) - MAX_WORM_VY*10;
+
+			// printf("New short term dest, %d,%d\n", o->tsd.worm.tx, o->tsd.worm.ty);
+		}
+
+		/* Calculate desired velocity... */
+		sdx = o->tsd.worm.tx - o->x;
+		sdy = o->tsd.worm.ty - o->y;
+
+		if (abs(sdx) > abs(sdy)) {
+			if (sdx > 0) {
+				dvx = MAX_WORM_VX;
+				dvy = (sdy * MAX_WORM_VY) / sdx;
+			} else if (sdx < 0) {
+				dvx = -MAX_WORM_VX;
+				dvy = (sdy * MAX_WORM_VY) / abs(sdx);
+			} else {
+				dvx = 0;
+				dvy = 0;
+			}
+		} else {
+			if (sdy > 0) {
+				dvy = MAX_WORM_VY;
+				dvx = (sdx * MAX_WORM_VX) / sdy;
+			} else if (sdy < 0) {
+				dvy = -MAX_WORM_VY;
+				dvx = (sdx * MAX_WORM_VX) / abs(sdy);
+			} else { /* sdy == 0 */
+				dvx = 0;
+				dvy = 0;
+			}
+		}
+
+		/* Adjust velocity towards desired velocity dvx, dvy */
+		if (o->vx < dvx)
+			o->vx++;
+		else if (o->vx > dvx)
+			o->vx--;
+		if (o->vy < dvy)
+			o->vy++;
+		else if (o->vy > dvy)
+			o->vy--;
+
+		/* Store our movements so tail segments can ape them. */
+		n = o->tsd.worm.i;
+
+		o->tsd.worm.x[n] = o->x;
+		o->tsd.worm.y[n] = o->y;
+		o->tsd.worm.i++;
+		if (o->tsd.worm.i >= NWORM_TIME_UNITS)
+			o->tsd.worm.i = 0;
+
+		/* finally, move */
+		o->x += o->vx;
+		o->y += o->vy;
+
+	} else {
+		/* we're in the tail, just move as the guy in front of you did. */
+		int n;
+
+		/* Store our movements so tail segments can ape them. */
+		n = o->tsd.worm.i;
+		o->tsd.worm.x[n] = o->x;
+		o->tsd.worm.y[n] = o->y;
+		o->tsd.worm.i++;
+		if (o->tsd.worm.i >= NWORM_TIME_UNITS)
+			o->tsd.worm.i = 0;
+
+		/* ape the parents motion... */
+		n = o->tsd.worm.parent->tsd.worm.i+1;
+		if (n >= NWORM_TIME_UNITS)
+			n = 0;
+
+		o->x = o->tsd.worm.parent->tsd.worm.x[n];
+		o->y = o->tsd.worm.parent->tsd.worm.y[n];
+	}
+}
 
 void airship_move(struct game_obj_t *o)
 {
@@ -6553,6 +6753,62 @@ static void add_humanoids(struct terrain_t *t)
 	}
 }
 
+struct game_obj_t *add_worm_tail(struct game_obj_t *parent)
+{
+	int j;
+	struct game_obj_t *o = NULL;
+
+	if (parent->tsd.worm.parent != NULL && randomn(100) > 85)
+		return NULL;
+
+	o = add_generic_object(parent->x, parent->y, 0,0,
+		worm_move, worm_draw, CYAN, NULL, 1, OBJ_TYPE_WORM, 1);
+	if (o == NULL)
+		return NULL;
+
+	o->tsd.worm.parent = parent;
+	o->counter = 0;
+	o->radar_image = 1;
+	o->tsd.worm.i = 0;
+	o->tsd.worm.tx = o->x;
+	o->tsd.worm.ty = o->y;
+	o->tsd.worm.ltx = o->x;
+	o->tsd.worm.lty = o->y;
+	for (j=0;j<NWORM_TIME_UNITS;j++) {
+		o->tsd.worm.x[j] = o->x;
+		o->tsd.worm.y[j] = o->y;
+	}
+
+	o->tsd.worm.child = add_worm_tail(o);
+	return o;
+}
+
+static void add_worms(struct terrain_t *t)
+{
+	int xi, i, j;
+	struct game_obj_t *o;
+	for (i=0;i<level.nworms;i++) {
+		xi = initial_x_location();
+		o = add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
+			worm_move, worm_draw, GREEN, NULL, 1, OBJ_TYPE_WORM, 1);
+		if (o) {
+			o->tsd.worm.parent = NULL;
+			o->counter = 0;
+			o->radar_image = 1;
+			o->tsd.worm.i = 0;
+			o->tsd.worm.tx = o->x;
+			o->tsd.worm.ty = o->y;
+			o->tsd.worm.ltx = o->x;
+			o->tsd.worm.lty = o->y;
+			for (j=0;j<NWORM_TIME_UNITS;j++) {
+				o->tsd.worm.x[j] = o->x;
+				o->tsd.worm.y[j] = o->y;
+			}
+		}
+		o->tsd.worm.child = add_worm_tail(o);
+	}
+}
+
 static void add_airships(struct terrain_t *t)
 {
 	int xi, i;
@@ -7357,6 +7613,7 @@ void start_level()
 	add_bridges(&terrain);
 	add_flak_guns(&terrain);
 	add_airships(&terrain);
+	add_worms(&terrain);
 	add_balloons(&terrain);
 	add_socket(&terrain);
 	add_gdbs(&terrain);
@@ -7384,6 +7641,7 @@ void init_levels_to_beginning()
 	level.ntentacles = NTENTACLES;
 	level.nsams = NSAMS;
 	level.nairships = NAIRSHIPS;
+	level.nworms = NWORMS;
 	level.nbuildings = NBUILDINGS;
 	level.nbombs = NBOMBS;
 	level.nhumanoids = NHUMANOIDS;
@@ -7428,6 +7686,7 @@ void advance_level()
 	level.ntentacles += 2;
 	level.nsams += 2;
 	level.nairships += 1;
+	level.nworms += 1;
 	level.nhumanoids += 1; 
 	if (level.nhumanoids > MAXHUMANS)
 		level.nhumanoids = MAXHUMANS;
