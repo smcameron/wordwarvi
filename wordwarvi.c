@@ -106,6 +106,7 @@ int add_sound(int which_sound, int which_slot);
 #define CORROSIVE_SOUND 42
 #define VOLCANO_ERUPTION 43
 #define IT_BURNS 44
+#define ZZZT_SOUND 45
 
 /* ...End of audio stuff */
 
@@ -209,6 +210,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define MISSILE_DAMAGE 20	/* amount of damage missile/harpoon inflict on player */
 #define MISSILE_PROXIMITY 10	/* x and y proximity for missiles to be considered a hit (pixels) */
 #define MISSILE_FIRE_PERIOD (frame_rate_hz * 1)	/* time which must elapse between firings of missiles */
+#define WORM_DAMAGE 5
 
 #define BULLET_SPEED 25		/* max x/y velocities of bullets (cron jobs shoot) */
 #define BULLET_DAMAGE 20	/* amount of damage bullets inflict on player */
@@ -4051,6 +4053,7 @@ void laser_move(struct game_obj_t *o)
 				if (!hit)
 					break;
 
+				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 10, 20);
 				/* cut the worm in half where it's hit. */
 				/* Disconnect the top half: */
 				if (t->o->tsd.worm.parent) {
@@ -4062,6 +4065,8 @@ void laser_move(struct game_obj_t *o)
 						kill_object(parent);
 						parent->destroy(parent);
 						remove_target(parent->target);
+						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 25, 20);
+						spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
 					}
 					t->o->tsd.worm.parent->tsd.worm.child = NULL;
 				}
@@ -4083,13 +4088,13 @@ void laser_move(struct game_obj_t *o)
 						kill_object(child);
 						child->destroy(child);
 						remove_target(child->target);
+						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 25, 20);
+						spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
 					}
 				}
 
 				/* blow away the segment we just hit. */
 				add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
-				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 25, 20);
-				spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
 
 				kill_object(t->o);
 
@@ -4830,19 +4835,28 @@ void worm_draw(struct game_obj_t *o, GtkWidget *w)
 	x = o->x - game_state.x;
 	y = o->y - game_state.y + (SCREEN_HEIGHT/2);
 	if (o->tsd.worm.parent == NULL) {
+		/* int x3, y3; */
 		gdk_gc_set_foreground(gc, &huex[o->color]);
-		wwvi_draw_line(w->window, gc, x-7, y, x, y-7); 
-		wwvi_draw_line(w->window, gc, x, y-7, x+7, y); 
-		wwvi_draw_line(w->window, gc, x+7, y, x, y+7); 
-		wwvi_draw_line(w->window, gc, x, y+7, x-7, y); 
+		wwvi_draw_line(w->window, gc, x-2, y, x, y-2); 
+		wwvi_draw_line(w->window, gc, x, y-2, x+2, y); 
+		wwvi_draw_line(w->window, gc, x+2, y, x, y+2); 
+		wwvi_draw_line(w->window, gc, x, y+2, x-2, y); 
+/*
+		x3 = o->tsd.worm.tx - game_state.x;
+		y3 = o->tsd.worm.ty - game_state.y + (SCREEN_HEIGHT/2);
+		wwvi_draw_line(w->window, gc, x, y, x3, y3); 
+		x3 = o->tsd.worm.ltx - game_state.x;
+		y3 = o->tsd.worm.lty - game_state.y + (SCREEN_HEIGHT/2);
+		wwvi_draw_line(w->window, gc, x, y, x3, y3); 
+*/
 	} else {
 		color = NCOLORS + NSPARKCOLORS + ((timer + o->tsd.worm.coloroffset) % NRAINBOWCOLORS);
 		gdk_gc_set_foreground(gc, &huex[color]);
 		if (o->tsd.worm.child == NULL) {
-			wwvi_draw_line(w->window, gc, x-7, y, x, y-7); 
-			wwvi_draw_line(w->window, gc, x, y-7, x+7, y); 
-			wwvi_draw_line(w->window, gc, x+7, y, x, y+7); 
-			wwvi_draw_line(w->window, gc, x, y+7, x-7, y); 
+			wwvi_draw_line(w->window, gc, x-2, y, x, y-2); 
+			wwvi_draw_line(w->window, gc, x, y-2, x+2, y); 
+			wwvi_draw_line(w->window, gc, x+2, y, x, y+2); 
+			wwvi_draw_line(w->window, gc, x, y+2, x-2, y); 
 		}
 	}
 
@@ -4857,30 +4871,40 @@ void worm_draw(struct game_obj_t *o, GtkWidget *w)
 	} else {
 #endif
 	if (o->tsd.worm.parent != NULL) {
+		int delta1 = 7;
+		int delta2 = 7;
+
+		if (o->tsd.worm.parent->tsd.worm.parent == NULL)
+			delta2 = 2;
+		if (o->tsd.worm.child == NULL)
+			delta1 = 2;
+
 		x2 = o->tsd.worm.parent->x - game_state.x;
 		y2 = o->tsd.worm.parent->y - game_state.y + (SCREEN_HEIGHT/2);
-		wwvi_draw_line(w->window, gc, x-7, y, x2-7, y2);
-		wwvi_draw_line(w->window, gc, x+7, y, x2+7, y2);
-		wwvi_draw_line(w->window, gc, x, y-7, x2, y2-7);
-		wwvi_draw_line(w->window, gc, x, y+7, x2, y2+7);
+		wwvi_draw_line(w->window, gc, x-delta1, y, x2-delta2, y2);
+		wwvi_draw_line(w->window, gc, x+delta1, y, x2+delta2, y2);
+		wwvi_draw_line(w->window, gc, x, y-delta1, x2, y2-delta2);
+		wwvi_draw_line(w->window, gc, x, y+delta1, x2, y2+delta2);
 	}
 }
 
 void worm_move(struct game_obj_t *o)
 {
-	int xi, n;
-
+	int xi, n, gy, pdx, pdy;
 	int ldx, ldy, sdx, sdy, dvx, dvy;
 
-	/* is this the head of a worm? */
+	pdx = abs(o->x - player->x);
+	pdy = abs(o->y - player->y);
+	/* is this the head of a worm? Or just a body segment? */
 	if (o->tsd.worm.parent == NULL) {
+		/* It's a head...  think about where to go */
 
 		/* long term destination reached?  Pick a new one. */
 		ldx = o->tsd.worm.ltx - o->x;
 		ldy = o->tsd.worm.lty - o->y;
 		if (abs(ldx) < 20 && abs(ldy) < 20) {
                         o->tsd.worm.ltx = terrain.x[randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1)];
-                        o->tsd.worm.lty = ground_level(o->tsd.worm.ltx, &xi) - 340 + randomn(100);
+                        o->tsd.worm.lty = ground_level(o->tsd.worm.ltx, &xi) - 800 + randomn(700);
 
 			// printf("New long term dest %d,%d\n", o->tsd.worm.ltx, o->tsd.worm.lty);
 
@@ -4895,39 +4919,45 @@ void worm_move(struct game_obj_t *o)
 		sdx = o->tsd.worm.tx - o->x;
 		sdy = o->tsd.worm.ty - o->y;
 		if (abs(sdx) < 5 && abs(sdy) < 5) {
-			if (abs(ldx) > abs(ldy)) {
-				if (ldx < 0) {	
-					o->tsd.worm.tx = o->x - MAX_WORM_VX * 5;
-					o->tsd.worm.ty = o->y + (ldy * MAX_WORM_VY * 5 ) / abs(ldx);
-				} else if (ldx > 0) {
-					o->tsd.worm.tx = o->x + MAX_WORM_VX * 5;
-					o->tsd.worm.ty = o->y + (ldy * MAX_WORM_VY  * 5) / abs(ldx);
-				} else /* ldx == 0 */  {
-					o->tsd.worm.tx = o->x;
-					o->tsd.worm.ty = o->y;
-				}
-			} else {
-				if (ldy < 0) {	
-					o->tsd.worm.ty = o->y - MAX_WORM_VY * 5;
-					o->tsd.worm.tx = o->x + (ldx * MAX_WORM_VY * 5 ) / abs(ldy);
-				} else if (ldy > 0) {
-					o->tsd.worm.ty = o->y + MAX_WORM_VY * 5;
-					o->tsd.worm.tx = o->x + (ldx * MAX_WORM_VY * 5 ) / ldy;
-				} else /* ldy == 0 */ {
-					o->tsd.worm.tx = o->x;
-					o->tsd.worm.ty = o->y;
-				}
-			}
-			o->tsd.worm.tx += randomn(MAX_WORM_VX*20) - MAX_WORM_VX*10 ;
-                        o->tsd.worm.ty = ground_level(o->tsd.worm.tx, &xi) - 200 + randomn(100);
 
-			// printf("New short term dest, %d,%d\n", o->tsd.worm.tx, o->tsd.worm.ty);
+
+			/* If player is close, follow him... */
+			if (pdx < 170 && pdy < 170) {
+				o->tsd.worm.tx = player->x + player->vx * 10 + randomn(30) - 15;
+				o->tsd.worm.ty = player->y + player->vy * 10 + randomn(30) - 15;
+
+				/* Touching player?  Zap him. */
+				if (pdx < 8 && pdy < 8) {
+					add_sound(ZZZT_SOUND, ANY_SLOT);
+					explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
+					game_state.health -= WORM_DAMAGE;
+				}
+
+			} else {
+				/* Aim vaguely towards the destination... */
+				if (o->x < o->tsd.worm.ltx)
+					o->tsd.worm.tx = o->x + randomn(200) - 30; 
+				else
+					o->tsd.worm.tx = o->x - randomn(200) + 30; 
+
+				if (o->y < o->tsd.worm.lty)
+					o->tsd.worm.ty = o->y + randomn(60) - 10; 
+				else
+					o->tsd.worm.ty = o->y - randomn(60) + 10; 
+			}
+
+			/* Avoid the ground. */
+			gy = ground_level(o->tsd.worm.tx, &xi);	
+			if (o->tsd.worm.ty >= gy)
+				o->tsd.worm.ty = gy - 50 - randomn(200);
+			if (o->tsd.worm.ty <= KERNEL_Y_BOUNDARY)
+				o->tsd.worm.ty = KERNEL_Y_BOUNDARY + 50 + randomn(200);
+			
 		}
 
 		/* Calculate desired velocity... */
 		sdx = o->tsd.worm.tx - o->x;
 		sdy = o->tsd.worm.ty - o->y;
-
 		if (abs(sdx) > abs(sdy)) {
 			if (sdx > 0) {
 				dvx = MAX_WORM_VX;
@@ -4976,7 +5006,7 @@ void worm_move(struct game_obj_t *o)
 		o->y += o->vy;
 
 	} else {
-		/* we're in the tail, just move as the guy in front of you did. */
+		/* we're in the tail (body segment), just move as the guy in front of you did. */
 		int n;
 
 		/* Store our movements so tail segments can ape them. */
@@ -4994,6 +5024,13 @@ void worm_move(struct game_obj_t *o)
 
 		o->x = o->tsd.worm.parent->tsd.worm.x[n];
 		o->y = o->tsd.worm.parent->tsd.worm.y[n];
+
+		/* touching the player?  Zap him. */
+		if (pdx < 8 && pdy < 8) {
+			add_sound(ZZZT_SOUND, ANY_SLOT);
+			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
+			game_state.health -= WORM_DAMAGE;
+		}
 	}
 }
 
@@ -6822,7 +6859,7 @@ struct game_obj_t *add_worm_tail(struct game_obj_t *parent, int coloroffset)
 	int j;
 	struct game_obj_t *o = NULL;
 
-	if (parent->tsd.worm.parent != NULL && randomn(100) > 85)
+	if (parent->tsd.worm.parent != NULL && randomn(100) > 90)
 		return NULL;
 
 	o = add_generic_object(parent->x, parent->y, 0,0,
@@ -8247,6 +8284,7 @@ int init_clips()
 	read_clip(STONEBANG8, "sounds/stonebang8.wav");
 	read_clip(VOLCANO_ERUPTION, "sounds/volcano_eruption.wav");
 	read_clip(IT_BURNS, "sounds/aaaah_it_burns.wav");
+	read_clip(ZZZT_SOUND, "sounds/zzzt.wav");
 	// read_clip(CORROSIVE_SOUND, "sounds/corrosive_atmosphere.wav");
 	return 0;
 }
