@@ -197,7 +197,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 
 #define MAXHEALTH 100		/* Max, and initial health value of player */
 #define RADAR_FRITZ_HEALTH 30   /* If player's health drops below this, the radar goes on the fritz */
-#define NAIRSHIPS 2		/* Initial number of blimps sprinkled through the terrain */
+#define NAIRSHIPS 20		/* Initial number of blimps sprinkled through the terrain */
 #define NBALLOONS 2 		/* Initial number of balloons sprinkled through the terrain */
 #define NWORMS 20		/* Initial number of worms sprinkled through the terrain */
 #define MAX_WORM_VX 8
@@ -1619,6 +1619,9 @@ struct airship_data {
 	int bannerline;			/* blimps have scrolling text on the side */
 					/* bannerline keeps track of where in the */
 					/* script of text that scrolls by we are. */
+	int pressure;			/* shooting at the blimps increases the */
+					/* pressure, makes the blimp shoot out more */
+					/* leaking lisp code, and makes it fatter */
 };
 
 struct worm_data {
@@ -2050,6 +2053,7 @@ void sam_move(struct game_obj_t *o)
 }
 
 void draw_generic(struct game_obj_t *o, GtkWidget *w);
+void draw_scaled_generic(struct game_obj_t *o, GtkWidget *w, float xscale, float yscale);
 
 void fuel_draw(struct game_obj_t *o, GtkWidget *w)
 {
@@ -3962,6 +3966,8 @@ void laser_move(struct game_obj_t *o)
 				if (abs(o->x - t->o->x) < 3*60 &&	/* hit a blimp or clipper ship? */
 					o->y - t->o->y <= 0 &&
 					o->y - t->o->y > -50*3) {
+					if (t->o->tsd.airship.pressure < 40)
+						t->o->tsd.airship.pressure += 2;
 					explode(o->x, o->y, o->vx/2, 1, 70, 20, 20); /* make sparks */
 					kill_object(o);		/* get rid of laser beam object. */
 					o->destroy(o);
@@ -3971,6 +3977,8 @@ void laser_move(struct game_obj_t *o)
 						kill_object(t->o);
 						t->o->destroy(t->o);
 						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
+						spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 30, t->o, 1);
+						add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 						t = remove_target(t);
 						removed = 1;
 					}
@@ -4728,9 +4736,11 @@ void airship_leak_lisp(struct game_obj_t *o)
 {
 	/* The airships have "memory leaks" in which they spew "lisp code" */
 	/* out into core memory... */
-	if ((timer % 8) && randomn(100) < 15) {
+	if ((timer % 8) && randomn(100) < 5 + (o->tsd.airship.pressure)) {
+		int randomx, randomy;
 		if (randomlisp[o->counter] != ' ') /* skip putting out "space" objects. */
-			add_symbol(randomlisp[o->counter], TINY_FONT, o->x + 70*3, o->y - 30*3, o->vx+4, 0, 200);
+			add_symbol(randomlisp[o->counter], TINY_FONT, o->x + 70*3, o->y - 30*3, 
+				o->vx+4, 0, 200);
 		o->counter--;
 		if (o->counter < 0)
 			o->counter = strlen(randomlisp)-1;
@@ -4802,7 +4812,10 @@ void airship_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x, y, i, line;
 
-	draw_generic(o, w);
+	if (o->tsd.airship.pressure == 0)
+		draw_generic(o, w);
+	else
+		draw_scaled_generic(o, w, 1.0, 1.0 + 0.01 * o->tsd.airship.pressure);
 
 	/* the -90 and -130 were arrived at empirically, as were the dimensions */
 	/* of the text field.  The commented out code below with 0123456... is */
@@ -5050,6 +5063,9 @@ void airship_move(struct game_obj_t *o)
 	flying_thing_move(o);
 	flying_thing_shoot_missile(o);
 	airship_leak_lisp(o);
+	if (o->tsd.airship.pressure > 0)
+		o->tsd.airship.pressure--;
+	
 }
 
 void ship_move(struct game_obj_t *o)
@@ -5389,6 +5405,38 @@ void init_vects()
 void no_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	return;
+}
+
+/* this is what can draw a list of line segments with line
+ * breaks and color changes...   This one scales in x, y.
+ * It's used for drawing blimps which are overpressurized.
+ */
+void draw_scaled_generic(struct game_obj_t *o, GtkWidget *w, float xscale, float yscale)
+{
+	int j;
+	int x1, y1, x2, y2;
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+	x1 = o->x + (o->v->p[0].x * xscale) - game_state.x;
+	y1 = o->y + (o->v->p[0].y * yscale) - game_state.y + (SCREEN_HEIGHT/2);  
+	for (j=0;j<o->v->npoints-1;j++) {
+		if (o->v->p[j+1].x == LINE_BREAK) { /* Break in the line segments. */
+			j+=2;
+			x1 = o->x + (o->v->p[j].x * xscale) - game_state.x;
+			y1 = o->y + (o->v->p[j].y * yscale) - game_state.y + (SCREEN_HEIGHT/2);  
+		}
+		if (o->v->p[j].x == COLOR_CHANGE) {
+			gdk_gc_set_foreground(gc, &huex[o->v->p[j].y]);
+			j+=1;
+			x1 = o->x + (o->v->p[j].x * xscale) - game_state.x;
+			y1 = o->y + (o->v->p[j].y * yscale) - game_state.y + (SCREEN_HEIGHT/2);  
+		}
+		x2 = o->x + (o->v->p[j+1].x * xscale) - game_state.x; 
+		y2 = o->y + (o->v->p[j+1].y * yscale) +(SCREEN_HEIGHT/2) - game_state.y;
+		if (x1 > 0 && x2 > 0)
+			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+		x1 = x2;
+		y1 = y2;
+	}
 }
 
 /* this is what can draw a list of line segments with line
@@ -6932,6 +6980,7 @@ static void add_airships(struct terrain_t *t)
 			o->counter = 0;
 			o->radar_image = 4;
 			o->tsd.airship.bannerline = 0;
+			o->tsd.airship.pressure = 0;
 		}
 	}
 }
