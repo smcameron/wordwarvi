@@ -273,6 +273,7 @@ int timer_event = 0;		/* timer_expired() switches on this value... */
 #define KEYS1_EVENT 18
 #define KEYS2_EVENT 19
 
+int sound_working = 0;
 int brightsparks = 0;		/* controls preference for how to draw sparks */
 int nframes = 0;		/* count of total frames drawn, used for calculating actual frame rate */
 struct timeval start_time, end_time;		/* start and end time of game, for calc'ing frame rate */
@@ -8427,6 +8428,13 @@ int initialize_portaudio()
 
 	device_count = Pa_GetDeviceCount();
 	printf("Portaudio reports %d sound devices.\n", device_count);
+
+	if (device_count == 0) {
+		printf("There will be no audio.\n");
+		goto error;
+		rc = 0;
+	}
+	sound_working = 1;
     
 	outparams.device = Pa_GetDefaultOutputDevice();  /* default output device */
 
@@ -8478,6 +8486,8 @@ error:
 
 void stop_portaudio()
 {
+	if (!sound_working) 
+		return;
 #ifdef WITHAUDIOSUPPORT
 	int rc;
 
@@ -8494,6 +8504,9 @@ int add_sound(int which_sound, int which_slot)
 {
 #ifdef WITHAUDIOSUPPORT
 	int i;
+
+	if (!sound_working)
+		return 0;
 
 	if (which_slot != ANY_SLOT) {
 		if (audio_queue[which_slot].active)
@@ -8531,6 +8544,8 @@ void add_sound_low_priority(int which_sound)
 	int empty_slots = 0;
 	int last_slot;
 
+	if (!sound_working)
+		return;
 	last_slot = -1;
 	for (i=1;i<MAX_CONCURRENT_SOUNDS;i++)
 		if (audio_queue[i].active == 0) {
@@ -8559,6 +8574,8 @@ void add_sound_low_priority(int which_sound)
 void cancel_sound(int queue_entry)
 {
 #ifdef WITHAUDIOSUPPORT
+	if (!sound_working)
+		return;
 	audio_queue[queue_entry].active = 0;
 #endif
 }
@@ -8567,6 +8584,8 @@ void cancel_all_sounds()
 {
 #ifdef WITHAUDIOSUPPORT
 	int i;
+	if (!sound_working)
+		return;
 	for (i=0;i<MAX_CONCURRENT_SOUNDS;i++)
 		audio_queue[i].active = 0;
 #endif
