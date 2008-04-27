@@ -2118,7 +2118,7 @@ void jammer_draw(struct game_obj_t *o, GtkWidget *w)
 	wwvi_draw_line(w->window, gc, x1, y2+12, x2, y2+12); 
 }
 
-int ground_level(int x, int *xi);
+int ground_level(int x, int *xi, int *slope);
 void cron_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, y1, x2, y2, gy, xi;
@@ -2155,7 +2155,7 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 	/* draw the cron job's scanning beam... */
 	if (o->tsd.cron.beam_speed != 0) { /* beam on? */
 		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS+NRAINBOWCOLORS)]);
-		gy = ground_level(o->x + o->tsd.cron.beam_pos, &xi);
+		gy = ground_level(o->x + o->tsd.cron.beam_pos, &xi, NULL);
 		if (xi != -1) {
 			x1 = o->x - game_state.x;
 			y1 = o->y + 7 - game_state.y + (SCREEN_HEIGHT/2);  
@@ -2289,7 +2289,7 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
-int find_ground_level(struct game_obj_t *o);
+int find_ground_level(struct game_obj_t *o, int *slope);
 
 void tentacle_move(struct game_obj_t *o) 
 {
@@ -2308,7 +2308,7 @@ void tentacle_move(struct game_obj_t *o)
 
 		o->vy += 1; /* make loose tentacle fall to the ground. */
 
-		gy = find_ground_level(o);
+		gy = find_ground_level(o, NULL);
 		if (o->y >= gy) {
 			o->vy = 0;
 			o->vx = 0;
@@ -2428,7 +2428,7 @@ void octopus_move(struct game_obj_t *o)
 	if (!o->alive)
 		return;
 
-	gy = find_ground_level(o);
+	gy = find_ground_level(o, NULL);
 	
 
 	if (o->tsd.octopus.awake) {
@@ -2563,7 +2563,7 @@ void cron_move(struct game_obj_t *o)
 	}
 
 	done = 0;
-	gy = find_ground_level(o);
+	gy = find_ground_level(o, NULL);
 
 	tx = o->tsd.cron.tx;
 	ty = o->tsd.cron.ty;
@@ -2610,7 +2610,7 @@ void cron_move(struct game_obj_t *o)
 			/* Pick a new random destination... */	
 			o->tsd.cron.tx = terrain.x[randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1)];
 			tx = o->tsd.cron.tx;
-			dgy = ground_level(tx, &xi);
+			dgy = ground_level(tx, &xi, NULL);
 			o->tsd.cron.ty = dgy-140;
 			ty = o->tsd.cron.ty;
 			o->tsd.cron.tmp_ty_offset = 0;
@@ -2789,7 +2789,7 @@ void gdb_move(struct game_obj_t *o)
 		return;
 
 	if (o->tsd.gdb.awake) {
-		gy = find_ground_level(o);
+		gy = find_ground_level(o, NULL);
 	
 		dvx = 0; /* make compiler happy */
 		dvy = 0; /* make compiler happy */ 	
@@ -2908,7 +2908,7 @@ void humanoid_move(struct game_obj_t *o)
 			o->vy++; /* make them easier to catch. */
 		o->y += o->vy;
 		o->x += o->vx;
-		gy = find_ground_level(o);
+		gy = find_ground_level(o, NULL);
 		if (gy == -1 || o->y >= gy) {
 			o->y = gy;
 			o->tsd.human.on_ground = 1;
@@ -3079,7 +3079,7 @@ int interpolate(int x, int x1, int y1, int x2, int y2)
 }
 
 #define GROUND_OOPS 64000
-int ground_level(int x, int *xi)
+int ground_level(int x, int *xi, int *slope)
 {
 
 /* Find the level (y value) of the ground at position x, 
@@ -3095,13 +3095,21 @@ int ground_level(int x, int *xi)
 			*xi = i; /* tell caller the index, and find the exact y value. */
 			deepest = interpolate(x, terrain.x[i], terrain.y[i],
 					terrain.x[i+1], terrain.y[i+1]);
+
+			if (slope != NULL) {
+				/* calculate the slope of the ground at point of impact. */
+				/* we use this later when bouncing things, and making them */
+				/* slide downhill. */
+				*slope = (100*(terrain.y[i+1] - terrain.y[i])) / 
+						(terrain.x[i+1] - terrain.x[i]);
+			}
 			break;
 		}
 	}
 	return deepest;
 }
 
-int find_ground_level(struct game_obj_t *o)
+int find_ground_level(struct game_obj_t *o, int *slope)
 {
 
 	/* optimized way to find the ground level (y value) at an object's */
@@ -3113,12 +3121,20 @@ int find_ground_level(struct game_obj_t *o)
 	xi2 = xi1 + 1;
 
 	if (xi1 < 0 || xi2 >= TERRAIN_LENGTH) /* Do we have a last one? No? */
-		return ground_level(o->x, &o->last_xi); /* do it the hard way. */
+		return ground_level(o->x, &o->last_xi, slope); /* do it the hard way. */
 
 	/* Is the last terrain segment the correct one? */
-	if (terrain.x[xi1] <= o->x && terrain.x[xi2] >= o->x)
+	if (terrain.x[xi1] <= o->x && terrain.x[xi2] >= o->x) {
+		if (slope != NULL) {
+			/* calculate the slope of the ground at point of impact. */
+			/* we use this later when bouncing things, and making them */
+			/* slide downhill. */
+			*slope = (100*(terrain.y[xi2] - terrain.y[xi1])) / 
+					(terrain.x[xi2] - terrain.x[xi1]);
+		}
 		return interpolate(o->x, terrain.x[xi1], terrain.y[xi1],  /* do it the easy way. */
 				terrain.x[xi2], terrain.y[xi2]);
+	}
 
 	/* The last one wasn't correct.  Have to search. */
 	/* The correct one is to the left.  Search left. */
@@ -3126,6 +3142,13 @@ int find_ground_level(struct game_obj_t *o)
 		for (i=xi1;i>=0;i--) {
 			if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
 				o->last_xi = i;
+				if (slope != NULL) {
+					/* calculate the slope of the ground at point of impact. */
+					/* we use this later when bouncing things, and making them */
+					/* slide downhill. */
+					*slope = (100*(terrain.y[i+1] - terrain.y[i])) / 
+							(terrain.x[i+1] - terrain.x[i]);
+				}
 				return interpolate(o->x, terrain.x[i], terrain.y[i],
 						terrain.x[i+1], terrain.y[i+1]);
 			}
@@ -3134,6 +3157,13 @@ int find_ground_level(struct game_obj_t *o)
 		for (i=xi1;i<=TERRAIN_LENGTH-10;i++) { /* search to the right. */
 			if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
 				o->last_xi = i;
+				if (slope != NULL) {
+					/* calculate the slope of the ground at point of impact. */
+					/* we use this later when bouncing things, and making them */
+					/* slide downhill. */
+					*slope = (100*(terrain.y[i+1] - terrain.y[i])) / 
+							(terrain.x[i+1] - terrain.x[i]);
+				}
 				return interpolate(o->x, terrain.x[i], terrain.y[i],
 						terrain.x[i+1], terrain.y[i+1]);
 			}
@@ -3290,7 +3320,7 @@ void bomb_move(struct game_obj_t *o)
 	}
 
 	/* Detect smashing into the ground */
-	deepest = find_ground_level(o);
+	deepest = find_ground_level(o, NULL);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		kill_object(o);
 		o->destroy(o);
@@ -3435,7 +3465,7 @@ void chaff_move(struct game_obj_t *o)
 		o->vx++;
 
 	explode(o->x, o->y, 0, 0, 10, 7, 19);	/* throw some sparks.*/
-	deepest = find_ground_level(o); 	/* Detect smashing into the ground */
+	deepest = find_ground_level(o, NULL); 	/* Detect smashing into the ground */
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		kill_object(o);
 		o->destroy(o);
@@ -3667,7 +3697,7 @@ void move_player(struct game_obj_t *o)
 			timer_event = READY_EVENT;		/* back to beginning of level. */
 		}
 	} 
-	deepest = find_ground_level(player);
+	deepest = find_ground_level(player, NULL);
 
 	/* if the player flies too slow, gravity starts pulling him down. */
 	if (abs(o->vx) < 5 || game_state.health <= 0) {
@@ -3724,7 +3754,7 @@ void move_player(struct game_obj_t *o)
 		game_state.vy = player->vy;
 
 	/* Detect smashing into the ground */
-	deepest = find_ground_level(player);
+	deepest = find_ground_level(player, NULL);
 	if (deepest != GROUND_OOPS && player->y >= deepest) {
 		/* keep player from sinking through the ground. */
 		player->y = deepest;
@@ -3846,7 +3876,6 @@ void bounce(int *vx, int *vy, int slope, double bouncefactor)
 
 void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 {
-	int i;
 	int deepest;
 	int slope = 0;
 
@@ -3857,22 +3886,9 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 		age_object(o);
 
 	/* Detect smashing into the ground */
-	deepest = 64000;
-	for (i=0;i<TERRAIN_LENGTH-1;i++) {
-		if (o->x >= terrain.x[i] && o->x < terrain.x[i+1]) {
-			deepest = interpolate(o->x, terrain.x[i], terrain.y[i],
-					terrain.x[i+1], terrain.y[i+1]);
-			if (deepest == 64000)
-				return;
-
-			/* calculate the slope of the ground at point of impact. */
-			/* we use this later when bouncing things, and making them */
-			/* slide downhill. */
-			slope = (100*(terrain.y[i+1] - terrain.y[i])) / 
-					(terrain.x[i+1] - terrain.x[i]);
-			break;
-		}
-	}
+	deepest = find_ground_level(o, &slope);
+	if (deepest == GROUND_OOPS)
+		return;
 
 	if (o->otype == OBJ_TYPE_DEBRIS) {
 		/* debris doesn't last forever, and disappears when age == 2. */
@@ -4251,7 +4267,7 @@ void move_missile(struct game_obj_t *o)
 	o->y += o->vy;
 
 	/* detect smashing into the ground. */	
-	deepest = find_ground_level(o);
+	deepest = find_ground_level(o, NULL);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
@@ -4356,7 +4372,7 @@ void move_harpoon(struct game_obj_t *o)
 	o->y += o->vy;
 	
 	/* detect smashing into the ground. */	
-	deepest = find_ground_level(o);
+	deepest = find_ground_level(o, NULL);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
@@ -4459,7 +4475,7 @@ void move_bullet(struct game_obj_t *o)
 
 	/* bullets don't last forever... */
 	age_object(o);	
-	deepest = find_ground_level(o);
+	deepest = find_ground_level(o, NULL);
 	if (o->alive <= 0 || (deepest != GROUND_OOPS && o->y > deepest)) {
 		kill_object(o);
 		if (o->target) {
@@ -4626,7 +4642,7 @@ void balloon_move(struct game_obj_t *o)
 		o->vy = randomab(1, 3) - 2;
 	}
 
-	deepest = find_ground_level(o);
+	deepest = find_ground_level(o, NULL);
 	if (deepest != GROUND_OOPS && o->y > deepest - MIN_BALLOON_HEIGHT)
 		o->vy = -1;
 	else if (deepest != GROUND_OOPS && o->y < deepest - MAX_BALLOON_HEIGHT)
@@ -4726,7 +4742,7 @@ void flying_thing_move(struct game_obj_t *o)
 		o->vy = randomab(1, 3) - 2;
 	}
 
-	deepest = find_ground_level(o);
+	deepest = find_ground_level(o, NULL);
 	if (deepest != GROUND_OOPS && o->y > deepest - MIN_BALLOON_HEIGHT)
 		o->vy = -1;
 	else if (deepest != GROUND_OOPS && o->y < deepest - MAX_BALLOON_HEIGHT)
@@ -4926,7 +4942,7 @@ void worm_move(struct game_obj_t *o)
 		ldy = o->tsd.worm.lty - o->y;
 		if (abs(ldx) < 20 && abs(ldy) < 20) {
                         o->tsd.worm.ltx = terrain.x[randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1)];
-                        o->tsd.worm.lty = ground_level(o->tsd.worm.ltx, &xi) - 800 + randomn(700);
+                        o->tsd.worm.lty = ground_level(o->tsd.worm.ltx, &xi, NULL) - 800 + randomn(700);
 
 			// printf("New long term dest %d,%d\n", o->tsd.worm.ltx, o->tsd.worm.lty);
 
@@ -4969,7 +4985,7 @@ void worm_move(struct game_obj_t *o)
 			}
 
 			/* Avoid the ground. */
-			gy = ground_level(o->tsd.worm.tx, &xi);	
+			gy = ground_level(o->tsd.worm.tx, &xi, NULL);	
 			if (o->tsd.worm.ty >= gy)
 				o->tsd.worm.ty = gy - 50 - randomn(200);
 			if (o->tsd.worm.ty <= KERNEL_Y_BOUNDARY)
