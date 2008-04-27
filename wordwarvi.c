@@ -197,9 +197,9 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 
 #define MAXHEALTH 100		/* Max, and initial health value of player */
 #define RADAR_FRITZ_HEALTH 30   /* If player's health drops below this, the radar goes on the fritz */
-#define NAIRSHIPS 20		/* Initial number of blimps sprinkled through the terrain */
+#define NAIRSHIPS 1		/* Initial number of blimps sprinkled through the terrain */
 #define NBALLOONS 2 		/* Initial number of balloons sprinkled through the terrain */
-#define NWORMS 20		/* Initial number of worms sprinkled through the terrain */
+#define NWORMS 2		/* Initial number of worms sprinkled through the terrain */
 #define MAX_WORM_VX 8
 #define MAX_WORM_VY MAX_WORM_VX 
 
