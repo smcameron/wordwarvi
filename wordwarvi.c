@@ -3860,14 +3860,14 @@ void bounce(int *vx, int *vy, int slope, double bouncefactor)
 	/* as well.  Might have a bit too much bounciness in this algorithm, may want to */
 	/* damp it just a bit. */
 
-	if (slope < 25) {
+	if (slope > 25) {
 		*vx = (*vx * bouncefactor) + (randomn(7));  /* bounce a bit to the right */
-		*vy = -(*vy * bouncefactor) + (randomn(7)); 
+		*vy = -(*vy * bouncefactor); 
 	} else if (slope < -25) {
 		*vx = (*vx * bouncefactor) - (randomn(7));  /* bounce a bit to the left */
-		*vy = -(*vy * bouncefactor) + (randomn(7)); 
+		*vy = -(*vy * bouncefactor); 
 	} else {
-		*vy = -(*vy * bouncefactor) + (randomn(7)); 
+		*vy = -(*vy * bouncefactor); 
 		*vx = (*vx * bouncefactor) + (randomn(10)-6); /* bounce a bit left or right */
 	}
 	
