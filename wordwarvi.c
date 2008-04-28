@@ -3926,8 +3926,7 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 			} else if (slope < -25 && o->alive > 1) {
 				o->vx = -3;
 				o->vy += 1;
-			} else
-				o->move = NULL;
+			}
 		}
 		if (o->alive == 1) {
 			/* FIXME, does this ever execute?  I think maybe it doesn't. */
