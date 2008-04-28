@@ -3911,11 +3911,11 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 					add_metal_sound();
 				else
 					add_stone_sound();
-			bounce(&o->vx, &o->vy, slope, 0.3);
 			}
+			bounce(&o->vx, &o->vy, slope, 0.3);
 		} else {
 			/* hit the ground, no bounce, stop. */
-			o->y = deepest-2;
+			o->y = deepest;
 			o->vx = 0;
 			o->vy = 0;
 
@@ -3926,7 +3926,8 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 			} else if (slope < -25 && o->alive > 1) {
 				o->vx = -3;
 				o->vy += 1;
-			}
+			} else
+				o->move = NULL;
 		}
 		if (o->alive == 1) {
 			/* FIXME, does this ever execute?  I think maybe it doesn't. */
