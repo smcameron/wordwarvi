@@ -4751,7 +4751,6 @@ void airship_leak_lisp(struct game_obj_t *o)
 	/* The airships have "memory leaks" in which they spew "lisp code" */
 	/* out into core memory... */
 	if ((timer % 8) && randomn(100) < 5 + (o->tsd.airship.pressure)) {
-		int randomx, randomy;
 		if (randomlisp[o->counter] != ' ') /* skip putting out "space" objects. */
 			add_symbol(randomlisp[o->counter], TINY_FONT, o->x + 70*3, o->y - 30*3, 
 				o->vx+4, 0, 200);
