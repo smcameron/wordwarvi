@@ -8378,7 +8378,7 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 	for (i=0; i<framesPerBuffer; i++) {
 		output = 0.0;
 		count = 0;
-		for (j=0; j<NCLIPS; j++) {
+		for (j=0; j<MAX_CONCURRENT_SOUNDS; j++) {
 			if (!audio_queue[j].active || 
 				audio_queue[j].sample == NULL)
 				continue;
@@ -8395,7 +8395,7 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 		}
 		*out++ = (float) output / 2.0; /* (output / count); */
         }
-	for (i=0;i<NCLIPS;i++) {
+	for (i=0;i<MAX_CONCURRENT_SOUNDS;i++) {
 		if (!audio_queue[i].active)
 			continue;
 		audio_queue[i].pos += framesPerBuffer;
