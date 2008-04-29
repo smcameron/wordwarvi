@@ -1045,10 +1045,7 @@ struct my_point_t flak_points[] = {
 	{ -5, -3 },
 	{ 5, -3},
 	{ 10, 5 },
-	{ -3, -3 },
-	{ -3, -5},
-	{ 3, -5},
-	{ 3, -3},
+	{ -10, 5 },
 };
 
 struct my_point_t rocket_points[] = {
