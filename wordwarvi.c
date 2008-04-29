@@ -1691,6 +1691,7 @@ struct terrain_t {			/* x,y points of the ground, in game coords */
 	int npoints;
 	int x[TERRAIN_LENGTH];
 	int y[TERRAIN_LENGTH];
+	int slope[TERRAIN_LENGTH];
 } terrain;
 
 struct game_state_t {
@@ -3100,8 +3101,7 @@ int ground_level(int x, int *xi, int *slope)
 				/* calculate the slope of the ground at point of impact. */
 				/* we use this later when bouncing things, and making them */
 				/* slide downhill. */
-				*slope = (100*(terrain.y[i+1] - terrain.y[i])) / 
-						(terrain.x[i+1] - terrain.x[i]);
+				*slope = terrain.slope[i];
 			}
 			break;
 		}
@@ -3129,8 +3129,7 @@ int find_ground_level(struct game_obj_t *o, int *slope)
 			/* calculate the slope of the ground at point of impact. */
 			/* we use this later when bouncing things, and making them */
 			/* slide downhill. */
-			*slope = (100*(terrain.y[xi2] - terrain.y[xi1])) / 
-					(terrain.x[xi2] - terrain.x[xi1]);
+			*slope = terrain.slope[xi1];
 		}
 		return interpolate(o->x, terrain.x[xi1], terrain.y[xi1],  /* do it the easy way. */
 				terrain.x[xi2], terrain.y[xi2]);
@@ -3146,8 +3145,7 @@ int find_ground_level(struct game_obj_t *o, int *slope)
 					/* calculate the slope of the ground at point of impact. */
 					/* we use this later when bouncing things, and making them */
 					/* slide downhill. */
-					*slope = (100*(terrain.y[i+1] - terrain.y[i])) / 
-							(terrain.x[i+1] - terrain.x[i]);
+					*slope = terrain.slope[i];
 				}
 				return interpolate(o->x, terrain.x[i], terrain.y[i],
 						terrain.x[i+1], terrain.y[i+1]);
@@ -3161,8 +3159,7 @@ int find_ground_level(struct game_obj_t *o, int *slope)
 					/* calculate the slope of the ground at point of impact. */
 					/* we use this later when bouncing things, and making them */
 					/* slide downhill. */
-					*slope = (100*(terrain.y[i+1] - terrain.y[i])) / 
-							(terrain.x[i+1] - terrain.x[i]);
+					*slope = terrain.slope[i];
 				}
 				return interpolate(o->x, terrain.x[i], terrain.y[i],
 						terrain.x[i+1], terrain.y[i+1]);
@@ -6004,7 +6001,7 @@ static struct game_obj_t *add_volcano(struct terrain_t *t, int x, int y);
 void generate_terrain(struct terrain_t *t)
 {
 	int volcanox, volcanoi;
-	int vi1, vi2, vi3, vi4, vi5;
+	int i, vi1, vi2, vi3, vi4, vi5;
 
 	/* Set up the intial endpoints of the terrain. */
 	t->npoints = TERRAIN_LENGTH;
@@ -6047,6 +6044,11 @@ void generate_terrain(struct terrain_t *t)
 
 	/* Put the volcano where he needs to be. */
 	volcano_obj = add_volcano(t, volcanox, t->y[vi3]);
+
+	/* calculate slopes */
+	for (i=0;i<t->npoints-2;i++)
+		t->slope[i] = (100*(t->y[i+1] - t->y[i]) / (t->x[i+1] - t->x[i]) );
+	t->slope[t->npoints-1] = 0;
 }
 
 /* allocate and create a set of random connected lines near a point
