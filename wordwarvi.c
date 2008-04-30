@@ -2369,9 +2369,13 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 
 	/* Shoot lightning at the player occasionally if he gets too close. */
-	if (randomn(1000) < 45 && abs(o->x - player->x) < 200 && abs(o->y - player->y) < 500) {
-		gdk_gc_set_foreground(gc, &huex[WHITE]);
-		draw_lightning(w, x2, y2, player->x - game_state.x, player->y - game_state.y + (SCREEN_HEIGHT/2));
+	if ((timer & 0x01) && 
+		randomn(1000) < 45 && 
+		abs(o->x - player->x) < 200 && 
+		abs(o->y - player->y) < 500) {
+
+		draw_lightning(w, x2, y2, player->x - game_state.x, 
+			player->y - game_state.y + (SCREEN_HEIGHT/2));
 		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 		game_state.health -= 1; /* just take off one, the octo's are bad... */
 		/* keep thunder from going oof too much */
