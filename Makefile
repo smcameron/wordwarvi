@@ -35,13 +35,13 @@ all:	wordwarvi
 endif
 
 joystick.o:	joystick.c joystick.h Makefile
-	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -Wall -c joystick.c
+	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall -c joystick.c
 
 thesounds:
 	( cd sounds ; make  )
 
 wordwarvi:	wordwarvi.c joystick.o Makefile version.h
-	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -Wall  ${DEFINES} joystick.o \
+	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall  ${DEFINES} joystick.o \
 		wordwarvi.c -o wordwarvi -lm ${SNDLIBS} \
 		`pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0` `pkg-config --libs gthread-2.0`
 
