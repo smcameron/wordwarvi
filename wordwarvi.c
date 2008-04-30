@@ -1797,10 +1797,24 @@ void init_stars()
 
 int ground_level(int x, int *xi, int *slope);
 int interpolate(int x, int x1, int y1, int x2, int y2);
-/* FIXME, this needs to be refactored to generalize with the
-   other ground_level code, of this this is mostly a copy.
-   I'm too lazy to do it right now. */
-int star_ground_level(int x, int *last_xi) 
+
+
+/* given world coords, x, and y, and pointer to last index into the
+ * terrain array which we were above, return an "approximate horizon"
+ * which is to say, return a y value which is either the true y value
+ * of the ground directly below the given x value, or, if it is 
+ * faster to compute, give a value which is > y if tf the horizon is
+ * below y, or < y, if the horizon is above y. 
+ *
+ * Useful for instance to know if stars are above or below the horizon
+ * to know if they should be drawn. 
+ *
+ * Also, the value of *last_xi is updated with the terrain index 
+ * corresponding to the x value given.  If this is saved, and reused 
+ * between calls, then an expensive search is avoided.
+ *
+ */
+int approximate_horizon(int x, int y, int *last_xi) 
 {
 	/* optimized way to find the ground level (y value) at an object's */
 	/* x position.  Each object tracks the terrain segment it was last at. */
@@ -1811,29 +1825,60 @@ int star_ground_level(int x, int *last_xi)
 	xi2 = xi1 + 1;
 	int slope;
 
-	if (xi1 < 0 || xi2 >= TERRAIN_LENGTH) /* Do we have a last one? No? */
+	if (xi1 < 0 || xi2 >= TERRAIN_LENGTH) /* Do we have a hint of the last one? No? */
 		return ground_level(x, last_xi, &slope); /* do it the hard way. */
 
 	/* Is the last terrain segment the correct one? */
 	if (terrain.x[xi1] <= x && terrain.x[xi2] >= x) {
-		return interpolate(x, terrain.x[xi1], terrain.y[xi1],  /* do it the easy way. */
+	
+		/* if both endpoints are below us, then no need ti find the exact point */
+		/* below us, it is sufficient to know that it must be _somewhere_ */
+		/* below us, and not above us. */
+		if (terrain.y[xi1] > y && terrain.y[xi2] > y)
+			return y + 10;
+		/* similarly if both endpoints above us... */
+		if (terrain.y[xi1] < y && terrain.y[xi2] < y)
+			return y - 10;
+
+		/* vast majority will hit one of above 2 cases, but close to the ground... */
+		return interpolate(x, terrain.x[xi1], terrain.y[xi1],  /* do it the hard way. */
 				terrain.x[xi2], terrain.y[xi2]);
 	}
 
 	/* The last one wasn't correct.  Have to search. */
-	/* The correct one is to the left.  Search left. */
 	if (terrain.x[xi1] > x) {
-		for (i=xi1;i>=0;i--) {
+		/* The correct one is to the left.  Search left. */
+		for (i=xi1-1;i>=0;i--) {
 			if (x >= terrain.x[i] && x < terrain.x[i+1]) {
+
+				/* remember i for next time so we don't have to search. */
 				*last_xi = i;
+
+				/* Two trivial cases...  ground is trivially below us? */
+				if (terrain.y[i] > y && terrain.y[i+1] > y)
+					return y + 10;
+				/* or trivially above us? */
+				if (terrain.y[i] < y && terrain.y[i+1] < y) 
+					return y - 10;
+				/* Close to the ground, so, ok, do it the hard way. */
 				return interpolate(x, terrain.x[i], terrain.y[i],
 						terrain.x[i+1], terrain.y[i+1]);
 			}
 		}
 	} else if (terrain.x[xi2] < x) { /* Correct one is to the right. */
-		for (i=xi1;i<=TERRAIN_LENGTH-10;i++) { /* search to the right. */
+		for (i=xi1+1;i<=TERRAIN_LENGTH-10;i++) { /* search to the right. */
 			if (x >= terrain.x[i] && x < terrain.x[i+1]) {
+
+				/* remember i for next time so we don't have to search. */
 				*last_xi = i;
+
+				/* Two trivial cases...  ground is trivially below us? */
+				if (terrain.y[i] > y && terrain.y[i+1] > y)
+					return y + 10;
+				/* or trivially above us? */
+				if (terrain.y[i] < y && terrain.y[i+1] < y) 
+					return y - 10;
+				/* Close to the ground, so, ok, do it the hard way. */
 				return interpolate(x, terrain.x[i], terrain.y[i],
 						terrain.x[i+1], terrain.y[i+1]);
 			}
@@ -1859,7 +1904,7 @@ void draw_stars(GtkWidget *w)
 		worldx = game_state.x + star[i].x;
 		worldy = star[i].y + game_state.y - (SCREEN_HEIGHT/2); 
 
-		gl = star_ground_level(worldx, &star[i].last_xi);
+		gl = approximate_horizon(worldx, worldy, &star[i].last_xi);
 		if (worldy < gl) {
 			if (star[i].bright && randomn(100) > 10) {
 				wwvi_draw_line(w->window, gc, star[i].x, star[i].y-1, star[i].x+1, star[i].y-1);
