@@ -6652,20 +6652,26 @@ static void add_building(struct terrain_t *t, int xi)
 	int objnum;
 	struct game_obj_t *o;
 	int i, x, y;
+	int roofy;
 
 	memset(scratch, 0, sizeof(scratch[0]) * 1000);
 	objnum = find_free_obj();
 	if (objnum == -1)
 		return;
 
-	height = randomab(50, 100); 
+	height = randomab(50, 300); 
 	width = randomab(5,MAXBUILDING_WIDTH);
 	scratch[0].x = t->x[xi];	
 	scratch[0].y = t->y[xi];	
+
+	/* choose the roof level to be based on the highest of the left 
+	   or right side of terrain on which the building is set. */
+	roofy = t->y[xi] < t->y[xi+width] ? t->y[xi] - height : t->y[xi+width] - height;
+
 	scratch[1].x = scratch[0].x;
-	scratch[1].y = scratch[0].y - height;
+	scratch[1].y = roofy;
 	scratch[2].x = t->x[xi+width];
-	scratch[2].y = scratch[1].y; /* make roof level, even if ground isn't. */
+	scratch[2].y = roofy;        /* make roof level, even if ground isn't. */
 				     /* FIXME< roof level may be _below_ of */
 				     /*of the gournd points, not good.. */
 	scratch[3].x = scratch[2].x;
