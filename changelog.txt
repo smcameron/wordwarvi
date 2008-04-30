@@ -1,5 +1,84 @@
 Changelog for wordwarvi:
 
+Tue Apr 29 09:05:23 CDT 2008
+-------------------------------------------------------------------------------
+Changes between version 0.06 and 0.07
+
+* Made drawing of sparks sligtly more efficient (assuming compiler
+  didn't already do those optimizations.)
+* Changed how laserbolts from "flak guns" are drawn.
+* Rearranged the dashboard, got rid of obtrusive stuff at top of screen.
+* Now blimps shoot laser bolts at you.
+* Fixed (i think) problem with text overlays caused by
+  previous commit (rearranging the dashboard).
+* mkdir the man page directory
+* added "aaaah_it_burns.ogg"
+* Humanoids are now incinerated when they get dropped into the volcano.
+* As a fun experiment, put in infrastructure to allow entire game's
+  display coordinates to be remapped arbitrarily (e.g. spin the
+  whole display, make it disappear into space, like the words at the
+  beginning of Star Wars, map it onto the side of a spinning cube...
+  whatever.  Not very useful, but kind of interesting.
+* Don't put things near the volcano
+* Get rid of the silly mappaple draw line routine -- too
+  expensive cpu-wise.
+* added --brightsparks option to control how sparks are rendered.
+* Make the lightning which the tentacles shoot out more glow-y.
+* Make the lightning do damage to the player.
+* Make the tentacles killable (by bombs, not lasers though.)
+* Limit amount of thunder played.
+* Increase chance and distance of lightning discharge.
+* Added low priority sound function which only adds the sound if at least 5
+  slots for sound are free.  This is used for the sounds which falling debris
+  makes on hitting the ground.  Reasoning is, whenever there is falling
+  debris, there is a lot of it, so a lot of sound slots are used up,
+  sometimes all of them, which would make other sounds (explosions)
+  fail to be added to the sound list.  Nobody's going to notice if a few
+  falling rocks fail to make the falling rock impact sounds -- hell you
+  can barely tell the video and audio are correlated -- though they are
+  -- in this area.  So just give those sounds a low priority and reserve
+  5 empty slots that they cannot use, so they'll be open to other things.
+* Added --width and --height options to allow game to be scaled.
+* Added --framerate command line option.
+* Added worms.
+* Made tentacles thicker.
+* Now when you shoot the worms, they split in half,
+  becomng two smaller worms.
+* Made worms color independent of one another, and, psychedelically rainbow.
+* Prevent worms from going underground
+* Made worms tapered on the ends.
+* Made worms harm the player, if touched.
+* Made worms follow the player, if he comes close
+* Made worms move a bit less erratically
+* Added "zzzt!" sound effect when worms touch player
+* Fixed bug that initially, there were WAY too many blimps.
+  (bad initialization of the "level" structure.)
+* Improved the appearance of the dumb rockets.
+* Added the notion of "airship pressure."  When you shoot the blimps, they
+  become hyper-pressurized, and kind of get fat with pressure and leak lisp
+  code at an accelerated rate.
+* When blimps explode, they throw debris, and make a sound.
+* Reduced number of blimps and worms to something sensible.
+* Prevent core dump if portaudio finds zero sound devices.
+* Optimized finding of ground level in bridge_move function.
+* Fixed a bug that debris didn't always stop moving when it was
+  supposed to.
+* Corrected an error in the debris bouncing algorithm.
+* Fixed bug that debris became immortal.
+* Calculate all the slopes of all the terrain segments ahead of time
+  rather than each time we need them.
+* Removed unused variables.
+* Fixed up drawings of flak guns.
+* Fixed a pernicious bug in the audio playback code.  (Was cycling through
+  NCLIPS audio queues when there were only MAX_CONCURRENT_SOUNDS audio
+  queues.)
+* Added a starfield.
+* Made the octo-viruses shoot lightning half-as often -- they were too hard
+  (probably still are.)
+* Added --nostarfield option.
+* Made gdb's look a bit better
+* Edited vocal sounds to make them sound like radio tranmissions.
+
 Fri Apr 11 09:09:04 CDT 2008
 -------------------------------------------------------------------------------
 
