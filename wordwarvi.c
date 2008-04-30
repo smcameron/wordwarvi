@@ -1754,6 +1754,7 @@ struct star_t {
 } star[NSTARS];
 
 static inline int randomn(int n);
+int want_starfield = 1;
 void init_stars()
 {
 	int i;
@@ -1822,7 +1823,6 @@ void draw_stars(GtkWidget *w)
 	int i;
 	int worldx, worldy;
 	int gl;
-
 
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
 	for (i=0;i<NSTARS;i++) {
@@ -7458,7 +7458,8 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		draw_string(w, (unsigned char *) "Kernel Space");
 	}
 
-	draw_stars(w);
+	if (want_starfield)
+		draw_stars(w);
 	draw_objs(w);
 	draw_strings(w);
 	draw_radar(w);
@@ -8834,6 +8835,7 @@ static struct option wordwarvi_options[] = {
 	{ "width", 1, NULL, 4 },
 	{ "height", 1, NULL, 5 },
 	{ "framerate", 1, NULL, 6 },
+	{ "nostarfield", 0, NULL, 7 },
 };
 
 int main(int argc, char *argv[])
@@ -8941,6 +8943,9 @@ int main(int argc, char *argv[])
 							optarg, FRAME_RATE_HZ);
 					frame_rate_hz = FRAME_RATE_HZ;
 				}
+				break;
+			case 7: /* --nostarfield */
+				want_starfield = 0;
 				break;
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
