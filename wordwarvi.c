@@ -4289,7 +4289,7 @@ void draw_spark(struct game_obj_t *o, GtkWidget *w)
 		return;
 
 	x1 = x2 - o->vx;
-	if (x1 < 0 && x1 > SCREEN_WIDTH)
+	if (x1 < 0 || x1 > SCREEN_WIDTH)
 		return;
 
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
