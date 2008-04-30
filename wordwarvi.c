@@ -1745,6 +1745,102 @@ gint timer_tag;			/* for our gtk 30 times per second timer function */
 int next_quarter_time = -1;	/* Used to limit rate at which quarters can be put in. */
 int next_thunder_time = -1;
 
+#define NSTARS 150
+struct star_t {
+	int x; 
+	int y;
+	int last_xi;
+	int bright;
+} star[NSTARS];
+
+static inline int randomn(int n);
+void init_stars()
+{
+	int i;
+
+	for (i=0;i<NSTARS;i++) {
+		star[i].x = randomn(SCREEN_WIDTH);
+		star[i].y = randomn(SCREEN_HEIGHT);
+		star[i].bright = randomn(100) & 0x01;
+		star[i].last_xi = -1;
+	}
+}
+
+int ground_level(int x, int *xi, int *slope);
+int interpolate(int x, int x1, int y1, int x2, int y2);
+/* FIXME, this needs to be refactored to generalize with the
+   other ground_level code, of this this is mostly a copy.
+   I'm too lazy to do it right now. */
+int star_ground_level(int x, int *last_xi) 
+{
+	/* optimized way to find the ground level (y value) at an object's */
+	/* x position.  Each object tracks the terrain segment it was last at. */
+	/* This means, the linear search of the terrain array is mostly eliminated */
+
+	int xi1, xi2, i;
+	xi1 = *last_xi; /* try the terrain segment we used last time. */
+	xi2 = xi1 + 1;
+	int slope;
+
+	if (xi1 < 0 || xi2 >= TERRAIN_LENGTH) /* Do we have a last one? No? */
+		return ground_level(x, last_xi, &slope); /* do it the hard way. */
+
+	/* Is the last terrain segment the correct one? */
+	if (terrain.x[xi1] <= x && terrain.x[xi2] >= x) {
+		return interpolate(x, terrain.x[xi1], terrain.y[xi1],  /* do it the easy way. */
+				terrain.x[xi2], terrain.y[xi2]);
+	}
+
+	/* The last one wasn't correct.  Have to search. */
+	/* The correct one is to the left.  Search left. */
+	if (terrain.x[xi1] > x) {
+		for (i=xi1;i>=0;i--) {
+			if (x >= terrain.x[i] && x < terrain.x[i+1]) {
+				*last_xi = i;
+				return interpolate(x, terrain.x[i], terrain.y[i],
+						terrain.x[i+1], terrain.y[i+1]);
+			}
+		}
+	} else if (terrain.x[xi2] < x) { /* Correct one is to the right. */
+		for (i=xi1;i<=TERRAIN_LENGTH-10;i++) { /* search to the right. */
+			if (x >= terrain.x[i] && x < terrain.x[i+1]) {
+				*last_xi = i;
+				return interpolate(x, terrain.x[i], terrain.y[i],
+						terrain.x[i+1], terrain.y[i+1]);
+			}
+		}
+	}
+
+	/* What?  there *is* no correct answer.  Object must have fallen off */
+	/* the edge of the planet. (it happens sometimes -- though that is a bug. ) */
+	*last_xi = -1;
+	return 64000;
+}
+	
+void draw_stars(GtkWidget *w)
+{
+	int i;
+	int worldx, worldy;
+	int gl;
+
+
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	for (i=0;i<NSTARS;i++) {
+		if (randomn(100) < 3)
+			continue;
+		worldx = game_state.x + star[i].x;
+		worldy = star[i].y + game_state.y - (SCREEN_HEIGHT/2); 
+
+		gl = star_ground_level(worldx, &star[i].last_xi);
+		if (worldy < gl) {
+			if (star[i].bright && randomn(100) > 10) {
+				wwvi_draw_line(w->window, gc, star[i].x, star[i].y-1, star[i].x+1, star[i].y-1);
+			}
+			wwvi_draw_line(w->window, gc, star[i].x, star[i].y, star[i].x+1, star[i].y);
+		}
+	}
+}
+
 
 /* add an object to the list of targets... */
 struct target_t *add_target(struct game_obj_t *o)
@@ -2116,7 +2212,6 @@ void jammer_draw(struct game_obj_t *o, GtkWidget *w)
 	wwvi_draw_line(w->window, gc, x1, y2+12, x2, y2+12); 
 }
 
-int ground_level(int x, int *xi, int *slope);
 void cron_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, y1, x2, y2, gy, xi;
@@ -7359,7 +7454,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		draw_string(w, (unsigned char *) "Kernel Space");
 	}
 
-	if (game_state.x > terrain.x[TERRAIN_LENGTH] - SCREEN_WIDTH)
+	draw_stars(w);
 	draw_objs(w);
 	draw_strings(w);
 	draw_radar(w);
@@ -7748,6 +7843,7 @@ void start_level()
 	memset(&game_state.go[0], 0, sizeof(game_state.go));
 	memset(free_obj_bitmap, 0, sizeof(int) * NBITBLOCKS);
 	init_object_numbers();
+	init_stars();
 	free_obj_bitmap[0] = 0x01;	
 	game_state.humanoids = 0;
 	game_state.direction = 1;
