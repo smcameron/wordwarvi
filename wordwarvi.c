@@ -120,7 +120,7 @@ int add_sound(int which_sound, int which_slot);
 			     /* this may adversely affect performance, as this number of x's are */
 			     /* drawn EVERY FRAME when in close proximity to jammer. */
 
-#define FRAME_RATE_HZ 30	/* target frame rate at which gtk callback fires by default */
+#define FRAME_RATE_HZ 18	/* target frame rate at which gtk callback fires by default */
 int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define TERRAIN_LENGTH 1000	/* length, in number of line segments, of terrain */
 #define SCREEN_WIDTH 800        /* window width, in pixels */
@@ -8771,6 +8771,15 @@ int initialize_portaudio()
 	if (sound_device != -1) {
 		printf("Using sound device %d\n", sound_device);
 		outparams.device = sound_device;  /* default output device */
+	}
+
+	if (outparams.device < 0 && device_count > 0) {
+		printf("Hmm, that's strange, portaudio says the default device is %d,\n"
+			" but there are %d devices\n", 
+			outparams.device, device_count);
+		printf("I think we'll just skip sound for now.\n");
+		printf("You might try the '--sounddevice' option and see if that helps.\n");
+		sound_working = 0;
 	}
 
 	outparams.channelCount = 1;                      /* mono output */
