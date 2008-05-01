@@ -144,6 +144,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define PLAYER_LASER_DAMAGE 20		/* damage done by player's laser (to blimps, clipper ships */
 
 #define NFLAK 10			/* Number of flak guns (laser turrets) */
+#define NKGUNS 10			/* Number of Kernel defense guns (laser turrets) */
 #define NROCKETS 20 			/* Number of rockets sprinkled into the terrain */ 
 #define LAUNCH_DIST 1200			/* How close player can get in x dimension before rocket launches */
 #define MAX_ROCKET_SPEED -32		/* max vertical speed of rocket */
@@ -337,6 +338,7 @@ int planet_color[] = {
 #define OBJ_TYPE_JAMMER 'J'
 #define OBJ_TYPE_VOLCANO 'v'
 #define OBJ_TYPE_WORM 'W'
+#define OBJ_TYPE_KGUN 'k'
 
 int current_level = 0;		/* current level of the game, starts at zero */
 struct level_parameters_t {
@@ -359,6 +361,7 @@ struct level_parameters_t {
 	int nbombs;
 	int nairships;
 	int nworms;
+	int nkguns;
 
 	/* how often flak guns (laser turrets) fire. */
 	int laser_fire_chance;
@@ -386,6 +389,7 @@ struct level_parameters_t {
 	NBOMBS,
 	NAIRSHIPS,
 	NWORMS,
+	NKGUNS,
 	LASER_FIRE_CHANCE,
 	LARGE_SCALE_ROUGHNESS,
 	SMALL_SCALE_ROUGHNESS,
@@ -563,6 +567,20 @@ double cosine[361];
 
 /* Below, arrays of points telling how to draw the various objects in */
 /* the game. */
+
+struct my_point_t kgun_points[] = {
+
+	{ -10, -25 },
+	{ -10, -5 },
+	{ 10, -5 },
+	{ 10, -25 },
+	{ -10, -5 },
+	{ -7,  5 },
+	{ 7, 5 },
+	{ 10, -5 },
+	{ -10, -25 },
+};
+
 struct my_point_t octopus_points[] = {
 	{ -7, 0 },
 	{ 7, 0 },
@@ -1325,6 +1343,7 @@ struct my_vect_obj ship_vect;
 struct my_vect_obj bomb_vect;
 struct my_vect_obj bridge_vect;
 struct my_vect_obj flak_vect;
+struct my_vect_obj kgun_vect;
 struct my_vect_obj airship_vect;
 struct my_vect_obj balloon_vect;
 struct my_vect_obj SAM_station_vect;
@@ -2132,6 +2151,50 @@ void move_flak(struct game_obj_t *o)
 		y1 = o->y-5;  
 		add_laserbolt(x1, y1, bx, by, CYAN, 50);
 		add_laserbolt(x1+10, y1, bx, by, CYAN, 50);
+	}
+}
+
+void kgun_move(struct game_obj_t *o)
+{
+	int xdist;
+	int dx, dy, bx,by;
+	int x1, y1;
+	xdist = abs(o->x - player->x); /* in range? */
+	if (xdist < SCREEN_WIDTH && randomn(1000) < level.laser_fire_chance) {
+		/* we're going to fire the laser... */
+		dx = player->x+LASERLEAD*player->vx - o->x;
+		dy = player->y+LASERLEAD*player->vy - o->y;
+
+		add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
+		/* whichever is farther, x or y, make that vx or vy be the max */
+		/* then calculate the other one by similar triangles. */
+		if (dy <= 0) {
+			if (player->x+player->vx*LASERLEAD < o->x)
+				bx = -20;
+			else
+				bx = 20;
+			by = 0;
+		} else if (dx == 0) {
+			bx = -0;
+			by = 20;
+		} else if (abs(dx) > abs(dy)) {
+			if (player->x+player->vx*LASERLEAD < o->x)
+				bx = -20;
+			else
+				bx = 20;
+			by = abs((20*dy)/dx);
+		} else {
+			by = 20;
+			/* if (player->x < o->x)
+				bx = -20;
+			else
+				bx = 20; */
+			bx = (20*dx)/dy;
+		}
+		x1 = o->x-5;
+		y1 = o->y+5;  
+		add_laserbolt(x1, y1, bx, by, RED, 50);
+		add_laserbolt(x1+10, y1, bx, by, RED, 50);
 	}
 }
 
@@ -3422,6 +3485,7 @@ void bomb_move(struct game_obj_t *o)
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_JAMMER:
 			case OBJ_TYPE_GUN:
+			case OBJ_TYPE_KGUN:
 			/* case OBJ_TYPE_BOMB:  no, bomb can't bomb himself... */
 			case OBJ_TYPE_SAM_STATION:  {
 				/* find distance squared... don't take square root. */
@@ -3437,6 +3501,9 @@ void bomb_move(struct game_obj_t *o)
 					} else if (t->o->otype == OBJ_TYPE_GDB) { 
 						game_state.score += GDB_SCORE;
 						add_score_floater(t->o->x, t->o->y, GDB_SCORE);
+					} else if (t->o->otype == OBJ_TYPE_KGUN) { 
+						game_state.score += FLAK_SCORE;
+						add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
 					} else if (t->o->otype == OBJ_TYPE_GUN) { 
 						game_state.score += FLAK_SCORE;
 						add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
@@ -3508,6 +3575,7 @@ void bomb_move(struct game_obj_t *o)
 				case OBJ_TYPE_CRON:
 				case OBJ_TYPE_OCTOPUS:
 				case OBJ_TYPE_GUN:
+				case OBJ_TYPE_KGUN:
 				case OBJ_TYPE_BOMB:
 				case OBJ_TYPE_JAMMER:
 				case OBJ_TYPE_SAM_STATION:
@@ -3525,6 +3593,9 @@ void bomb_move(struct game_obj_t *o)
 						} else if (t->o->otype == OBJ_TYPE_CRON) { 
 							game_state.score += GDB_SCORE;
 							add_score_floater(t->o->x, t->o->y, GDB_SCORE);
+						} else if (t->o->otype == OBJ_TYPE_KGUN) { 
+							game_state.score += FLAK_SCORE;
+							add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
 						} else if (t->o->otype == OBJ_TYPE_GUN) { 
 							game_state.score += FLAK_SCORE;
 							add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
@@ -4175,6 +4246,7 @@ void laser_move(struct game_obj_t *o)
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_JAMMER:
 			case OBJ_TYPE_GUN:
+			case OBJ_TYPE_KGUN:
 			case OBJ_TYPE_BOMB:
 			case OBJ_TYPE_SAM_STATION:
 			case OBJ_TYPE_MISSILE:{
@@ -4211,6 +4283,10 @@ void laser_move(struct game_obj_t *o)
 						game_state.crons_killed++;
 						game_state.score += CRON_SCORE;
 						add_score_floater(t->o->x, t->o->y, CRON_SCORE);
+					} else if (t->o->otype == OBJ_TYPE_KGUN) {
+						game_state.guns_killed++;
+						game_state.score += FLAK_SCORE;
+						add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
 					} else if (t->o->otype == OBJ_TYPE_GUN) {
 						game_state.guns_killed++;
 						game_state.score += FLAK_SCORE;
@@ -5554,7 +5630,9 @@ void init_vects()
 	bridge_vect.p = bridge_points;
 	bridge_vect.npoints = sizeof(bridge_points) / sizeof(bridge_points[0]);
 	flak_vect.p = flak_points;
-	flak_vect.npoints = sizeof(flak_points) / sizeof(flak_points[0]);
+	flak_vect.npoints = sizeof(flak_points) / sizeof(kgun_points[0]);
+	kgun_vect.p = kgun_points;
+	kgun_vect.npoints = sizeof(kgun_points) / sizeof(kgun_points[0]);
 
 	/* I had to scale and translate the airship points as I made it too small */
 	/* and picked a poor origin. */
@@ -5693,6 +5771,49 @@ void draw_flak(struct game_obj_t *o, GtkWidget *w)
 	}
 	x1 = o->x-5 - game_state.x;
 	y1 = o->y-5 - game_state.y + (SCREEN_HEIGHT/2);  
+	wwvi_draw_line(w->window, gc, x1, y1, x1+bx, y1+by); 
+	wwvi_draw_line(w->window, gc, x1+10, y1, x1+bx+6, y1+by); 
+}
+
+void kgun_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	int dx, dy, bx,by;
+	int x1, y1;
+	draw_generic(o, w);
+
+	/* Draw the gun barrels... */
+	dx = player->x+LASERLEAD*player->vx - o->x;
+	dy = player->y+LASERLEAD*player->vy - o->y;
+
+	/* figure which is the larger distance, dx, or dy */
+	/* Whichever is larger, the offset for that axis will be 20 */
+	/* (adjusted for direction to be positive or negative) */
+	/* Then, the other axis is calculated by similar triangles */
+	if (dy <= 0) {
+		if (player->x + LASERLEAD*player->vx < o->x)
+			bx = -20;
+		else
+			bx = 20;
+		by = 0;
+	} else if (dx == 0) {
+		bx = -0;
+		by = 20;
+	} else if (abs(dx) > abs(dy)) {
+		if (player->x+LASERLEAD*player->vx < o->x)
+			bx = -20;
+		else
+			bx = 20;
+		by = abs((20*dy)/dx);
+	} else {
+		by = 20;
+		/* if (player->x < o->x)
+			bx = -20;
+		else
+			bx = 20; */
+		bx = (20*dx)/dy;
+	}
+	x1 = o->x-5 - game_state.x;
+	y1 = o->y+5 - game_state.y + (SCREEN_HEIGHT/2);  
 	wwvi_draw_line(w->window, gc, x1, y1, x1+bx, y1+by); 
 	wwvi_draw_line(w->window, gc, x1+10, y1, x1+bx+6, y1+by); 
 }
@@ -6316,6 +6437,16 @@ static void add_flak_guns(struct terrain_t *t)
 		xi = initial_x_location();
 		add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
 			move_flak, draw_flak, GREEN, &flak_vect, 1, OBJ_TYPE_GUN, 1);
+	}
+}
+
+static void add_kernel_guns(struct terrain_t *t)
+{
+	int i, xi;
+	for (i=0;i<level.nkguns;i++) {
+		xi = initial_x_location();
+		add_generic_object(t->x[xi], KERNEL_Y_BOUNDARY + 25, 0, 0, 
+			kgun_move, kgun_draw, RED, &kgun_vect, 1, OBJ_TYPE_KGUN, 1);
 	}
 }
 
@@ -7967,6 +8098,7 @@ void start_level()
 	add_humanoids(&terrain);
 	add_bridges(&terrain);
 	add_flak_guns(&terrain);
+	add_kernel_guns(&terrain);
 	add_airships(&terrain);
 	add_worms(&terrain);
 	add_balloons(&terrain);
@@ -8000,6 +8132,7 @@ void init_levels_to_beginning()
 	level.nbuildings = NBUILDINGS;
 	level.nbombs = NBOMBS;
 	level.nhumanoids = NHUMANOIDS;
+	level.nkguns = NKGUNS;
 	if (credits > 0) {
 		level.random_seed = 31415927;
 		level.laser_fire_chance = LASER_FIRE_CHANCE;
@@ -8031,7 +8164,8 @@ void advance_level()
 	level.random_seed = random(); /* deterministic */
 	level.nrockets += 10;
 	level.nbridges += 1;
-	level.nflak += 10;
+	level.nflak += 5;
+	level.nkguns += 5;
 	level.nfueltanks += 2;
 	level.njammers += 1;
 	level.ncron += 1;
