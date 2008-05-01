@@ -9059,7 +9059,24 @@ static struct option wordwarvi_options[] = {
 	{ "height", 1, NULL, 5 },
 	{ "framerate", 1, NULL, 6 },
 	{ "nostarfield", 0, NULL, 7 },
+	{ NULL, 0, NULL, 0 },
 };
+
+void usage()
+{
+	fprintf(stderr, "wordwarvi:  usage:\n");
+	fprintf(stderr, "wordwarvi [options]\n");
+	fprintf(stderr, "Options:\n");
+	fprintf(stderr, "--bw              Render in black and white.\n");
+	fprintf(stderr, "--sounddevice n   Use the nth sound device for audio output.\n");
+	fprintf(stderr, "--version         Print the version number and exit.\n");
+	fprintf(stderr, "--brightsparks    Render sparks brighter than usual.\n");
+	fprintf(stderr, "--width x         Render the game x pixels wide.\n");
+	fprintf(stderr, "--height y        Render the game y pixels high.\n");
+	fprintf(stderr, "--framerate n     Attempt to render the game at n frames per second.\n");
+	fprintf(stderr, "--nostarfield n   Do not render the background starfield.\n");
+	exit(1);
+}
 
 int main(int argc, char *argv[])
 {
@@ -9170,6 +9187,7 @@ int main(int argc, char *argv[])
 			case 7: /* --nostarfield */
 				want_starfield = 0;
 				break;
+			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
 				
