@@ -144,7 +144,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define PLAYER_LASER_DAMAGE 20		/* damage done by player's laser (to blimps, clipper ships */
 
 #define NFLAK 10			/* Number of flak guns (laser turrets) */
-#define NKGUNS 10			/* Number of Kernel defense guns (laser turrets) */
+#define NKGUNS 30			/* Number of Kernel defense guns (laser turrets) */
 #define NROCKETS 20 			/* Number of rockets sprinkled into the terrain */ 
 #define LAUNCH_DIST 1200			/* How close player can get in x dimension before rocket launches */
 #define MAX_ROCKET_SPEED -32		/* max vertical speed of rocket */
@@ -339,6 +339,7 @@ int planet_color[] = {
 #define OBJ_TYPE_VOLCANO 'v'
 #define OBJ_TYPE_WORM 'W'
 #define OBJ_TYPE_KGUN 'k'
+#define OBJ_TYPE_TRUSS 't'
 
 int current_level = 0;		/* current level of the game, starts at zero */
 struct level_parameters_t {
@@ -1687,6 +1688,10 @@ struct debris_data {
 #define DEBRIS_TYPE_METAL 1
 };
 
+struct truss_data {
+	struct game_obj_t *above, *below;
+};
+
 union type_specific_data {		/* union of all the typs specific data */
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
@@ -1701,6 +1706,7 @@ union type_specific_data {		/* union of all the typs specific data */
 	struct airship_data airship;
 	struct debris_data debris;
 	struct worm_data worm;
+	struct truss_data truss;
 };
 
 struct game_obj_t {
@@ -3476,6 +3482,24 @@ void bomb_move(struct game_obj_t *o)
 		}
 		removed = 0;
 		switch (t->o->otype) {
+			case OBJ_TYPE_TRUSS:
+				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
+					(o->y - t->o->y)*(o->y - t->o->y);
+				if (dist2 < LASER_PROXIMITY) { /* a hit (LASER_PROXIMITY is already squared.) */
+					struct game_obj_t *i;
+
+					/* Cut loose everything below */
+					for (i=t->o; i != NULL; i = i->tsd.truss.below) {
+						if (i->tsd.truss.above) {
+							i->tsd.truss.above->tsd.truss.below = NULL;
+							i->tsd.truss.above = NULL;
+						}
+						i->move = bridge_move;
+						i->vx = randomn(6)-3;
+						i->vy = randomn(6)-3;
+					}
+				}
+				/* Fall thru */	
 			case OBJ_TYPE_ROCKET:
 			case OBJ_TYPE_MISSILE:
 			case OBJ_TYPE_HARPOON:
@@ -4249,6 +4273,7 @@ void laser_move(struct game_obj_t *o)
 			case OBJ_TYPE_KGUN:
 			case OBJ_TYPE_BOMB:
 			case OBJ_TYPE_SAM_STATION:
+			case OBJ_TYPE_TRUSS:
 			case OBJ_TYPE_MISSILE:{
 
 				/* check y value first. */
@@ -4264,6 +4289,20 @@ void laser_move(struct game_obj_t *o)
 				}
 				// printf("dist2 = %d\n", dist2);
 				if (hit) { /* a hit */
+					if (t->o->otype == OBJ_TYPE_TRUSS) {
+						struct game_obj_t *i;
+
+						/* Cut loose everything below */
+						for (i=t->o; i != NULL; i = i->tsd.truss.below) {
+							if (i->tsd.truss.above) {
+								i->tsd.truss.above->tsd.truss.below = NULL;
+								i->tsd.truss.above = NULL;
+							}
+							i->move = bridge_move;
+							i->vx = randomn(6)-3;
+							i->vy = randomn(6)-3;
+						}
+					}
 					if (t->o->otype == OBJ_TYPE_ROCKET) {
 						game_state.score += ROCKET_SCORE;
 						game_state.rockets_killed++;
@@ -5775,6 +5814,27 @@ void draw_flak(struct game_obj_t *o, GtkWidget *w)
 	wwvi_draw_line(w->window, gc, x1+10, y1, x1+bx+6, y1+by); 
 }
 
+void truss_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	int x, y, x1, y1, x2, y2;
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+
+	x = o->x - game_state.x;
+	y = o->y - game_state.y + (SCREEN_HEIGHT/2);  
+
+	x1 = x - 10;
+	x2 = x + 10;
+	y1 = y - 10;
+	y2 = y + 10;
+
+	wwvi_draw_line(w->window, gc, x1, y1, x2, y2);
+	wwvi_draw_line(w->window, gc, x1, y2, x2, y1);
+	wwvi_draw_line(w->window, gc, x1, y1, x2, y1);
+	wwvi_draw_line(w->window, gc, x1, y2, x2, y2);
+	wwvi_draw_line(w->window, gc, x1, y1, x1, y2);
+	wwvi_draw_line(w->window, gc, x2, y1, x2, y2);
+}
+
 void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int dx, dy, bx,by;
@@ -6442,11 +6502,43 @@ static void add_flak_guns(struct terrain_t *t)
 
 static void add_kernel_guns(struct terrain_t *t)
 {
-	int i, xi;
+	int i, j, xi;
+	int ntrusses;
+	struct game_obj_t *o, *p;
+
+
+	o = NULL;
+	p = NULL;
+	printf("nkguns = %d\n", level.nkguns);
 	for (i=0;i<level.nkguns;i++) {
 		xi = initial_x_location();
-		add_generic_object(t->x[xi], KERNEL_Y_BOUNDARY + 25, 0, 0, 
+		ntrusses = randomn(9)+3;
+		for (j=0;j<ntrusses;j++) {
+			o = add_generic_object(t->x[xi], KERNEL_Y_BOUNDARY + 10 + (20*j), 0, 0, 
+				NULL, truss_draw, RED, NULL, 1, OBJ_TYPE_TRUSS, 1);
+			if (o == NULL) {
+				struct game_obj_t *x, *next;
+
+				for (x = p; x != NULL; x = next ) {
+					next = x->tsd.truss.above;
+					kill_object(x);
+				}
+				break;
+			}
+			if (j != 0) {
+				o->tsd.truss.above = p;
+				p->tsd.truss.below = o;
+			} else 
+				o->tsd.truss.above = NULL;
+			p = o;
+			p->tsd.truss.below = NULL;
+		}
+		if (o == NULL)
+			break;
+		o = add_generic_object(t->x[xi], p->y + 10 + 25, 0, 0, 
 			kgun_move, kgun_draw, RED, &kgun_vect, 1, OBJ_TYPE_KGUN, 1);
+		if (p != NULL)
+			p->tsd.truss.below = o;
 	}
 }
 
