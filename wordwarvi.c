@@ -582,6 +582,19 @@ struct my_point_t kgun_points[] = {
 	{ -10, -25 },
 };
 
+struct my_point_t inverted_kgun_points[] = {
+
+	{ -10, 25 },
+	{ -10, 5 },
+	{ 10, 5 },
+	{ 10, 25 },
+	{ -10, 5 },
+	{ -7,  -5 },
+	{ 7, -5 },
+	{ 10, 5 },
+	{ -10, 25 },
+};
+
 struct my_point_t octopus_points[] = {
 	{ -7, 0 },
 	{ 7, 0 },
@@ -1345,6 +1358,7 @@ struct my_vect_obj bomb_vect;
 struct my_vect_obj bridge_vect;
 struct my_vect_obj flak_vect;
 struct my_vect_obj kgun_vect;
+struct my_vect_obj inverted_kgun_vect;
 struct my_vect_obj airship_vect;
 struct my_vect_obj balloon_vect;
 struct my_vect_obj SAM_station_vect;
@@ -1692,6 +1706,12 @@ struct truss_data {
 	struct game_obj_t *above, *below;
 };
 
+struct kgun_data {
+	int invert;	/* 1 means hanging upside down, -1, means mounted on ground. */
+	int size;	/* between 0 and 31, 31 being the biggest. */
+	int velocity_factor; /* smaller guns shoot slower, unless corrected by velocity factor */
+};
+
 union type_specific_data {		/* union of all the typs specific data */
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
@@ -1707,6 +1727,7 @@ union type_specific_data {		/* union of all the typs specific data */
 	struct debris_data debris;
 	struct worm_data worm;
 	struct truss_data truss;
+	struct kgun_data kgun;
 };
 
 struct game_obj_t {
@@ -2171,6 +2192,9 @@ void kgun_move(struct game_obj_t *o)
 	int crossbeam_x1, crossbeam_y, crossbeam_x2, xoffset;
 	int guntipx, guntipy;
 	int chance;
+	int size = o->tsd.kgun.size;
+	int velocityfactor = o->tsd.kgun.velocity_factor;
+	int invert = o->tsd.kgun.invert;
 
 
 	xdist = abs(o->x - player->x); /* in range? */
@@ -2224,8 +2248,8 @@ void kgun_move(struct game_obj_t *o)
 #endif
 
 		x1 = o->x-5;
-		y1 = o->y+5;  
-		crossbeam_y = y1 + 20;
+		y1 = o->y+(5*invert);  
+		crossbeam_y = y1 + (20*invert);
 
 		/* First, scale the larger of dx,dy to 32, and the other by */
 		/* a proportional amount (by similar triangles).  This is in */
@@ -2233,15 +2257,15 @@ void kgun_move(struct game_obj_t *o)
 		
 		/* Calculate indices into vxy_2_dxy array, xi, and yi */
 		if (adx > ady) {
-			xi = 31;
-			yi = (31 * ady) / adx;
+			xi = size;
+			yi = (size * ady) / adx;
 		} else {
 			if (ady > adx) {
-				yi = 31;
-				xi = (31 * adx) / ady;
+				yi = size;
+				xi = (size * adx) / ady;
 			} else { /* abs(dx) == abs(dy) */
-				xi = 31;
-				yi = 31;
+				xi = size;
+				yi = size;
 			}
 		}
 
@@ -2264,8 +2288,8 @@ void kgun_move(struct game_obj_t *o)
 			guntipy = -guntipy;
 		if (dx < 0 && xi != 0)
 			guntipx = -guntipx;
-		vx = guntipx;
-		vy = guntipy;
+		vx = guntipx * velocityfactor;
+		vy = guntipy * velocityfactor;
 
 		guntipx = guntipx << 1; /* gun barrel is 2x as long as the butt of the gun. */
 		guntipy = guntipy << 1;
@@ -3568,17 +3592,20 @@ void bomb_move(struct game_obj_t *o)
 
 					/* Cut loose everything below */
 					for (i=t->o; i != NULL; i = i->tsd.truss.below) {
-						if (i->tsd.truss.above) {
-							i->tsd.truss.above->tsd.truss.below = NULL;
-							i->tsd.truss.above = NULL;
-						}
 
-						if (i->otype == OBJ_TYPE_TRUSS)
+						if (i->otype == OBJ_TYPE_TRUSS) {
+							if (i->tsd.truss.above) {
+								i->tsd.truss.above->tsd.truss.below = NULL;
+								i->tsd.truss.above = NULL;
+							}
 							i->move = bridge_move;
-						else
+						} else {
 							/* make the gun blow up when it lands */
 							i->move = bomb_move; 
-
+							i->vx = randomn(6)-3;
+							i->vy = randomn(6)-3;
+							break;
+						}
 						i->vx = randomn(6)-3;
 						i->vy = randomn(6)-3;
 					}
@@ -4378,15 +4405,19 @@ void laser_move(struct game_obj_t *o)
 
 						/* Cut loose everything below */
 						for (i=t->o; i != NULL; i = i->tsd.truss.below) {
-							if (i->tsd.truss.above) {
-								i->tsd.truss.above->tsd.truss.below = NULL;
-								i->tsd.truss.above = NULL;
-							}
-							if (i->otype == OBJ_TYPE_TRUSS)
+							if (i->otype == OBJ_TYPE_TRUSS) {
+								if (i->tsd.truss.above) {
+									i->tsd.truss.above->tsd.truss.below = NULL;
+									i->tsd.truss.above = NULL;
+								}
 								i->move = bridge_move;
-							else
+							} else {
 								/* make the gun blow up when it lands */
 								i->move = bomb_move; 
+								i->vx = randomn(6)-3;
+								i->vy = randomn(6)-3;
+								break;
+							}
 							i->vx = randomn(6)-3;
 							i->vy = randomn(6)-3;
 						}
@@ -5760,6 +5791,8 @@ void init_vects()
 	flak_vect.npoints = sizeof(flak_points) / sizeof(kgun_points[0]);
 	kgun_vect.p = kgun_points;
 	kgun_vect.npoints = sizeof(kgun_points) / sizeof(kgun_points[0]);
+	inverted_kgun_vect.p = inverted_kgun_points;
+	inverted_kgun_vect.npoints = sizeof(inverted_kgun_points) / sizeof(inverted_kgun_points[0]);
 
 	/* I had to scale and translate the airship points as I made it too small */
 	/* and picked a poor origin. */
@@ -5972,19 +6005,21 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 	int x1, y1;
 	int xi, yi;
 	int adx, ady;
-	draw_generic(o, w);
 	int crossbeam_x1, crossbeam_y, crossbeam_x2, xoffset;
 	int guntipx, guntipy;
 	int gunbackx, gunbacky;
 	int thickxo, thickyo;
+	int size = o->tsd.kgun.size;
+	int invert = o->tsd.kgun.invert;
 
+	draw_generic(o, w);
 	/* Find x and y dist to player.... */
 	dx = player->x+LASERLEAD*player->vx - o->x;
 	dy = player->y+LASERLEAD*player->vy - o->y;
 
 	x1 = o->x-5 - game_state.x;
-	y1 = o->y+5 - game_state.y + (SCREEN_HEIGHT/2);  
-	crossbeam_y = y1 + 20;
+	y1 = o->y+(5*invert) - game_state.y + (SCREEN_HEIGHT/2);  
+	crossbeam_y = y1 + (20*invert);
 
 	wwvi_draw_line(w->window, gc, x1, y1, x1+5, crossbeam_y); 
 	wwvi_draw_line(w->window, gc, x1+10, y1, x1+6, crossbeam_y);
@@ -6022,15 +6057,15 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 
 	/* Calculate indices into vxy_2_dxy array, xi, and yi */
 	if (adx > ady) {
-		xi = 31;
-		yi = (31 * ady) / adx;
+		xi = size;
+		yi = (size * ady) / adx;
 	} else {
 		if (ady > adx) {
-			yi = 31;
-			xi = (31 * adx) / ady;
+			yi = size;
+			xi = (size * adx) / ady;
 		} else { /* abs(dx) == abs(dy) */
-			xi = 31;
-			yi = 31;
+			xi = size;
+			yi = size;
 		}
 	}
 
@@ -6059,6 +6094,10 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 
 	guntipx = guntipx << 1; /* gun barrel is 2x as long as the butt of the gun. */
 	guntipy = guntipy << 1;
+
+	/* guntipy *= invert;
+	gunbacky *= invert;
+	thickyo *= invert; */
 
 	guntipx += crossbeam_x1;
 	gunbackx += crossbeam_x1;
@@ -6706,10 +6745,19 @@ static int initial_x_location()
 static void add_flak_guns(struct terrain_t *t)
 {
 	int i, xi;
+	struct game_obj_t *o;
+
 	for (i=0;i<level.nflak;i++) {
 		xi = initial_x_location();
-		add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
-			move_flak, draw_flak, GREEN, &flak_vect, 1, OBJ_TYPE_GUN, 1);
+		// add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
+		//	move_flak, draw_flak, GREEN, &flak_vect, 1, OBJ_TYPE_GUN, 1);
+		o = add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
+			kgun_move, kgun_draw, GREEN, &inverted_kgun_vect, 1, OBJ_TYPE_KGUN, 1);
+		if (o) {
+			o->tsd.kgun.size = 31;
+			o->tsd.kgun.velocity_factor = 1;
+			o->tsd.kgun.invert = -1;
+		}
 	}
 }
 
@@ -6749,6 +6797,11 @@ static void add_kernel_guns(struct terrain_t *t)
 			break;
 		o = add_generic_object(t->x[xi], p->y + 10 + 25, 0, 0, 
 			kgun_move, kgun_draw, RED, &kgun_vect, 1, OBJ_TYPE_KGUN, 1);
+		if (o != NULL) {
+			o->tsd.kgun.size = 31;	/* biggest size */
+			o->tsd.kgun.invert = 1;	/* this means hanging upside down */
+			o->tsd.kgun.velocity_factor = 1;	/* normal laser speed */
+		}
 		if (p != NULL)
 			p->tsd.truss.below = o;
 	}
