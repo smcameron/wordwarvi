@@ -3007,8 +3007,8 @@ void cron_move(struct game_obj_t *o)
 
 	/* watch out for bug...  This isn't fixed, but don't know how we get in here.. */
 	if (done && dvx == 0 && dvy == 0) {
-		printf("Arg!  Stuck.  tx=%d,ty=%d, x=%d, y=%d\n", 
-			tx, ty, o->x, o->y);
+		/* printf("Arg!  Stuck.  tx=%d,ty=%d, x=%d, y=%d\n", 
+			tx, ty, o->x, o->y); */
 		dvy = -CRON_MAX_VY;
 		dvx = -CRON_MAX_VX;
 	}
