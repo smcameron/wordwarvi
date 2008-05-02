@@ -558,7 +558,7 @@ struct my_point_t decode_glyph[] = {
  * missiles are travelling at vx, vy, then this array allows us to compute x,y
  * offsets to draw the missile pointing in the right direction with just a 
  * table lookup.  See init_vxy_2_dxy() function, below. */
-#define MAX_VELOCITY_TO_COMPUTE 20 
+#define MAX_VELOCITY_TO_COMPUTE 31 
 #define V_MAGNITUDE (20.0)
 struct my_point_t vxy_2_dxy[MAX_VELOCITY_TO_COMPUTE+1][MAX_VELOCITY_TO_COMPUTE+1];
 
@@ -2162,16 +2162,38 @@ void move_flak(struct game_obj_t *o)
 
 void kgun_move(struct game_obj_t *o)
 {
-	int xdist;
-	int dx, dy, bx,by;
+	int xdist, ydist;
+	int dx, dy;
 	int x1, y1;
+	int xi, yi;
+	int adx, ady;
+	int vx, vy;
+	int crossbeam_x1, crossbeam_y, crossbeam_x2, xoffset;
+	int guntipx, guntipy;
+	int chance;
+
+
 	xdist = abs(o->x - player->x); /* in range? */
-	if (xdist < SCREEN_WIDTH && randomn(1000) < level.laser_fire_chance) {
+	ydist = abs(o->y - player->y);
+
+	if (xdist < 600)
+		chance = 100 + xdist;
+	else 
+		chance = 1000;
+
+	if (xdist < SCREEN_WIDTH && ydist < SCREEN_HEIGHT-200 && 
+		randomn(chance) < level.laser_fire_chance) {
 		/* we're going to fire the laser... */
+		add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
+
+		/* Find x,y dist to player... */
 		dx = player->x+LASERLEAD*player->vx - o->x;
 		dy = player->y+LASERLEAD*player->vy - o->y;
 
-		add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
+		adx = abs(dx);
+		ady = abs(dy);
+
+#if 0
 		/* whichever is farther, x or y, make that vx or vy be the max */
 		/* then calculate the other one by similar triangles. */
 		if (dy <= 0) {
@@ -2199,8 +2221,60 @@ void kgun_move(struct game_obj_t *o)
 		}
 		x1 = o->x-5;
 		y1 = o->y+5;  
-		add_laserbolt(x1, y1, bx, by, RED, 50);
-		add_laserbolt(x1+10, y1, bx, by, RED, 50);
+#endif
+
+		x1 = o->x-5;
+		y1 = o->y+5;  
+		crossbeam_y = y1 + 20;
+
+		/* First, scale the larger of dx,dy to 32, and the other by */
+		/* a proportional amount (by similar triangles).  This is in */
+		/* order to index into the vxy_2_dxy array. */
+		
+		/* Calculate indices into vxy_2_dxy array, xi, and yi */
+		if (adx > ady) {
+			xi = 31;
+			yi = (31 * ady) / adx;
+		} else {
+			if (ady > adx) {
+				yi = 31;
+				xi = (31 * adx) / ady;
+			} else { /* abs(dx) == abs(dy) */
+				xi = 31;
+				yi = 31;
+			}
+		}
+
+		/* notice, using y component for x offset... */
+		crossbeam_x1 = vxy_2_dxy[xi][yi].y;
+		crossbeam_x2 = -crossbeam_x1;
+
+		crossbeam_x1 += o->x;
+		crossbeam_x2 += o->x;
+
+		xoffset = crossbeam_x2 - crossbeam_x1;
+
+		// guntipx = dx_from_vxy(xi, yi);
+		// guntipy = dy_from_vxy(xi, yi);
+
+		guntipx = vxy_2_dxy[xi][yi].x;
+		guntipy = vxy_2_dxy[xi][yi].y;
+
+		if (dy > 0)
+			guntipy = -guntipy;
+		if (dx < 0 && xi != 0)
+			guntipx = -guntipx;
+		vx = guntipx;
+		vy = guntipy;
+
+		guntipx = guntipx << 1; /* gun barrel is 2x as long as the butt of the gun. */
+		guntipy = guntipy << 1;
+
+		guntipx += crossbeam_x1;
+		guntipy += crossbeam_y;
+		
+		add_laserbolt(guntipx, guntipy, vx, vy, RED, 50);
+		add_laserbolt(guntipx+xoffset, guntipy, vx, vy, RED, 50);
 	}
 }
 
@@ -5849,7 +5923,7 @@ void truss_draw(struct game_obj_t *o, GtkWidget *w)
 	wwvi_draw_line(w->window, gc, x2, y1, x2, y2);
 }
 
-void kgun_draw(struct game_obj_t *o, GtkWidget *w)
+void old_kgun_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int dx, dy, bx,by;
 	int x1, y1;
@@ -5891,6 +5965,131 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 	wwvi_draw_line(w->window, gc, x1, y1, x1+bx, y1+by); 
 	wwvi_draw_line(w->window, gc, x1+10, y1, x1+bx+6, y1+by); 
 }
+
+void kgun_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	int dx, dy;
+	int x1, y1;
+	int xi, yi;
+	int adx, ady;
+	draw_generic(o, w);
+	int crossbeam_x1, crossbeam_y, crossbeam_x2, xoffset;
+	int guntipx, guntipy;
+	int gunbackx, gunbacky;
+	int thickxo, thickyo;
+
+	/* Find x and y dist to player.... */
+	dx = player->x+LASERLEAD*player->vx - o->x;
+	dy = player->y+LASERLEAD*player->vy - o->y;
+
+	x1 = o->x-5 - game_state.x;
+	y1 = o->y+5 - game_state.y + (SCREEN_HEIGHT/2);  
+	crossbeam_y = y1 + 20;
+
+	wwvi_draw_line(w->window, gc, x1, y1, x1+5, crossbeam_y); 
+	wwvi_draw_line(w->window, gc, x1+10, y1, x1+6, crossbeam_y);
+
+	/* We're going to draw a swivelling dual gun turret.  Two */
+	/* guns mounted on a crossbeam that kind of swivel around */
+	/* in a 3-d looking way (but it's fake 3-d, of course.) */
+	/* Kind of like this:
+	 *
+	 *                                         *  *
+	 *                                         *  *     
+	 *                                          **  
+	 *                                          **
+	 *                                   ***    **  ***   
+	 *                                   ***    **  ***     
+	 *                                    ***   **   ***
+	 *                                    **************
+	 *                                     ***        ***
+	 *                                     ***        ***
+	 *                                      ***        ***
+	 *                                       *          * 
+	 *                                        *          * 
+	 *                                        *          * 
+	 *                                         *          * 
+	 *                                         *          * 
+	 *
+	 */
+
+	/* First, scale the larger of dx,dy to 32, and the other by */
+	/* a proportional amount (by similar triangles).  This is in */
+	/* order to index into the vxy_2_dxy array. */
+	
+	adx = abs(dx);
+	ady = abs(dy);
+
+	/* Calculate indices into vxy_2_dxy array, xi, and yi */
+	if (adx > ady) {
+		xi = 31;
+		yi = (31 * ady) / adx;
+	} else {
+		if (ady > adx) {
+			yi = 31;
+			xi = (31 * adx) / ady;
+		} else { /* abs(dx) == abs(dy) */
+			xi = 31;
+			yi = 31;
+		}
+	}
+
+	/* notice, using y component for x offset... */
+	crossbeam_x1 = vxy_2_dxy[xi][yi].y;
+	crossbeam_x2 = -crossbeam_x1;
+
+	crossbeam_x1 += o->x - game_state.x;
+	crossbeam_x2 += o->x - game_state.x;
+
+	xoffset = crossbeam_x2 - crossbeam_x1;
+
+	guntipx = vxy_2_dxy[xi][yi].x;
+	guntipy = vxy_2_dxy[xi][yi].y;
+
+	if (dy > 0)
+		guntipy = -guntipy;
+	if (dx < 0 && xi != 0)
+		guntipx = -guntipx;
+
+	gunbackx = -guntipx;
+	gunbacky = -guntipy;
+
+	thickxo = -gunbacky >> 2; /* notice reversed x,y coords here, to get normal (right angle). */
+	thickyo = gunbackx >> 2;  /* gun butt is 1/4 as thick as it is long. */
+
+	guntipx = guntipx << 1; /* gun barrel is 2x as long as the butt of the gun. */
+	guntipy = guntipy << 1;
+
+	guntipx += crossbeam_x1;
+	gunbackx += crossbeam_x1;
+	guntipy += crossbeam_y;
+	gunbacky += crossbeam_y;
+	
+	wwvi_draw_line(w->window, gc, crossbeam_x1, crossbeam_y, crossbeam_x2, crossbeam_y);
+
+	wwvi_draw_line(w->window, gc, gunbackx, gunbacky, guntipx, guntipy);
+	wwvi_draw_line(w->window, gc, gunbackx+xoffset, gunbacky, guntipx+xoffset, guntipy);
+
+	wwvi_draw_line(w->window, gc, gunbackx-thickxo, gunbacky-thickyo, 
+			gunbackx+thickxo, gunbacky+thickyo);
+	wwvi_draw_line(w->window, gc, gunbackx-thickxo+xoffset, gunbacky-thickyo, 
+			gunbackx+thickxo+xoffset, gunbacky+thickyo);
+	wwvi_draw_line(w->window, gc, crossbeam_x1-thickxo, crossbeam_y-thickyo, 
+			crossbeam_x1+thickxo, crossbeam_y+thickyo);
+	wwvi_draw_line(w->window, gc, crossbeam_x1-thickxo+xoffset, crossbeam_y-thickyo, 
+			crossbeam_x1+thickxo+xoffset, crossbeam_y+thickyo);
+
+	wwvi_draw_line(w->window, gc, gunbackx-thickxo, gunbacky-thickyo, 
+			crossbeam_x1-thickxo, crossbeam_y-thickyo);
+	wwvi_draw_line(w->window, gc, gunbackx-thickxo+xoffset, gunbacky-thickyo, 
+			crossbeam_x1-thickxo+xoffset, crossbeam_y-thickyo);
+	wwvi_draw_line(w->window, gc, gunbackx+thickxo, gunbacky+thickyo, 
+			crossbeam_x1+thickxo, crossbeam_y+thickyo);
+	wwvi_draw_line(w->window, gc, gunbackx+thickxo+xoffset, gunbacky+thickyo, 
+			crossbeam_x1+thickxo+xoffset, crossbeam_y+thickyo);
+	
+}
+
 
 
 /* this is an array of random values for use in picking
@@ -6523,7 +6722,6 @@ static void add_kernel_guns(struct terrain_t *t)
 
 	o = NULL;
 	p = NULL;
-	printf("nkguns = %d\n", level.nkguns);
 	for (i=0;i<level.nkguns;i++) {
 		xi = initial_x_location();
 		ntrusses = randomn(9)+3;
