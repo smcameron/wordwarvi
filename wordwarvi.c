@@ -3476,6 +3476,10 @@ void bomb_move(struct game_obj_t *o)
 
 	/* Scan the target list to see if we've hit anything. */
 	for (t=target_head;t != NULL;) {
+		if (t->o == o) { /* bomb_move things can't bomb them selves. */
+			t = t-> next;
+			continue;
+		}
 		if (!t->o->alive) {
 			t=t->next;
 			continue;
@@ -3494,7 +3498,13 @@ void bomb_move(struct game_obj_t *o)
 							i->tsd.truss.above->tsd.truss.below = NULL;
 							i->tsd.truss.above = NULL;
 						}
-						i->move = bridge_move;
+
+						if (i->otype == OBJ_TYPE_TRUSS)
+							i->move = bridge_move;
+						else
+							/* make the gun blow up when it lands */
+							i->move = bomb_move; 
+
 						i->vx = randomn(6)-3;
 						i->vy = randomn(6)-3;
 					}
@@ -4298,7 +4308,11 @@ void laser_move(struct game_obj_t *o)
 								i->tsd.truss.above->tsd.truss.below = NULL;
 								i->tsd.truss.above = NULL;
 							}
-							i->move = bridge_move;
+							if (i->otype == OBJ_TYPE_TRUSS)
+								i->move = bridge_move;
+							else
+								/* make the gun blow up when it lands */
+								i->move = bomb_move; 
 							i->vx = randomn(6)-3;
 							i->vy = randomn(6)-3;
 						}
