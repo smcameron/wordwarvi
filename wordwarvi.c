@@ -5956,49 +5956,6 @@ void truss_draw(struct game_obj_t *o, GtkWidget *w)
 	wwvi_draw_line(w->window, gc, x2, y1, x2, y2);
 }
 
-void old_kgun_draw(struct game_obj_t *o, GtkWidget *w)
-{
-	int dx, dy, bx,by;
-	int x1, y1;
-	draw_generic(o, w);
-
-	/* Draw the gun barrels... */
-	dx = player->x+LASERLEAD*player->vx - o->x;
-	dy = player->y+LASERLEAD*player->vy - o->y;
-
-	/* figure which is the larger distance, dx, or dy */
-	/* Whichever is larger, the offset for that axis will be 20 */
-	/* (adjusted for direction to be positive or negative) */
-	/* Then, the other axis is calculated by similar triangles */
-	if (dy <= 0) {
-		if (player->x + LASERLEAD*player->vx < o->x)
-			bx = -20;
-		else
-			bx = 20;
-		by = 0;
-	} else if (dx == 0) {
-		bx = -0;
-		by = 20;
-	} else if (abs(dx) > abs(dy)) {
-		if (player->x+LASERLEAD*player->vx < o->x)
-			bx = -20;
-		else
-			bx = 20;
-		by = abs((20*dy)/dx);
-	} else {
-		by = 20;
-		/* if (player->x < o->x)
-			bx = -20;
-		else
-			bx = 20; */
-		bx = (20*dx)/dy;
-	}
-	x1 = o->x-5 - game_state.x;
-	y1 = o->y+5 - game_state.y + (SCREEN_HEIGHT/2);  
-	wwvi_draw_line(w->window, gc, x1, y1, x1+bx, y1+by); 
-	wwvi_draw_line(w->window, gc, x1+10, y1, x1+bx+6, y1+by); 
-}
-
 void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int dx, dy;
