@@ -64,7 +64,8 @@ uninstall:
 
 tarball:
 	mkdir -p d/wordwarvi-${VERSION}/sounds
-	cp Makefile version.h joystick.c joystick.h changelog.txt wordwarvi.c wordwarvi.6 \
+	cp Makefile version.h ogg_to_pcm.c ogg_to_pcm.h \
+		joystick.c joystick.h changelog.txt wordwarvi.c wordwarvi.6 \
 		README AUTHORS COPYING d/wordwarvi-${VERSION}
 	cp sounds/*.ogg d/wordwarvi-${VERSION}/sounds
 	cp sounds/Attribution.txt d/wordwarvi-${VERSION}/sounds
