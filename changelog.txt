@@ -1,5 +1,22 @@
 Changelog for wordwarvi:
 
+Sat May  3 18:46:16 CDT 2008
+-------------------------------------------------------------------------------
+Changes between version 0.08 and 0.09
+
+* Removed unused code (old_kgun_draw function.)
+* Fixed a longstanding bug that the vxy_2_dxy array had wrong
+  values when x index == 0 (was wrong sign in y value.)
+  (That is what caused the guns to be drawn, and to shoot in
+  the wrong direction (down instead of up, and vice versa) if
+  player->x == gun->x.  IN that case, dx == 0, and the wrong
+  value for y came out of vxy_2_dxy.
+* Refined gun aiming to compare dy to 20, rather than 0, as
+  the gun's center is at y + 20.
+* Removed dependency on libsndfile, added dependency on libvorbisfile.
+  Removed dependency on oggdec (by including hunks of code from oggdec).
+  (Now it decodes the ogg files itself at run time.)
+
 Fri May  2 18:03:39 CDT 2008
 -------------------------------------------------------------------------------
 Changes between version 0.07 and 0.08
