@@ -1517,7 +1517,7 @@ void init_vxy_2_dxy()
 		for (y=0;y<=MAX_VELOCITY_TO_COMPUTE;y++) {
 			if (x == 0) {
 				vxy_2_dxy[x][y].y = 
-					((double) y / (double) MAX_VELOCITY_TO_COMPUTE) * V_MAGNITUDE;
+					((double) -y / (double) MAX_VELOCITY_TO_COMPUTE) * V_MAGNITUDE;
 				vxy_2_dxy[x][y].x = 0;
 				continue;
 			}
@@ -2284,10 +2284,11 @@ void kgun_move(struct game_obj_t *o)
 		guntipx = vxy_2_dxy[xi][yi].x;
 		guntipy = vxy_2_dxy[xi][yi].y;
 
-		if (dy > 0)
+		if (dy > 20)
 			guntipy = -guntipy;
-		if (dx < 0 && xi != 0)
+		if (dx < 0)
 			guntipx = -guntipx;
+
 		vx = guntipx * velocityfactor;
 		vy = guntipy * velocityfactor;
 
@@ -6038,9 +6039,9 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 	guntipx = vxy_2_dxy[xi][yi].x;
 	guntipy = vxy_2_dxy[xi][yi].y;
 
-	if (dy > 0)
+	if (dy > 20)
 		guntipy = -guntipy;
-	if (dx < 0 && xi != 0)
+	if (dx < 0)
 		guntipx = -guntipx;
 
 	gunbackx = -guntipx;
