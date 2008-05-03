@@ -26,6 +26,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <limits.h>
+#include <sys/stat.h>
 
 #include <gdk/gdkkeysyms.h>
 #include <stdint.h>
@@ -37,7 +38,7 @@
 #ifdef WITHAUDIOSUPPORT
 /* For Audio stuff... */
 #include "portaudio.h"
-#include <sndfile.h>
+#include "ogg_to_pcm.h"
 #endif
 
 #include "joystick.h"
@@ -8881,27 +8882,28 @@ struct sound_clip audio_queue[MAX_CONCURRENT_SOUNDS];
 int nclips = 0;
 #endif
 
-int read_clip(int clipnum, char *filename)
+int read_ogg_clip(int clipnum, char *filename)
 {
 #ifdef WITHAUDIOSUPPORT
-	SNDFILE *f;
-	SF_INFO sfinfo;
-	sf_count_t nframes;
+	unsigned long long nframes;
 	char filebuf[PATH_MAX];
+	struct stat statbuf;
+	int samplesize, sample_rate;
+	int nchannels;
+	int rc;
 
-	memset(&sfinfo, 0, sizeof(sfinfo));
-	f = sf_open(filename, SFM_READ, &sfinfo);
-	if (f == NULL) {
-		memset(&sfinfo, 0, sizeof(sfinfo));
+	strncpy(filebuf, filename, PATH_MAX);
+	rc = stat(filebuf, &statbuf);
+	if (rc != 0) {
 		snprintf(filebuf, PATH_MAX, DATADIR"%s", filename);
-		f = sf_open(filebuf, SFM_READ, &sfinfo);
-		if (f == NULL) {
-			fprintf(stderr, "sf_open('%s') failed.\n", filename);
+		rc = stat(filebuf, &statbuf);
+		if (rc != 0) {
+			fprintf(stderr, "stat('%s') failed.\n", filebuf);
 			return -1;
 		}
 	}
 /*
-	printf("Reading sound file: '%s'\n", filename);
+	printf("Reading sound file: '%s'\n", filebuf);
 	printf("frames = %lld\n", sfinfo.frames);
 	printf("samplerate = %d\n", sfinfo.samplerate);
 	printf("channels = %d\n", sfinfo.channels);
@@ -8909,84 +8911,85 @@ int read_clip(int clipnum, char *filename)
 	printf("sections = %d\n", sfinfo.sections);
 	printf("seekable = %d\n", sfinfo.seekable);
 */
-	clip[clipnum].sample = (int16_t *) 
-		malloc(sizeof(int16_t) * sfinfo.channels * sfinfo.frames);
+	rc = ogg_to_pcm(filebuf, (uint16_t **) &clip[clipnum].sample, &samplesize,
+		&sample_rate, &nchannels, &nframes);
 	if (clip[clipnum].sample == NULL) {
 		printf("Can't get memory for sound data for %llu frames in %s\n", 
-			sfinfo.frames, filename);
+			nframes, filebuf);
 		goto error;
 	}
 
-	nframes = sf_readf_short(f, clip[clipnum].sample, sfinfo.frames);
-	if (nframes != sfinfo.frames) {
-		printf("Read only %llu of %llu frames from %s\n", 
-			nframes, sfinfo.frames, filename);
+	if (rc != 0) {
+		fprintf(stderr, "Error: ogg_to_pcm('%s') failed.\n", 
+			filebuf);
+		goto error;
 	}
+
 	clip[clipnum].nsamples = (int) nframes;
 	if (clip[clipnum].nsamples < 0)
 		clip[clipnum].nsamples = 0;
 
-	sf_close(f);
 	return 0;
 error:
-	sf_close(f);
 	return -1;
 #else
 	return 0;
 #endif
 }
 
+
 #ifdef WITHAUDIOSUPPORT
-/* precompute 16 2-second clips of various sine waves */
 int init_clips()
 {
 	memset(&audio_queue, 0, sizeof(audio_queue));
 
-	read_clip(PLAYER_LASER_SOUND, "sounds/synthetic_laser.wav");
-	read_clip(BOMB_IMPACT_SOUND, "sounds/bombexplosion.wav");
-	read_clip(ROCKET_LAUNCH_SOUND, "sounds/rocket_exhaust_1.wav");
-	read_clip(FLAK_FIRE_SOUND, "sounds/flak_gun_sound.wav");
-	read_clip(LARGE_EXPLOSION_SOUND, "sounds/big_explosion.wav");
-	read_clip(ROCKET_EXPLOSION_SOUND, "sounds/missile_explosion.wav");
-	read_clip(LASER_EXPLOSION_SOUND, "sounds/flak_hit.wav");
-	read_clip(GROUND_SMACK_SOUND, "sounds/new_ground_smack.wav");
-	read_clip(INSERT_COIN_SOUND, "sounds/us_quarter.wav");
-	read_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.wav");
-	read_clip(SAM_LAUNCH_SOUND, "sounds/missile_launch_2.wav");
-	read_clip(THUNDER_SOUND, "sounds/synthetic_thunder_short.wav");
-	read_clip(INTERMISSION_MUSIC_SOUND, "sounds/dtox3monomix.wav");
-	read_clip(MISSILE_LOCK_SIREN_SOUND, "sounds/missile_alarm.wav");
-	read_clip(CARDOOR_SOUND, "sounds/toyota_celica_cardoor_sample.wav");
-	read_clip(WOOHOO_SOUND, "sounds/woohoo.wav");
-	read_clip(OWMYSPINE_SOUND, "sounds/ow_my_spine.wav");
-	read_clip(HELPDOWNHERE_SOUND, "sounds/help_down_here.wav");
-	read_clip(CRONSHOT, "sounds/synthetic_gunshot_2.wav");
-	read_clip(HELPUPHERE_SOUND, "sounds/help_up_here.wav");
-	read_clip(ABDUCTED_SOUND, "sounds/abducted.wav");
-	read_clip(CLANG_SOUND, "sounds/clang.wav");
-	read_clip(SCREAM_SOUND, "sounds/fallingscreamhi.wav");
-	read_clip(BODYSLAM_SOUND, "sounds/bodyslam.wav");
-	read_clip(USETHESOURCE_SOUND, "sounds/UseTheSource.wav");
-	read_clip(OOF_SOUND, "sounds/ooooof.wav");
-	read_clip(METALBANG1, "sounds/metalbang1.wav");
-	read_clip(METALBANG2, "sounds/metalbang2.wav");
-	read_clip(METALBANG3, "sounds/metalbang3.wav");
-	read_clip(METALBANG4, "sounds/metalbang4.wav");
-	read_clip(METALBANG5, "sounds/metalbang5.wav");
-	read_clip(METALBANG6, "sounds/metalbang6.wav");
-	read_clip(METALBANG7, "sounds/metalbang7.wav");
-	read_clip(METALBANG1, "sounds/metalbang1.wav");
-	read_clip(STONEBANG2, "sounds/stonebang2.wav");
-	read_clip(STONEBANG3, "sounds/stonebang3.wav");
-	read_clip(STONEBANG4, "sounds/stonebang4.wav");
-	read_clip(STONEBANG5, "sounds/stonebang5.wav");
-	read_clip(STONEBANG6, "sounds/stonebang6.wav");
-	read_clip(STONEBANG7, "sounds/stonebang7.wav");
-	read_clip(STONEBANG8, "sounds/stonebang8.wav");
-	read_clip(VOLCANO_ERUPTION, "sounds/volcano_eruption.wav");
-	read_clip(IT_BURNS, "sounds/aaaah_it_burns.wav");
-	read_clip(ZZZT_SOUND, "sounds/zzzt.wav");
-	// read_clip(CORROSIVE_SOUND, "sounds/corrosive_atmosphere.wav");
+	printf("Decoding audio data..."); fflush(stdout);
+
+	read_ogg_clip(PLAYER_LASER_SOUND, "sounds/synthetic_laser.ogg");
+	read_ogg_clip(BOMB_IMPACT_SOUND, "sounds/bombexplosion.ogg");
+	read_ogg_clip(ROCKET_LAUNCH_SOUND, "sounds/rocket_exhaust_1.ogg");
+	read_ogg_clip(FLAK_FIRE_SOUND, "sounds/flak_gun_sound.ogg");
+	read_ogg_clip(LARGE_EXPLOSION_SOUND, "sounds/big_explosion.ogg");
+	read_ogg_clip(ROCKET_EXPLOSION_SOUND, "sounds/missile_explosion.ogg");
+	read_ogg_clip(LASER_EXPLOSION_SOUND, "sounds/flak_hit.ogg");
+	read_ogg_clip(GROUND_SMACK_SOUND, "sounds/new_ground_smack.ogg");
+	read_ogg_clip(INSERT_COIN_SOUND, "sounds/us_quarter.ogg");
+	read_ogg_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.ogg");
+	read_ogg_clip(SAM_LAUNCH_SOUND, "sounds/missile_launch_2.ogg");
+	read_ogg_clip(THUNDER_SOUND, "sounds/synthetic_thunder_short.ogg");
+	read_ogg_clip(INTERMISSION_MUSIC_SOUND, "sounds/dtox3monomix.ogg");
+	read_ogg_clip(MISSILE_LOCK_SIREN_SOUND, "sounds/missile_alarm.ogg");
+	read_ogg_clip(CARDOOR_SOUND, "sounds/toyota_celica_cardoor_sample.ogg");
+	read_ogg_clip(WOOHOO_SOUND, "sounds/woohoo.ogg");
+	read_ogg_clip(OWMYSPINE_SOUND, "sounds/ow_my_spine.ogg");
+	read_ogg_clip(HELPDOWNHERE_SOUND, "sounds/help_down_here.ogg");
+	read_ogg_clip(CRONSHOT, "sounds/synthetic_gunshot_2.ogg");
+	read_ogg_clip(HELPUPHERE_SOUND, "sounds/help_up_here.ogg");
+	read_ogg_clip(ABDUCTED_SOUND, "sounds/abducted.ogg");
+	read_ogg_clip(CLANG_SOUND, "sounds/clang.ogg");
+	read_ogg_clip(SCREAM_SOUND, "sounds/fallingscreamhi.ogg");
+	read_ogg_clip(BODYSLAM_SOUND, "sounds/bodyslam.ogg");
+	read_ogg_clip(USETHESOURCE_SOUND, "sounds/UseTheSource.ogg");
+	read_ogg_clip(OOF_SOUND, "sounds/ooooof.ogg");
+	read_ogg_clip(METALBANG1, "sounds/metalbang1.ogg");
+	read_ogg_clip(METALBANG2, "sounds/metalbang2.ogg");
+	read_ogg_clip(METALBANG3, "sounds/metalbang3.ogg");
+	read_ogg_clip(METALBANG4, "sounds/metalbang4.ogg");
+	read_ogg_clip(METALBANG5, "sounds/metalbang5.ogg");
+	read_ogg_clip(METALBANG6, "sounds/metalbang6.ogg");
+	read_ogg_clip(METALBANG7, "sounds/metalbang7.ogg");
+	read_ogg_clip(METALBANG1, "sounds/metalbang1.ogg");
+	read_ogg_clip(STONEBANG2, "sounds/stonebang2.ogg");
+	read_ogg_clip(STONEBANG3, "sounds/stonebang3.ogg");
+	read_ogg_clip(STONEBANG4, "sounds/stonebang4.ogg");
+	read_ogg_clip(STONEBANG5, "sounds/stonebang5.ogg");
+	read_ogg_clip(STONEBANG6, "sounds/stonebang6.ogg");
+	read_ogg_clip(STONEBANG7, "sounds/stonebang7.ogg");
+	read_ogg_clip(STONEBANG8, "sounds/stonebang8.ogg");
+	read_ogg_clip(VOLCANO_ERUPTION, "sounds/volcano_eruption.ogg");
+	read_ogg_clip(IT_BURNS, "sounds/aaaah_it_burns.ogg");
+	read_ogg_clip(ZZZT_SOUND, "sounds/zzzt.ogg");
+	printf("done.\n");
 	return 0;
 }
 
