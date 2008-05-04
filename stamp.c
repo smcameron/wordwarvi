@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
 	uid = getuid();
 
 	printf("static int builder = %d;\n", uid);
-	printf("static int builtat = %d;\n", tv.tv_sec);
+	printf("static unsigned long long builtat = %d;\n", tv.tv_sec);
 
 	exit(0);	
 }
