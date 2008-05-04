@@ -1101,14 +1101,6 @@ struct my_point_t bomb_points[] = {
 	{ 0, -3 },
 };
 
-struct my_point_t flak_points[] = {
-	{ -10, 5 },
-	{ -5, -3 },
-	{ 5, -3},
-	{ 10, 5 },
-	{ -10, 5 },
-};
-
 struct my_point_t rocket_points[] = {
 	{ -2, 3 },
 	{ LINE_BREAK, LINE_BREAK },
@@ -1357,7 +1349,6 @@ struct my_vect_obj cron_vect;
 struct my_vect_obj ship_vect;
 struct my_vect_obj bomb_vect;
 struct my_vect_obj bridge_vect;
-struct my_vect_obj flak_vect;
 struct my_vect_obj kgun_vect;
 struct my_vect_obj inverted_kgun_vect;
 struct my_vect_obj airship_vect;
@@ -2138,50 +2129,6 @@ static void aim_vx_vy(struct game_obj_t *target,
 }
 
 static void add_laserbolt(int x, int y, int vx, int vy, int color, int time);
-void move_flak(struct game_obj_t *o)
-{
-	int xdist;
-	int dx, dy, bx,by;
-	int x1, y1;
-	xdist = abs(o->x - player->x); /* in range? */
-	if (xdist < SCREEN_WIDTH && randomn(1000) < level.laser_fire_chance) {
-		/* we're going to fire the laser... */
-		dx = player->x+LASERLEAD*player->vx - o->x;
-		dy = player->y+LASERLEAD*player->vy - o->y;
-
-		add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
-		/* whichever is farther, x or y, make that vx or vy be the max */
-		/* then calculate the other one by similar triangles. */
-		if (dy >= 0) {
-			if (player->x+player->vx*LASERLEAD < o->x)
-				bx = -20;
-			else
-				bx = 20;
-			by = 0;
-		} else if (dx == 0) {
-			bx = -0;
-			by = -20;
-		} else if (abs(dx) > abs(dy)) {
-			if (player->x+player->vx*LASERLEAD < o->x)
-				bx = -20;
-			else
-				bx = 20;
-			by = -abs((20*dy)/dx);
-		} else {
-			by = -20;
-			/* if (player->x < o->x)
-				bx = -20;
-			else
-				bx = 20; */
-			bx = (-20*dx)/dy;
-		}
-		x1 = o->x-5;
-		y1 = o->y-5;  
-		add_laserbolt(x1, y1, bx, by, CYAN, 50);
-		add_laserbolt(x1+10, y1, bx, by, CYAN, 50);
-	}
-}
-
 void kgun_move(struct game_obj_t *o)
 {
 	int xdist, ydist;
@@ -5789,8 +5736,6 @@ void init_vects()
 	bomb_vect.npoints = sizeof(bomb_points) / sizeof(bomb_points[0]);
 	bridge_vect.p = bridge_points;
 	bridge_vect.npoints = sizeof(bridge_points) / sizeof(bridge_points[0]);
-	flak_vect.p = flak_points;
-	flak_vect.npoints = sizeof(flak_points) / sizeof(kgun_points[0]);
 	kgun_vect.p = kgun_points;
 	kgun_vect.npoints = sizeof(kgun_points) / sizeof(kgun_points[0]);
 	inverted_kgun_vect.p = inverted_kgun_points;
@@ -5892,49 +5837,6 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 		x1 = x2;
 		y1 = y2;
 	}
-}
-
-void draw_flak(struct game_obj_t *o, GtkWidget *w)
-{
-	int dx, dy, bx,by;
-	int x1, y1;
-	draw_generic(o, w);
-
-	/* Draw the gun barrels... */
-	dx = player->x+LASERLEAD*player->vx - o->x;
-	dy = player->y+LASERLEAD*player->vy - o->y;
-
-	/* figure which is the larger distance, dx, or dy */
-	/* Whichever is larger, the offset for that axis will be 20 */
-	/* (adjusted for direction to be positive or negative) */
-	/* Then, the other axis is calculated by similar triangles */
-	if (dy >= 0) {
-		if (player->x + LASERLEAD*player->vx < o->x)
-			bx = -20;
-		else
-			bx = 20;
-		by = 0;
-	} else if (dx == 0) {
-		bx = -0;
-		by = -20;
-	} else if (abs(dx) > abs(dy)) {
-		if (player->x+LASERLEAD*player->vx < o->x)
-			bx = -20;
-		else
-			bx = 20;
-		by = -abs((20*dy)/dx);
-	} else {
-		by = -20;
-		/* if (player->x < o->x)
-			bx = -20;
-		else
-			bx = 20; */
-		bx = (-20*dx)/dy;
-	}
-	x1 = o->x-5 - game_state.x;
-	y1 = o->y-5 - game_state.y + (SCREEN_HEIGHT/2);  
-	wwvi_draw_line(w->window, gc, x1, y1, x1+bx, y1+by); 
-	wwvi_draw_line(w->window, gc, x1+10, y1, x1+bx+6, y1+by); 
 }
 
 void truss_draw(struct game_obj_t *o, GtkWidget *w)
@@ -6708,8 +6610,6 @@ static void add_flak_guns(struct terrain_t *t)
 
 	for (i=0;i<level.nflak;i++) {
 		xi = initial_x_location();
-		// add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
-		//	move_flak, draw_flak, GREEN, &flak_vect, 1, OBJ_TYPE_GUN, 1);
 		o = add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
 			kgun_move, kgun_draw, GREEN, &inverted_kgun_vect, 1, OBJ_TYPE_KGUN, 1);
 		if (o) {
