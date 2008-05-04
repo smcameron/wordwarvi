@@ -43,6 +43,7 @@
 
 #include "joystick.h"
 #include "version.h"
+#include "stamp.h"
 
 #ifndef DATADIR
 #define DATADIR ""
@@ -7547,9 +7548,35 @@ static void add_balloons(struct terrain_t *t)
 static void draw_strings(GtkWidget *w);
 void setup_text();
 
+int they_used_the_source()
+{
+
+	/*
+	 * A little joke for the programmers.  If *you* built it
+	 * from source less than 1 hour ago you get....
+	 * 
+	 * a million bonus points.  
+         *
+	 * (Hey, the _very first_ thing the game tells you is 
+	 * "Uuuuse the Soooource!!!!"  It's not kidding. :-)
+	 *
+	 */
+
+	struct timeval now;
+	int uid;
+
+	gettimeofday(&now, NULL);
+	uid = getuid();
+
+	return (uid == builder && 
+		now.tv_sec - builtat > 0 && 
+		now.tv_sec - builtat < 60*60);
+}
+
 int bonus_points_this_round;
 static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 {
+#define LAST_INTERMISSION_STAGE 12
 	static int intermission_stage = 0;
 	static int intermission_timer = 0;
 	static int add_bonus;
@@ -7569,9 +7596,14 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 	if (timer >= intermission_timer) {
 		add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 		intermission_stage++;
+		if (intermission_stage == LAST_INTERMISSION_STAGE-1
+			&& !they_used_the_source())
+			intermission_stage++;
 		/* printf("intermission_stage  %d -> %d\n", 
  * 			intermission_stage-1,intermission_stage); */
-		intermission_timer = timer + (intermission_stage == 10 ? 4 : 1) * frame_rate_hz;
+		intermission_timer = timer + 
+			(intermission_stage == LAST_INTERMISSION_STAGE ? 4 : 1) * 
+			frame_rate_hz;
 	}
 
 	/* printf("timer=%d, timer_event=%d, intermission_timer=%d, stage=%d\n", 
@@ -7581,7 +7613,7 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 	set_font(SMALL_FONT);
 	switch (intermission_stage) {
 		/* Cases are listed backwards to take advantage of fall-thru */
-		case 11:
+		case LAST_INTERMISSION_STAGE:
 			timer_event = END_INTERMISSION_EVENT;
 			next_timer = timer + 1;
 			intermission_timer = 0;
@@ -7594,8 +7626,18 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 			sprintf(s, "Credits: %d Lives: %d", credits, game_state.lives);
 			gameprint(s);
 			break;
+		case LAST_INTERMISSION_STAGE-1:
+			if (they_used_the_source()) {
+				gotoxy(5, LAST_INTERMISSION_STAGE-1+2);
+				inc_bonus = 100000; /* million bonus points */
+				sprintf(s, "Using The Source                   %6d",
+					inc_bonus);
+				bonus_points += inc_bonus;	
+				add_bonus = bonus_points;
+				gameprint(s);
+			}
 		case 10: 
-			gotoxy(5, 10+3);
+			gotoxy(5, 10+2);
 			elapsed_secs = game_state.finish_time.tv_sec - game_state.start_time.tv_sec;
 			if (elapsed_secs < 90)
 				inc_bonus = (90 - elapsed_secs) * 100;
@@ -7687,7 +7729,7 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 			bonus_points_this_round = bonus_points;
 			gameprint( s);
 	}
-	if (intermission_stage != 11)
+	if (intermission_stage != LAST_INTERMISSION_STAGE)
 		draw_strings(w);
 	else {
 		game_state.score += add_bonus;
