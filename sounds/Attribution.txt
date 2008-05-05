@@ -1,8 +1,10 @@
 
-Here is the attribution of audio files which I used from 
-freesound.iua.upf.edu.
+Here is the attribution of audio files which I used.
 
-* lucky13-steve-mono-mix.wav is composed and recorded
+The same information is available by inspecting each ogg file
+with "vorbiscomment -l"
+
+* lucky13-steve-mono-mix.ogg is composed and recorded
   by me (Stephen M. Cameron) and Marty Kiel.  I did the
   guitar, Marty did the synth and drums.  It is 
   licensed under the Creative Commons Attribution 2.0 license
@@ -13,7 +15,7 @@ freesound.iua.upf.edu.
   (Stephen M. Cameron).  It is licensed under the Creative
   Commons Attribution-Share Alike 3.0 license.
   See: http://creativecommons.org/licenses/by-sa/3.0/
-  (Incidentally the drums (not that their anything special) 
+  (Incidentally the drums (not that they're anything special) 
   were done with Gneutronica, a MIDI-drum sequencer which 
   I wrote, see: http://gneutronica.sourceforge.net )
 
@@ -63,5 +65,5 @@ license.  See: http://creativecommons.org/licenses/by-sa/3.0/
 	flak_gun_sound.ogg
 	bombexplosion.ogg
 	big_explosion.ogg
-	dtox3monomix.ogg
-
+	dtox3monomix.ogg 
+	zzzt.ogg
