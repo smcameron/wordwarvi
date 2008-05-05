@@ -10,9 +10,11 @@ WITHAUDIO=yes
 ifeq (${WITHAUDIO},yes)
 SNDLIBS=-lportaudio -lvorbisfile
 SNDFLAGS=-DWITHAUDIOSUPPORT
+OGGOBJ=ogg_to_pcm.o
 else
 SNDLIBS=
 SNDFLAGS=
+OGGOBJ=
 endif
 
 # DEBUG=-g
@@ -47,9 +49,10 @@ stamp.h:	stamp
 stamp:	stamp.c
 	gcc -o stamp stamp.c	
 
-wordwarvi:	wordwarvi.c joystick.o ogg_to_pcm.o Makefile version.h stamp.h
+wordwarvi:	wordwarvi.c joystick.o ${OGGOBJ} Makefile version.h stamp.h
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall  ${DEFINES} \
-		joystick.o ogg_to_pcm.o \
+		joystick.o \
+		${OGGOBJ} \
 		wordwarvi.c -o wordwarvi -lm ${SNDLIBS} \
 		`pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0` `pkg-config --libs gthread-2.0`
 	/bin/rm stamp.h
