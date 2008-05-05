@@ -239,6 +239,13 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define CRON_SCORE 400		/* score for killing a cron job */
 #define TENTACLE_SCORE 100
 
+#define GROUND_OOPS 64000	/* There are some functions which, given an x value, */
+				/* return the corresponding y value for the terrain */
+				/* at that x value.  For some values of x, there is */
+				/* no y.  The value returned in that case is GROUND_OOPS */
+				/* The functions are: find_ground_level() and */
+				/* approximate_horizon() */
+
 /* some globals... maybe should be in game_state */
 int game_pause = 0;		/* is game paused? */
 int attract_mode = 0;		/* is game in attract mode */
@@ -1927,7 +1934,7 @@ int approximate_horizon(int x, int y, int *last_xi)
 	/* What?  there *is* no correct answer.  Object must have fallen off */
 	/* the edge of the planet. (it happens sometimes -- though that is a bug. ) */
 	*last_xi = -1;
-	return 64000;
+	return GROUND_OOPS;
 }
 	
 void draw_stars(GtkWidget *w)
@@ -3196,7 +3203,7 @@ void humanoid_move(struct game_obj_t *o)
 		o->y += o->vy;
 		o->x += o->vx;
 		gy = find_ground_level(o, NULL);
-		if (gy == -1 || o->y >= gy) {
+		if (gy == GROUND_OOPS || o->y >= gy) {
 			o->y = gy;
 			o->tsd.human.on_ground = 1;
 			add_sound(BODYSLAM_SOUND, ANY_SLOT);
@@ -3365,7 +3372,6 @@ int interpolate(int x, int x1, int y1, int x2, int y2)
 		return (x - x1) * (y2 - y1) / (x2 -x1) + y1;
 }
 
-#define GROUND_OOPS 64000
 int ground_level(int x, int *xi, int *slope)
 {
 
