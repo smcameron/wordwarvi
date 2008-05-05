@@ -9029,8 +9029,12 @@ int initialize_portaudio()
 	printf("Portaudio says the default device is: %d\n", outparams.device);
 
 	if (sound_device != -1) {
-		printf("Using sound device %d\n", sound_device);
-		outparams.device = sound_device;  /* default output device */
+		if (sound_device >= device_count)
+			fprintf(stderr, "wordwarvi:  Invalid sound device "
+				"%d specified, ignoring.\n", sound_device);
+		else
+			outparams.device = sound_device;
+		printf("Using sound device %d\n", outparams.device);
 	}
 
 	if (outparams.device < 0 && device_count > 0) {
