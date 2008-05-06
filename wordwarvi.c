@@ -1806,6 +1806,14 @@ struct game_state_t {
 	int nextlasercolor;
 	int nextchafftime;
 
+	int key_up_pressed;
+	int key_down_pressed;
+	int key_left_pressed;
+	int key_right_pressed;
+	int key_bomb_pressed;
+	int key_chaff_pressed;
+	int key_laser_pressed;
+
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
 
 struct game_obj_t * human[MAXHUMANS];	/* Keep a special array of just the humans so we can scan it quickly */
@@ -8226,6 +8234,7 @@ void timer_expired()
 }
 
 void deal_with_joystick();
+void deal_with_keyboard();
 
 gint advance_game(gpointer data)
 {
@@ -8237,6 +8246,8 @@ gint advance_game(gpointer data)
 
 	if (jsfd >= 0)
 		deal_with_joystick();
+
+	deal_with_keyboard();
 
 	gdk_threads_enter();
 	ndead = 0;
@@ -8333,6 +8344,13 @@ void initialize_game_state_new_level()
 	game_state.nextlasercolor = NCOLORS + NSPARKCOLORS;
 	game_state.nextbombtime = timer;
 	game_state.nextchafftime = timer;
+	game_state.key_up_pressed = 0;
+	game_state.key_down_pressed = 0;
+	game_state.key_left_pressed = 0;
+	game_state.key_right_pressed = 0;
+	game_state.key_bomb_pressed = 0;
+	game_state.key_laser_pressed = 0;
+	game_state.key_chaff_pressed = 0;
 }
 
 void start_level()
@@ -8663,6 +8681,122 @@ no_credits:
 	}
 }
 
+void deal_with_keyboard()
+{
+	static int lastvy_inc = 0;
+
+	if (game_state.health <= 0)
+		return;
+
+	if (credits <= 0)
+		return;
+#if 0
+	printf("u%d d%d l%d r%d\n",
+		game_state.key_up_pressed,
+		game_state.key_down_pressed,
+		game_state.key_left_pressed,
+		game_state.key_right_pressed);
+#endif
+	if (game_state.key_left_pressed) {
+		if (game_state.direction != -1) {
+			player->vx = player->vx / 2;
+			game_state.direction = -1;
+			player->v = &left_player_vect;
+		} else if (abs(player->vx + game_state.direction) < MAX_VX)
+				player->vx += game_state.direction;
+	} else if (game_state.key_right_pressed) {
+		if (game_state.direction != 1) {
+			player->vx = player->vx / 2;
+			game_state.direction = 1;
+			player->v = &player_vect;
+		} else if (abs(player->vx + game_state.direction) < MAX_VX)
+				player->vx += game_state.direction;
+	}
+
+	if (game_state.key_up_pressed) {
+		if (lastvy_inc >= -1)
+			lastvy_inc = -2;
+		if (player->vy > 0) {
+			lastvy_inc--;
+		}
+		player->vy += lastvy_inc;
+		if (timer & 0x01)
+			lastvy_inc--;
+		if (player->vy < -MAX_VY)
+			player->vy = -MAX_VY;
+	} else if (game_state.key_down_pressed) {
+		if (lastvy_inc <= 1)
+			lastvy_inc = 2;
+		if (player->vy > 0) {
+			lastvy_inc++;
+		}
+		player->vy += lastvy_inc;
+		if (timer & 0x01)
+			lastvy_inc++;
+		if (player->vy > MAX_VY)
+			player->vy = MAX_VY;
+	} else {
+		if (player->vy != 0) {
+			if (player->vy < -2)
+				player->vy += 2;
+			else if (player->vy > 2)
+				player->vy -= 2;
+			else
+				player->vy = 0;
+		}
+	}
+
+	if (game_state.key_bomb_pressed)
+		drop_bomb();
+
+	if (game_state.key_laser_pressed)
+		player_fire_laser();
+
+	if (game_state.key_chaff_pressed)
+		drop_chaff();
+}
+
+static gint key_release_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
+{
+	switch (event->keyval) {
+	case GDK_j:
+	case GDK_Down:
+		game_state.key_down_pressed = 0;
+		return TRUE;
+	case GDK_k:
+	case GDK_Up:
+		game_state.key_up_pressed = 0;
+		return TRUE;
+	case GDK_l:
+	case GDK_Right:
+	case GDK_period:
+	case GDK_greater:
+		game_state.key_right_pressed = 0;
+		return TRUE;
+	case GDK_h:
+	case GDK_Left:
+	case GDK_comma:
+	case GDK_less:
+		game_state.key_left_pressed = 0;
+		return TRUE;
+	case GDK_space:
+	case GDK_z:
+		game_state.key_laser_pressed = 0;
+		return TRUE;
+	case GDK_c:
+		game_state.key_chaff_pressed = 0;
+		return TRUE;
+	case GDK_b:
+		game_state.key_bomb_pressed = 0;
+		return TRUE;
+	default:
+		break;
+	}
+	return FALSE;
+}
+
+
+
 static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 {
 	/* char *x = (char *) data; */
@@ -8718,26 +8852,29 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 	case GDK_q:
 		insert_quarter();
 		return TRUE;
-#if 0
-	case GDK_Home:
-		printf("The Home key was pressed.\n");
-		return TRUE;
-#endif
 	case GDK_j:
 	case GDK_Down:
+		game_state.key_down_pressed = 1;
+#if 0
 		if (player->vy < MAX_VY && game_state.health > 0 && credits > 0)
 			player->vy += 4 * game_state.cmd_multiplier;
 		game_state.cmd_multiplier = 1;
+#endif
 		return TRUE;
 	case GDK_k:
 	case GDK_Up:
+		game_state.key_up_pressed = 1;
+#if 0
 		if (player->vy > -MAX_VY && game_state.health > 0 && credits > 0)
 			player->vy -= 4 * game_state.cmd_multiplier;
+#endif
 		return TRUE;
 	case GDK_l:
 	case GDK_Right:
 	case GDK_period:
 	case GDK_greater: {
+		game_state.key_right_pressed = 1;
+#if 0
 		int i;
 
 		for (i=0;i<game_state.cmd_multiplier;i++) {
@@ -8751,12 +8888,15 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 					player->vx += game_state.direction;
 		}
 		game_state.cmd_multiplier = 1;
+#endif
 		return TRUE;
 	}
 	case GDK_h:
 	case GDK_Left:
 	case GDK_comma:
 	case GDK_less: {
+		game_state.key_left_pressed = 1;
+#if 0
 		int i;
 
 		for (i=0;i<game_state.cmd_multiplier;i++) {
@@ -8770,15 +8910,13 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 					player->vx += game_state.direction;
 		}
 		game_state.cmd_multiplier = 1;
+#endif
 		return TRUE;
 	}
 	case GDK_space:
 	case GDK_z:
-		if (game_state.health <= 0 || credits <= 0)
-			return TRUE;
-		player_fire_laser();
+		game_state.key_laser_pressed = 1;
 		return TRUE;
-		break;	
 	case GDK_x:
 		if (game_state.health <= 0 || credits <= 0)
 			return TRUE;
@@ -8786,13 +8924,11 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 			player->vx += game_state.direction;
 		return TRUE;
 
-	case GDK_c: if (game_state.health <= 0 || credits <= 0)
-			return TRUE;
-		drop_chaff();
+	case GDK_c:
+		game_state.key_chaff_pressed = 1;
 		return TRUE;
-	case GDK_b: if (game_state.health <= 0 || credits <= 0)
-			return TRUE;
-		drop_bomb();
+	case GDK_b: 
+		game_state.key_bomb_pressed = 1;
 		return TRUE;
 	case GDK_p:
 		// if (game_state.health <= 0 || credits <= 0)
@@ -9607,6 +9743,8 @@ int main(int argc, char *argv[])
 	
 	g_signal_connect(G_OBJECT (window), "key_press_event",
 		G_CALLBACK (key_press_cb), "window");
+	g_signal_connect(G_OBJECT (window), "key_release_event",
+		G_CALLBACK (key_release_cb), "window");
 
 
 	// print_target_list();
