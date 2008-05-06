@@ -1710,6 +1710,7 @@ struct kgun_data {
 	int invert;	/* 1 means hanging upside down, -1, means mounted on ground. */
 	int size;	/* between 0 and 31, 31 being the biggest. */
 	int velocity_factor; /* smaller guns shoot slower, unless corrected by velocity factor */
+	int recoil_amount; /* when shooting, set to 10, then decrement to 0 each frame. */
 };
 
 union type_specific_data {		/* union of all the typs specific data */
@@ -2165,6 +2166,7 @@ void kgun_move(struct game_obj_t *o)
 		randomn(chance) < level.laser_fire_chance) {
 		/* we're going to fire the laser... */
 		add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
+		o->tsd.kgun.recoil_amount = 7;
 
 		/* Find x,y dist to player... */
 		dx = player->x+LASERLEAD*player->vx - o->x;
@@ -5879,6 +5881,7 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 	int thickxo, thickyo;
 	int size = o->tsd.kgun.size;
 	int invert = o->tsd.kgun.invert;
+	int recoilx, recoily;
 
 	draw_generic(o, w);
 	/* Find x and y dist to player.... */
@@ -5957,43 +5960,58 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 	gunbackx = -guntipx;
 	gunbacky = -guntipy;
 
+	recoilx = 0;
+	recoily = 0;
+
+	if (o->tsd.kgun.recoil_amount != 0) {
+		recoilx = gunbackx;
+		recoily = gunbacky;
+
+		recoilx = (recoilx * (10 - o->tsd.kgun.recoil_amount)) >> 3;
+		recoily = (recoily * (10 - o->tsd.kgun.recoil_amount)) >> 3;
+		o->tsd.kgun.recoil_amount--;
+	}
+
 	thickxo = -gunbacky >> 2; /* notice reversed x,y coords here, to get normal (right angle). */
 	thickyo = gunbackx >> 2;  /* gun butt is 1/4 as thick as it is long. */
 
 	guntipx = guntipx << 1; /* gun barrel is 2x as long as the butt of the gun. */
 	guntipy = guntipy << 1;
 
-	/* guntipy *= invert;
-	gunbacky *= invert;
-	thickyo *= invert; */
+	guntipx += crossbeam_x1 + recoilx;
+	gunbackx += crossbeam_x1 + recoilx;
+	guntipy += crossbeam_y + recoily;
+	gunbacky += crossbeam_y + recoily;
 
-	guntipx += crossbeam_x1;
-	gunbackx += crossbeam_x1;
-	guntipy += crossbeam_y;
-	gunbacky += crossbeam_y;
-	
+	/* draw the crossbeam */	
 	wwvi_draw_line(w->window, gc, crossbeam_x1, crossbeam_y, crossbeam_x2, crossbeam_y);
 
+	/* draw the main barrels */
 	wwvi_draw_line(w->window, gc, gunbackx, gunbacky, guntipx, guntipy);
 	wwvi_draw_line(w->window, gc, gunbackx+xoffset, gunbacky, guntipx+xoffset, guntipy);
 
+	/* draw the back edges of the gun butts */
 	wwvi_draw_line(w->window, gc, gunbackx-thickxo, gunbacky-thickyo, 
 			gunbackx+thickxo, gunbacky+thickyo);
 	wwvi_draw_line(w->window, gc, gunbackx-thickxo+xoffset, gunbacky-thickyo, 
 			gunbackx+thickxo+xoffset, gunbacky+thickyo);
-	wwvi_draw_line(w->window, gc, crossbeam_x1-thickxo, crossbeam_y-thickyo, 
-			crossbeam_x1+thickxo, crossbeam_y+thickyo);
-	wwvi_draw_line(w->window, gc, crossbeam_x1-thickxo+xoffset, crossbeam_y-thickyo, 
-			crossbeam_x1+thickxo+xoffset, crossbeam_y+thickyo);
+	/* draw the front edges of the gun butts */
+	wwvi_draw_line(w->window, gc, crossbeam_x1-thickxo+recoilx, crossbeam_y-thickyo+recoily, 
+			crossbeam_x1+thickxo+recoilx, crossbeam_y+thickyo+recoily);
+	wwvi_draw_line(w->window, gc, crossbeam_x1-thickxo+xoffset+recoilx, 
+			crossbeam_y-thickyo+recoily, 
+			crossbeam_x1+thickxo+xoffset+recoilx, 
+			crossbeam_y+thickyo+recoily);
 
+	/* draw the long sides of the gun butts */
 	wwvi_draw_line(w->window, gc, gunbackx-thickxo, gunbacky-thickyo, 
-			crossbeam_x1-thickxo, crossbeam_y-thickyo);
+			crossbeam_x1-thickxo+recoilx, crossbeam_y-thickyo+recoily);
 	wwvi_draw_line(w->window, gc, gunbackx-thickxo+xoffset, gunbacky-thickyo, 
-			crossbeam_x1-thickxo+xoffset, crossbeam_y-thickyo);
+			crossbeam_x1-thickxo+xoffset+recoilx, crossbeam_y-thickyo+recoily);
 	wwvi_draw_line(w->window, gc, gunbackx+thickxo, gunbacky+thickyo, 
-			crossbeam_x1+thickxo, crossbeam_y+thickyo);
+			crossbeam_x1+thickxo+recoilx, crossbeam_y+thickyo+recoily);
 	wwvi_draw_line(w->window, gc, gunbackx+thickxo+xoffset, gunbacky+thickyo, 
-			crossbeam_x1+thickxo+xoffset, crossbeam_y+thickyo);
+			crossbeam_x1+thickxo+xoffset+recoilx, crossbeam_y+thickyo+recoily);
 	
 }
 
