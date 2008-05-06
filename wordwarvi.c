@@ -8720,7 +8720,7 @@ void deal_with_keyboard()
 			lastvy_inc--;
 		}
 		player->vy += lastvy_inc;
-		if (timer & 0x01)
+		if ((timer & 0x03) == 3)
 			lastvy_inc--;
 		if (player->vy < -MAX_VY)
 			player->vy = -MAX_VY;
@@ -8731,12 +8731,17 @@ void deal_with_keyboard()
 			lastvy_inc++;
 		}
 		player->vy += lastvy_inc;
-		if (timer & 0x01)
+		if ((timer & 0x03) == 3)
 			lastvy_inc++;
 		if (player->vy > MAX_VY)
 			player->vy = MAX_VY;
 	} else {
-		if (player->vy != 0) {
+		/* Damp vy, but, only if they don't have a joystick. */
+		/* the joystick code will damp vy, and we don't want */
+		/* to damp it 2x if they have a joystick.  But, if they */
+		/* don't have a joystick... damp it extra hard. */
+		/* simply because the joystic has better control. */
+		if (player->vy != 0 && jsfd < 0) {
 			if (player->vy < -2)
 				player->vy += 2;
 			else if (player->vy > 2)
@@ -8744,6 +8749,7 @@ void deal_with_keyboard()
 			else
 				player->vy = 0;
 		}
+		lastvy_inc = 0;
 	}
 
 	if (game_state.key_bomb_pressed)
