@@ -6191,16 +6191,16 @@ void draw_objs(GtkWidget *w)
 			continue;
 		if (o->y > (game_state.y + (SCREEN_HEIGHT)))
 			continue;
-
 #if 0
-		if (o->v == &spark_vect)
-			printf("s");
-		if (o->v == &player_vect)
-			printf("p");
-		if (o->v == &rocket_vect)
-			printf("r");
+		/* some code for debugging the target list */
+		if (o->target) {
+			gdk_gc_set_foreground(gc, &huex[WHITE]);
+			x1 = o->x - game_state.x;
+			y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
+			wwvi_draw_line(w->window, gc, x1-5, y1, x1+5, y1);
+			wwvi_draw_line(w->window, gc, x1, y1-5, x1, y1+5);
+		}
 #endif
-
 		/* If there's no special drawing function, and the object has */
 		/* a list of line segments to draw, draw them.  This is an */
 		/* inline version of the draw_generic function. */
