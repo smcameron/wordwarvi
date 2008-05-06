@@ -9347,6 +9347,26 @@ void paint_it_black()
 	}
 }
 
+void paint_it_blue()
+{
+	int i;
+	unsigned int avg;
+	printf("paint it blue.\n");
+	for (i=0;i<NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS;i++) {
+		avg = huex[i].red + huex[i].green + huex[i].blue;
+		avg = avg / 3;
+		if (avg > 200) {
+			huex[i].red = 32767*2;
+			huex[i].green = 32767*2;
+			huex[i].blue = 32767*2;
+		} else {
+			huex[i].red = 0;
+			huex[i].green = 0;
+			huex[i].blue = 32767/2;
+		}
+	}
+}
+
 static struct option wordwarvi_options[] = {
 	{ "bw", 0, NULL, 0 },
 	{ "sounddevice", 1, NULL, 1 },
@@ -9356,6 +9376,7 @@ static struct option wordwarvi_options[] = {
 	{ "height", 1, NULL, 5 },
 	{ "framerate", 1, NULL, 6 },
 	{ "nostarfield", 0, NULL, 7 },
+	{ "blueprint", 0, NULL, 8 },
 	{ NULL, 0, NULL, 0 },
 };
 
@@ -9384,6 +9405,7 @@ int main(int argc, char *argv[])
 	GdkRectangle cliprect;
 	int i;
 	int no_colors_any_more = 0;
+	int blueprint = 0;
 	int opt;
 
 	struct timeval tm;
@@ -9484,6 +9506,9 @@ int main(int argc, char *argv[])
 			case 7: /* --nostarfield */
 				want_starfield = 0;
 				break;
+			case 8: /* --blueprint */
+				blueprint = 1;
+				break;
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
@@ -9525,6 +9550,8 @@ int main(int argc, char *argv[])
 
 	if (no_colors_any_more)
 		paint_it_black();
+	if (blueprint)
+		paint_it_blue();
  
     /* create a new window */
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
