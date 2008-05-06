@@ -2152,6 +2152,7 @@ void kgun_move(struct game_obj_t *o)
 	int size = o->tsd.kgun.size;
 	int velocityfactor = o->tsd.kgun.velocity_factor;
 	int invert = o->tsd.kgun.invert;
+	int recoilx, recoily;
 
 
 	xdist = abs(o->x - player->x); /* in range? */
@@ -2247,6 +2248,14 @@ void kgun_move(struct game_obj_t *o)
 		if (dx < 0)
 			guntipx = -guntipx;
 
+		recoilx = -guntipx;
+		recoily = -guntipy;
+
+		if (o->tsd.kgun.recoil_amount != 0) {
+			recoilx = (recoilx * (o->tsd.kgun.recoil_amount)) >> 3;
+			recoily = (recoily * (o->tsd.kgun.recoil_amount)) >> 3;
+		}
+
 		vx = guntipx * velocityfactor;
 		vy = guntipy * velocityfactor;
 
@@ -2256,8 +2265,8 @@ void kgun_move(struct game_obj_t *o)
 		guntipx += crossbeam_x1;
 		guntipy += crossbeam_y;
 		
-		add_laserbolt(guntipx, guntipy, vx, vy, RED, 50);
-		add_laserbolt(guntipx+xoffset, guntipy, vx, vy, RED, 50);
+		add_laserbolt(guntipx + recoilx, guntipy + recoily, vx, vy, RED, 50);
+		add_laserbolt(guntipx+xoffset + recoilx, guntipy + recoily, vx, vy, RED, 50);
 	}
 }
 
@@ -5967,8 +5976,8 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 		recoilx = gunbackx;
 		recoily = gunbacky;
 
-		recoilx = (recoilx * (10 - o->tsd.kgun.recoil_amount)) >> 3;
-		recoily = (recoily * (10 - o->tsd.kgun.recoil_amount)) >> 3;
+		recoilx = (recoilx * (o->tsd.kgun.recoil_amount)) >> 3;
+		recoily = (recoily * (o->tsd.kgun.recoil_amount)) >> 3;
 		o->tsd.kgun.recoil_amount--;
 	}
 
