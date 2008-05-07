@@ -633,6 +633,10 @@ struct my_point_t bullet_points[] = {
 	{ 4, 0 },
 	{ 0, 4 },
 	{ -4, 0 },
+	{ 4, 0 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 0, -4 },
+	{ 0, 4},
 };
 
 struct my_point_t gdb_points_left[] = {
