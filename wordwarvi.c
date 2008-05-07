@@ -158,6 +158,8 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define MAX_VY 25			/* Max player y speed, pixels per frame. */
 #define LASER_FIRE_CHANCE 20		/* INITIAL chance/1000 that flak guns (laser turrets) will fire if in range */
 #define LASERLEAD (11)			/* How many pixels left/right to lead the player in aiming flak guns */	
+#define LASERLEADX (11)			/* How many pixels left/right to lead the player in aiming flak guns */	
+#define LASERLEADY (0)			/* How many pixels up/down to lead the player in aiming flak guns */	
 #define LASER_SPEED 50			/* Speed of player's laser beams, pixels/frame */
 #define LASER_PROXIMITY 300
 #define LASER_Y_PROXIMITY 8
@@ -2184,41 +2186,11 @@ void kgun_move(struct game_obj_t *o)
 		o->tsd.kgun.recoil_amount = 7;
 
 		/* Find x,y dist to player... */
-		dx = player->x+LASERLEAD*player->vx - o->x;
-		dy = player->y+LASERLEAD*player->vy - o->y;
+		dx = player->x+LASERLEADX*player->vx - o->x;
+		dy = player->y+LASERLEADY*player->vy - o->y;
 
 		adx = abs(dx);
 		ady = abs(dy);
-
-#if 0
-		/* whichever is farther, x or y, make that vx or vy be the max */
-		/* then calculate the other one by similar triangles. */
-		if (dy <= 0) {
-			if (player->x+player->vx*LASERLEAD < o->x)
-				bx = -20;
-			else
-				bx = 20;
-			by = 0;
-		} else if (dx == 0) {
-			bx = -0;
-			by = 20;
-		} else if (abs(dx) > abs(dy)) {
-			if (player->x+player->vx*LASERLEAD < o->x)
-				bx = -20;
-			else
-				bx = 20;
-			by = abs((20*dy)/dx);
-		} else {
-			by = 20;
-			/* if (player->x < o->x)
-				bx = -20;
-			else
-				bx = 20; */
-			bx = (20*dx)/dy;
-		}
-		x1 = o->x-5;
-		y1 = o->y+5;  
-#endif
 
 		x1 = o->x-5;
 		y1 = o->y+(5*invert);  
@@ -6102,8 +6074,8 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 
 	draw_generic(o, w);
 	/* Find x and y dist to player.... */
-	dx = player->x+LASERLEAD*player->vx - o->x;
-	dy = player->y+LASERLEAD*player->vy - o->y;
+	dx = player->x+LASERLEADX*player->vx - o->x;
+	dy = player->y+LASERLEADY*player->vy - o->y;
 
 	x1 = o->x-5 - game_state.x;
 	y1 = o->y+(5*invert) - game_state.y + (SCREEN_HEIGHT/2);  
