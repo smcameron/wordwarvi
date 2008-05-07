@@ -2289,10 +2289,11 @@ static void add_missile(int x, int y, int vx, int vy,
 static void add_harpoon(int x, int y, int vx, int vy, 
 	int time, int color, struct game_obj_t *bullseye,
 	struct game_obj_t *gdb);
+int find_ground_level(struct game_obj_t *o, int *slope);
 
 void move_rocket(struct game_obj_t *o)
 {
-	int xdist, ydist;
+	int xdist, ydist, gl;
 	if (!o->alive)
 		return;
 
@@ -2324,6 +2325,17 @@ void move_rocket(struct game_obj_t *o)
 		else 
 			o->vx = 0;
 
+		/* It's possible a gravity bomb smashes the rocket */
+		/* into the ground. */
+		gl = find_ground_level(o, NULL);
+		if (o->y > gl) {
+			add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+			explode(o->x, o->y, o->vx, 1, 70, 150, 20);
+			kill_object(o);
+			remove_target(o->target);
+			return;
+		}
+
 		ydist = o->y - player->y;
 		if ((ydist*ydist + xdist*xdist) < 400) { /* hit the player? */
 			add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
@@ -2339,8 +2351,13 @@ void move_rocket(struct game_obj_t *o)
 	/* move the rocket... */
 	o->x += o->vx;
 	o->y += o->vy;
-	if (o->vy != 0)
+	if (o->vy != 0) {
 		explode(o->x, o->y, 0, 9, 8, 7, 13); /* spray out some exhaust */
+		/* a gravity bomb might pick up the rocket... this prevents */
+		/* it from being left stranded in space, not moving. */
+		if (o->alive == 1)
+			o->alive = 2;
+	}
 	if (o->y - player->y < -1000 && o->vy != 0) {
 		/* if the rocket is way off the top of the screen, just forget about it. */
 		kill_object(o);
@@ -2607,8 +2624,6 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 		}
 	}
 }
-
-int find_ground_level(struct game_obj_t *o, int *slope);
 
 void tentacle_move(struct game_obj_t *o) 
 {
@@ -3106,6 +3121,10 @@ void gdb_move(struct game_obj_t *o)
 
 	if (!o->alive)
 		return;
+
+	/* If a gravity bomb has picked up the gdb, wake him up. */
+	if ((o->vx != 0 || o->vy != 0) && !o->tsd.gdb.awake)
+		o->tsd.gdb.awake = 1;
 
 	if (o->tsd.gdb.awake) {
 		gy = find_ground_level(o, NULL);
@@ -3784,7 +3803,8 @@ void gravity_bomb_move(struct game_obj_t *o)
 		return;
 	o->x += o->vx;
 	o->y += o->vy;
-	o->vy++; /* gravity */
+	if (timer & 0x01)
+		o->vy++; /* light gravity */
 
 	for (i=0;i<8;i++) {
 		int vx, vy, rx, ry;
@@ -9225,7 +9245,7 @@ int read_ogg_clip(int clipnum, char *filename)
 	printf("sections = %d\n", sfinfo.sections);
 	printf("seekable = %d\n", sfinfo.seekable);
 */
-	rc = ogg_to_pcm(filebuf, (uint16_t **) &clip[clipnum].sample, &samplesize,
+	rc = ogg_to_pcm(filebuf, &clip[clipnum].sample, &samplesize,
 		&sample_rate, &nchannels, &nframes);
 	if (clip[clipnum].sample == NULL) {
 		printf("Can't get memory for sound data for %llu frames in %s\n", 
