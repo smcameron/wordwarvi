@@ -194,6 +194,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define NSAMS 3			/* Initial number of SAM stations sprinkled through the terrain */
 #define BOMB_SPEED 10		/* differential x velocity of bomb as it leaves player's ship */
 #define NBOMBS 100		/* Number of bombs allocated to player at beginning of levels */
+#define NGBOMBS 3		/* Number of gravity bombs allocated at beginning of levels */
 
 #define MAX_ALT 100		/* for "attract mode", max altitude above ground player flies. */
 #define MIN_ALT 50		/* for "attract mode", min altitude above ground player flies. */
@@ -369,6 +370,7 @@ struct level_parameters_t {
 	int nhumanoids;
 	int nbuildings;
 	int nbombs;
+	int ngbombs;
 	int nairships;
 	int nworms;
 	int nkguns;
@@ -397,6 +399,7 @@ struct level_parameters_t {
 	NHUMANOIDS,
 	NBUILDINGS,
 	NBOMBS,
+	NGBOMBS,
 	NAIRSHIPS,
 	NWORMS,
 	NKGUNS,
@@ -1779,6 +1782,7 @@ struct game_state_t {
 	int score;			/* Player's score */
 	int prev_score;			/* Used to detect changes in score for drawing routine efficiency. */
 	int nbombs;			/* number of bombs in the player's possession */
+	int ngbombs;			/* number of bombs in the player's possession */
 	int prev_bombs;			/* Used to detect changes in bombs for drawing routine efficiency */
 	int humanoids;			/* Number of humanoids the player has picked up */
 	int gdbs_killed;		/* etc.*/
@@ -1802,6 +1806,7 @@ struct game_state_t {
 #define     RADAR_FRITZED (-1)
 #define     RADAR_BOOTUP (5 * frame_rate_hz) /* How long it takes the radar to boot up. */
 	int nextbombtime;
+	int nextgbombtime;
 	int nextlasertime;
 	int nextlasercolor;
 	int nextchafftime;
@@ -1811,6 +1816,7 @@ struct game_state_t {
 	int key_left_pressed;
 	int key_right_pressed;
 	int key_bomb_pressed;
+	int key_gbomb_pressed;
 	int key_chaff_pressed;
 	int key_laser_pressed;
 
@@ -3760,6 +3766,144 @@ void bomb_move(struct game_obj_t *o)
 	}
 }
 
+static void add_spark(int x, int y, int vx, int vy, int time);
+
+#define GRAVITY_BOMB_X_INFLUENCE 400
+#define GRAVITY_BOMB_Y_INFLUENCE 400
+#define GRAVITY_BOMB_HIT_DIST2 (30*30) 
+
+void gravity_bomb_move(struct game_obj_t *o)
+{
+	int deepest;
+	int dist2;
+	struct game_obj_t *t;
+	int xdist, ydist;
+	int i;
+
+	if (!o->alive)
+		return;
+	o->x += o->vx;
+	o->y += o->vy;
+	o->vy++; /* gravity */
+
+	for (i=0;i<8;i++) {
+		int vx, vy, rx, ry;
+		vx = randomn(10) - (10>>1) + o->vx;
+		vy = randomn(10) - (10>>1) + o->vy;
+		rx = randomn(400) - (400>>1);
+		ry = randomn(400) - (400>>1);
+		add_spark(o->x + rx, o->y + ry, vx, vy, 8); 
+	}
+
+	/* start with 1, skip the player. */
+	for (i=1;i<MAXOBJS;i++) {
+		t = &game_state.go[i];
+		if (t == player)
+			continue;
+		if (t == o) /* bomb_move things can't bomb themselves. */
+			continue;
+		if (!t->alive)
+			continue;
+
+		xdist = t->x - o->x;
+		if (abs(xdist) > GRAVITY_BOMB_X_INFLUENCE)
+			continue;
+
+		ydist = t->y - o->y;
+		if (abs(ydist) > GRAVITY_BOMB_Y_INFLUENCE)
+			continue;
+		
+		switch (t->otype) {
+			case OBJ_TYPE_BRIDGE:
+				t->move = bridge_move;
+			case OBJ_TYPE_SPARK:
+			case OBJ_TYPE_ROCKET:
+			case OBJ_TYPE_MISSILE:
+			case OBJ_TYPE_HARPOON:
+			case OBJ_TYPE_CRON:
+			case OBJ_TYPE_DEBRIS:
+			case OBJ_TYPE_GDB:
+			case OBJ_TYPE_SYMBOL:
+			case OBJ_TYPE_OCTOPUS: {
+				int dvx, dvy;
+
+				aim_vx_vy(o, t, 10, 0, &dvx, &dvy);
+
+				t->vx += dvx;
+				t->vy += dvy;
+				t->x += dvx;
+				t->y += dvy;
+
+				/* find distance squared... don't take square root. */
+				dist2 = (xdist * xdist + ydist * ydist);
+				if (dist2 < GRAVITY_BOMB_HIT_DIST2) {
+					if (t->otype == OBJ_TYPE_ROCKET) {
+						game_state.score += ROCKET_SCORE;
+						add_score_floater(t->x, t->y, ROCKET_SCORE);
+					} else if (t->otype == OBJ_TYPE_SAM_STATION) { 
+						game_state.score += SAM_SCORE;
+						add_score_floater(t->x, t->y, SAM_SCORE);
+					} else if (t->otype == OBJ_TYPE_GDB) { 
+						game_state.score += GDB_SCORE;
+						add_score_floater(t->x, t->y, GDB_SCORE);
+					} else if (t->otype == OBJ_TYPE_KGUN) { 
+						game_state.score += FLAK_SCORE;
+						add_score_floater(t->x, t->y, FLAK_SCORE);
+					} else if (t->otype == OBJ_TYPE_GUN) { 
+						game_state.score += FLAK_SCORE;
+						add_score_floater(t->x, t->y, FLAK_SCORE);
+					} else if (t->otype == OBJ_TYPE_OCTOPUS) { 
+						game_state.score += OCTOPUS_SCORE;
+						add_score_floater(t->x, t->y, OCTOPUS_SCORE);
+					} else if (t->otype == OBJ_TYPE_CRON) { 
+						game_state.score += CRON_SCORE;
+						add_score_floater(t->x, t->y, CRON_SCORE);
+					}
+					// add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
+					// explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+					// spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
+					t->destroy(t);
+					if (t->target) 
+						remove_target(t->target);
+					kill_object(t);
+
+					/* I think this stuff should be moved into the above similar ifs... */
+					if (t->otype == OBJ_TYPE_SAM_STATION)
+						game_state.sams_killed++;
+					else if (t->otype == OBJ_TYPE_ROCKET)
+						game_state.rockets_killed++;
+					else if (t->otype == OBJ_TYPE_MISSILE || 
+						t->otype == OBJ_TYPE_HARPOON)
+						game_state.missiles_killed++;
+					else if (t->otype == OBJ_TYPE_OCTOPUS)
+						game_state.octos_killed++;
+					else if (t->otype == OBJ_TYPE_GDB)
+						game_state.gdbs_killed++;
+					else if (t->otype == OBJ_TYPE_CRON)
+						game_state.crons_killed++;
+					else if (t->otype == OBJ_TYPE_GUN)
+						game_state.guns_killed++;
+				}
+			}
+			default:
+				break;
+		}
+	}
+
+	/* Detect smashing into the ground */
+	deepest = find_ground_level(o, NULL);
+	if (deepest != GROUND_OOPS && o->y > deepest) {
+		kill_object(o);
+		o->destroy(o);
+	}
+	/* if bomb exploded, it's dead and gone. */
+	if (!o->alive) {
+		remove_target(o->target);
+		o->target = NULL;
+		kill_object(o);
+	}
+}
+
 // static void corrosive_atmosphere_sound();
 void volcano_move(struct game_obj_t *o)
 {
@@ -3899,6 +4043,43 @@ void drop_bomb()
 		o->otype = OBJ_TYPE_BOMB;
 		o->target = add_target(o);
 		o->color = ORANGE;
+		o->alive = 20;
+	}
+	game_state.cmd_multiplier = 1;
+}
+
+void drop_gravity_bomb()
+{
+	int i, j;
+	struct game_obj_t *o;
+
+	if (game_state.nextgbombtime > timer)
+		return;
+	game_state.nextgbombtime = timer + (frame_rate_hz >> 2);
+
+	/* Player drops cmd_multiplier bombs.  */
+	for (j=0;j<game_state.cmd_multiplier;j++) {
+		if (game_state.ngbombs == 0)
+			return;
+		game_state.ngbombs--;
+	
+		i = find_free_obj();
+		if (i < 0)
+			return;
+
+		o = &game_state.go[i];
+		o->last_xi = -1;
+		o->x = player->x+(5 * game_state.direction);
+		o->y = player->y;
+		o->vx = player->vx + BOMB_SPEED * game_state.direction + (j*3*game_state.direction);
+		o->vy = player->vy;
+		o->v = NULL;
+		o->move = gravity_bomb_move;
+		o->draw = NULL;
+		o->destroy = generic_destroy_func;
+		o->otype = OBJ_TYPE_BOMB;
+		o->target = add_target(o);
+		o->color = WHITE;
 		o->alive = 20;
 	}
 	game_state.cmd_multiplier = 1;
@@ -5515,7 +5696,6 @@ void move_spark(struct game_obj_t *o)
 	}
 }
 
-static void add_spark(int x, int y, int vx, int vy, int time);
 
 /* Make a bunch of sparks going in random directions. 
  * x, and y are where, ivx,ivy are initial vx, vy, v is the
@@ -8329,6 +8509,7 @@ void initialize_game_state_new_level()
 	game_state.prev_score = 0;
 	game_state.health = MAXHEALTH;
 	game_state.nbombs = level.nbombs;
+	game_state.ngbombs = level.ngbombs;
 	game_state.prev_bombs = -1;
 	game_state.gdbs_killed = 0;
 	game_state.crons_killed = 0;
@@ -8349,6 +8530,7 @@ void initialize_game_state_new_level()
 	game_state.key_left_pressed = 0;
 	game_state.key_right_pressed = 0;
 	game_state.key_bomb_pressed = 0;
+	game_state.key_gbomb_pressed = 0;
 	game_state.key_laser_pressed = 0;
 	game_state.key_chaff_pressed = 0;
 }
@@ -8389,6 +8571,7 @@ void start_level()
 	player->otype = OBJ_TYPE_PLAYER;
 	game_state.health = MAXHEALTH;
 	game_state.nbombs = level.nbombs;
+	game_state.ngbombs = level.ngbombs;
 	game_state.prev_bombs = -1;
 	game_state.nobjs = MAXOBJS-1;
 	game_state.x = 0;
@@ -8440,6 +8623,7 @@ void init_levels_to_beginning()
 	level.nworms = NWORMS;
 	level.nbuildings = NBUILDINGS;
 	level.nbombs = NBOMBS;
+	level.ngbombs = NGBOMBS;
 	level.nhumanoids = NHUMANOIDS;
 	level.nkguns = NKGUNS;
 	if (credits > 0) {
@@ -8653,8 +8837,12 @@ void deal_with_joystick()
 		drop_chaff();
 	}
 
-	/* buttons 8 or 9 on joystick will put in a quarter. */
-	if ((jse.button[8] == 1 || jse.button[9] == 1) && timer > next_quarter_time) {
+	if (jse.button[9] == 1) {
+		drop_gravity_bomb();
+	}
+
+	/* button 8 on joystick will put in a quarter. */
+	if ((jse.button[8] == 1) && timer > next_quarter_time) {
 		insert_quarter();
 		next_quarter_time = timer + (frame_rate_hz);
 	}
@@ -8755,6 +8943,9 @@ void deal_with_keyboard()
 	if (game_state.key_bomb_pressed)
 		drop_bomb();
 
+	if (game_state.key_gbomb_pressed)
+		drop_gravity_bomb();
+
 	if (game_state.key_laser_pressed)
 		player_fire_laser();
 
@@ -8794,6 +8985,9 @@ static gint key_release_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		return TRUE;
 	case GDK_b:
 		game_state.key_bomb_pressed = 0;
+		return TRUE;
+	case GDK_g:
+		game_state.key_gbomb_pressed = 0;
 		return TRUE;
 	default:
 		break;
@@ -8935,6 +9129,9 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		return TRUE;
 	case GDK_b: 
 		game_state.key_bomb_pressed = 1;
+		return TRUE;
+	case GDK_g: 
+		game_state.key_gbomb_pressed = 1;
 		return TRUE;
 	case GDK_p:
 		// if (game_state.health <= 0 || credits <= 0)
