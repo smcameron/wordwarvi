@@ -9158,6 +9158,8 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		//	return TRUE;
 		do_game_pause(widget, NULL);
 		return TRUE;
+#if 0
+	/* just for debugging. */
 	case GDK_n:
 		if (game_state.health <= 0 || credits <= 0)
 			return TRUE;
@@ -9174,15 +9176,13 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		timer_event = START_INTERMISSION_EVENT;
 		next_timer = timer + 1;
 		return TRUE;
-#if 0
-/* These two just for testing... */
 	case GDK_R:
 		start_level();
 		break;
 	case GDK_A:
 		advance_level();
 		break;
-/* The above 2 just for testing */
+/* The above just for testing */
 #endif
 	default:
 		break;
