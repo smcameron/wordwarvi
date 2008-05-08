@@ -3784,10 +3784,12 @@ void gravity_bomb_move(struct game_obj_t *o)
 
 	for (i=0;i<8;i++) {
 		int vx, vy, rx, ry;
-		vx = randomn(10) - (10>>1) + o->vx;
-		vy = randomn(10) - (10>>1) + o->vy;
+		// vx = randomn(10) - (10>>1) + o->vx;
+		// vy = randomn(10) - (10>>1) + o->vy;
 		rx = randomn(400) - (400>>1);
 		ry = randomn(400) - (400>>1);
+		vx = ry >> 3;
+		vy = rx >> 3;
 		add_spark(o->x + rx, o->y + ry, vx, vy, 8); 
 	}
 
