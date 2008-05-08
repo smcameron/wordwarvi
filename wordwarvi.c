@@ -8071,6 +8071,15 @@ void draw_radar(GtkWidget *w)
 	sprintf(statusstr, "Humans:      %d/%d", game_state.humanoids, level.nhumanoids);
 	abs_xy_draw_string(w, statusstr, TINY_FONT, x2 + 5, y1 + 63);
 
+	if (game_pause) {
+		gdk_gc_set_foreground(gc, &huex[GREEN]);
+
+		/* Remember Parsec on the ti99/4a? */
+		abs_xy_draw_string(w, "Time warp activated.", 
+			TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2-10);
+		return;
+	}
+
 	if (game_state.radar_state == RADAR_RUNNING)
 		return;
 
@@ -8078,7 +8087,8 @@ void draw_radar(GtkWidget *w)
 		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS+NRAINBOWCOLORS)]);
 		wwvi_draw_line(w->window, gc, x1, y1 + timer % RADAR_HEIGHT, 
 			x2,  y1 + timer % RADAR_HEIGHT);
-	} else if (game_state.radar_state <= RADAR_BOOTUP) { /* radar is booting up, display bootup message. */
+	} else if (game_state.radar_state <= RADAR_BOOTUP) { 
+		/* radar is booting up, display bootup message. */
 		gdk_gc_set_foreground(gc, &huex[GREEN]);
 		radar_msg1[0] = spinner[timer % 16];
 		abs_xy_draw_string(w, radar_msg1, TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2-10);
@@ -8175,8 +8185,13 @@ static void do_game_pause( GtkWidget *widget,
 {
 	if (game_pause)
 		game_pause = 0;
-	else
+	else {
 		game_pause = 1;
+		/* Queue a redraw, otherwise, we won't necessarily get a */
+		/* redraw. Need this for the "Time warp activated."      */
+		/* message to appear in the radar screen. */
+		gtk_widget_queue_draw(main_da);
+	}
 }
 
 /* This is a callback function. The data arguments are ignored
