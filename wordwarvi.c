@@ -897,12 +897,14 @@ struct my_point_t cron_points[] = {
 	{ -15, -8 },	
 	{ -10, -15 },	
 	{ LINE_BREAK, LINE_BREAK },
-	{ 7, 0 },
+	{ 0, 10 },
+	{ 7, 5 },
 	{ 7, 17 },
 	{ 10, 30 },
 	{ 7, 37 },
 	{ LINE_BREAK, LINE_BREAK },
-	{ -7, 0 },
+	{ 0, 10 },
+	{ -7, 5 },
 	{ -7, 17 },
 	{ -10, 30 },
 	{ -7, 37 },
@@ -3201,6 +3203,8 @@ void gdb_move(struct game_obj_t *o)
 void humanoid_move(struct game_obj_t *o)
 {
 	int xdist, ydist;
+	struct game_obj_t *abductor;
+
 	if (!o->alive) {
 		printf("Bug... Dead human %d\n", o->tsd.human.human_number);
 		return;
@@ -3208,10 +3212,16 @@ void humanoid_move(struct game_obj_t *o)
 	if (o->alive != 1) printf("human%d, alive=%d\n", o->tsd.human.human_number, o->alive);
 
 	/* humans move around with their abductors. */
-	if (o->tsd.human.picked_up && o->tsd.human.abductor != NULL) {
-		o->x = 10 + o->tsd.human.abductor->x + (o->tsd.human.seat_number * 8) - (game_state.humanoids * 4);
-		// o->x = o->tsd.human.abductor->x + 10 * (o->tsd.human.human_number - ((level.nhumanoids >> 1)));
-		o->y = o->tsd.human.abductor->y + 30;
+	abductor = o->tsd.human.abductor;
+	if (o->tsd.human.picked_up && abductor != NULL) {
+		if (abductor->otype == OBJ_TYPE_PLAYER) {
+			o->x = 10 + abductor->x + (o->tsd.human.seat_number * 8) 
+				- (game_state.humanoids * 4);
+			o->y = o->tsd.human.abductor->y + 20;
+		} else {
+			o->x = abductor->x;
+			o->y = o->tsd.human.abductor->y + 30;
+		}
 	}
 
 	/* not on ground, not picked up -- we're falling... */
