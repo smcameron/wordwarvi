@@ -9336,6 +9336,14 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 	(void) inputBuffer; /* Prevent unused variable warning. */
 	float output = 0.0;
 
+	if (game_pause) {
+		/* output silence when paused and        */
+		/* don't advance any sound slot pointers */
+		for (i=0; i<framesPerBuffer; i++)
+			*out++ = (float) 0;
+		return 0;
+	}
+
 	for (i=0; i<framesPerBuffer; i++) {
 		output = 0.0;
 		count = 0;
