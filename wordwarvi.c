@@ -5924,6 +5924,13 @@ void init_vects()
 
 	octopus_vect.p = octopus_points;
 	octopus_vect.npoints = sizeof(octopus_points) / sizeof(octopus_points[0]);
+	for (i=0;i<octopus_vect.npoints;i++) {
+		if (octopus_vect.p[i].x != LINE_BREAK && 
+			octopus_vect.p[i].x != COLOR_CHANGE) {
+			octopus_vect.p[i].x *= 1.5;
+			octopus_vect.p[i].y *= 1.5;
+		}
+	}
 	bullet_vect.p = bullet_points;
 	bullet_vect.npoints = sizeof(bullet_points) / sizeof(bullet_points[0]);
 	gdb_vect_right.p = gdb_points_right;
