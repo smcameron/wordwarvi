@@ -51,7 +51,7 @@ int we_are_big_endian()
    and returns the number of samples in *nsamples, and the
    samplesize in *samplesize. and etc.
 */
-int ogg_to_pcm(char *infile, uint16_t **pcmbuffer,
+int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	int *samplesize, int *sample_rate, int *nchannels, 
 	unsigned long long *nsamples)
 {
@@ -118,8 +118,8 @@ int ogg_to_pcm(char *infile, uint16_t **pcmbuffer,
 	// printf("%s: length = %llu samples.\n", infile, length);
 	*nsamples = length;
 
-	*pcmbuffer = (void *) malloc(sizeof(uint16_t) * length * channels);
-	memset(*pcmbuffer, 0, sizeof(uint16_t) * length * channels);
+	*pcmbuffer = (void *) malloc(sizeof(int16_t) * length * channels);
+	memset(*pcmbuffer, 0, sizeof(int16_t) * length * channels);
 	if (*pcmbuffer == NULL) {
 		fprintf(stderr, "Failed to allocate memory for '%s'\n", infile);
 		fclose(in);

@@ -25,7 +25,7 @@
    and returns the number of samples in *nsamples, and the
    samplesize in *samplesize. and etc.
 */
-extern int ogg_to_pcm(char *infile, uint16_t **pcmbuffer,
+extern int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	int *samplesize, int *sample_rate, int *nchannels, 
 	unsigned long long *nsamples);
 
