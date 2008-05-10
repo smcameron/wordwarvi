@@ -355,6 +355,37 @@ int planet_color[] = {
 #define OBJ_TYPE_KGUN 'k'
 #define OBJ_TYPE_TRUSS 't'
 
+int score_table[256]; /* table of scores for each object type. */
+int kill_tally[256];  /* tally of various things killed */
+
+void init_score_table()
+{
+	memset(score_table, 0, sizeof(score_table));
+	score_table[OBJ_TYPE_AIRSHIP]		= -5000;
+	score_table[OBJ_TYPE_BALLOON]		= 3000;
+	score_table[OBJ_TYPE_CRON]		= 400;
+	score_table[OBJ_TYPE_FUEL]		= 0;
+	score_table[OBJ_TYPE_SHIP]		= 10000;
+	score_table[OBJ_TYPE_GUN]		= 400;
+	score_table[OBJ_TYPE_HUMAN]		= -1000;
+	score_table[OBJ_TYPE_MISSILE]		= 50;
+	score_table[OBJ_TYPE_HARPOON]		= 50;
+	score_table[OBJ_TYPE_ROCKET]		= 100;
+	score_table[OBJ_TYPE_SAM_STATION]	= 400;
+	score_table[OBJ_TYPE_BRIDGE]		= 10;
+	score_table[OBJ_TYPE_GDB]		= 400;
+	score_table[OBJ_TYPE_OCTOPUS]		= 880;
+	score_table[OBJ_TYPE_TENTACLE]		= 100;
+	score_table[OBJ_TYPE_JAMMER]		= 100;
+	score_table[OBJ_TYPE_WORM]		= 30;
+	score_table[OBJ_TYPE_KGUN]		= 400;
+}
+
+void init_kill_tally()
+{
+	memset(kill_tally, 0, sizeof(kill_tally));
+}
+
 int current_level = 0;		/* current level of the game, starts at zero */
 struct level_parameters_t {
 	int random_seed;	/* so the games always have the same terrain, setup, etc. */
@@ -1804,14 +1835,6 @@ struct game_state_t {
 	int ngbombs;			/* number of bombs in the player's possession */
 	int prev_bombs;			/* Used to detect changes in bombs for drawing routine efficiency */
 	int humanoids;			/* Number of humanoids the player has picked up */
-	int gdbs_killed;		/* etc.*/
-	int crons_killed;
-	int guns_killed;
-	int sams_killed;
-	int missiles_killed;
-	int octos_killed;
-	int emacs_killed;
-	int rockets_killed;
 	int missile_locked;		/* Indicates whether a missile is after the player, for alarm sound */
 	int corrosive_atmosphere;
 	struct timeval start_time, 	/* Used to calculate how long player took to finish a level */
@@ -3265,7 +3288,7 @@ void humanoid_move(struct game_obj_t *o)
 			else {
 				add_sound(IT_BURNS, ANY_SLOT);
 				kill_object(o);
-				game_state.score -= 1000;
+				game_state.score += score_table[OBJ_TYPE_HUMAN];
 				return;
 			}
 		}
@@ -3289,7 +3312,7 @@ void humanoid_move(struct game_obj_t *o)
 			o->tsd.human.picked_up = 1;
 			o->tsd.human.seat_number = game_state.humanoids;
 			o->tsd.human.on_ground = 0;
-			game_state.score += HUMANOID_PICKUP_SCORE;
+			game_state.score +=  score_table[OBJ_TYPE_HUMAN];
 			game_state.humanoids++;
 		} else {
 			/* counter tracks if player has left the general vicinity of the human lately. */
@@ -3626,28 +3649,11 @@ void bomb_move(struct game_obj_t *o)
 						if (t->o->otype == OBJ_TYPE_TRUSS)
 							truss_cut_loose_whats_below(t->o);
 					}
-					if (t->o->otype == OBJ_TYPE_ROCKET) {
-						game_state.score += ROCKET_SCORE;
-						add_score_floater(t->o->x, t->o->y, ROCKET_SCORE);
-					} else if (t->o->otype == OBJ_TYPE_SAM_STATION) { 
-						game_state.score += SAM_SCORE;
-						add_score_floater(t->o->x, t->o->y, SAM_SCORE);
-					} else if (t->o->otype == OBJ_TYPE_GDB) { 
-						game_state.score += GDB_SCORE;
-						add_score_floater(t->o->x, t->o->y, GDB_SCORE);
-					} else if (t->o->otype == OBJ_TYPE_KGUN) { 
-						game_state.score += FLAK_SCORE;
-						add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
-					} else if (t->o->otype == OBJ_TYPE_GUN) { 
-						game_state.score += FLAK_SCORE;
-						add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
-					} else if (t->o->otype == OBJ_TYPE_OCTOPUS) { 
-						game_state.score += OCTOPUS_SCORE;
-						add_score_floater(t->o->x, t->o->y, OCTOPUS_SCORE);
-					} else if (t->o->otype == OBJ_TYPE_CRON) { 
-						game_state.score += CRON_SCORE;
-						add_score_floater(t->o->x, t->o->y, CRON_SCORE);
+					if (score_table[t->o->otype] != 0) {
+						game_state.score += score_table[t->o->otype];
+						add_score_floater(t->o->x, t->o->y, score_table[t->o->otype]);
 					}
+					kill_tally[t->o->otype]++;
 					add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 					spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
@@ -3659,23 +3665,6 @@ void bomb_move(struct game_obj_t *o)
 					kill_object(o);
 					// o->alive = 0;
 					o->destroy(o);
-
-					/* I think this stuff should be moved into the above similar ifs... */
-					if (t->o->otype == OBJ_TYPE_SAM_STATION)
-						game_state.sams_killed++;
-					else if (t->o->otype == OBJ_TYPE_ROCKET)
-						game_state.rockets_killed++;
-					else if (t->o->otype == OBJ_TYPE_MISSILE || 
-						t->o->otype == OBJ_TYPE_HARPOON)
-						game_state.missiles_killed++;
-					else if (t->o->otype == OBJ_TYPE_OCTOPUS)
-						game_state.octos_killed++;
-					else if (t->o->otype == OBJ_TYPE_GDB)
-						game_state.gdbs_killed++;
-					else if (t->o->otype == OBJ_TYPE_CRON)
-						game_state.crons_killed++;
-					else if (t->o->otype == OBJ_TYPE_GUN)
-						game_state.guns_killed++;
 				}
 			}
 			default:
@@ -3734,26 +3723,10 @@ void bomb_move(struct game_obj_t *o)
 								truss_cut_loose_whats_below(t->o);
 						}
 						/* FIXME -- need to adjust kill counts. */
-						if (t->o->otype == OBJ_TYPE_ROCKET) {
-							game_state.score += ROCKET_SCORE;
-							add_score_floater(t->o->x, t->o->y, ROCKET_SCORE);
-						} else if (t->o->otype == OBJ_TYPE_SAM_STATION) { 
-							game_state.score += SAM_SCORE;
-							add_score_floater(t->o->x, t->o->y, SAM_SCORE);
-						} else if (t->o->otype == OBJ_TYPE_CRON) { 
-							game_state.score += GDB_SCORE;
-							add_score_floater(t->o->x, t->o->y, GDB_SCORE);
-						} else if (t->o->otype == OBJ_TYPE_KGUN) { 
-							game_state.score += FLAK_SCORE;
-							add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
-						} else if (t->o->otype == OBJ_TYPE_GUN) { 
-							game_state.score += FLAK_SCORE;
-							add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
-						} else if (t->o->otype == OBJ_TYPE_OCTOPUS) { 
-							game_state.score += OCTOPUS_SCORE;
-							add_score_floater(t->o->x, t->o->y, OCTOPUS_SCORE);
-						} else if (t->o->otype == OBJ_TYPE_TENTACLE) {
-							game_state.score += TENTACLE_SCORE;
+
+						if (score_table[t->o->otype] != 0) {
+							game_state.score += score_table[t->o->otype];
+							add_score_floater(t->o->x, t->o->y, score_table[t->o->otype]);
 						}
 						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 						spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
@@ -3777,7 +3750,7 @@ void bomb_move(struct game_obj_t *o)
 					if (abs(o->x - t->o->x) < BOMB_X_PROXIMITY) { /* a hit */
 						/* "+=" instead of "=" in case multiple bombs */
 						if (t->o->move == no_move) /* only get the points once. */
-							game_state.score += BRIDGE_SCORE;
+							game_state.score += score_table[OBJ_TYPE_BRIDGE];
 						t->o->vx += ((t->o->x < o->x) ? -1 : 1) * randomn(6);
 						t->o->vy += ((t->o->y < o->y) ? -1 : 1) * randomn(6);
 						t->o->move = bridge_move;
@@ -3874,28 +3847,11 @@ void gravity_bomb_move(struct game_obj_t *o)
 				/* find distance squared... don't take square root. */
 				dist2 = (xdist * xdist + ydist * ydist);
 				if (dist2 < GRAVITY_BOMB_HIT_DIST2) {
-					if (t->otype == OBJ_TYPE_ROCKET) {
-						game_state.score += ROCKET_SCORE;
-						add_score_floater(t->x, t->y, ROCKET_SCORE);
-					} else if (t->otype == OBJ_TYPE_SAM_STATION) { 
-						game_state.score += SAM_SCORE;
-						add_score_floater(t->x, t->y, SAM_SCORE);
-					} else if (t->otype == OBJ_TYPE_GDB) { 
-						game_state.score += GDB_SCORE;
-						add_score_floater(t->x, t->y, GDB_SCORE);
-					} else if (t->otype == OBJ_TYPE_KGUN) { 
-						game_state.score += FLAK_SCORE;
-						add_score_floater(t->x, t->y, FLAK_SCORE);
-					} else if (t->otype == OBJ_TYPE_GUN) { 
-						game_state.score += FLAK_SCORE;
-						add_score_floater(t->x, t->y, FLAK_SCORE);
-					} else if (t->otype == OBJ_TYPE_OCTOPUS) { 
-						game_state.score += OCTOPUS_SCORE;
-						add_score_floater(t->x, t->y, OCTOPUS_SCORE);
-					} else if (t->otype == OBJ_TYPE_CRON) { 
-						game_state.score += CRON_SCORE;
-						add_score_floater(t->x, t->y, CRON_SCORE);
+					if (score_table[t->otype] != 0) {
+						game_state.score += score_table[t->otype];
+						add_score_floater(t->x, t->y, score_table[t->otype]);
 					}
+					kill_tally[t->otype]++;
 					// add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 					// explode(t->x, t->y, t->vx, 1, 70, 150, 20);
 					// spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
@@ -3903,23 +3859,6 @@ void gravity_bomb_move(struct game_obj_t *o)
 					if (t->target) 
 						remove_target(t->target);
 					kill_object(t);
-
-					/* I think this stuff should be moved into the above similar ifs... */
-					if (t->otype == OBJ_TYPE_SAM_STATION)
-						game_state.sams_killed++;
-					else if (t->otype == OBJ_TYPE_ROCKET)
-						game_state.rockets_killed++;
-					else if (t->otype == OBJ_TYPE_MISSILE || 
-						t->otype == OBJ_TYPE_HARPOON)
-						game_state.missiles_killed++;
-					else if (t->otype == OBJ_TYPE_OCTOPUS)
-						game_state.octos_killed++;
-					else if (t->otype == OBJ_TYPE_GDB)
-						game_state.gdbs_killed++;
-					else if (t->otype == OBJ_TYPE_CRON)
-						game_state.crons_killed++;
-					else if (t->otype == OBJ_TYPE_GUN)
-						game_state.guns_killed++;
 				}
 			}
 			default:
@@ -4555,7 +4494,7 @@ void laser_move(struct game_obj_t *o)
 					o->destroy(o);
 					t->o->alive -= PLAYER_LASER_DAMAGE;	/* damage enemy */
 					if (t->o->alive <= 0) {			/* killed him? */
-						game_state.emacs_killed++;
+						kill_tally[t->o->otype]++;
 						kill_object(t->o);
 						t->o->destroy(t->o);
 						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
@@ -4600,38 +4539,11 @@ void laser_move(struct game_obj_t *o)
 					}
 					if (t->o->otype == OBJ_TYPE_TRUSS)
 						truss_cut_loose_whats_below(t->o);
-					else if (t->o->otype == OBJ_TYPE_ROCKET) {
-						game_state.score += ROCKET_SCORE;
-						game_state.rockets_killed++;
-						add_score_floater(t->o->x, t->o->y, ROCKET_SCORE);
-					} else if (t->o->otype == OBJ_TYPE_MISSILE ||
-						t->o->otype == OBJ_TYPE_HARPOON)
-						game_state.missiles_killed++;
-					else if (t->o->otype == OBJ_TYPE_SAM_STATION) {
-						game_state.sams_killed++;
-						game_state.score += SAM_SCORE;
-						add_score_floater(t->o->x, t->o->y, SAM_SCORE);
-					} else if (t->o->otype == OBJ_TYPE_GDB) {
-						game_state.gdbs_killed++;
-						game_state.score += GDB_SCORE;
-						add_score_floater(t->o->x, t->o->y, GDB_SCORE);
-					} else if (t->o->otype == OBJ_TYPE_CRON) {
-						game_state.crons_killed++;
-						game_state.score += CRON_SCORE;
-						add_score_floater(t->o->x, t->o->y, CRON_SCORE);
-					} else if (t->o->otype == OBJ_TYPE_KGUN) {
-						game_state.guns_killed++;
-						game_state.score += FLAK_SCORE;
-						add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
-					} else if (t->o->otype == OBJ_TYPE_GUN) {
-						game_state.guns_killed++;
-						game_state.score += FLAK_SCORE;
-						add_score_floater(t->o->x, t->o->y, FLAK_SCORE);
-					} else if (t->o->otype == OBJ_TYPE_OCTOPUS) {
-						game_state.octos_killed++;
-						game_state.score += OCTOPUS_SCORE;
-						add_score_floater(t->o->x, t->o->y, OCTOPUS_SCORE);
+					if (score_table[t->o->otype] != 0) {
+						game_state.score += (score_table[t->o->otype]);
+						add_score_floater(t->o->x, t->o->y, score_table[t->o->otype]);
 					}
+					kill_tally[t->o->otype]++;
 					add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
 					spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
@@ -7946,68 +7858,71 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 			gameprint(s);
 		case 9: 
 			gotoxy(5, 9+2);
-			if (game_state.sams_killed >= level.nsams)
-				inc_bonus = 50;
+			if (kill_tally[OBJ_TYPE_SAM_STATION] >= level.nsams)
+				inc_bonus = 5000;
 			else
 				inc_bonus = 0;
 			bonus_points += inc_bonus;
 			sprintf(s, "SAM stations destroyed:    %2d/%2d    %5d",
-				game_state.sams_killed, level.nsams, inc_bonus);
+				kill_tally[OBJ_TYPE_SAM_STATION], level.nsams, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 8: 
 			gotoxy(5, 8+2);
-			if (game_state.guns_killed >= level.nflak)
-				inc_bonus = 50;
+			if (kill_tally[OBJ_TYPE_GUN] + kill_tally[OBJ_TYPE_KGUN] >= 
+					level.nflak + level.nkguns)
+				inc_bonus = 5000;
 			else
 				inc_bonus = 0;
 			sprintf(s, "Laser turrets killed:      %2d/%2d    %5d", 
-				game_state.guns_killed, level.nflak, inc_bonus);
+				kill_tally[OBJ_TYPE_GUN] + kill_tally[OBJ_TYPE_KGUN], 
+					level.nflak + level.nkguns, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 7: 
 			gotoxy(5, 7+2);
 			sprintf(s, "Missiles killed:              %2d    %5d",
-				game_state.missiles_killed, 0);
+				kill_tally[OBJ_TYPE_MISSILE] + 
+				kill_tally[OBJ_TYPE_HARPOON], 0);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 6: 
 			gotoxy(5, 6+2);
-			if (game_state.rockets_killed >= level.nrockets)
+			if (kill_tally[OBJ_TYPE_ROCKET] >= level.nrockets)
 				inc_bonus = 50;
 			else
 				inc_bonus = 0;
 			sprintf(s, "Rockets killed:            %2d/%2d    %5d",
-				game_state.rockets_killed, level.nrockets, inc_bonus);
+				kill_tally[OBJ_TYPE_ROCKET], level.nrockets, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 5: 
 			gotoxy(5, 5+2);
-			if (game_state.octos_killed >= level.noctopi)
+			if (kill_tally[OBJ_TYPE_OCTOPUS] >= level.noctopi)
 				inc_bonus = 50;
 			else
 				inc_bonus = 0;
 			sprintf(s, "Octo-viruses killed:       %2d/%2d    %5d",
-				game_state.octos_killed, level.noctopi, inc_bonus);
+				kill_tally[OBJ_TYPE_OCTOPUS], level.noctopi, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 4: 
 			gotoxy(5, 4+2);
-			if (game_state.gdbs_killed >= level.ngdbs)
+			if (kill_tally[OBJ_TYPE_GDB] >= level.ngdbs)
 				inc_bonus = 5000;
 			else
-				inc_bonus = 10*game_state.gdbs_killed;
+				inc_bonus = 10*kill_tally[OBJ_TYPE_GDB];
 			sprintf(s, "gdb processes killed:      %2d/%2d    %5d",
-				game_state.gdbs_killed, level.ngdbs, inc_bonus);
+				kill_tally[OBJ_TYPE_GDB], level.ngdbs, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 3: 
 			gotoxy(5, 3+2);
-			inc_bonus = game_state.emacs_killed * 100;
-			if (game_state.emacs_killed == level.nairships)
+			inc_bonus = kill_tally[OBJ_TYPE_AIRSHIP] * 100;
+			if (kill_tally[OBJ_TYPE_AIRSHIP] >= level.nairships)
 				inc_bonus += 20000;
 			sprintf(s, "Emacs processes killed:    %2d/%2d    %5d",
-				game_state.emacs_killed, level.nairships, inc_bonus);
+				kill_tally[OBJ_TYPE_AIRSHIP], level.nairships, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
 		case 2: 
@@ -8601,14 +8516,7 @@ void initialize_game_state_new_level()
 	game_state.nbombs = level.nbombs;
 	game_state.ngbombs = level.ngbombs;
 	game_state.prev_bombs = -1;
-	game_state.gdbs_killed = 0;
-	game_state.crons_killed = 0;
-	game_state.guns_killed = 0;
-	game_state.sams_killed = 0;
-	game_state.emacs_killed = 0;
-	game_state.missiles_killed = 0;
-	game_state.octos_killed = 0;
-	game_state.rockets_killed = 0;
+	init_kill_tally();
 	game_state.cmd_multiplier = 1;
 	game_state.radar_state = RADAR_BOOTUP;
 	game_state.nextlasertime = timer;
