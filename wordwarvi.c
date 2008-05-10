@@ -147,6 +147,8 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 
 #define NFLAK 10			/* Number of flak guns (laser turrets) */
 #define NKGUNS 30			/* Number of Kernel defense guns (laser turrets) */
+#define KGUN_INIT_HEALTH 1		/* number of hits it takes to kill kgun. */
+#define MAX_KGUN_HEALTH 10 
 #define NROCKETS 20 			/* Number of rockets sprinkled into the terrain */ 
 #define LAUNCH_DIST 1200			/* How close player can get in x dimension before rocket launches */
 #define MAX_ROCKET_SPEED -32		/* max vertical speed of rocket */
@@ -376,6 +378,7 @@ struct level_parameters_t {
 	int nairships;
 	int nworms;
 	int nkguns;
+	int kgun_health;
 
 	/* how often flak guns (laser turrets) fire. */
 	int laser_fire_chance;
@@ -1713,6 +1716,12 @@ struct debris_data {
 #define DEBRIS_TYPE_METAL 1
 };
 
+struct health_data {
+	int health;
+	int prevhealth;
+	int maxhealth;
+};
+
 struct truss_data {
 	struct game_obj_t *above, *below;
 };
@@ -1763,6 +1772,8 @@ struct game_obj_t {
 	union type_specific_data tsd;	/* the Type Specific Data for this object */
 	int missile_timer;		/* to keep missiles from firing excessively rapidly */
 	int radar_image;		/* Does this object show up on radar? */ 
+	int uses_health;
+	struct health_data health;
 };
 
 struct target_t {			/* doubly linked list of objects which may be hit */
@@ -2159,6 +2170,11 @@ static void aim_vx_vy(struct game_obj_t *target,
 	}
 }
 
+int hot_metal_color(int health, int maxhealth)
+{
+	return NCOLORS + ((maxhealth - health) * NSPARKCOLORS) / maxhealth;
+}
+
 static void add_laserbolt(int x, int y, int vx, int vy, int color, int time);
 void kgun_move(struct game_obj_t *o)
 {
@@ -2176,6 +2192,13 @@ void kgun_move(struct game_obj_t *o)
 	int invert = o->tsd.kgun.invert;
 	int recoilx, recoily;
 
+
+	if (o->health.prevhealth != o->health.health)
+		o->color = hot_metal_color(o->health.health, o->health.maxhealth);
+	o->health.prevhealth = o->health.health;
+	if ((timer & 0x0f) == 0x0f && 
+		o->health.health < o->health.maxhealth)
+		o->health.health++;
 
 	xdist = abs(o->x - player->x); /* in range? */
 	ydist = abs(o->y - player->y);
@@ -3544,6 +3567,7 @@ void bridge_move(struct game_obj_t *o);
 void no_move(struct game_obj_t *o);
 static void add_score_floater(int x, int y, int score);
 static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t *victim, int metal);
+void truss_cut_loose_whats_below(struct game_obj_t *o);
 
 void bomb_move(struct game_obj_t *o)
 {
@@ -3570,33 +3594,8 @@ void bomb_move(struct game_obj_t *o)
 		}
 		removed = 0;
 		switch (t->o->otype) {
+			case OBJ_TYPE_KGUN:
 			case OBJ_TYPE_TRUSS:
-				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
-					(o->y - t->o->y)*(o->y - t->o->y);
-				if (dist2 < LASER_PROXIMITY) { /* a hit (LASER_PROXIMITY is already squared.) */
-					struct game_obj_t *i;
-
-					/* Cut loose everything below */
-					for (i=t->o; i != NULL; i = i->tsd.truss.below) {
-
-						if (i->otype == OBJ_TYPE_TRUSS) {
-							if (i->tsd.truss.above) {
-								i->tsd.truss.above->tsd.truss.below = NULL;
-								i->tsd.truss.above = NULL;
-							}
-							i->move = bridge_move;
-						} else {
-							/* make the gun blow up when it lands */
-							i->move = bomb_move; 
-							i->vx = randomn(6)-3;
-							i->vy = randomn(6)-3;
-							break;
-						}
-						i->vx = randomn(6)-3;
-						i->vy = randomn(6)-3;
-					}
-				}
-				/* Fall thru */	
 			case OBJ_TYPE_ROCKET:
 			case OBJ_TYPE_MISSILE:
 			case OBJ_TYPE_HARPOON:
@@ -3606,13 +3605,27 @@ void bomb_move(struct game_obj_t *o)
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_JAMMER:
 			case OBJ_TYPE_GUN:
-			case OBJ_TYPE_KGUN:
 			/* case OBJ_TYPE_BOMB:  no, bomb can't bomb himself... */
 			case OBJ_TYPE_SAM_STATION:  {
 				/* find distance squared... don't take square root. */
 				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
 					(o->y - t->o->y)*(o->y - t->o->y);
 				if (dist2 < LASER_PROXIMITY) { /* a hit (LASER_PROXIMITY is already squared.) */
+
+					if (t->o->uses_health) {
+						t->o->health.health -= 1;
+						if (t->o->health.health > 0) {
+							add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
+							explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
+							spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
+							kill_object(o);
+							o->destroy(o);
+							/* object not dead yet. */
+							break;
+						}
+						if (t->o->otype == OBJ_TYPE_TRUSS)
+							truss_cut_loose_whats_below(t->o);
+					}
 					if (t->o->otype == OBJ_TYPE_ROCKET) {
 						game_state.score += ROCKET_SCORE;
 						add_score_floater(t->o->x, t->o->y, ROCKET_SCORE);
@@ -3688,6 +3701,7 @@ void bomb_move(struct game_obj_t *o)
 			}
 			removed = 0;
 			switch (t->o->otype) {
+				case OBJ_TYPE_TRUSS: 
 				case OBJ_TYPE_TENTACLE: 
 				case OBJ_TYPE_ROCKET:
 				case OBJ_TYPE_HARPOON:
@@ -3704,6 +3718,21 @@ void bomb_move(struct game_obj_t *o)
 					dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
 						(o->y - t->o->y)*(o->y - t->o->y);
 					if (dist2 < BOMB_PROXIMITY) { /* a hit */
+
+						if (t->o->uses_health) {
+							t->o->health.health -= 1;
+							if (t->o->health.health > 0) {
+								add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
+								explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
+								spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
+								kill_object(o);
+								o->destroy(o);
+								/* object not dead yet. */
+								break;
+							}
+							if (t->o->otype == OBJ_TYPE_TRUSS)
+								truss_cut_loose_whats_below(t->o);
+						}
 						/* FIXME -- need to adjust kill counts. */
 						if (t->o->otype == OBJ_TYPE_ROCKET) {
 							game_state.score += ROCKET_SCORE;
@@ -4564,29 +4593,14 @@ void laser_move(struct game_obj_t *o)
 				}
 				// printf("dist2 = %d\n", dist2);
 				if (hit) { /* a hit */
-					if (t->o->otype == OBJ_TYPE_TRUSS) {
-						struct game_obj_t *i;
-
-						/* Cut loose everything below */
-						for (i=t->o; i != NULL; i = i->tsd.truss.below) {
-							if (i->otype == OBJ_TYPE_TRUSS) {
-								if (i->tsd.truss.above) {
-									i->tsd.truss.above->tsd.truss.below = NULL;
-									i->tsd.truss.above = NULL;
-								}
-								i->move = bridge_move;
-							} else {
-								/* make the gun blow up when it lands */
-								i->move = bomb_move; 
-								i->vx = randomn(6)-3;
-								i->vy = randomn(6)-3;
-								break;
-							}
-							i->vx = randomn(6)-3;
-							i->vy = randomn(6)-3;
-						}
+					if (t->o->uses_health) {
+						t->o->health.health--;
+						if (t->o->health.health > 0)
+							break;
 					}
-					if (t->o->otype == OBJ_TYPE_ROCKET) {
+					if (t->o->otype == OBJ_TYPE_TRUSS)
+						truss_cut_loose_whats_below(t->o);
+					else if (t->o->otype == OBJ_TYPE_ROCKET) {
 						game_state.score += ROCKET_SCORE;
 						game_state.rockets_killed++;
 						add_score_floater(t->o->x, t->o->y, ROCKET_SCORE);
@@ -6060,6 +6074,40 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
+void truss_move(struct game_obj_t *o)
+{
+	if (o->health.prevhealth != o->health.health)
+		o->color = hot_metal_color(o->health.health, o->health.maxhealth);
+	o->health.prevhealth = o->health.health;
+	if ((timer & 0x0f) == 0x0f && 
+		o->health.health < o->health.maxhealth)
+		o->health.health++;
+}
+
+void truss_cut_loose_whats_below(struct game_obj_t *o)
+{
+	struct game_obj_t *i;
+
+	/* Cut loose everything below */
+	for (i=o; i != NULL; i = i->tsd.truss.below) {
+		if (i->otype == OBJ_TYPE_TRUSS) {
+			if (i->tsd.truss.above) {
+				i->tsd.truss.above->tsd.truss.below = NULL;
+				i->tsd.truss.above = NULL;
+			}
+			i->move = bridge_move;
+		} else {
+			/* make the gun blow up when it lands */
+			i->move = bomb_move; 
+			i->vx = randomn(6)-3;
+			i->vy = randomn(6)-3;
+			break;
+		}
+		i->vx = randomn(6)-3;
+		i->vy = randomn(6)-3;
+	}
+}
+
 void truss_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x, y, x1, y1, x2, y2;
@@ -6848,11 +6896,15 @@ static void add_flak_guns(struct terrain_t *t)
 	for (i=0;i<level.nflak;i++) {
 		xi = initial_x_location();
 		o = add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
-			kgun_move, kgun_draw, GREEN, &inverted_kgun_vect, 1, OBJ_TYPE_KGUN, 1);
+			kgun_move, kgun_draw, RED, &inverted_kgun_vect, 1, OBJ_TYPE_KGUN, 1);
 		if (o) {
 			o->tsd.kgun.size = 31;
 			o->tsd.kgun.velocity_factor = 1;
 			o->tsd.kgun.invert = -1;
+			o->uses_health = 1;
+			o->health.maxhealth = level.kgun_health;
+			o->health.health = o->health.maxhealth;
+			o->health.prevhealth = -1;
 		}
 	}
 }
@@ -6871,7 +6923,7 @@ static void add_kernel_guns(struct terrain_t *t)
 		ntrusses = randomn(9)+3;
 		for (j=0;j<ntrusses;j++) {
 			o = add_generic_object(t->x[xi], KERNEL_Y_BOUNDARY + 10 + (20*j), 0, 0, 
-				NULL, truss_draw, RED, NULL, 1, OBJ_TYPE_TRUSS, 1);
+				truss_move, truss_draw, RED, NULL, 1, OBJ_TYPE_TRUSS, 1);
 			if (o == NULL) {
 				struct game_obj_t *x, *next;
 
@@ -6881,6 +6933,10 @@ static void add_kernel_guns(struct terrain_t *t)
 				}
 				break;
 			}
+			o->uses_health = 1;
+			o->health.maxhealth = level.kgun_health;
+			o->health.health = o->health.maxhealth;
+			o->health.prevhealth = -1;
 			if (j != 0) {
 				o->tsd.truss.above = p;
 				p->tsd.truss.below = o;
@@ -6894,6 +6950,10 @@ static void add_kernel_guns(struct terrain_t *t)
 		o = add_generic_object(t->x[xi], p->y + 10 + 25, 0, 0, 
 			kgun_move, kgun_draw, RED, &kgun_vect, 1, OBJ_TYPE_KGUN, 1);
 		if (o != NULL) {
+			o->uses_health = 1;
+			o->health.prevhealth = -1;
+			o->health.maxhealth = level.kgun_health;
+			o->health.health = o->health.maxhealth;
 			o->tsd.kgun.size = 31;	/* biggest size */
 			o->tsd.kgun.invert = 1;	/* this means hanging upside down */
 			o->tsd.kgun.velocity_factor = 1;	/* normal laser speed */
@@ -8656,6 +8716,7 @@ void init_levels_to_beginning()
 	level.ngbombs = NGBOMBS;
 	level.nhumanoids = NHUMANOIDS;
 	level.nkguns = NKGUNS;
+	level.kgun_health = KGUN_INIT_HEALTH;
 	if (credits > 0) {
 		level.random_seed = 31415927;
 		level.laser_fire_chance = LASER_FIRE_CHANCE;
@@ -8700,6 +8761,8 @@ void advance_level()
 	level.nairships += 1;
 	level.nworms += 1;
 	level.nhumanoids += 1; 
+	if (level.kgun_health < MAX_KGUN_HEALTH)
+		level.kgun_health++;
 	if (level.nhumanoids > MAXHUMANS)
 		level.nhumanoids = MAXHUMANS;
 	level.large_scale_roughness+= (0.03);
