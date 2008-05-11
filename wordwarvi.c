@@ -109,6 +109,7 @@ int add_sound(int which_sound, int which_slot);
 #define VOLCANO_ERUPTION 43
 #define IT_BURNS 44
 #define ZZZT_SOUND 45
+#define GRAVITYBOMB_SOUND 46
 
 /* ...End of audio stuff */
 
@@ -4057,6 +4058,7 @@ void drop_gravity_bomb()
 		o->target = add_target(o);
 		o->color = WHITE;
 		o->alive = 20;
+		add_sound(GRAVITYBOMB_SOUND, ANY_SLOT);
 	}
 	game_state.cmd_multiplier = 1;
 }
@@ -4156,10 +4158,42 @@ static void ground_smack_sound()
 	}
 }
 
+/* For automatically moving the player in "attract mode." */
+void autopilot()
+{
+	int i;
+
+	for (i=0;i<TERRAIN_LENGTH;i++) {
+		/* adjust player's vy to make him move towards a desired altitude. */
+		/* which is MIN_ALT above the section of ground 100 units ahead of */
+		/* the player */
+		if (terrain.x[i] - player->x > 100 && (terrain.x[i] - player->x) < 300) {
+			if (terrain.y[i] - player->y > MAX_ALT) {
+				player->vy += 1;
+				if (player->vy > 9)
+					player->vy = 9;
+			} else if (terrain.y[i] - player->y < MIN_ALT) {
+				player->vy -= 1;
+				if (player->vy < -9)
+				player->vy = -9;
+			} else if (player->vy > 0) player->vy--;
+			else if (player->vy < 0) player->vy++;
+			game_state.vy = player->vy;
+			break;
+		}
+		/* keep moving */
+		if (player->vx < PLAYER_SPEED)
+			player->vx++; 
+	}
+	if (randomn(40) < 4)	/* fire laser randomly */
+		player_fire_laser();
+	if (randomn(100) < 2)	/* drop bombs randomly */
+		drop_bomb();
+}
+
 void no_draw(struct game_obj_t *o, GtkWidget *w);
 void move_player(struct game_obj_t *o)
 {
-	int i;
 	int deepest;
 	static int was_healthy = 1; /* notice this is static. */
 	o->x += o->vx; /* move him... */
@@ -4322,35 +4356,8 @@ void move_player(struct game_obj_t *o)
 	}
 
 	/* Autopilot, "attract mode", if credits <= 0 */
-	if (credits <= 0) {
-		for (i=0;i<TERRAIN_LENGTH;i++) {
-			/* adjust player's vy to make him move towards a desired altitude. */
-			/* which is MIN_ALT above the section of ground 100 units ahead of */
-			/* the player */
-			if (terrain.x[i] - player->x > 100 && (terrain.x[i] - player->x) < 300) {
-				if (terrain.y[i] - player->y > MAX_ALT) {
-					player->vy += 1;
-					if (player->vy > 9)
-						player->vy = 9;
-				} else if (terrain.y[i] - player->y < MIN_ALT) {
-					player->vy -= 1;
-					if (player->vy < -9)
-					player->vy = -9;
-				} else if (player->vy > 0) player->vy--;
-				else if (player->vy < 0) player->vy++;
-				game_state.vy = player->vy;
-				break;
-			}
-			/* keep moving */
-			if (player->vx < PLAYER_SPEED)
-				player->vx++; 
-		}
-		if (randomn(40) < 4)	/* fire laser randomly */
-			player_fire_laser();
-		if (randomn(100) < 2)	/* drop bombs randomly */
-			drop_bomb();
-	}
-	/* End attract mode */
+	if (credits <= 0)
+		autopilot();
 }
 
 void bounce(int *vx, int *vy, int slope, double bouncefactor)
@@ -9304,6 +9311,7 @@ int init_clips()
 	read_ogg_clip(VOLCANO_ERUPTION, "sounds/volcano_eruption.ogg");
 	read_ogg_clip(IT_BURNS, "sounds/aaaah_it_burns.ogg");
 	read_ogg_clip(ZZZT_SOUND, "sounds/zzzt.ogg");
+	read_ogg_clip(GRAVITYBOMB_SOUND, "sounds/gravity_bomb.ogg");
 	printf("done.\n");
 	return 0;
 }
