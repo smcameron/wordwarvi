@@ -67,3 +67,4 @@ license.  See: http://creativecommons.org/licenses/by-sa/3.0/
 	big_explosion.ogg
 	dtox3monomix.ogg 
 	zzzt.ogg
+	gravity_bomb.ogg
