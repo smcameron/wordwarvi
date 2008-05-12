@@ -110,6 +110,7 @@ int add_sound(int which_sound, int which_slot);
 #define IT_BURNS 44
 #define ZZZT_SOUND 45
 #define GRAVITYBOMB_SOUND 46
+#define DESTINY_FACEDOWN 47
 
 /* ...End of audio stuff */
 
@@ -1876,6 +1877,10 @@ GtkWidget *main_da;		/* main drawing area. */
 gint timer_tag;			/* for our gtk 30 times per second timer function */
 int next_quarter_time = -1;	/* Used to limit rate at which quarters can be put in. */
 int next_thunder_time = -1;
+
+int destiny_facedown = 0;		/* is goofy intro playing? */
+int destiny_facedown_timer1 = 0;	/* when goofy intro stops, turn on sound effects */
+int destiny_facedown_timer2 = 0;	/* when to start goofy intro again. */
 
 #define NSTARS 150
 struct star_t {
@@ -4191,6 +4196,7 @@ void autopilot()
 		drop_bomb();
 }
 
+void cancel_all_sounds();
 void no_draw(struct game_obj_t *o, GtkWidget *w);
 void move_player(struct game_obj_t *o)
 {
@@ -4356,8 +4362,21 @@ void move_player(struct game_obj_t *o)
 	}
 
 	/* Autopilot, "attract mode", if credits <= 0 */
-	if (credits <= 0)
+	if (credits <= 0) {
 		autopilot();
+		if (!destiny_facedown && timer > destiny_facedown_timer2) {
+			cancel_all_sounds();
+			game_state.sound_effects_on = 0;
+			add_sound(DESTINY_FACEDOWN, MUSIC_SLOT);
+			destiny_facedown = 1;
+			destiny_facedown_timer1 = timer + (frame_rate_hz * 46);
+			destiny_facedown_timer2 = timer + (frame_rate_hz * 3*30);
+		}
+		if (destiny_facedown && timer > destiny_facedown_timer1) {
+			destiny_facedown = 0;
+			game_state.sound_effects_on = 1;
+		}
+	}
 }
 
 void bounce(int *vx, int *vy, int slope, double bouncefactor)
@@ -8699,13 +8718,14 @@ void advance_level()
 	/* start_level(); */
 }
 
-void cancel_all_sounds();
 
 void insert_quarter()
 {
 	credits++;
 	if (credits == 1) {
 		cancel_all_sounds();
+		destiny_facedown = 0;
+		game_state.sound_effects_on = 1;
 		add_sound(INSERT_COIN_SOUND, ANY_SLOT);
 		sleep(2);
 		ntextlines = 1;
@@ -9312,6 +9332,7 @@ int init_clips()
 	read_ogg_clip(IT_BURNS, "sounds/aaaah_it_burns.ogg");
 	read_ogg_clip(ZZZT_SOUND, "sounds/zzzt.ogg");
 	read_ogg_clip(GRAVITYBOMB_SOUND, "sounds/gravity_bomb.ogg");
+	read_ogg_clip(DESTINY_FACEDOWN, "sounds/destiny_facedown.ogg");
 	printf("done.\n");
 	return 0;
 }

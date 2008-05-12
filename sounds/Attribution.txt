@@ -19,6 +19,11 @@ with "vorbiscomment -l"
   were done with Gneutronica, a MIDI-drum sequencer which 
   I wrote, see: http://gneutronica.sourceforge.net )
 
+* destiny_facedown.ogg was composed, written, performed, and
+  recorded by me (Stephen M. Cameron)  It is licensed under the
+  Creative Commons Attribution-Share Alike 3.0 license.
+  See: http://creativecommons.org/licenses/by-sa/3.0/
+
 The sounds below are all (c) Copyright 2008 Stephen M. Cameron
 and released under Creative Commons Attribution-Share Alike unported 3.0
 license.  See: http://creativecommons.org/licenses/by-sa/3.0/
@@ -68,3 +73,4 @@ license.  See: http://creativecommons.org/licenses/by-sa/3.0/
 	dtox3monomix.ogg 
 	zzzt.ogg
 	gravity_bomb.ogg
+	destiny_facedown.ogg
