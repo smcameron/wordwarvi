@@ -1,5 +1,66 @@
 Changelog for wordwarvi:
 
+Sun May 11 20:59:10 CDT 2008
+-------------------------------------------------------------------------------
+Changes between version 0-.09 and 0.10
+
+* Credit Michael Smith (xiph.org) for my hacked version of
+  oggdec.c (ogg_to_pcm.c)
+* Added a little easter egg worth a million bonus points.
+* Changed type of variable needing to hold seconds since long ago to
+  and unsigned long long, instead of an int.
+* Fixed bug that if an invalid sound device was specified via --sounddevice
+  option, a segfault resulted.
+* Fixed problem that the ogg decoding stuff broke WITHAUDIO=no
+* Remove reference to libsndfile
+* Added omitted file "zzzt.ogg" to the list of files in Attribution.txt.
+* Corrected minor grammar errors
+* Removed mention of freesound, since no files from freesound
+  are used any more.
+* Mention vorbiscomment -l.
+* Fixed bug that sometimes humanoids in the midst of falling
+  would suddenly and instantly appear on the ground.  Problem
+  was the humanoid_move function was calling find_ground_level()
+  to figure out the y value of the terrain underneath the humanoid,
+  and trying to see if that function failed by checking its return
+  value against -1.  Problem is, -1 is a perfectly valid y value for
+  terrain to have.  Should have been checking against GROUND_OOPS.
+* Now the guns exhibit recoil.
+* Fixed the recoil motion, which was sort of backwards.
+* Added --blueprint rendering option.
+* Tremendously improved keyboard support
+* Improved keyboard support a bit more, I think.
+* Added some debug code to debug the target list
+* Added a new weapon for the player -- he gets 3 gravity bombs.
+  Not sure it's a good idea, but it's in for now..
+* fixed type-punned pointer warning in pcm_to_ogg call.
+* Now gravity bombs fall more slowly, get more air.
+* Rockets and gdbs are awakened by gravity bombs, so they
+  aren't left hanging in space.
+* rockets smashed into the ground by gravity bombs get destroyed.
+* commented out 'n' and 'i' keys -- they are supposed to be for debugging.
+* Now guns do not lead the player in y direction, only x.  This
+  eliminates weird "bobbing" behavior.
+* Elminated some unused code left over from the old flak guns.
+* Make bullets from cron jobs a little brighter, easier to see.
+* Try to make the gravity bomb look slightly cooler
+* Make octo-virus heads a little bit bigger.
+* Made cron jobs look a tiny bit better.
+* Made humanoids ride along with their carriers in
+  a bit better relative position
+* When in pause mode, pause the sound too.
+* When in pause mode, the radar screen displays "Time warp activated."
+  like Parsec, on the ti99/4a.
+* Document --blueprint option
+* Fix warning about type-punned pointer (again)
+* Put in infrastructure so that Now enemies can conceivably take
+  more than one hit to kill.
+* Cleaned up the scoring and kill tally code a bit.
+* added gravity_bomb.ogg
+* Added sound for gravity bomb
+* Moved "attract mode" autopilot stuff into its own function
+* Added insane intro "Destiny Face Down."
+
 Sat May  3 18:46:16 CDT 2008
 -------------------------------------------------------------------------------
 Changes between version 0.08 and 0.09
