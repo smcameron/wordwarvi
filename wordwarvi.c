@@ -563,12 +563,6 @@ stroke_t glyph_p[] = { 18, 6, 8, 14, 12, 99 };
 stroke_t glyph_q[] = { 14, 12, 6, 8, 20, 99 };
 stroke_t glyph_r[] = { 12, 6, 21, 9,7,8,99 };
 
-
-
-struct target_t; /* linked list of possible target objects to */
-		 /* avoid searching through vast majority of */
-		 /* non-targetable objects (e.g., sparks) */
-
 struct my_point_t {
 	int x,y;
 };
@@ -1790,7 +1784,6 @@ struct game_obj_t {
 	obj_draw_func *draw;
 	obj_destroy_func *destroy;
 	struct my_vect_obj *v;		/* drawing instructions */
-	struct target_t *target;	/* keeps track of himself in the target list */
 	int x, y;			/* current position, in game coords */
 	int vx, vy;			/* velocity */
 	int color;			/* initial color */
@@ -1807,12 +1800,12 @@ struct game_obj_t {
 	int radar_image;		/* Does this object show up on radar? */ 
 	int uses_health;
 	struct health_data health;
+	struct game_obj_t *next;
+	struct game_obj_t *prev;
+	int ontargetlist;
 };
 
-struct target_t {			/* doubly linked list of objects which may be hit */
-	struct game_obj_t *o;		/* saves us from searching through all objects. */ 
-	struct target_t *prev, *next;
-} *target_head = NULL;
+struct game_obj_t *target_head = NULL;
 
 struct terrain_t {			/* x,y points of the ground, in game coords */
 	int npoints;
@@ -2025,48 +2018,62 @@ void draw_stars(GtkWidget *w)
 
 
 /* add an object to the list of targets... */
-struct target_t *add_target(struct game_obj_t *o)
+struct game_obj_t *add_target(struct game_obj_t *o)
 {
-	struct target_t *t;
+#ifdef DEBUG_TARGET_LIST
+	struct game_obj_t *t;
 
-	t = malloc(sizeof(struct target_t));
-	if (t == NULL) {
-		printf("add target failed.\n");
-		return NULL;
+	for (t = target_head; t != NULL; t = t->next) {
+		if (t == o) {
+			printf("Object already in target list!\n");
+			return NULL;
+		}
 	}
+	if (o->ontargetlist) {
+		printf("Object claims to be on target list, but isn't.\n");
+	}
+#endif
 
-	t->o = o;
-	t->prev = NULL;
-	if (target_head == NULL) { 
-		target_head = t;
-		t->next = NULL;
-	} else {
-		t->next = target_head;
-		target_head->prev = t;
-		target_head = t;
-	}
+	o->next = target_head;
+	o->prev = NULL;
+	if (target_head)
+		target_head->prev = o;
+	target_head = o;
+	o->ontargetlist = 1;
+
 	return target_head;
 }
 
 /* for debugging... */
 void print_target_list()
 {
-	struct target_t *t;
+	struct game_obj_t *t;
 	printf("Targetlist:\n");
 	for (t=target_head; t != NULL;t=t->next) {
-		printf("%c: %d,%d\n", t->o->otype, t->o->x, t->o->y);
+		printf("%c: %d,%d\n", t->otype, t->x, t->y);
 	}
 	printf("end of list.\n");
 }
 
 /* remove an object from the target list */
-struct target_t *remove_target(struct target_t *t)
+struct game_obj_t *remove_target(struct game_obj_t *t)
 {
 
-	struct target_t *next;
+	struct game_obj_t *next;
 	if (!t)
 		return NULL;
-
+#ifdef DEBUG_TARGET_LIST
+	if (!t->ontargetlist) {
+		for (next = target_head; next != NULL; next = next->next) {
+			if (next == t) {
+				printf("Remove, object claims not to be on target list, but it is.\n");
+				goto do_it_anyway;
+			}
+		}
+		return NULL;
+	}
+do_it_anyway:
+#endif
 	next = t->next;
 	if (t == target_head)
 		target_head = t->next;
@@ -2076,7 +2083,7 @@ struct target_t *remove_target(struct target_t *t)
 		t->prev->next = t->next;
 	t->next = NULL;
 	t->prev = NULL;
-	free(t);
+	t->ontargetlist=0;
 	return next;
 }
 
@@ -2361,8 +2368,8 @@ void move_rocket(struct game_obj_t *o)
 		if (o->y > gl) {
 			add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 			explode(o->x, o->y, o->vx, 1, 70, 150, 20);
+			remove_target(o);
 			kill_object(o);
-			remove_target(o->target);
 			return;
 		}
 
@@ -2370,9 +2377,9 @@ void move_rocket(struct game_obj_t *o)
 		if ((ydist*ydist + xdist*xdist) < 400) { /* hit the player? */
 			add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 			explode(o->x, o->y, o->vx, 1, 70, 150, 20);
-			kill_object(o);
 			game_state.health -= 20;
-			remove_target(o->target);
+			remove_target(o);
+			kill_object(o);
 			return;
 		}
 	}
@@ -2390,8 +2397,8 @@ void move_rocket(struct game_obj_t *o)
 	}
 	if (o->y - player->y < -1000 && o->vy != 0) {
 		/* if the rocket is way off the top of the screen, just forget about it. */
+		remove_target(o);
 		kill_object(o);
-		remove_target(o->target);
 		o->destroy(o);
 	}
 }
@@ -3246,6 +3253,7 @@ void gdb_move(struct game_obj_t *o)
 	/* If GDB's smash into the ground... they die. */
 	/* Somewhat counteracts their bad-assitude.... */
 	if (o->y >= gy + 3) {
+		remove_target(o);
 		kill_object(o);
 		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
 		o->destroy(o);
@@ -3293,6 +3301,7 @@ void humanoid_move(struct game_obj_t *o)
 				add_sound(OOF_SOUND, ANY_SLOT);
 			else {
 				add_sound(IT_BURNS, ANY_SLOT);
+				remove_target(o);
 				kill_object(o);
 				game_state.score += score_table[OBJ_TYPE_HUMAN];
 				return;
@@ -3370,14 +3379,23 @@ void socket_move(struct game_obj_t *o)
 static inline void free_object(int i)
 {
 	game_state.go[i].alive = 0;
+#ifdef DEBUG_TARGET_LIST
+	if (game_state.go[i].ontargetlist ||
+		game_state.go[i].next) {
+			printf("x\n");
+	}
+#endif
 	free_obj_bitmap[i >> 5] &= ~(1 << (i % 32)); /* clear the proper bit. */
 }
 
 static inline void age_object(struct game_obj_t *o)
 {
 	o->alive--;
-	if (o->alive <= 0)
+	if (o->alive <= 0) {
+		if (o->ontargetlist)
+			remove_target(o);
 		free_object(o->number);	
+	}
 }
 
 static inline void kill_object(struct game_obj_t *o)
@@ -3428,7 +3446,8 @@ void player_fire_laser()
 		o->otype = OBJ_TYPE_LASER;
 		o->color = game_state.nextlasercolor;
 		o->alive = 20;
-		o->target = NULL;
+		o->next = NULL;
+		o->prev = NULL;
 	
 		game_state.nextlasercolor++;
 		if  (game_state.nextlasercolor >= NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS)
@@ -3600,29 +3619,33 @@ void truss_cut_loose_whats_below(struct game_obj_t *o);
 
 void bomb_move(struct game_obj_t *o)
 {
-	struct target_t *t;
+	struct game_obj_t *t, *next;
 	int deepest;
 	int dist2;
 	int removed;
+	int do_remove_bomb;
 
 	if (!o->alive)
 		return;
+	
+	do_remove_bomb = 0;
+
 	o->x += o->vx;
 	o->y += o->vy;
 	o->vy++; /* gravity */
 
 	/* Scan the target list to see if we've hit anything. */
 	for (t=target_head;t != NULL;) {
-		if (t->o == o) { /* bomb_move things can't bomb them selves. */
+		if (t == o || t->otype == 'p') { /* bomb_move things can't bomb them selves. */
 			t = t-> next;
 			continue;
 		}
-		if (!t->o->alive) {
+		if (!t->alive) {
 			t=t->next;
 			continue;
 		}
 		removed = 0;
-		switch (t->o->otype) {
+		switch (t->otype) {
 			case OBJ_TYPE_KGUN:
 			case OBJ_TYPE_TRUSS:
 			case OBJ_TYPE_ROCKET:
@@ -3637,40 +3660,38 @@ void bomb_move(struct game_obj_t *o)
 			/* case OBJ_TYPE_BOMB:  no, bomb can't bomb himself... */
 			case OBJ_TYPE_SAM_STATION:  {
 				/* find distance squared... don't take square root. */
-				dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
-					(o->y - t->o->y)*(o->y - t->o->y);
+				dist2 = (o->x - t->x)*(o->x - t->x) + 
+					(o->y - t->y)*(o->y - t->y);
 				if (dist2 < LASER_PROXIMITY) { /* a hit (LASER_PROXIMITY is already squared.) */
 
-					if (t->o->uses_health) {
-						t->o->health.health -= 1;
-						if (t->o->health.health > 0) {
+					if (t->uses_health) {
+						t->health.health -= 1;
+						if (t->health.health > 0) {
+							do_remove_bomb = 1;
 							add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
-							explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
-							spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
-							kill_object(o);
-							o->destroy(o);
-							/* object not dead yet. */
+							explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+							spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
+							/* target object not dead yet. */
 							break;
 						}
-						if (t->o->otype == OBJ_TYPE_TRUSS)
-							truss_cut_loose_whats_below(t->o);
+						if (t->otype == OBJ_TYPE_TRUSS)
+							truss_cut_loose_whats_below(t);
 					}
-					if (score_table[t->o->otype] != 0) {
-						game_state.score += score_table[t->o->otype];
-						add_score_floater(t->o->x, t->o->y, score_table[t->o->otype]);
+					if (score_table[t->otype] != 0) {
+						game_state.score += score_table[t->otype];
+						add_score_floater(t->x, t->y, score_table[t->otype]);
 					}
-					kill_tally[t->o->otype]++;
+					kill_tally[t->otype]++;
 					add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
-					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
-					spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
-					// t->o->alive = 0;
-					kill_object(t->o);
-					t->o->destroy(t->o);
-					t = remove_target(t);
+					explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+					spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
+					// t->alive = 0;
+					next = remove_target(t);
+					kill_object(t);
+					t->destroy(t);
+					t = next;
 					removed = 1;
-					kill_object(o);
-					// o->alive = 0;
-					o->destroy(o);
+					do_remove_bomb = 1;
 				}
 			}
 			default:
@@ -3684,18 +3705,21 @@ void bomb_move(struct game_obj_t *o)
 	/* Detect smashing into the ground */
 	deepest = find_ground_level(o, NULL);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
-		kill_object(o);
-		o->destroy(o);
 		add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, 1, 90, 150, 20);
+		do_remove_bomb = 1;
 		/* find nearby targets */
 		for (t=target_head;t != NULL;) {
-			if (!t->o->alive) {
+			if (t == o || t->otype == 'p') { /* bomb_move things can't bomb them selves. */
+				t = t-> next;
+				continue;
+			}
+			if (!t->alive) {
 				t=t->next;
 				continue;
 			}
 			removed = 0;
-			switch (t->o->otype) {
+			switch (t->otype) {
 				case OBJ_TYPE_TRUSS: 
 				case OBJ_TYPE_TENTACLE: 
 				case OBJ_TYPE_ROCKET:
@@ -3710,41 +3734,40 @@ void bomb_move(struct game_obj_t *o)
 				case OBJ_TYPE_JAMMER:
 				case OBJ_TYPE_SAM_STATION:
 				case OBJ_TYPE_FUEL: {
-					dist2 = (o->x - t->o->x)*(o->x - t->o->x) + 
-						(o->y - t->o->y)*(o->y - t->o->y);
+					dist2 = (o->x - t->x)*(o->x - t->x) + 
+						(o->y - t->y)*(o->y - t->y);
 					if (dist2 < BOMB_PROXIMITY) { /* a hit */
 
-						if (t->o->uses_health) {
-							t->o->health.health -= 1;
-							if (t->o->health.health > 0) {
+						if (t->uses_health) {
+							t->health.health -= 1;
+							if (t->health.health > 0) {
 								add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
-								explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
-								spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
-								kill_object(o);
-								o->destroy(o);
+								explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+								spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 								/* object not dead yet. */
 								break;
 							}
-							if (t->o->otype == OBJ_TYPE_TRUSS)
-								truss_cut_loose_whats_below(t->o);
+							if (t->otype == OBJ_TYPE_TRUSS)
+								truss_cut_loose_whats_below(t);
 						}
 						/* FIXME -- need to adjust kill counts. */
 
-						if (score_table[t->o->otype] != 0) {
-							game_state.score += score_table[t->o->otype];
-							add_score_floater(t->o->x, t->o->y, score_table[t->o->otype]);
+						if (score_table[t->otype] != 0) {
+							game_state.score += score_table[t->otype];
+							add_score_floater(t->x, t->y, score_table[t->otype]);
 						}
-						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
-						spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
-						kill_object(t->o);
-						// t->o->alive = 0;
-						t->o->destroy(t->o);
-						/* if (t->o->otype == OBJ_TYPE_FUEL) {
+						explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+						spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
+						next = remove_target(t);
+						kill_object(t);
+						// t->alive = 0;
+						t->destroy(t);
+						/* if (t->otype == OBJ_TYPE_FUEL) {
 							game_state.health += 10;
 							if (game_state.health > MAXHEALTH)
 								game_state.health = MAXHEALTH;
 						} */
-						t = remove_target(t);
+						t = next;
 						removed = 1;
 					}
 				}
@@ -3753,14 +3776,14 @@ void bomb_move(struct game_obj_t *o)
 				/* this is where pieces of bridges hit by bombs get set in motion. */
 				case OBJ_TYPE_BRIDGE:
 				case OBJ_TYPE_DEBRIS: /* <--- this doesn't seem to work.  FIXME */
-					if (abs(o->x - t->o->x) < BOMB_X_PROXIMITY) { /* a hit */
+					if (abs(o->x - t->x) < BOMB_X_PROXIMITY) { /* a hit */
 						/* "+=" instead of "=" in case multiple bombs */
-						if (t->o->move == no_move) /* only get the points once. */
+						if (t->move == no_move) /* only get the points once. */
 							game_state.score += score_table[OBJ_TYPE_BRIDGE];
-						t->o->vx += ((t->o->x < o->x) ? -1 : 1) * randomn(6);
-						t->o->vy += ((t->o->y < o->y) ? -1 : 1) * randomn(6);
-						t->o->move = bridge_move;
-						t->o->alive = 20;
+						t->vx += ((t->x < o->x) ? -1 : 1) * randomn(6);
+						t->vy += ((t->y < o->y) ? -1 : 1) * randomn(6);
+						t->move = bridge_move;
+						t->alive = 20;
 					}
 					break;
 				default:
@@ -3771,11 +3794,10 @@ void bomb_move(struct game_obj_t *o)
 				t = t->next;
 		}
 	}
-	/* if bomb exploded, it's dead and gone. */
-	if (!o->alive) {
-		remove_target(o->target);
-		o->target = NULL;
-		/* FIXME.  Don't we need to kill_object() here? */
+	if (do_remove_bomb) {
+		remove_target(o);
+		kill_object(o);
+		o->destroy(o);
 	}
 }
 
@@ -3861,9 +3883,8 @@ void gravity_bomb_move(struct game_obj_t *o)
 					// add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
 					// explode(t->x, t->y, t->vx, 1, 70, 150, 20);
 					// spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
+					remove_target(t);
 					t->destroy(t);
-					if (t->target) 
-						remove_target(t->target);
 					kill_object(t);
 				}
 			}
@@ -3874,15 +3895,10 @@ void gravity_bomb_move(struct game_obj_t *o)
 
 	/* Detect smashing into the ground */
 	deepest = find_ground_level(o, NULL);
-	if (deepest != GROUND_OOPS && o->y > deepest) {
+	if ((deepest != GROUND_OOPS && o->y > deepest) || !o->alive) {
+		remove_target(o);
 		kill_object(o);
 		o->destroy(o);
-	}
-	/* if bomb exploded, it's dead and gone. */
-	if (!o->alive) {
-		remove_target(o->target);
-		o->target = NULL;
-		kill_object(o);
 	}
 }
 
@@ -3944,8 +3960,7 @@ void chaff_move(struct game_obj_t *o)
 		o->destroy(o);
 	}
 	if (!o->alive) {
-		remove_target(o->target);
-		o->target = NULL;
+		remove_target(o);
 	}
 }
 
@@ -3953,7 +3968,7 @@ void drop_chaff()
 {
 	int j, i[3];
 	struct game_obj_t *o;
-	struct target_t *t;
+	struct game_obj_t *t;
 
 	if (game_state.nextchafftime > timer)
 		return;
@@ -3973,19 +3988,19 @@ void drop_chaff()
 		o->v = &spark_vect; /* used? */
 		o->move = chaff_move;
 		o->otype = OBJ_TYPE_CHAFF;
-		o->target = add_target(o);
+		add_target(o);
 		o->color = ORANGE;
 		o->alive = 25;
 	}
 	/* find any missiles in the vicinity */
 	for (t=target_head;t != NULL;t=t->next) {
-		if (t->o->otype != OBJ_TYPE_MISSILE)
+		if (t->otype != OBJ_TYPE_MISSILE)
 			continue;
 		/* make the missile chase the chaff instead of the player -- sometimes. */
-		if (t->o->bullseye == player) {
+		if (t->bullseye == player) {
 			j = randomn(3);
 			if (j >= 0 && j <= 3 && i[j] > 0 && randomn(100) < 50)
-				t->o->bullseye = &game_state.go[i[j]];
+				t->bullseye = &game_state.go[i[j]];
 		}
 	}
 	/* FIXME Bug: when (bullseye->alive == 0) some new object will allocate there
@@ -4023,7 +4038,7 @@ void drop_bomb()
 		o->draw = NULL;
 		o->destroy = generic_destroy_func;
 		o->otype = OBJ_TYPE_BOMB;
-		o->target = add_target(o);
+		add_target(o);
 		o->color = ORANGE;
 		o->alive = 20;
 	}
@@ -4060,7 +4075,7 @@ void drop_gravity_bomb()
 		o->draw = NULL;
 		o->destroy = generic_destroy_func;
 		o->otype = OBJ_TYPE_BOMB;
-		o->target = add_target(o);
+		add_target(o);
 		o->color = WHITE;
 		o->alive = 20;
 		add_sound(GRAVITYBOMB_SOUND, ANY_SLOT);
@@ -4423,8 +4438,8 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 	if (o->otype == OBJ_TYPE_DEBRIS) {
 		/* debris doesn't last forever, and disappears when age == 2. */
 		if  (o->alive == 2) {
+			remove_target(o);
 			kill_object(o);	
-			remove_target(o->target);
 		}
 		/* flying debris will throw sparks for 4 seconds or until it hits the ground. */
 		if (o->alive > frame_rate_hz*4 || o->y < deepest-2) 
@@ -4491,7 +4506,7 @@ void laser_draw(struct game_obj_t *o,  GtkWidget *w)
 
 void laser_move(struct game_obj_t *o)
 {
-	struct target_t *t;
+	struct game_obj_t *t, *next;
 	int hit;
 	int removed;
 
@@ -4502,31 +4517,32 @@ void laser_move(struct game_obj_t *o)
 
 	/* search the list of potential targets and see if we've hit anything. */
 	for (t=target_head;t != NULL;) {
-		if (!t->o->alive) {
+		if (!t->alive) {
 			t = t->next;
 			continue;
 		}
 		removed = 0;
-		switch (t->o->otype) {
+		switch (t->otype) {
 			case OBJ_TYPE_SHIP:
 			case OBJ_TYPE_AIRSHIP:
-				if (abs(o->x - t->o->x) < 3*60 &&	/* hit a blimp or clipper ship? */
-					o->y - t->o->y <= 0 &&
-					o->y - t->o->y > -50*3) {
-					if (t->o->tsd.airship.pressure < 40)
-						t->o->tsd.airship.pressure += 2;
+				if (abs(o->x - t->x) < 3*60 &&	/* hit a blimp or clipper ship? */
+					o->y - t->y <= 0 &&
+					o->y - t->y > -50*3) {
+					if (t->tsd.airship.pressure < 40)
+						t->tsd.airship.pressure += 2;
 					explode(o->x, o->y, o->vx/2, 1, 70, 20, 20); /* make sparks */
 					kill_object(o);		/* get rid of laser beam object. */
 					o->destroy(o);
-					t->o->alive -= PLAYER_LASER_DAMAGE;	/* damage enemy */
-					if (t->o->alive <= 0) {			/* killed him? */
-						kill_tally[t->o->otype]++;
-						kill_object(t->o);
-						t->o->destroy(t->o);
-						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
-						spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 30, t->o, 1);
+					t->alive -= PLAYER_LASER_DAMAGE;	/* damage enemy */
+					if (t->alive <= 0) {			/* killed him? */
+						kill_tally[t->otype]++;
+						next = remove_target(t);
+						kill_object(t);
+						t->destroy(t);
+						explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+						spray_debris(t->x, t->y, t->vx, t->vy, 30, t, 1);
 						add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
-						t = remove_target(t);
+						t = next;
 						removed = 1;
 					}
 				}
@@ -4547,40 +4563,41 @@ void laser_move(struct game_obj_t *o)
 
 				/* check y value first. */
 				hit = 0;
-				if (abs(o->y - t->o->y) <= LASER_Y_PROXIMITY) {
+				if (abs(o->y - t->y) <= LASER_Y_PROXIMITY) {
 					if (o->vx > 0) {
-						if (o->x > t->o->x && o->x - o->vx < t->o->x)
+						if (o->x > t->x && o->x - o->vx < t->x)
 							hit=1;
 					} else {
-						if (o->x < t->o->x && o->x - o->vx > t->o->x)
+						if (o->x < t->x && o->x - o->vx > t->x)
 							hit=1;
 					}
 				}
 				// printf("dist2 = %d\n", dist2);
 				if (hit) { /* a hit */
-					if (t->o->uses_health) {
-						t->o->health.health--;
-						if (t->o->health.health > 0)
+					if (t->uses_health) {
+						t->health.health--;
+						if (t->health.health > 0)
 							break;
 					}
-					if (t->o->otype == OBJ_TYPE_TRUSS)
-						truss_cut_loose_whats_below(t->o);
-					if (score_table[t->o->otype] != 0) {
-						game_state.score += (score_table[t->o->otype]);
-						add_score_floater(t->o->x, t->o->y, score_table[t->o->otype]);
+					if (t->otype == OBJ_TYPE_TRUSS)
+						truss_cut_loose_whats_below(t);
+					if (score_table[t->otype] != 0) {
+						game_state.score += (score_table[t->otype]);
+						add_score_floater(t->x, t->y, score_table[t->otype]);
 					}
-					kill_tally[t->o->otype]++;
+					kill_tally[t->otype]++;
 					add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
-					explode(t->o->x, t->o->y, t->o->vx, 1, 70, 150, 20);
-					spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
-					kill_object(t->o);
-					/* if (t->o->otype == OBJ_TYPE_FUEL) {
+					explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+					spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
+					next = remove_target(t);
+					kill_object(t);
+					/* if (t->otype == OBJ_TYPE_FUEL) {
 						game_state.health += 10;
 						if (game_state.health > MAXHEALTH)
 							game_state.health = MAXHEALTH;
 					} */
-					t->o->destroy(t->o);
-					t = remove_target(t);
+					t->destroy(t);
+					t = next;
 					removed = 1;
 					kill_object(o);
 					o->destroy(o);
@@ -4590,42 +4607,42 @@ void laser_move(struct game_obj_t *o)
 			case OBJ_TYPE_WORM:
 				/* check y value first. */
 				hit = 0;
-				if (abs(o->y - t->o->y) <= LASER_Y_PROXIMITY) {
+				if (abs(o->y - t->y) <= LASER_Y_PROXIMITY) {
 					if (o->vx > 0) {
-						if (o->x > t->o->x && o->x - o->vx < t->o->x)
+						if (o->x > t->x && o->x - o->vx < t->x)
 							hit=1;
 					} else {
-						if (o->x < t->o->x && o->x - o->vx > t->o->x)
+						if (o->x < t->x && o->x - o->vx > t->x)
 							hit=1;
 					}
 				}
 				if (!hit)
 					break;
 
-				explode(t->o->x, t->o->y, t->o->vx, 1, 70, 10, 20);
+				explode(t->x, t->y, t->vx, 1, 70, 10, 20);
 				/* cut the worm in half where it's hit. */
 				/* Disconnect the top half: */
-				if (t->o->tsd.worm.parent) {
+				if (t->tsd.worm.parent) {
 					struct game_obj_t *parent;
-					parent = t->o->tsd.worm.parent;
+					parent = t->tsd.worm.parent;
 
 					parent->tsd.worm.child = NULL;
 					if (parent->tsd.worm.parent == NULL) { /* just a head? */
+						remove_target(parent);
 						kill_object(parent);
 						parent->destroy(parent);
-						remove_target(parent->target);
-						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 25, 20);
-						spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
+						explode(t->x, t->y, t->vx, 1, 70, 25, 20);
+						spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 					}
-					t->o->tsd.worm.parent->tsd.worm.child = NULL;
+					t->tsd.worm.parent->tsd.worm.child = NULL;
 				}
 			
 				/* Disconnect the bottom half */
-				if (t->o->tsd.worm.child) {
+				if (t->tsd.worm.child) {
 					/* make new head become autonomous ... see worm_move() */
 					struct game_obj_t *child;
 
-					child = t->o->tsd.worm.child;
+					child = t->tsd.worm.child;
 
 					child->tsd.worm.parent = NULL;
 					child->tsd.worm.tx = child->x;
@@ -4634,21 +4651,21 @@ void laser_move(struct game_obj_t *o)
 					child->tsd.worm.lty = child->y;
 
 					if (child->tsd.worm.child == NULL) {	
+						remove_target(child);
 						kill_object(child);
 						child->destroy(child);
-						remove_target(child->target);
-						explode(t->o->x, t->o->y, t->o->vx, 1, 70, 25, 20);
-						spray_debris(t->o->x, t->o->y, t->o->vx, t->o->vy, 70, t->o, 1);
+						explode(t->x, t->y, t->vx, 1, 70, 25, 20);
+						spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 					}
 				}
 
 				/* blow away the segment we just hit. */
 				add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 
-				kill_object(t->o);
-
-				t->o->destroy(t->o);
-				t = remove_target(t);
+				next = remove_target(t);
+				kill_object(t);
+				t->destroy(t);
+				t = next;
 				removed = 1;
 				kill_object(o);
 				o->destroy(o);
@@ -4662,10 +4679,6 @@ void laser_move(struct game_obj_t *o)
 	}
 	if (o->alive)
 		age_object(o);
-	// if (!o->alive) {
-		//remove_target(o->target);
-		//o->target = NULL;
-	//}
 }
 
 void move_obj(struct game_obj_t *o)
@@ -4787,11 +4800,8 @@ void move_missile(struct game_obj_t *o)
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		remove_target(o);
 		kill_object(o);
-		if (o->target) {
-			remove_target(o->target);
-			o->target = NULL;
-		}
 		o->destroy(o);
 		return;
 	}
@@ -4801,10 +4811,8 @@ void move_missile(struct game_obj_t *o)
 	if (o->alive <= 0) { 
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
-		if (o->target) {
-			remove_target(o->target);
-			o->target = NULL;
-		}
+		remove_target(o);
+		kill_object(o);
 		o->destroy(o);
 		return;
 	}
@@ -4826,10 +4834,7 @@ void move_missile(struct game_obj_t *o)
 			game_state.health -= MISSILE_DAMAGE;
 		else
 			target_obj->alive -= MISSILE_DAMAGE;
-		if (o->target) {
-			remove_target(o->target);
-			o->target = NULL;
-		}
+		remove_target(o);
 		kill_object(o);
 		/* target_obj->alive -= MISSILE_DAMAGE; */
 		if (target_obj->alive <= 0)
@@ -4892,11 +4897,8 @@ void move_harpoon(struct game_obj_t *o)
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		remove_target(o);
 		kill_object(o);
-		if (o->target) {
-			remove_target(o->target);
-			o->target = NULL;
-		}
 		o->destroy(o);
 		return;
 	}
@@ -4906,10 +4908,8 @@ void move_harpoon(struct game_obj_t *o)
 	if (o->alive <= 0) { 
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
-		if (o->target) {
-			remove_target(o->target);
-			o->target = NULL;
-		}
+		remove_target(o);
+		kill_object(o);
 		o->destroy(o);
 		return;
 	}
@@ -4931,10 +4931,7 @@ void move_harpoon(struct game_obj_t *o)
 			game_state.health -= MISSILE_DAMAGE;
 		else
 			target_obj->alive -= MISSILE_DAMAGE;
-		if (o->target) {
-			remove_target(o->target);
-			o->target = NULL;
-		}
+		remove_target(o);
 		kill_object(o);
 		if (target_obj->alive <= 0)
 			kill_object(target_obj);
@@ -4993,11 +4990,8 @@ void move_bullet(struct game_obj_t *o)
 	age_object(o);	
 	deepest = find_ground_level(o, NULL);
 	if (o->alive <= 0 || (deepest != GROUND_OOPS && o->y > deepest)) {
+		remove_target(o);
 		kill_object(o);
-		if (o->target) {
-			remove_target(o->target);
-			o->target = NULL;
-		}
 		o->destroy(o);
 		return;
 	}
@@ -5014,10 +5008,7 @@ void move_bullet(struct game_obj_t *o)
 			game_state.health -= BULLET_DAMAGE;
 		else
 			target_obj->alive -= BULLET_DAMAGE;
-		if (o->target) {
-			remove_target(o->target);
-			o->target = NULL;
-		}
+		remove_target(o);
 		kill_object(o);
 		if (target_obj->alive <= 0)
 			kill_object(target_obj);
@@ -5054,9 +5045,11 @@ static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
 	o->destroy = generic_destroy_func;
 	o->color = color;
 	if (target)
-		o->target = add_target(o);
-	else
-		o->target = NULL;
+		add_target(o);
+	else {
+		o->prev = NULL;
+		o->next = NULL;
+	}
 	o->v = vect;
 	o->otype = otype;
 	o->alive = alive;
@@ -5086,7 +5079,7 @@ static void add_bullet(int x, int y, int vx, int vy,
 	o->v = &bullet_vect;
 	o->destroy = generic_destroy_func;
 	o->bullseye = bullseye;
-	o->target = add_target(o);
+	add_target(o);
 	o->otype = OBJ_TYPE_BULLET;
 	o->color = color;
 	o->alive = time;
@@ -5112,7 +5105,7 @@ static void add_missile(int x, int y, int vx, int vy,
 	o->draw = draw_missile;
 	o->destroy = generic_destroy_func;
 	o->bullseye = bullseye;
-	o->target = add_target(o);
+	add_target(o);
 	o->otype = OBJ_TYPE_MISSILE;
 	o->color = color;
 	o->alive = time;
@@ -5139,7 +5132,7 @@ static void add_harpoon(int x, int y, int vx, int vy,
 	o->draw = draw_harpoon;
 	o->destroy = generic_destroy_func;
 	o->bullseye = bullseye;
-	o->target = add_target(o);
+	add_target(o);
 	o->otype = OBJ_TYPE_HARPOON;
 	o->color = color;
 	o->alive = time;
@@ -5200,7 +5193,7 @@ void symbol_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 	if (o->alive>0) {
 		age_object(o);
 		// if (!o->alive)
-		//	remove_target(o->target);
+		//	remove_target(o);
 	} else
 		o->destroy(o);
 }
@@ -6372,9 +6365,9 @@ void draw_objs(GtkWidget *w)
 			continue;
 		if (o->y > (game_state.y + (SCREEN_HEIGHT)))
 			continue;
-#if 0
+#ifdef DEBUG_TARGET_LIST
 		/* some code for debugging the target list */
-		if (o->target) {
+		if (o->ontargetlist) {
 			gdk_gc_set_foreground(gc, &huex[WHITE]);
 			x1 = o->x - game_state.x;
 			y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
@@ -6803,12 +6796,11 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 		o->alive = 5*frame_rate_hz + randomn(frame_rate_hz);	
 		o->color = victim->color;
 		o->radar_image = 1;
-		o->target = add_target(o);
+		add_target(o);
 		// o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
 		// o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));
 		o->vx = randomn(r) - (r >> 1) + vx;	
 		o->vy = randomn(r) - (r >> 1) + vy;	
-		o->target = NULL;
 		o->tsd.debris.debris_type = metal;
 		o->v = debris_vect[randomn(NDEBRIS_FORMS)];
 	}
@@ -7215,8 +7207,14 @@ int find_free_obj()
 			/* Found free bit, bit j.  Set it, marking it non free.  */
 			free_obj_bitmap[i] |= (1 << j);
 			answer = (i * 32 + j);	/* return the corresponding array index, if in bounds. */
-			if (answer < MAXOBJS)
+			if (answer < MAXOBJS) {
+				if (game_state.go[answer].next != NULL || game_state.go[answer].prev != NULL ||
+					game_state.go[answer].ontargetlist) {
+						printf("T%c ", game_state.go[answer].otype);
+				}
+				game_state.go[answer].ontargetlist=0;
 				return answer;
+			}
 			return -1;
 		}
 	}
@@ -7287,7 +7285,7 @@ static void add_building(struct terrain_t *t, int xi)
 	o->v = bvec;
 	o->move = no_move;
 	o->otype = OBJ_TYPE_BUILDING;
-	o->target = add_target(o);
+	add_target(o);
 	o->color = BLUE;
 	o->alive = 1;
 	o->draw = NULL;
@@ -8571,6 +8569,7 @@ void start_level()
 		game_state.go[i].move = move_obj;
 	}
 	memset(&game_state.go[0], 0, sizeof(game_state.go));
+	target_head = NULL;
 	memset(free_obj_bitmap, 0, sizeof(int) * NBITBLOCKS);
 	init_object_numbers();
 	init_stars();
@@ -8585,7 +8584,7 @@ void start_level()
 	player->y = -100;
 	player->vx = PLAYER_SPEED;
 	player->vy = 0;
-	player->target = add_target(player);
+	add_target(player);
 	player->alive = 1;
 	
 	player->destroy = generic_destroy_func;
