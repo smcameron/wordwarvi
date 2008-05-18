@@ -58,6 +58,8 @@
 #define NCLIPS (48)
 #define MAX_CONCURRENT_SOUNDS (26)
 
+// #define DEBUG_TARGET_LIST 
+
 /* define sound clip constants, and dedicated sound queue slots. */
 int sound_device = -1; /* default sound device for port audio. */
 int add_sound(int which_sound, int which_slot);
@@ -1800,9 +1802,9 @@ struct game_obj_t {
 	int radar_image;		/* Does this object show up on radar? */ 
 	int uses_health;
 	struct health_data health;
-	struct game_obj_t *next;
-	struct game_obj_t *prev;
-	int ontargetlist;
+	struct game_obj_t *next;	/* These pointers, next, prev, are used to construct the */
+	struct game_obj_t *prev;	/* target list, the list of things which may be hit by other things */
+	int ontargetlist;		/* this list keeps of from having to scan the entire object list. */
 };
 
 struct game_obj_t *target_head = NULL;
@@ -6339,6 +6341,9 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 void draw_objs(GtkWidget *w)
 {
 	int i, j, x1, y1, x2, y2, radary;
+#ifdef DEBUG_TARGET_LIST
+	int nitems_on_targetlist = 0;
+#endif
 
 	/* figure where the center y of the radar screen is */
 	radary = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((player->y * RADAR_HEIGHT) / 1500);
@@ -6349,6 +6354,11 @@ void draw_objs(GtkWidget *w)
 		struct my_vect_obj *v = game_state.go[i].v;
 		struct game_obj_t *o = &game_state.go[i];
 
+#ifdef DEBUG_TARGET_LIST
+		/* some code for debugging the target list */
+		if (o->ontargetlist)
+			nitems_on_targetlist++;
+#endif
 		if (!o->alive)
 			continue; /* skip dead things. */
 
@@ -6404,6 +6414,14 @@ void draw_objs(GtkWidget *w)
 		} else if (o->draw != NULL)
 			o->draw(o, w); /* Call object's specialized drawing function. */
 	}
+#ifdef DEBUG_TARGET_LIST 
+	{
+		char count[15];
+		sprintf(count, "TL:%d", nitems_on_targetlist);
+		gdk_gc_set_foreground(gc, &huex[RED]);
+		abs_xy_draw_string(w, count, TINY_FONT, 20, 20);
+	}
+#endif
 }
 
 /* This is used by the "attract mode" screen for drawing the letters */
@@ -6796,7 +6814,7 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 		o->alive = 5*frame_rate_hz + randomn(frame_rate_hz);	
 		o->color = victim->color;
 		o->radar_image = 1;
-		add_target(o);
+		// add_target(o);
 		// o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
 		// o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));
 		o->vx = randomn(r) - (r >> 1) + vx;	
@@ -8418,8 +8436,8 @@ void timer_expired()
 			game_ended();
 			start_level();
 			timer_event = BLINK_EVENT;
-			strcpy(textline[GAME_OVER].string, FINAL_MSG1);
-			strcpy(textline[GAME_OVER+1].string, FINAL_MSG2);
+			strcpy(textline[GAME_OVER+1].string, FINAL_MSG1);
+			strcpy(textline[GAME_OVER].string, FINAL_MSG2);
 			ntextlines = 4;
 			next_timer = timer + 60;
 		} else {
