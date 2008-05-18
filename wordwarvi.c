@@ -150,7 +150,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define NFLAK 10			/* Number of flak guns (laser turrets) */
 #define NKGUNS 30			/* Number of Kernel defense guns (laser turrets) */
 #define KGUN_INIT_HEALTH 1		/* number of hits it takes to kill kgun. */
-#define MAX_KGUN_HEALTH 10 
+#define MAX_KGUN_HEALTH  1		/* An interesting idea, but >1 makes the game too hard. */
 #define NROCKETS 20 			/* Number of rockets sprinkled into the terrain */ 
 #define LAUNCH_DIST 1200			/* How close player can get in x dimension before rocket launches */
 #define MAX_ROCKET_SPEED -32		/* max vertical speed of rocket */
@@ -2232,7 +2232,7 @@ void kgun_move(struct game_obj_t *o)
 	if (o->health.prevhealth != o->health.health)
 		o->color = hot_metal_color(o->health.health, o->health.maxhealth);
 	o->health.prevhealth = o->health.health;
-	if ((timer & 0x0f) == 0x0f && 
+	if ((timer & 0x01f) == 0x01f && 
 		o->health.health < o->health.maxhealth)
 		o->health.health++;
 
