@@ -55,7 +55,7 @@
 #define M_PI  (3.14159265)
 #endif
 #define TWOPI (M_PI * 2.0)
-#define NCLIPS (48)
+#define NCLIPS (49)
 #define MAX_CONCURRENT_SOUNDS (26)
 
 // #define DEBUG_TARGET_LIST 
@@ -113,6 +113,7 @@ int add_sound(int which_sound, int which_slot);
 #define ZZZT_SOUND 45
 #define GRAVITYBOMB_SOUND 46
 #define DESTINY_FACEDOWN 47
+#define HIGH_SCORE_MUSIC 48
 
 /* ...End of audio stuff */
 
@@ -291,6 +292,11 @@ int timer_event = 0;		/* timer_expired() switches on this value... */
 #define END_INTERMISSION_EVENT 17
 #define KEYS1_EVENT 18
 #define KEYS2_EVENT 19
+#define START_HIGHSCORES_EVENT 20
+#define END_HIGHSCORES_EVENT 21
+#define NEW_HIGH_SCORE_PRE_EVENT 22
+#define NEW_HIGH_SCORE_PRE2_EVENT 23
+#define NEW_HIGH_SCORE_EVENT 24
 
 int sound_working = 0;
 int brightsparks = 0;		/* controls preference for how to draw sparks */
@@ -508,7 +514,7 @@ stroke_t glyph_J[] = { 9, 13, 11, 2, 99};
 stroke_t glyph_I[] = { 12, 14, 21, 13, 1, 21, 0, 2, 99 }; 
 stroke_t glyph_H[] = { 0, 12, 21, 2, 14, 21, 6, 8, 99 };
 stroke_t glyph_G[] = { 7, 8, 11, 13, 9, 3, 1, 5, 99 };
-stroke_t glyph_F[] = { 12, 0, 2, 21, 8, 7, 99 };
+stroke_t glyph_F[] = { 12, 0, 2, 21, 7, 6, 99 };
 stroke_t glyph_E[] = { 14, 12, 0, 2, 21, 6, 7, 99 };
 stroke_t glyph_D[] = { 12, 13, 11, 5, 1, 0, 12, 99 };
 stroke_t glyph_C[] = { 11, 13, 9, 3, 1, 5, 99 };
@@ -1455,6 +1461,22 @@ struct text_line_t {
 	int x, y, font;
 	char string[80];
 } textline[20];
+
+/* This is just stored in memory... I'm too lazy to make this */
+/* run setgid in order to write it out to a "games" owned score file, and */
+/* anyway, this is an old school shooter -- when you pull the plug on the */
+/* (imagined) coin op machine, high scores are cleared.  Big deal. */
+#define MAXHIGHSCORES 10
+struct score_data {
+	char name[4];
+	uint32_t score;
+} highscore[MAXHIGHSCORES];
+int highscore_letter = 0;
+int highscore_buttonpress = 0;
+char highscore_initials[4];
+int highscore_current_initial = 0;
+int autopilot_mode = 0;
+int high_score_file_descriptor = -1; /* not currently implemented. */
 
 #define FINAL_MSG1 "Where is your"
 #define FINAL_MSG2 "editor now???"
@@ -4185,6 +4207,7 @@ void autopilot()
 {
 	int i;
 
+	autopilot_mode = 1;
 	for (i=0;i<TERRAIN_LENGTH;i++) {
 		/* adjust player's vy to make him move towards a desired altitude. */
 		/* which is MIN_ALT above the section of ground 100 units ahead of */
@@ -4213,6 +4236,7 @@ void autopilot()
 		drop_bomb();
 }
 
+int new_high_score(int newscore);
 void cancel_all_sounds();
 void no_draw(struct game_obj_t *o, GtkWidget *w);
 void move_player(struct game_obj_t *o)
@@ -4246,7 +4270,11 @@ void move_player(struct game_obj_t *o)
 			if (credits > 0) 
 				credits--;			/* reduce credits */
 			if (credits <= 0) {
-				timer_event = GAME_ENDED_EVENT; /* game is over. */
+				if (!autopilot_mode && 
+					new_high_score(game_state.score) != MAXHIGHSCORES)
+					timer_event = NEW_HIGH_SCORE_PRE_EVENT;
+				else
+					timer_event = GAME_ENDED_EVENT; /* game is over. */
 				next_timer = timer + 30;
 			} else {				/* game not over... */
 				timer_event = READY_EVENT; 	/* back to beginning of level. */
@@ -4381,7 +4409,11 @@ void move_player(struct game_obj_t *o)
 	/* Autopilot, "attract mode", if credits <= 0 */
 	if (credits <= 0) {
 		autopilot();
-		if (!destiny_facedown && timer > destiny_facedown_timer2) {
+		if (!destiny_facedown && timer > destiny_facedown_timer2 &&
+			timer_event != NEW_HIGH_SCORE_EVENT &&
+			timer_event != NEW_HIGH_SCORE_PRE_EVENT &&
+			timer_event != NEW_HIGH_SCORE_PRE2_EVENT ) {
+
 			cancel_all_sounds();
 			game_state.sound_effects_on = 0;
 			add_sound(DESTINY_FACEDOWN, MUSIC_SLOT);
@@ -6522,6 +6554,26 @@ static void abs_xy_draw_string(GtkWidget *w, char *s, int font, int x, int y)
 		abs_xy_draw_letter(w, gamefont[font], s[i], x + deltax*i, y);  
 }
 
+/* Used for floating labels in the game. */
+/* Draws a string at an absolute x,y position on the screen. */ 
+/* Exactly like abs_xy_draw_string, but uses rainbow colors. */
+static void rainbow_abs_xy_draw_string(GtkWidget *w, char *s, int font, int x, int y) 
+{
+
+	int i;	
+	int deltax = font_scale[font]*2 + letter_spacing[font];
+	int color;
+
+
+		
+	for (i=0;s[i];i++) {
+		color = ((((x + deltax*i) * NRAINBOWCOLORS) / (SCREEN_WIDTH*2) + 
+			((y * NRAINBOWCOLORS)/ (SCREEN_HEIGHT*2)) + timer) % NRAINBOWCOLORS) + NCOLORS + NSPARKCOLORS;
+		gdk_gc_set_foreground(gc, &huex[color]);
+		abs_xy_draw_letter(w, gamefont[font], s[i], x + deltax*i, y);  
+	}
+}
+
 
 /* FIXME: what is the difference between thise, and the "abs" versions?  I forget. */
 static void xy_draw_letter(GtkWidget *w, struct my_vect_obj **font, 
@@ -7823,6 +7875,153 @@ int they_used_the_source()
 		now.tv_sec - builtat < 60*60);
 }
 
+void sort_high_scores()
+{
+	struct score_data tmp;
+	int i, sorted;
+
+	/* simple bubble sort is good enough for 10 items. */
+	sorted = 0;
+	do {
+		sorted = 1;
+		for (i=0;i<MAXHIGHSCORES-1;i++) {
+			if (highscore[i].score < highscore[i+1].score) {
+				sorted = 0;
+				tmp = highscore[i];
+				highscore[i] = highscore[i+1];
+				highscore[i+1] = tmp;
+			}
+		}
+	} while (!sorted);
+}
+
+int new_high_score(int newscore) 
+{
+	int i;
+	for (i=0;i<MAXHIGHSCORES;i++)
+		if (newscore > highscore[i].score) {
+			// printf("new_high_score returns new high score = %d\n", i);
+			return i;
+		}
+	// printf("new_high_score returns %d, bad score\n", MAXHIGHSCORES);
+	return MAXHIGHSCORES;
+}
+
+void write_out_high_score_file();
+void cancel_sound(int queue_entry);
+static void do_newhighscore(GtkWidget *w, GdkEvent *event, gpointer p)
+{
+	int slot;
+	static int highscore_timer = 0;
+	static int finished = 0;
+	static int finish_timer = 0;
+	char message[20];
+	int i, x, y;
+	int timeleft;
+
+	if (highscore_timer == 0) {
+		highscore_timer = timer + 60 * frame_rate_hz;
+		strcpy(highscore_initials, "   ");
+		highscore_current_initial = 0;
+		highscore_letter = 0;
+		finished = 0;
+		finish_timer = 0;
+		cancel_sound(MUSIC_SLOT);
+		add_sound(HIGH_SCORE_MUSIC, MUSIC_SLOT);
+	}
+
+	slot = new_high_score(game_state.score);
+	if (slot >= MAXHIGHSCORES) {
+		timer_event = GAME_ENDED_EVENT; 
+		next_timer = timer + 1;
+		printf("bug at %s:%d!\n", __FILE__, __LINE__);
+		// bug;
+	}
+
+	/* Draw the high score message */
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	rainbow_abs_xy_draw_string(w, "New High Score!", BIG_FONT, 100, 70);
+	rainbow_abs_xy_draw_string(w, "New High Score!", BIG_FONT, 101, 71);
+	if (!finished)
+		rainbow_abs_xy_draw_string(w, "Enter your initials:", SMALL_FONT, 240, 135);
+
+	y = 200;
+	/* Print the current set of initials */
+	for (i=0;i<3;i++) {
+		message[0] = highscore_initials[i];
+		message[1] = '\0';
+		x = 60 + ((i+3)%9)*80;
+		rainbow_abs_xy_draw_string(w, message, BIG_FONT, x, y);
+		rainbow_abs_xy_draw_string(w, message, BIG_FONT, x+1, y+1);
+		wwvi_draw_line(w->window, gc, x-25, y+25, x+55, y+25);
+	}
+
+	/* Print the alphabet. */
+	if (!finished) {
+		y = 200;
+		strcpy(message, "A");	
+		for (i=0;i<26;i++) {
+			message[0] = 'A' + i;
+			if ((i%9) == 0)
+				y += 100;
+			rainbow_abs_xy_draw_string(w, message, BIG_FONT, 60 + (i%9)*80, y);
+			rainbow_abs_xy_draw_string(w, message, BIG_FONT, 1+60 + (i%9)*80, y+1);
+			if (i == highscore_letter) {
+				x = 60 + (i%9)*80;
+				wwvi_draw_line(w->window, gc, x-25, y-65, x-25, y+25);
+				wwvi_draw_line(w->window, gc, x-25, y-65, x+55, y-65);
+				wwvi_draw_line(w->window, gc, x-25, y+25, x+55, y+25);
+				wwvi_draw_line(w->window, gc, x+55, y-65, x+55, y+25);
+			}
+		}
+		rainbow_abs_xy_draw_string(w, "Done", SMALL_FONT, 60 + 8*80, 80+100*4);
+	} else {
+		y = 300;
+		sprintf(message, "%d", game_state.score);
+		rainbow_abs_xy_draw_string(w, message, BIG_FONT, 160, y);
+		rainbow_abs_xy_draw_string(w, message, BIG_FONT, 161, y+1);
+	}
+
+	if (highscore_letter == 26 && !finished) {
+		x = 60 + 8*80;
+		y = 80+100*4;
+		wwvi_draw_line(w->window, gc, x-25, y-65, x-25, y+25);
+		wwvi_draw_line(w->window, gc, x-25, y-65, x+55, y-65);
+		wwvi_draw_line(w->window, gc, x-25, y+25, x+55, y+25);
+		wwvi_draw_line(w->window, gc, x+55, y-65, x+55, y+25);
+	}
+
+	if (highscore_current_initial == 3 && finish_timer == 0) {
+		/* player is finished entering initials. */
+		highscore_initials[3] = '\0'; /* superfluous paranoia. */
+		for (i=MAXHIGHSCORES-1; i > slot; i--)
+			highscore[i] = highscore[i-1];
+		strcpy(highscore[slot].name, highscore_initials);
+		highscore[slot].score = game_state.score;
+		finish_timer = timer + frame_rate_hz * 4;
+		finished = 1;
+		write_out_high_score_file();
+	}
+
+	if (timer > highscore_timer || (highscore_current_initial == 3 &&
+			finish_timer != 0 && timer > finish_timer)) {
+		/* get us out of here. */
+		timer_event = GAME_ENDED_EVENT; 
+		next_timer = timer + 1;
+		highscore_timer = 0;
+		cancel_sound(MUSIC_SLOT);
+
+		/* Prevent final button press from putting in a quarter. */
+		next_quarter_time = timer + (frame_rate_hz);
+	}
+
+	if (finish_timer == 0) {
+		timeleft = (highscore_timer - timer) / frame_rate_hz;
+		sprintf(message, "Time remaining: %d", timeleft);
+		rainbow_abs_xy_draw_string(w, message, SMALL_FONT, 60, 80+100*5);
+	}
+}
+
 int bonus_points_this_round;
 static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 {
@@ -8129,6 +8328,11 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		return 0;
 	}
 
+	if (timer_event == NEW_HIGH_SCORE_EVENT) {
+		do_newhighscore(w, event, p);
+		return 0;
+	}
+
 	sx1 = game_state.x - 20;
 	sx2 = game_state.x + SCREEN_WIDTH + 20;
 
@@ -8279,14 +8483,16 @@ void timer_expired()
 		break;
 	case BLANK_GAME_OVER_2_EVENT:
 		if (game_over_count >= 3) {
-			int wherenext;
-			wherenext = randomn(3); 
+			static int wherenext = 0;
+			wherenext = (wherenext+1) % 4; 
 			switch (wherenext) {
 			case 0: timer_event = CREDITS1_EVENT;
 				break;
 			case 1: timer_event = INTRO1_EVENT;
 				break;
-			case 2:
+			case 2: timer_event = START_HIGHSCORES_EVENT;
+				break;
+			case 3: 
 			default: timer_event = KEYS1_EVENT;
 				break;
 			}
@@ -8343,11 +8549,43 @@ void timer_expired()
 		gameprint("there are many emacs friendly"); gotoxy(x, yline++);
 		gameprint("processes."); gotoxy(x,yline++);
 		timer_event = INTRO2_EVENT;
-		next_timer = timer + 150;
+		next_timer = timer + 8 * frame_rate_hz;
 		game_over_count = 0;
 		break;
 		}
 	case INTRO2_EVENT: {
+		ntextlines = 1;
+		setup_text();
+		timer_event = BLINK_EVENT;
+		timer_event = BLANK_GAME_OVER_1_EVENT;
+		// timer_event = KEYS1_EVENT;
+		next_timer = timer + 1;
+		break;
+		}
+	case START_HIGHSCORES_EVENT: {
+		int yline = 2;
+		int x = 17;
+		int h;
+		char score[20];
+		ntextlines = 1;
+		set_font(SMALL_FONT);
+		gotoxy(x+4,1);
+		gameprint("High Scores");
+		for (h = 0; h<MAXHIGHSCORES; h++) {
+			gotoxy(x,yline + h);
+			sprintf(score, "%c%c%c   %12d", 
+				highscore[h].name[0],
+				highscore[h].name[1],
+				highscore[h].name[2],
+				highscore[h].score);
+			gameprint(score);
+		}
+		timer_event = END_HIGHSCORES_EVENT;
+		next_timer = timer + 8 * frame_rate_hz;
+		game_over_count = 0;
+		break;
+		}
+	case END_HIGHSCORES_EVENT: {
 		ntextlines = 1;
 		setup_text();
 		timer_event = BLINK_EVENT;
@@ -8373,7 +8611,7 @@ void timer_expired()
 		yline++;
 		gameprint("Q - Insert Quarter"); gotoxy(x, yline++);
 		gameprint("Esc to Exit"); gotoxy(x,yline++);
-		next_timer = timer + 150;
+		next_timer = timer + 8 * frame_rate_hz;
 		game_over_count = 0;
 		timer_event = KEYS2_EVENT;
 		break;
@@ -8391,7 +8629,7 @@ void timer_expired()
 		strcpy(textline[CREDITS].string, "");
 		strcpy(textline[GAME_OVER].string, "Ready...");
 		gettimeofday(&game_state.start_time, NULL);
-		next_timer += 30;
+		next_timer += frame_rate_hz;
 		timer_event = SET_EVENT;
 		ntextlines = 2;
 		game_state.x = 0;
@@ -8401,12 +8639,12 @@ void timer_expired()
 		break;
 	case SET_EVENT:
 		strcpy(textline[GAME_OVER].string, "Set...");
-		next_timer += 30;
+		next_timer += frame_rate_hz;
 		timer_event = GO_EVENT;
 		break;
 	case GO_EVENT:
 		strcpy(textline[GAME_OVER].string, "Prepare to die!");
-		next_timer += 30;
+		next_timer += frame_rate_hz;
 		timer_event = BLANK_EVENT;
 		break;
 	case BLANK_EVENT:
@@ -8415,15 +8653,15 @@ void timer_expired()
 		break;
 	case GAME_ENDED_EVENT:
 		timer_event = GAME_ENDED_EVENT_2;
-		next_timer = timer + 30;
+		next_timer = timer + frame_rate_hz;
 		if (credits <= 0) {
-			setup_text();
+			setup_text(); /* <--- sets next_timer, timer_event */
 			timer_event = GAME_ENDED_EVENT_2;
-			next_timer = timer + 30;
+			next_timer = timer + frame_rate_hz;
 			strcpy(textline[GAME_OVER+1].string, FINAL_MSG1);
 			strcpy(textline[GAME_OVER].string, FINAL_MSG2);
 			ntextlines = 4;
-			next_timer = timer + 120;
+			next_timer = timer + 4*frame_rate_hz;
 		} else {
 			strcpy(textline[GAME_OVER].string, "");
 			timer_event = GAME_ENDED_EVENT_2;
@@ -8439,7 +8677,7 @@ void timer_expired()
 			strcpy(textline[GAME_OVER+1].string, FINAL_MSG1);
 			strcpy(textline[GAME_OVER].string, FINAL_MSG2);
 			ntextlines = 4;
-			next_timer = timer + 60;
+			next_timer = timer + 2*frame_rate_hz;
 		} else {
 			timer_event = READY_EVENT; 
 			ntextlines = 2;
@@ -8447,6 +8685,29 @@ void timer_expired()
 		game_ended();
 		break;
 	case START_INTERMISSION_EVENT:
+		/* drawing area expose event handler handles this directly */
+		break;
+	case NEW_HIGH_SCORE_PRE_EVENT:
+		if (credits <= 0) {
+			setup_text();
+			strcpy(textline[GAME_OVER+1].string, "NEW HIGH");
+			strcpy(textline[GAME_OVER].string, "SCORE!!!");
+			ntextlines = 4;
+		} else {
+			strcpy(textline[GAME_OVER].string, "");
+			ntextlines = 2;
+		}
+		timer_event = NEW_HIGH_SCORE_PRE2_EVENT; /* undo some of what setup_text() did. */
+		next_timer = timer + frame_rate_hz*3;
+		break;
+	case NEW_HIGH_SCORE_PRE2_EVENT:
+		/* This just transitions to NEW_HIGH_SCORE_EVENT */
+		/* Need this state because advance game and joystick directly */
+		/* trigger off timer_event value. */
+		timer_event = NEW_HIGH_SCORE_EVENT;
+		next_timer = timer;
+		break;
+	case NEW_HIGH_SCORE_EVENT:
 		/* drawing area expose event handler handles this directly */
 		break;
 	case END_INTERMISSION_EVENT:
@@ -8491,7 +8752,8 @@ gint advance_game(gpointer data)
 		return TRUE;
 
 	game_state.missile_locked = 0;
-	if (timer_event != START_INTERMISSION_EVENT) {
+	if (timer_event != START_INTERMISSION_EVENT && 
+		timer_event != NEW_HIGH_SCORE_EVENT) {
 		for (i=0;i<MAXOBJS;i++) {
 #if 0
 			if (game_state.go[i].alive) {
@@ -8691,7 +8953,6 @@ void game_ended()
 	/* start_level(); */
 }
 
-void cancel_sound(int queue_entry);
 void advance_level()
 {
 	/* This is harsh. */
@@ -8739,6 +9000,7 @@ void advance_level()
 void insert_quarter()
 {
 	credits++;
+	autopilot_mode = 0;
 	if (credits == 1) {
 		cancel_all_sounds();
 		destiny_facedown = 0;
@@ -8787,6 +9049,12 @@ void deal_with_joystick()
 	static struct wwvi_js_event jse; 
 	int index = 0;
 	int newvy, diff;
+	static int next_joystick_motion_timer = 0;
+	static int next_joystick_button_timer = 0;
+	int  i;
+	int moved;
+
+	
 
 #define JOYSTICK_SENSITIVITY 5000
 #define XJOYSTICK_THRESHOLD 30000
@@ -8796,8 +9064,60 @@ void deal_with_joystick()
 	if (rc != 0)
 		return;
 
-	if (game_state.health <= 0 && credits >= 1)
+	highscore_buttonpress = 0;
+	if (timer_event == NEW_HIGH_SCORE_EVENT) {
+		moved = 0;
+		/* user is entering high scores. */
+		if (timer > next_joystick_motion_timer) {
+			next_joystick_motion_timer = timer + (frame_rate_hz >> 3);
+			if (jse.stick1_x < -XJOYSTICK_THRESHOLD) {
+				highscore_letter--;
+				if (highscore_letter < 0)
+					highscore_letter = 26;
+				moved = 1;
+			}
+			if (jse.stick1_x > XJOYSTICK_THRESHOLD) {
+				highscore_letter++;
+				if (highscore_letter > 26)
+					highscore_letter = 0;
+				moved = 1;
+			}
+			if (jse.stick1_y < -XJOYSTICK_THRESHOLD) {
+				highscore_letter -= 9;
+				if (highscore_letter < 0)
+					highscore_letter += 27;
+				moved = 1;
+			}
+			if (jse.stick1_y > XJOYSTICK_THRESHOLD) {
+				highscore_letter += 9;
+				if (highscore_letter > 26)
+					highscore_letter -= 27;
+				moved = 1;
+			}
+		}
+		if (timer > next_joystick_button_timer) {
+			next_joystick_button_timer = timer + (frame_rate_hz >> 3);
+			for (i=0;i<10;i++) {
+				if (jse.button[i]) {
+					highscore_buttonpress = 1;
+					if (highscore_letter >= 0 && highscore_letter < 26) {
+						highscore_initials[highscore_current_initial] = highscore_letter + 'A';
+						highscore_current_initial++;
+					} else if (highscore_letter == 26) { /* done. */
+						highscore_current_initial = 3; /* ends it. */
+					}
+					moved = 1;
+				}
+			}
+		}
+		if (moved) 
+			add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
 		return;
+	}
+
+	if (game_state.health <= 0 && credits >= 1) {
+		return;
+	}
 
 	if (credits <= 0)
 		goto no_credits;
@@ -8917,6 +9237,52 @@ no_credits:
 void deal_with_keyboard()
 {
 	static int lastvy_inc = 0;
+	int moved;
+	static int next_keyboard_motion_timer = 0;
+
+	if (timer_event == NEW_HIGH_SCORE_EVENT) {
+		moved = 0;
+		if (timer > next_keyboard_motion_timer) {
+			next_keyboard_motion_timer = timer + (frame_rate_hz >> 3);
+			if (game_state.key_left_pressed) {
+				highscore_letter--;
+				if (highscore_letter < 0)
+					highscore_letter = 26;
+				moved = 1;
+			}
+			if (game_state.key_right_pressed) {
+				highscore_letter++;
+				if (highscore_letter > 26)
+					highscore_letter = 0;
+				moved = 1;
+			}
+			if (game_state.key_up_pressed) {
+				highscore_letter -= 9;
+				if (highscore_letter < 0)
+					highscore_letter += 27;
+				moved = 1;
+			}
+			if (game_state.key_down_pressed) {
+				highscore_letter += 9;
+				if (highscore_letter > 26)
+					highscore_letter -= 27;
+				moved = 1;
+			}
+			if (game_state.key_laser_pressed) {
+				highscore_buttonpress = 1;
+				if (highscore_letter >= 0 && highscore_letter < 26) {
+					highscore_initials[highscore_current_initial] = highscore_letter + 'A';
+					highscore_current_initial++;
+				} else if (highscore_letter == 26) { /* done. */
+					highscore_current_initial = 3; /* ends it. */
+				}
+				moved = 1;
+			}
+		}
+		if (moved) 
+			add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
+		return;
+	}
 
 	if (game_state.health <= 0)
 		return;
@@ -9350,6 +9716,7 @@ int init_clips()
 	read_ogg_clip(ZZZT_SOUND, "sounds/zzzt.ogg");
 	read_ogg_clip(GRAVITYBOMB_SOUND, "sounds/gravity_bomb.ogg");
 	read_ogg_clip(DESTINY_FACEDOWN, "sounds/destiny_facedown.ogg");
+	read_ogg_clip(HIGH_SCORE_MUSIC, "sounds/highscoremusic.ogg");
 	printf("done.\n");
 	return 0;
 }
@@ -9790,6 +10157,51 @@ void usage()
 	exit(1);
 }
 
+void write_out_high_score_file()
+{
+	/* Here's where you'd write out the high_score[] array */
+	/* to the file descriptor high_score_file_descriptor */
+	/* The .score element is a uint32_t, and should be run */
+	/* through htonl() before writing it out, as the high score. */
+	/* file should be endian neutral. */
+}
+
+int open_high_score_file_and_lose_permissions()
+{
+/* Here is where you'd open a high score file,
+ * lose any setgid permission you might have to access
+ * (in case it's a system wide file in /var somewhere) 
+ * and read its contents into high_score[] array, 
+ *
+ * Note: the .score element is a uint32_t, and should be run
+ * through ntohl() after reading it in, as the high score file
+ * should be endian neutral.
+ *
+ */
+
+	/* this is not implemented. */
+	return -1;
+}
+
+void init_highscores()
+{
+	int i;
+	for (i=0;i<MAXHIGHSCORES;i++) {
+		strcpy(highscore[i].name, "vi ");
+		highscore[i].score = 666; /* vi vi vi */
+	}
+
+	/* put in a few funky scores for laughs. */
+	strcpy(highscore[0].name, "RMS"); /* as in RMS. */
+	highscore[0].score = 3010700;	  /* something to beat. */
+	strcpy(highscore[1].name, "JOY"); /* as in Bill, */
+	highscore[1].score = 2170300;
+	strcpy(highscore[2].name, "JOY");
+	highscore[2].score = 2051000;
+	strcpy(highscore[2].name, "RMS");
+	highscore[2].score = 2043000;
+}
+
 int main(int argc, char *argv[])
 {
 	/* GtkWidget is the storage type for widgets */
@@ -9803,6 +10215,8 @@ int main(int argc, char *argv[])
 	int opt;
 
 	struct timeval tm;
+
+	high_score_file_descriptor = open_high_score_file_and_lose_permissions();
 
 	real_screen_width = SCREEN_WIDTH;
 	real_screen_height = SCREEN_HEIGHT;
@@ -9913,6 +10327,7 @@ int main(int argc, char *argv[])
 	xscale_screen = (float) real_screen_width / (float) SCREEN_WIDTH;
 	yscale_screen = (float) real_screen_height / (float) SCREEN_HEIGHT;
 
+	init_highscores();
 	gettimeofday(&tm, NULL);
 	srandom(tm.tv_usec);	
 
@@ -9994,7 +10409,8 @@ int main(int argc, char *argv[])
 
     gtk_box_pack_start(GTK_BOX (vbox), main_da, TRUE /* expand */, FALSE /* fill */, 2);
     gtk_box_pack_start(GTK_BOX (vbox), button, FALSE /* expand */, FALSE /* fill */, 2);
-    
+   
+	init_score_table(); 
 	init_vects();
 	init_vxy_2_dxy();
 	init_object_numbers();
