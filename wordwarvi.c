@@ -7976,10 +7976,13 @@ static void do_newhighscore(GtkWidget *w, GdkEvent *event, gpointer p)
 		}
 		rainbow_abs_xy_draw_string(w, "Done", SMALL_FONT, 60 + 8*80, 80+100*4);
 	} else {
+		int len;
 		y = 300;
 		sprintf(message, "%d", game_state.score);
-		rainbow_abs_xy_draw_string(w, message, BIG_FONT, 160, y);
-		rainbow_abs_xy_draw_string(w, message, BIG_FONT, 161, y+1);
+		len = strlen(message);
+		x = (SCREEN_WIDTH/2) - ((len * 2 * (font_scale[BIG_FONT] + letter_spacing[BIG_FONT])))/2;
+		rainbow_abs_xy_draw_string(w, message, BIG_FONT, x, y);
+		rainbow_abs_xy_draw_string(w, message, BIG_FONT, x+1, y+1);
 	}
 
 	if (highscore_letter == 26 && !finished) {
