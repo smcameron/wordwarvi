@@ -8082,7 +8082,7 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 		case LAST_INTERMISSION_STAGE-1:
 			if (they_used_the_source()) {
 				gotoxy(5, LAST_INTERMISSION_STAGE-1+2);
-				inc_bonus = 100000; /* million bonus points */
+				inc_bonus = 1000000; /* million bonus points */
 				sprintf(s, "Using The Source                   %6d",
 					inc_bonus);
 				bonus_points += inc_bonus;	
