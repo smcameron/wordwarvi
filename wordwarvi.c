@@ -10481,15 +10481,21 @@ int main(int argc, char *argv[])
 
     timer_tag = g_timeout_add(1000 / frame_rate_hz, advance_game, NULL);
     
-    /* All GTK applications must have a gtk_main(). Control ends here
-     * and waits for an event to occur (like a key press or
-     * mouse event). */
+    /* Apparently (some versions of?) portaudio calls g_thread_init(). */
+    /* It may only be called once, and subsequent calls abort, so */
+    /* only call it if the thread system is not already initialized. */
+    if (!g_thread_supported ()) 
+	g_thread_init(NULL);
 
-    g_thread_init(NULL);
     gdk_threads_init();
 
     gettimeofday(&start_time, NULL);
+
+    /* All GTK applications must have a gtk_main(). Control ends here
+     * and waits for an event to occur (like a key press or
+     * mouse event). */
     gtk_main ();
+
     stop_portaudio();
     free_debris_forms();
 	close_joystick();
