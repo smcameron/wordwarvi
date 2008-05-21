@@ -10345,8 +10345,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	xscale_screen = (float) real_screen_width / (float) SCREEN_WIDTH;
-	yscale_screen = (float) real_screen_height / (float) SCREEN_HEIGHT;
 
 	init_highscores();
 	gettimeofday(&tm, NULL);
@@ -10387,10 +10385,22 @@ int main(int argc, char *argv[])
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 
 
-    if (fullscreen) {
-	gtk_window_fullscreen(GTK_WINDOW (window));
-	gtk_window_set_decorated( GTK_WINDOW (window), FALSE); 
-    }
+	if (fullscreen) {
+		/* This overrides --width and --height options */
+		GdkScreen* screen = NULL;
+
+		screen = gtk_window_get_screen(GTK_WINDOW(window));
+		real_screen_width = gdk_screen_get_width(screen);
+		real_screen_height = gdk_screen_get_height(screen);
+
+		gtk_window_fullscreen(GTK_WINDOW (window));
+		gtk_window_set_decorated( GTK_WINDOW (window), FALSE); 
+
+		current_draw_line = scaled_line;
+		current_draw_rectangle = scaled_rectangle;
+	}
+	xscale_screen = (float) real_screen_width / (float) SCREEN_WIDTH;
+	yscale_screen = (float) real_screen_height / (float) SCREEN_HEIGHT;
     
     /* When the window is given the "delete_event" signal (this is given
      * by the window manager, usually by the "close" option, or on the
@@ -10406,8 +10416,11 @@ int main(int argc, char *argv[])
     g_signal_connect (G_OBJECT (window), "destroy",
 		      G_CALLBACK (destroy), NULL);
     
-    /* Sets the border width of the window. */
-    gtk_container_set_border_width (GTK_CONTAINER (window), 10);
+	/* Sets the border width of the window. */
+	if (!fullscreen)
+		gtk_container_set_border_width (GTK_CONTAINER (window), 10);
+	else
+		gtk_container_set_border_width (GTK_CONTAINER (window), 0);
    
 	vbox = gtk_vbox_new(FALSE, 0); 
 	main_da = gtk_drawing_area_new();
