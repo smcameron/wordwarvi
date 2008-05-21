@@ -298,6 +298,7 @@ int timer_event = 0;		/* timer_expired() switches on this value... */
 #define NEW_HIGH_SCORE_PRE2_EVENT 23
 #define NEW_HIGH_SCORE_EVENT 24
 
+int nomusic = 0;
 int sound_working = 0;
 int brightsparks = 0;		/* controls preference for how to draw sparks */
 int nframes = 0;		/* count of total frames drawn, used for calculating actual frame rate */
@@ -9682,7 +9683,6 @@ int init_clips()
 	read_ogg_clip(LASER_EXPLOSION_SOUND, "sounds/flak_hit.ogg");
 	read_ogg_clip(GROUND_SMACK_SOUND, "sounds/new_ground_smack.ogg");
 	read_ogg_clip(INSERT_COIN_SOUND, "sounds/us_quarter.ogg");
-	read_ogg_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.ogg");
 	read_ogg_clip(SAM_LAUNCH_SOUND, "sounds/missile_launch_2.ogg");
 	read_ogg_clip(THUNDER_SOUND, "sounds/synthetic_thunder_short.ogg");
 	read_ogg_clip(INTERMISSION_MUSIC_SOUND, "sounds/dtox3monomix.ogg");
@@ -9718,8 +9718,11 @@ int init_clips()
 	read_ogg_clip(IT_BURNS, "sounds/aaaah_it_burns.ogg");
 	read_ogg_clip(ZZZT_SOUND, "sounds/zzzt.ogg");
 	read_ogg_clip(GRAVITYBOMB_SOUND, "sounds/gravity_bomb.ogg");
-	read_ogg_clip(DESTINY_FACEDOWN, "sounds/destiny_facedown.ogg");
-	read_ogg_clip(HIGH_SCORE_MUSIC, "sounds/highscoremusic.ogg");
+	if (!nomusic) {
+		read_ogg_clip(DESTINY_FACEDOWN, "sounds/destiny_facedown.ogg");
+		read_ogg_clip(HIGH_SCORE_MUSIC, "sounds/highscoremusic.ogg");
+		read_ogg_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.ogg");
+	}
 	printf("done.\n");
 	return 0;
 }
@@ -9905,6 +9908,12 @@ int add_sound(int which_sound, int which_slot)
 	int i;
 
 	if (!sound_working)
+		return 0;
+
+	if (nomusic && 
+		(which_sound == MUSIC_SOUND ||
+		 which_sound == DESTINY_FACEDOWN ||
+		 which_sound == HIGH_SCORE_MUSIC))
 		return 0;
 
 	if (which_slot != ANY_SLOT) {
@@ -10142,6 +10151,7 @@ static struct option wordwarvi_options[] = {
 	{ "nostarfield", 0, NULL, 7 },
 	{ "blueprint", 0, NULL, 8 },
 	{ "fullscreen", 0, NULL, 9 },
+	{ "nomusic", 0, NULL, 10 },
 	{ NULL, 0, NULL, 0 },
 };
 
@@ -10324,6 +10334,9 @@ int main(int argc, char *argv[])
 				break;
 			case 9: /* --fullscreen */
 				fullscreen = 1;
+				break;
+			case 10: /* --fullscreen */
+				nomusic = 1;
 				break;
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
