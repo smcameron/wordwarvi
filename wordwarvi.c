@@ -10138,6 +10138,7 @@ static struct option wordwarvi_options[] = {
 	{ "framerate", 1, NULL, 6 },
 	{ "nostarfield", 0, NULL, 7 },
 	{ "blueprint", 0, NULL, 8 },
+	{ "fullscreen", 0, NULL, 9 },
 	{ NULL, 0, NULL, 0 },
 };
 
@@ -10212,6 +10213,7 @@ int main(int argc, char *argv[])
 	int i;
 	int no_colors_any_more = 0;
 	int blueprint = 0;
+	int fullscreen = 0;
 	int opt;
 
 	struct timeval tm;
@@ -10317,6 +10319,9 @@ int main(int argc, char *argv[])
 			case 8: /* --blueprint */
 				blueprint = 1;
 				break;
+			case 9: /* --fullscreen */
+				fullscreen = 1;
+				break;
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
@@ -10364,6 +10369,12 @@ int main(int argc, char *argv[])
  
     /* create a new window */
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+
+
+    if (fullscreen) {
+	gtk_window_fullscreen(GTK_WINDOW (window));
+	gtk_window_set_decorated( GTK_WINDOW (window), FALSE); 
+    }
     
     /* When the window is given the "delete_event" signal (this is given
      * by the window manager, usually by the "close" option, or on the
