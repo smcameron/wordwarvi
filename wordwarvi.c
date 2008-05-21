@@ -378,7 +378,7 @@ void init_score_table()
 	score_table[OBJ_TYPE_FUEL]		= 0;
 	score_table[OBJ_TYPE_SHIP]		= 10000;
 	score_table[OBJ_TYPE_GUN]		= 400;
-	score_table[OBJ_TYPE_HUMAN]		= -1000;
+	score_table[OBJ_TYPE_HUMAN]		= 1000;
 	score_table[OBJ_TYPE_MISSILE]		= 50;
 	score_table[OBJ_TYPE_HARPOON]		= 50;
 	score_table[OBJ_TYPE_ROCKET]		= 100;
@@ -3328,7 +3328,7 @@ void humanoid_move(struct game_obj_t *o)
 				add_sound(IT_BURNS, ANY_SLOT);
 				remove_target(o);
 				kill_object(o);
-				game_state.score += score_table[OBJ_TYPE_HUMAN];
+				game_state.score -= score_table[OBJ_TYPE_HUMAN];
 				return;
 			}
 		}
