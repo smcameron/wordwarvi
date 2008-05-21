@@ -1,8 +1,33 @@
 Changelog for wordwarvi:
 
+Tue May 20 06:20:09 CDT 2008
+-------------------------------------------------------------------------------
+Changes between version 0.10 and 0.11
+* Put the pointers for linking together the target list directly in the game
+  object structure, instead of having a separate target list node structure.
+  This saves having to allocate/free the target list nodes.   Also forced me
+  to notice, find, and fix some target list related bugs that were previously
+  very hard to notice..
+* Disable the kguns requiring more than 1 hit, too hard.
+* Fixed the "editor now??? Where is your" bug.
+* Removed debris from the target list.  This reduces the count of items
+  on the target list significantly, with very little impact on the game.
+  (bombs no longer shift debris around.  Big deal.)
+* Added some debug code for the target list (shows target list length
+  when DEBUG_TARGET_LIST is defined)
+* Added highscoremusic.ogg
+* Added a "high score" thingy.
+* Fixed captial 'F' glyph, which was goofy looking.
+* Added --fullscreen option
+* Center high score in the high score screen.
+* Added --nomusic option (mainly for the memory savings, as
+  music could already be turned off with 'm' key.  --nomusic
+  causes the .ogg files for music not to even be decoded into
+  memory.)
+
 Sun May 11 20:59:10 CDT 2008
 -------------------------------------------------------------------------------
-Changes between version 0-.09 and 0.10
+Changes between version 0.09 and 0.10
 
 * Credit Michael Smith (xiph.org) for my hacked version of
   oggdec.c (ogg_to_pcm.c)
