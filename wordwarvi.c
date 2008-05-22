@@ -1900,6 +1900,11 @@ int destiny_facedown = 0;		/* is goofy intro playing? */
 int destiny_facedown_timer1 = 0;	/* when goofy intro stops, turn on sound effects */
 int destiny_facedown_timer2 = 0;	/* when to start goofy intro again. */
 
+int old_window_width = 0;
+int old_window_height = 0;
+int fullscreen = 0;
+GtkWidget *window = NULL; /* main window */
+
 #define NSTARS 150
 struct star_t {
 	int x; 
@@ -8317,6 +8322,42 @@ void draw_radar(GtkWidget *w)
 	}
 }
 
+/* call back for configure_event (for window resize) */
+static gint main_da_configure(GtkWidget *w, GdkEventConfigure *event)
+{
+	GdkRectangle cliprect;
+
+	/* first time through, gc is null, because gc can't be set without */
+	/* a window, but, the window isn't there yet until it's shown, but */
+	/* the show generates a configure... chicken and egg.  And we can't */
+	/* proceed without gc != NULL...  but, it's ok, because 1st time thru */
+	/* we already sort of know the drawing area/window size. */
+ 
+	if (gc == NULL)
+		return TRUE;
+
+	// gtk_widget_set_size_request(w, w->allocation.width, w->allocation.height);
+	// gtk_window_get_size(GTK_WINDOW (w), &real_screen_width, &real_screen_height);
+	real_screen_width =  w->allocation.width;
+	real_screen_height =  w->allocation.height;
+	xscale_screen = (float) real_screen_width / (float) SCREEN_WIDTH;
+	yscale_screen = (float) real_screen_height / (float) SCREEN_HEIGHT;
+	if (real_screen_width == 800 && real_screen_height == 600) {
+		current_draw_line = gdk_draw_line;
+		current_draw_rectangle = gdk_draw_rectangle;
+	} else {
+		current_draw_line = scaled_line;
+		current_draw_rectangle = scaled_rectangle;
+	}
+	gdk_gc_set_clip_origin(gc, 0, 0);
+	cliprect.x = 0;	
+	cliprect.y = 0;	
+	cliprect.width = real_screen_width;	
+	cliprect.height = real_screen_height;	
+	gdk_gc_set_clip_rectangle(gc, &cliprect);
+	return TRUE;
+}
+
 /* This is the expose function of the main drawing area.  This is */
 /* where everything gets drawn. */
 static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
@@ -8325,7 +8366,6 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	int sx1, sx2;
 	static int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
 	// int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
-
 
 	if (timer_event == START_INTERMISSION_EVENT) {
 		do_intermission(w, event, p);
@@ -8352,7 +8392,6 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	}
 
 	gdk_gc_set_foreground(gc, &huex[planet_color[level.ground_color]]);
-
 	for (i=last_lowx;i<last_highx;i++) {
 #if 0
 		if (terrain.x[i] < sx1 && terrain.x[i+1] < sx1) /* offscreen to the left */
@@ -8438,12 +8477,15 @@ static gboolean delete_event( GtkWidget *widget,
      * This is useful for popping up 'are you sure you want to quit?'
      * type dialogs. */
 
-    g_print ("delete event occurred\n");
+    // g_print ("delete event occurred\n");
 
     /* Change TRUE to FALSE and the main window will be destroyed with
      * a "delete_event". */
-
-    return TRUE;
+    gettimeofday(&end_time, NULL);
+    printf("%d frames / %d seconds, %g frames/sec\n", 
+		nframes, (int) (end_time.tv_sec - start_time.tv_sec),
+		(0.0 + nframes) / (0.0 + end_time.tv_sec - start_time.tv_sec));
+    return FALSE;
 }
 
 /* Another callback */
@@ -9467,6 +9509,18 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 	case GDK_q:
 		insert_quarter();
 		return TRUE;
+	case GDK_F11: {
+			if (fullscreen) {
+				gtk_window_unfullscreen(GTK_WINDOW(window));
+				fullscreen = 0;
+				/* configure_event takes care of resizing drawing area, etc. */
+			} else {
+				gtk_window_fullscreen(GTK_WINDOW(window));
+				fullscreen = 1;
+				/* configure_event takes care of resizing drawing area, etc. */
+			}
+		}
+		break;
 	case GDK_j:
 	case GDK_Down:
 		game_state.key_down_pressed = 1;
@@ -10219,14 +10273,11 @@ void init_highscores()
 int main(int argc, char *argv[])
 {
 	/* GtkWidget is the storage type for widgets */
-	GtkWidget *window;
-	GtkWidget *button;
 	GtkWidget *vbox;
 	GdkRectangle cliprect;
 	int i;
 	int no_colors_any_more = 0;
 	int blueprint = 0;
-	int fullscreen = 0;
 	int opt;
 
 	struct timeval tm;
@@ -10390,11 +10441,12 @@ int main(int argc, char *argv[])
 		GdkScreen* screen = NULL;
 
 		screen = gtk_window_get_screen(GTK_WINDOW(window));
-		real_screen_width = gdk_screen_get_width(screen);
-		real_screen_height = gdk_screen_get_height(screen);
 
 		gtk_window_fullscreen(GTK_WINDOW (window));
 		gtk_window_set_decorated( GTK_WINDOW (window), FALSE); 
+
+		real_screen_width = gdk_screen_get_width(screen);
+		real_screen_height = gdk_screen_get_height(screen);
 
 		current_draw_line = scaled_line;
 		current_draw_rectangle = scaled_rectangle;
@@ -10415,40 +10467,28 @@ int main(int argc, char *argv[])
      * or if we return FALSE in the "delete_event" callback. */
     g_signal_connect (G_OBJECT (window), "destroy",
 		      G_CALLBACK (destroy), NULL);
-    
+   
+#if 0 
 	/* Sets the border width of the window. */
 	if (!fullscreen)
+		// this throws off gtk_window_get_size to see what size
+		// we ACTUALLY got, so, don't do it.
 		gtk_container_set_border_width (GTK_CONTAINER (window), 10);
 	else
 		gtk_container_set_border_width (GTK_CONTAINER (window), 0);
+#endif
+	gtk_container_set_border_width (GTK_CONTAINER (window), 0);
    
 	vbox = gtk_vbox_new(FALSE, 0); 
 	main_da = gtk_drawing_area_new();
 	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &huex[WHITE]);
-	gtk_widget_set_size_request(main_da, real_screen_width, real_screen_height);
+	// gtk_widget_set_size_request(main_da, real_screen_width, real_screen_height);
 
 	g_signal_connect(G_OBJECT (main_da), "expose_event", G_CALLBACK (main_da_expose), NULL);
+	g_signal_connect(G_OBJECT (main_da), "configure_event", G_CALLBACK (main_da_configure), NULL);
 
-    button = gtk_button_new_with_label ("Quit");
-    
-    /* When the button receives the "clicked" signal, it will call the
-     * function hello() passing it NULL as its argument.  The hello()
-     * function is defined above. */
-    g_signal_connect (G_OBJECT (button), "clicked",
-		      G_CALLBACK (destroy_event), NULL);
-    
-    /* This will cause the window to be destroyed by calling
-     * gtk_widget_destroy(window) when "clicked".  Again, the destroy
-     * signal could come from here, or the window manager. */
-    g_signal_connect_swapped (G_OBJECT (button), "clicked",
-			      G_CALLBACK (gtk_widget_destroy),
-                              G_OBJECT (window));
-    
-    /* This packs the button into the window (a gtk container). */
-    gtk_container_add (GTK_CONTAINER (window), vbox);
-
-    gtk_box_pack_start(GTK_BOX (vbox), main_da, TRUE /* expand */, FALSE /* fill */, 2);
-    gtk_box_pack_start(GTK_BOX (vbox), button, FALSE /* expand */, FALSE /* fill */, 2);
+	gtk_container_add (GTK_CONTAINER (window), vbox);
+	gtk_box_pack_start(GTK_BOX (vbox), main_da, TRUE /* expand */, TRUE /* fill */, 0);
    
 	init_score_table(); 
 	init_vects();
@@ -10476,11 +10516,14 @@ int main(int argc, char *argv[])
 	game_state.sound_effects_on = 1;
 	start_level();
 
-    gtk_widget_show (vbox);
-    gtk_widget_show (main_da);
+	gtk_window_set_default_size(GTK_WINDOW(window), real_screen_width, real_screen_height);
+
+	gtk_widget_show (vbox);
+	gtk_widget_show (main_da);
     
-    /* and the window */
-    gtk_widget_show (window);
+	/* and the window */
+	gtk_widget_show (window);
+
 	gc = gdk_gc_new(GTK_WIDGET(main_da)->window);
 	gdk_gc_set_foreground(gc, &huex[BLUE]);
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
@@ -10491,6 +10534,18 @@ int main(int argc, char *argv[])
 	cliprect.width = real_screen_width;	
 	cliprect.height = real_screen_height;	
 	gdk_gc_set_clip_rectangle(gc, &cliprect);
+
+	gtk_window_get_size(GTK_WINDOW (window), &real_screen_width, &real_screen_height);
+	if (real_screen_width == 800 && real_screen_height == 600) {
+		current_draw_line = gdk_draw_line;
+		current_draw_rectangle = gdk_draw_rectangle;
+	} else {
+		current_draw_line = scaled_line;
+		current_draw_rectangle = scaled_rectangle;
+	}
+	xscale_screen = (float) real_screen_width / (float) SCREEN_WIDTH;
+	yscale_screen = (float) real_screen_height / (float) SCREEN_HEIGHT;
+
 
     timer_tag = g_timeout_add(1000 / frame_rate_hz, advance_game, NULL);
     
