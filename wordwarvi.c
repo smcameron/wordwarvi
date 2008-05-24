@@ -10194,6 +10194,34 @@ void paint_it_blue()
 	}
 }
 
+void paint_it_green()
+{
+	int i;
+	unsigned int avg;
+	printf("paint it blue.\n");
+	for (i=0;i<NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS;i++) {
+		avg = huex[i].red + huex[i].green + huex[i].blue;
+		avg = avg / 3;
+		if (avg > 40000) {
+			huex[i].red = 32767;
+			huex[i].green = 32767*2;
+			huex[i].blue = 32767;
+		} else if (avg > 30000) {
+			huex[i].red = 0;
+			huex[i].green = 32767*2;
+			huex[i].blue = 0;
+		} else if (avg > 100) {
+			huex[i].red = 0;
+			huex[i].green = 40000;
+			huex[i].blue = 0;
+		} else {
+			huex[i].red = 0;
+			huex[i].green = 0;
+			huex[i].blue = 0;
+		}
+	}
+}
+
 static struct option wordwarvi_options[] = {
 	{ "bw", 0, NULL, 0 },
 	{ "sounddevice", 1, NULL, 1 },
@@ -10207,6 +10235,7 @@ static struct option wordwarvi_options[] = {
 	{ "fullscreen", 0, NULL, 9 },
 	{ "nomusic", 0, NULL, 10 },
 	{ "joystick", 1, NULL, 11 },
+	{ "retrogreen", 0, NULL, 12 },
 	{ NULL, 0, NULL, 0 },
 };
 
@@ -10279,6 +10308,7 @@ int main(int argc, char *argv[])
 	int i;
 	int no_colors_any_more = 0;
 	int blueprint = 0;
+	int retrogreen = 0;
 	int opt;
 	char joystick_device[PATH_MAX+1];
 
@@ -10395,6 +10425,9 @@ int main(int argc, char *argv[])
 			case 11: /* --fullscreen */
 				strncpy(joystick_device, optarg, PATH_MAX); 
 				break;
+			case 12: /* --retrogreen */
+				retrogreen = 1;
+				break;
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
@@ -10437,6 +10470,8 @@ int main(int argc, char *argv[])
 		paint_it_black();
 	if (blueprint)
 		paint_it_blue();
+	if (retrogreen)
+		paint_it_green();
  
     /* create a new window */
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);

@@ -3,7 +3,7 @@
 wordwarvi \- Old school '80's style side scrolling space shoot'em up game.
 .SH SYNOPSIS
 .B wordwarvi [ --bw ] [ --width w ] [ --height h ] [ --framerate f ]
-[ --fullscreen ] [ --joystick joystick-device ]
+[ --fullscreen ] [ --joystick joystick-device ] [ --retrogreen ]
 [ --sounddevice n ] [ --brightsparks ] [ --version ] [ --blueprint ]
 .SH DESCRIPTION
 .\" Add any additional description here
@@ -23,6 +23,12 @@ No color, just black and white.
 .TP
 \fB\--blueprint\fR
 Render the game to look like a blueprint.
+.TP
+\fB\--brightsparks\fR
+Enables a visual effect for sparks to be rendered bigger 
+and brighter than usual, at the cost of some performance.
+It is a matter of personal preference whether it looks better
+or worse.
 .TP
 \fB\--framerate f\fR
 Sets the target frame rate to f frames per second.
@@ -58,18 +64,15 @@ Cuts down considerably on memory usage.
 \fB\--nostarfield\fR
 Don't draw a starfield in the background.
 .TP
+\fB\--retrogreen\fR
+Does exactly what it sounds like.
+.TP
 \fB\--sounddevice n\fR
 Use alternate sound device n, where n is an integer.  
 By default, wordwarvi uses the "default" sound device as 
 estimated by the PortAudio library, which is 0.  
 You can specify other numbers if you have other sound cards, or
 a multichannel sound card.
-.TP
-\fB\--brightsparks\fR
-Enables a visual effect for sparks to be rendered bigger 
-and brighter than usual, at the cost of some performance.
-It is a matter of personal preference whether it looks better
-or worse.
 .TP
 \fB\--version\fR
 Print the program's version number and exit.
