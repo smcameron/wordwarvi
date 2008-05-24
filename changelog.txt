@@ -1,5 +1,31 @@
 Changelog for wordwarvi:
 
+Sat May 24 03:48:04 CDT 2008
+-------------------------------------------------------------------------------
+Changes between version 0.11 and 0.12
+* Fixed bug that we called g_threads_init() without first checking
+  to see if it had already been called (it must not be called more than
+  once.)  Apparently (some versions of?) portaudio call g_threads_init(),
+  and on such systems, the program aborted.  Thanks to Hans de Goede for
+  this fix.
+* Made the --fullscreen option override the --height and --width option
+  and just scale the graphics to fill the screen.  Fixed the problem that
+  the window border was specified as 10 pixels, leaving a white border
+  around the edges.  (There is still a thin white line at the top of the
+  screen... don't know where that's coming from.)
+* Deleted some unused button related stuff.
+* Fixed white line at top of screen in fullscreen mode
+  (Was due to box packing padding.)
+* Now F11 key can be used to toggle between windowed and
+  fullscreen mode.
+* Now dynamic on-the-fly resize (shrink or expand freely
+  in x and y dimensions) of window is allowed and re-scaling
+  happens on the fly, and when in native resolution (800x600)
+  the non-scaling line drawing/rectangle drawing functions
+  are used.
+* Added --joystick option to allow devices other than /dev/input/js0 to
+  be used.
+
 Tue May 20 06:20:09 CDT 2008
 -------------------------------------------------------------------------------
 Changes between version 0.10 and 0.11
