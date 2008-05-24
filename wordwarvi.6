@@ -3,6 +3,7 @@
 wordwarvi \- Old school '80's style side scrolling space shoot'em up game.
 .SH SYNOPSIS
 .B wordwarvi [ --bw ] [ --width w ] [ --height h ] [ --framerate f ]
+[ --fullscreen ] [ --joystick joystick-device ]
 [ --sounddevice n ] [ --brightsparks ] [ --version ] [ --blueprint ]
 .SH DESCRIPTION
 .\" Add any additional description here
@@ -43,6 +44,13 @@ and scales the graphics to the size of the screen.
 Sets the window size to h pixels high, scaling all
 graphics as necessary.  The default is 600 pixels.
 .TP
+\fB\--joystick joystick-device\fR
+Use the specified device node joystick-device to access
+the joystick.  The default device if this option is not used
+is /dev/input/js0.  If you have more than one joystick, or if
+your OS presents joysticks at device nodes other than 
+/dev/input/js0, that's what this option is for.
+.TP
 \fB\--nomusic\fR
 Don't play music, or even decode the music files into memory.
 Cuts down considerably on memory usage.
@@ -82,6 +90,8 @@ C drops chaff (to confuse heat seeking missiles).
 .PP
 B drops bombs.
 .PP
+G drops a gravity bomb, of which you start with 3.
+.PP
 Additionally, a game pad or joystick may be used.  I have only tried
 using a Logitech Dual Action Rumble USB gamepad.  On this, the first
 (left) joystick controls your ship, and the top right trigger button
@@ -112,8 +122,14 @@ WINE bottles.  Bill Gates's finest warship is outfitted with a
 giant WINE bottle to enable it to travel through the linux CORE.
 Beware of viruses which may be living inside.
 .PP 
-.SH GOOD LUCK
 .SH FILES
+.PP
+/dev/input/js0, the joystick device node.
+.PP
+/usr/share/wordwarvi/sounds/*.ogg contain the audio data used by the game.
+.SH GOOD LUCK
+.PP
+You'll need it.
 .SH AUTHOR
 Written by Stephen M. Cameron 
 .br

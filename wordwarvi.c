@@ -10206,6 +10206,7 @@ static struct option wordwarvi_options[] = {
 	{ "blueprint", 0, NULL, 8 },
 	{ "fullscreen", 0, NULL, 9 },
 	{ "nomusic", 0, NULL, 10 },
+	{ "joystick", 1, NULL, 11 },
 	{ NULL, 0, NULL, 0 },
 };
 
@@ -10279,11 +10280,13 @@ int main(int argc, char *argv[])
 	int no_colors_any_more = 0;
 	int blueprint = 0;
 	int opt;
+	char joystick_device[PATH_MAX+1];
 
 	struct timeval tm;
 
 	high_score_file_descriptor = open_high_score_file_and_lose_permissions();
 
+	strcpy(joystick_device, JOYSTICK_DEVNAME);
 	real_screen_width = SCREEN_WIDTH;
 	real_screen_height = SCREEN_HEIGHT;
 	frame_rate_hz = FRAME_RATE_HZ;
@@ -10389,6 +10392,9 @@ int main(int argc, char *argv[])
 			case 10: /* --fullscreen */
 				nomusic = 1;
 				break;
+			case 11: /* --fullscreen */
+				strncpy(joystick_device, optarg, PATH_MAX); 
+				break;
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
@@ -10401,7 +10407,7 @@ int main(int argc, char *argv[])
 	gettimeofday(&tm, NULL);
 	srandom(tm.tv_usec);	
 
-	jsfd = open_joystick();
+	jsfd = open_joystick(joystick_device);
 	if (jsfd < 0) {
 		printf("No joystick...\n");
 	};

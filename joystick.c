@@ -30,9 +30,11 @@
 
 static int joystick_fd = -1;
 
-int open_joystick()
+int open_joystick(char *joystick_device)
 {
-	joystick_fd = open(JOYSTICK_DEVNAME, O_RDONLY | O_NONBLOCK); /* read write for force feedback? */
+	if (joystick_device == NULL)
+		joystick_device = JOYSTICK_DEVNAME;
+	joystick_fd = open(joystick_device, O_RDONLY | O_NONBLOCK); /* read write for force feedback? */
 	if (joystick_fd < 0)
 		return joystick_fd;
 
