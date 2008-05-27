@@ -10178,7 +10178,6 @@ void paint_it_blue()
 {
 	int i;
 	unsigned int avg;
-	printf("paint it blue.\n");
 	for (i=0;i<NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS;i++) {
 		avg = huex[i].red + huex[i].green + huex[i].blue;
 		avg = avg / 3;
@@ -10198,7 +10197,6 @@ void paint_it_green()
 {
 	int i;
 	unsigned int avg;
-	printf("paint it blue.\n");
 	for (i=0;i<NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS;i++) {
 		avg = huex[i].red + huex[i].green + huex[i].blue;
 		avg = avg / 3;
@@ -10245,13 +10243,18 @@ void usage()
 	fprintf(stderr, "wordwarvi [options]\n");
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "--bw              Render in black and white.\n");
+	fprintf(stderr, "--blueprint       Render in the style of a blueprint.\n");
+	fprintf(stderr, "--brightsparks    Render sparks brighter than usual.\n");
+	fprintf(stderr, "--framerate n     Attempt to render the game at n frames per second.\n");
+	fprintf(stderr, "--fullscreen      Render the game in full screen mode.\n");
+	fprintf(stderr, "--height y        Render the game y pixels high.\n");
+	fprintf(stderr, "--joystick dev    Use joystick input device dev.\n");
+	fprintf(stderr, "--nomusic         Do not play, or even decode music data.\n");
+	fprintf(stderr, "--nostarfield n   Do not render the background starfield.\n");
+	fprintf(stderr, "--retrogreen      Render in the manner of a vector display from the '70's.\n");
 	fprintf(stderr, "--sounddevice n   Use the nth sound device for audio output.\n");
 	fprintf(stderr, "--version         Print the version number and exit.\n");
-	fprintf(stderr, "--brightsparks    Render sparks brighter than usual.\n");
 	fprintf(stderr, "--width x         Render the game x pixels wide.\n");
-	fprintf(stderr, "--height y        Render the game y pixels high.\n");
-	fprintf(stderr, "--framerate n     Attempt to render the game at n frames per second.\n");
-	fprintf(stderr, "--nostarfield n   Do not render the background starfield.\n");
 	exit(1);
 }
 
