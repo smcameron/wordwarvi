@@ -7372,6 +7372,18 @@ static void add_building(struct terrain_t *t, int xi)
 	/* printf("b, x=%d, y=%d\n", x, y); */
 }
 
+void free_buildings()
+{
+	int i;
+	for (i=0;i<MAXOBJS;i++) {
+		if (game_state.go[i].otype == OBJ_TYPE_BUILDING && game_state.go[i].alive) {
+			free(game_state.go[i].v->p);
+			free(game_state.go[i].v);
+			game_state.go[i].v = NULL;
+		}
+	}
+}
+
 static void add_buildings(struct terrain_t *t)
 {
 	int xi, i;
@@ -8890,6 +8902,8 @@ void start_level()
 	int i;
 
 
+	if (timer != 0)
+		free_buildings();
 	for (i=0;i<MAXOBJS;i++) {
 		game_state.go[i].alive = 0;
 		game_state.go[i].vx = 0;
