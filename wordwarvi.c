@@ -1863,6 +1863,8 @@ struct game_state_t {
 	int cmd_multiplier;		/* If you prefix keystrokes with a number... like editing in vi. */
 	int music_on;			/* Whether music is turned on or off */
 	int sound_effects_on;		/* Whether sound effects are turned on or off */
+	int sound_effects_manually_turned_off; /* whether sound effects were manually turned off */
+					/* rather than turned off by the goofy intro music. */
 	int radar_state;		/* Whether the radar is booting up, fritzed, or operational */
 #define     RADAR_RUNNING (0)
 #define     RADAR_FRITZED (-1)
@@ -4429,7 +4431,8 @@ void move_player(struct game_obj_t *o)
 		}
 		if (destiny_facedown && timer > destiny_facedown_timer1) {
 			destiny_facedown = 0;
-			game_state.sound_effects_on = 1;
+			if (!game_state.sound_effects_manually_turned_off)
+				game_state.sound_effects_on = 1;
 		}
 	}
 }
@@ -9495,6 +9498,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		return TRUE;
 	case GDK_s:
 		game_state.sound_effects_on = !game_state.sound_effects_on;
+		game_state.sound_effects_manually_turned_off = (!game_state.sound_effects_on);
 		return TRUE;
 	case GDK_m:
 		game_state.music_on = !game_state.music_on;
