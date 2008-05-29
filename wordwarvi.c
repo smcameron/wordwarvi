@@ -1418,7 +1418,6 @@ struct my_vect_obj bullet_vect;
 struct my_vect_obj gdb_vect_right;
 struct my_vect_obj gdb_vect_left;
 struct my_vect_obj octopus_vect;
-struct my_vect_obj sail_segment;
 struct my_vect_obj ships_hull;
 
 /* There are 4 home-made "fonts" in the game, all the same "typeface", but 
