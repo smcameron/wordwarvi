@@ -155,6 +155,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define KGUN_INIT_HEALTH 1		/* number of hits it takes to kill kgun. */
 #define MAX_KGUN_HEALTH  1		/* An interesting idea, but >1 makes the game too hard. */
 #define NROCKETS 20 			/* Number of rockets sprinkled into the terrain */ 
+#define NJETS 5 			/* Number of jets sprinkled into the terrain */ 
 #define LAUNCH_DIST 1200			/* How close player can get in x dimension before rocket launches */
 #define MAX_ROCKET_SPEED -32		/* max vertical speed of rocket */
 #define SAM_LAUNCH_DIST 400		/* How close player can get in x deminsion before SAM might launch */
@@ -365,6 +366,7 @@ int planet_color[] = {
 #define OBJ_TYPE_WORM 'W'
 #define OBJ_TYPE_KGUN 'k'
 #define OBJ_TYPE_TRUSS 't'
+#define OBJ_TYPE_JET '-'
 
 int score_table[256]; /* table of scores for each object type. */
 int kill_tally[256];  /* tally of various things killed */
@@ -373,6 +375,7 @@ void init_score_table()
 {
 	memset(score_table, 0, sizeof(score_table));
 	score_table[OBJ_TYPE_AIRSHIP]		= -5000;
+	score_table[OBJ_TYPE_JET]		= 2000;
 	score_table[OBJ_TYPE_BALLOON]		= 3000;
 	score_table[OBJ_TYPE_CRON]		= 400;
 	score_table[OBJ_TYPE_FUEL]		= 0;
@@ -403,6 +406,7 @@ struct level_parameters_t {
 
 	/* numbers of various objects on a given level */
 	int nrockets;
+	int njets;
 	int nbridges;
 	int nflak;
 	int nfueltanks;
@@ -433,6 +437,7 @@ struct level_parameters_t {
 	/* initial values */
 	31415927, /* constant, so the games are all the same from play to play. */
 	NROCKETS,
+	NJETS,
 	NBRIDGES,
 	NFLAK,
 	NFUELTANKS,
@@ -1198,6 +1203,22 @@ struct my_point_t bridge_points[] = {  /* square with an x through it, 8x8 */
 	{ 4, 4 },
 };
 
+struct my_point_t jet_points[] = {
+	{ -20, 0 },
+	{ -13, -3 },
+	{ -10, -5 },
+	{ 20, -3 },
+	{ 35, -15 },
+	{ 43, -15 },
+	{ 37, -3 },
+	{ 37, 0 },
+	{ -10, 2 },
+	{ -20, 0 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 37, -3 },
+	{ 20, -3 },
+};
+
 struct my_point_t ships_hull_points[] = {
 	/* bowsprit */
 	{ -60, -14 },
@@ -1399,6 +1420,7 @@ struct my_vect_obj {
 struct my_vect_obj player_vect;
 struct my_vect_obj left_player_vect;
 struct my_vect_obj rocket_vect;
+struct my_vect_obj jet_vect;
 struct my_vect_obj spark_vect;
 struct my_vect_obj right_laser_vect;
 struct my_vect_obj fuel_vect;
@@ -2429,6 +2451,52 @@ void move_rocket(struct game_obj_t *o)
 	}
 	if (o->y - player->y < -1000 && o->vy != 0) {
 		/* if the rocket is way off the top of the screen, just forget about it. */
+		remove_target(o);
+		kill_object(o);
+		o->destroy(o);
+	}
+}
+
+void move_jet(struct game_obj_t *o)
+{
+	int xdist, desired_y;
+	if (!o->alive)
+		return;	
+
+	xdist = o->x - player->x;
+	if (xdist > SCREEN_WIDTH * 2)
+		return;
+
+	if (xdist > 0 && xdist < SCREEN_WIDTH * 2) {
+		if (o->vx == 0) {
+			o->y = KERNEL_Y_BOUNDARY + 10 + randomn(250);
+			o->vx = -18;
+			o->vy = 0;
+			o->radar_image = 1;
+		}
+
+		if (xdist < SCREEN_WIDTH && randomn(100) < 10 && o->missile_timer <= timer) {
+			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			add_missile(o->x, o->y, o->vx, 0, 300, RED, player);
+			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
+		}
+
+	}
+
+	desired_y = player->y - 30;
+	if (desired_y < KERNEL_Y_BOUNDARY)
+		desired_y = KERNEL_Y_BOUNDARY + 30;
+	if (o->y > desired_y)
+		o->vy = -1;
+	if (o->y < desired_y)
+		o->vy = 1;
+ 
+	o->x += o->vx;
+	o->y += o->vy;
+
+	explode(o->x+40, o->y, 9, 0, 8, 7, 13); /* spray out some exhaust */
+
+	if (xdist < -SCREEN_WIDTH * 2) {
 		remove_target(o);
 		kill_object(o);
 		o->destroy(o);
@@ -3681,6 +3749,7 @@ void bomb_move(struct game_obj_t *o)
 			case OBJ_TYPE_KGUN:
 			case OBJ_TYPE_TRUSS:
 			case OBJ_TYPE_ROCKET:
+			case OBJ_TYPE_JET:
 			case OBJ_TYPE_MISSILE:
 			case OBJ_TYPE_HARPOON:
 			case OBJ_TYPE_CRON:
@@ -4590,6 +4659,7 @@ void laser_move(struct game_obj_t *o)
 					}
 				}
 				break;
+			case OBJ_TYPE_JET:
 			case OBJ_TYPE_ROCKET:
 			case OBJ_TYPE_HARPOON:
 			case OBJ_TYPE_GDB:
@@ -5898,6 +5968,8 @@ void init_vects()
 
 	rocket_vect.p = rocket_points;
 	rocket_vect.npoints = sizeof(rocket_points) / sizeof(rocket_points[0]);
+	jet_vect.p = jet_points;
+	jet_vect.npoints = sizeof(jet_points) / sizeof(jet_points[0]);
 	spark_vect.p = spark_points;
 	spark_vect.npoints = sizeof(spark_points) / sizeof(spark_points[0]);
 	right_laser_vect.p = right_laser_beam_points;
@@ -6979,6 +7051,17 @@ static void add_rockets(struct terrain_t *t)
 		xi = initial_x_location();
 		add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
 			move_rocket, NULL, WHITE, &rocket_vect, 1, OBJ_TYPE_ROCKET, 1);
+	}
+}
+
+static void add_jets(struct terrain_t *t)
+{
+	int i, xi;
+	for (i=0;i<level.njets;i++) {
+		xi = initial_x_location();
+		add_generic_object(t->x[xi], KERNEL_Y_BOUNDARY + 5, 0, 0, 
+			move_jet, NULL, WHITE, &jet_vect, 1, OBJ_TYPE_JET, 1);
+		
 	}
 }
 
@@ -8904,6 +8987,7 @@ void start_level()
 	srandom(level.random_seed);
 	generate_terrain(&terrain);
 	add_rockets(&terrain);
+	add_jets(&terrain);
 	add_buildings(&terrain);
 	add_fuel(&terrain);
 	add_jammers(&terrain);
@@ -8932,6 +9016,7 @@ void start_level()
 void init_levels_to_beginning()
 {
 	level.nrockets = NROCKETS;
+	level.njets = NJETS;
 	level.nbridges = NBRIDGES;
 	level.nflak = NFLAK;
 	level.nfueltanks = NFUELTANKS;
@@ -8962,6 +9047,7 @@ void init_levels_to_beginning()
 		level.small_scale_roughness = 0.45;
 		level.nflak = NFLAK + 20;
 		level.nrockets = NROCKETS + 20;
+		level.njets = NJETS + 5;
 	}
 }
 
@@ -8979,6 +9065,7 @@ void advance_level()
 	srandom(level.random_seed);
 	level.random_seed = random(); /* deterministic */
 	level.nrockets += 10;
+	level.njets += 1;
 	level.nbridges += 1;
 	level.nflak += 5;
 	level.nkguns += 5;
