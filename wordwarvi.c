@@ -1715,7 +1715,8 @@ struct tentacle_data {
 	int angle;			/* angle of attachment of first segment */
 	int nsegs;			/* how many segments? */
 	int upper_angle, lower_angle;	/* limits on attachment angle (keeps tentacles mostly pointing down) */
-	struct tentacle_seg_data *seg;	/* array of tentacle segments */
+					/* array of tentacle segments */
+	struct tentacle_seg_data seg[MAX_TENTACLE_SEGS];	
 };
 
 struct floating_message_data { 		/* for those floating text messages, like "Help!", "Woohoo!", and scores */
@@ -7620,25 +7621,21 @@ static void add_octopi(struct terrain_t *t)
 					t->tsd.tentacle.upper_angle = 359;
 					t->tsd.tentacle.lower_angle = 181;
 					t->tsd.tentacle.nsegs = MAX_TENTACLE_SEGS;
-					t->tsd.tentacle.seg = (struct tentacle_seg_data *) 
-						malloc(MAX_TENTACLE_SEGS * sizeof (t->tsd.tentacle.seg[0]));
-					if (t->tsd.tentacle.seg != NULL) {
-						t->tsd.tentacle.angle = 0;
-						for (k=0;k<MAX_TENTACLE_SEGS;k++) {
-							t->tsd.tentacle.seg[k].angle = 
-								TENTACLE_RANGE(t->tsd.tentacle);
-							t->tsd.tentacle.seg[k].length = length;
-							t->tsd.tentacle.seg[k].angular_v = 0;
-							t->tsd.tentacle.seg[i].dest_angle = 
-								TENTACLE_RANGE(t->tsd.tentacle);
-							length = length * length_factor;
-							length_factor += 0.01;
-							if (length_factor > 0.97) 
-								length_factor = 0.97;
-							if (length == 1) {
-								t->tsd.tentacle.nsegs = k;
-								break;
-							}
+					t->tsd.tentacle.angle = 0;
+					for (k=0;k<MAX_TENTACLE_SEGS;k++) {
+						t->tsd.tentacle.seg[k].angle = 
+							TENTACLE_RANGE(t->tsd.tentacle);
+						t->tsd.tentacle.seg[k].length = length;
+						t->tsd.tentacle.seg[k].angular_v = 0;
+						t->tsd.tentacle.seg[i].dest_angle = 
+							TENTACLE_RANGE(t->tsd.tentacle);
+						length = length * length_factor;
+						length_factor += 0.01;
+						if (length_factor > 0.97) 
+							length_factor = 0.97;
+						if (length == 1) {
+							t->tsd.tentacle.nsegs = k;
+							break;
 						}
 					}
 				}
@@ -7662,41 +7659,6 @@ static void add_gdbs(struct terrain_t *t)
 			o->destroy = generic_destroy_func;
 			o->tsd.gdb.awake = 0;
 			o->radar_image = 1;
-
-#if 0
-			for (j=0;j<8;j++) {
-				int length = randomn(30) + 9;
-				double length_factor = 0.90;
-				o->tsd.gdb.tentacle[j] = add_generic_object(o->x, o->y, 0, 0,
-					tentacle_move, tentacle_draw, CYAN, NULL, 1, OBJ_TYPE_TENTACLE, 1);
-				if (o->tsd.gdb.tentacle[j] != NULL) {
-					struct game_obj_t *t = o->tsd.gdb.tentacle[j];
-					t->tsd.tentacle.attached_to = o;
-					t->tsd.tentacle.upper_angle = 340;
-					t->tsd.tentacle.lower_angle = 200;
-					t->tsd.tentacle.nsegs = MAX_TENTACLE_SEGS;
-					t->tsd.tentacle.seg = (struct tentacle_seg_data *) 
-						malloc(MAX_TENTACLE_SEGS * sizeof (t->tsd.tentacle.seg[0]));
-					if (t->tsd.tentacle.seg != NULL) {
-						t->tsd.tentacle.angle = 0;
-						for (k=0;k<MAX_TENTACLE_SEGS;k++) {
-							t->tsd.tentacle.seg[k].angle = randomn(60)-30;
-							t->tsd.tentacle.seg[k].length = length;
-							t->tsd.tentacle.seg[k].angular_v = 0;
-							t->tsd.tentacle.seg[i].dest_angle = TENTACLE_RANGE(t->tsd.tentacle);
-							length = length * length_factor;
-							length_factor += 0.01;
-							if (length_factor > 0.97) 
-								length_factor = 0.97;
-							if (length == 1) {
-								t->tsd.tentacle.nsegs = k;
-								break;
-							}
-						}
-					}
-				}
-			}
-#endif
 		}
 	
 	}
@@ -7719,23 +7681,19 @@ static void add_tentacles(struct terrain_t *t)
 			o->tsd.tentacle.upper_angle = 160;
 			o->tsd.tentacle.lower_angle = 20;
 			o->tsd.tentacle.nsegs = MAX_TENTACLE_SEGS;
-			o->tsd.tentacle.seg = (struct tentacle_seg_data *) 
-				malloc(MAX_TENTACLE_SEGS * sizeof (o->tsd.tentacle.seg[0]));
-			if (o->tsd.tentacle.seg != NULL) {
-				o->tsd.tentacle.angle = 0;
-				for (i=0;i<MAX_TENTACLE_SEGS;i++) {
-					o->tsd.tentacle.seg[i].angle = randomn(60)-30;
-					o->tsd.tentacle.seg[i].length = length;
-					o->tsd.tentacle.seg[i].angular_v = 0;
-					o->tsd.tentacle.seg[i].dest_angle = TENTACLE_RANGE(o->tsd.tentacle);
-					length = length * length_factor;
-					length_factor += 0.01;
-					if (length_factor > 0.97) 
-						length_factor = 0.97;
-					if (length == 1) {
-						o->tsd.tentacle.nsegs = i;
-						break;
-					}
+			o->tsd.tentacle.angle = 0;
+			for (i=0;i<MAX_TENTACLE_SEGS;i++) {
+				o->tsd.tentacle.seg[i].angle = randomn(60)-30;
+				o->tsd.tentacle.seg[i].length = length;
+				o->tsd.tentacle.seg[i].angular_v = 0;
+				o->tsd.tentacle.seg[i].dest_angle = TENTACLE_RANGE(o->tsd.tentacle);
+				length = length * length_factor;
+				length_factor += 0.01;
+				if (length_factor > 0.97) 
+					length_factor = 0.97;
+				if (length == 1) {
+					o->tsd.tentacle.nsegs = i;
+					break;
 				}
 			}
 		}
