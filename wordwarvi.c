@@ -4385,40 +4385,6 @@ void move_player(struct game_obj_t *o)
 			/* make some exhaust */
 			explode(o->x-(13 * game_state.direction), o->y, -((abs(o->vx)+7)*game_state.direction), 0, 10, 10, 9);
 
-
-	/* This stuff is to make the viewport track the player */
-	/* if he's facing right, then the viewport puts him at 1/3 */
-	/* the way across the screen, if left, then 2/3rds across the */
-	/* screen.  If he switches direction, the transition is not abrupt */
-	/* instead the velocity of the viewport is adjusted relative to the */
-	/* player's velocity so that the viewport and player kind of slide */
-	/* relative to one another to get the viewport in the right place. */
-	if (game_state.direction == 1) {
-		if (player->x - game_state.x > SCREEN_WIDTH/3) {
-			/* going off screen to the right... rein back in */
-			/* game_state.x = player->x - 2*SCREEN_WIDTH/3; */
-			game_state.vx = player->vx + 7;
-		} else {
-			game_state.x = player->x - SCREEN_WIDTH/3;
-			game_state.vx = player->vx;
-		}
-	} else {
-		if (player->x - game_state.x < 2*SCREEN_WIDTH/3) {
-		/* going off screen to the left... rein back in */
-			game_state.vx = player->vx - 7;
-		} else {
-			game_state.x = player->x - 2*SCREEN_WIDTH/3;
-			game_state.vx = player->vx;
-		}
-	}
-
-	if (player->y - game_state.y > 2*SCREEN_HEIGHT/6) {
-		game_state.vy = player->vy + 7;
-	} else if (player->y - game_state.y < -SCREEN_HEIGHT/6) {
-		game_state.vy = player->vy - 7;
-	} else
-		game_state.vy = player->vy;
-
 	/* Detect smashing into the ground */
 	deepest = find_ground_level(player, NULL);
 	if (deepest != GROUND_OOPS && player->y >= deepest) {
@@ -4471,6 +4437,40 @@ void move_player(struct game_obj_t *o)
 		player->x = terrain.x[TERRAIN_LENGTH - 1] - 20;
 		player->vx = -5;
 	}
+
+	/* This stuff is to make the viewport track the player */
+	/* if he's facing right, then the viewport puts him at 1/3 */
+	/* the way across the screen, if left, then 2/3rds across the */
+	/* screen.  If he switches direction, the transition is not abrupt */
+	/* instead the velocity of the viewport is adjusted relative to the */
+	/* player's velocity so that the viewport and player kind of slide */
+	/* relative to one another to get the viewport in the right place. */
+	if (game_state.direction == 1) {
+		if (player->x - game_state.x > SCREEN_WIDTH/3) {
+			/* going off screen to the right... rein back in */
+			/* game_state.x = player->x - 2*SCREEN_WIDTH/3; */
+			game_state.vx = player->vx + 7;
+		} else {
+			game_state.x = player->x - SCREEN_WIDTH/3;
+			game_state.vx = player->vx;
+		}
+	} else {
+		if (player->x - game_state.x < 2*SCREEN_WIDTH/3) {
+		/* going off screen to the left... rein back in */
+			game_state.vx = player->vx - 7;
+		} else {
+			game_state.x = player->x - 2*SCREEN_WIDTH/3;
+			game_state.vx = player->vx;
+		}
+	}
+
+	if (player->y - game_state.y > 2*SCREEN_HEIGHT/6) {
+		game_state.vy = player->vy + 7;
+	} else if (player->y - game_state.y < -SCREEN_HEIGHT/6) {
+		game_state.vy = player->vy - 7;
+	} else
+		game_state.vy = player->vy;
+
 
 	/* Check to see if radar is fritzed, or unfritzed. */
 	if (game_state.health > RADAR_FRITZ_HEALTH) {
