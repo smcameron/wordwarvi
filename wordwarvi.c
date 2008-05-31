@@ -4300,7 +4300,6 @@ void autopilot()
 				player->vy = -9;
 			} else if (player->vy > 0) player->vy--;
 			else if (player->vy < 0) player->vy++;
-			game_state.vy = player->vy;
 			break;
 		}
 		/* keep moving */
@@ -4366,7 +4365,7 @@ void move_player(struct game_obj_t *o)
 	deepest = find_ground_level(player, NULL);
 
 	/* if the player flies too slow, gravity starts pulling him down. */
-	if (abs(o->vx) < 5 || game_state.health <= 0) {
+	if (game_state.health <= 0) {
 		if (deepest != GROUND_OOPS) {
 			if (o->y < deepest) 
 				o->vy+=1;
@@ -4386,7 +4385,6 @@ void move_player(struct game_obj_t *o)
 			explode(o->x-(13 * game_state.direction), o->y, -((abs(o->vx)+7)*game_state.direction), 0, 10, 10, 9);
 
 	/* Detect smashing into the ground */
-	deepest = find_ground_level(player, NULL);
 	if (deepest != GROUND_OOPS && player->y >= deepest) {
 		/* keep player from sinking through the ground. */
 		player->y = deepest;
@@ -4464,13 +4462,32 @@ void move_player(struct game_obj_t *o)
 		}
 	}
 
-	if (player->y - game_state.y > 2*SCREEN_HEIGHT/6) {
-		game_state.vy = player->vy + 7;
-	} else if (player->y - game_state.y < -SCREEN_HEIGHT/6) {
-		game_state.vy = player->vy - 7;
-	} else
-		game_state.vy = player->vy;
-
+	/* This is the y-axis viewport tracking... */
+	if (player->vy < 0) {
+		/* moving up... */	
+		if (player->y - game_state.y - SCREEN_HEIGHT/2  < -3*SCREEN_HEIGHT/8) {
+			/* are we above 1/4th the way from the bottom of screen...? */
+			/* scoot the viewport up to reveal more of what's above */
+			game_state.vy = player->vy - 3;
+		} else {
+			/* leave the player 3/4s the way down the screen */
+			game_state.y = player->y + 3*SCREEN_HEIGHT/8 - SCREEN_HEIGHT/2;
+			game_state.vy = player->vy;
+		}
+	} else if (player->vy > 0) {
+		/* moving down... */
+		if (player->y - game_state.y - SCREEN_HEIGHT/2 > -5*SCREEN_HEIGHT/8) {
+			/* are we below 1/4th the way from top of screen...? */
+			/* scoot the viewport down to reveal more of what's below */
+			game_state.vy = player->vy + 3;
+		} else {
+			/* leave the viewport 1/4th of the way down the screen */
+			game_state.y = player->y + 5*SCREEN_HEIGHT/8 - SCREEN_HEIGHT/2;
+			game_state.vy = player->vy;
+		}
+	} else {
+		game_state.vy = 0;
+	}
 
 	/* Check to see if radar is fritzed, or unfritzed. */
 	if (game_state.health > RADAR_FRITZ_HEALTH) {
