@@ -64,6 +64,20 @@ Cuts down considerably on memory usage.
 \fB\--nostarfield\fR
 Don't draw a starfield in the background.
 .TP
+\fB\--randomize\fR
+Uses the microseconds value of the clock as the random seed
+for generating terrain, enemy placement etc.  If you get tired
+of the regular levels, and knowing where everything is, this
+will get you levels that you haven't seen before.
+.TP
+\fB\--randomseed n\fR
+Uses the specified value, n, as the random seed
+for generating terrain, enemy placement etc.  This
+allows access to new levels which you may play again by 
+specifying the same random seed value.  The default
+random seed value the game uses if none is specified
+is 31415927.
+.TP
 \fB\--retrogreen\fR
 Does exactly what it sounds like.
 .TP

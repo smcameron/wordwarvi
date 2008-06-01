@@ -435,7 +435,8 @@ struct level_parameters_t {
 	int ground_color;
 } level = {
 	/* initial values */
-	31415927, /* constant, so the games are all the same from play to play. */
+	31415927, /* This value is not used, so changing it here has no effect.*/
+		  /* instead change initial_random_seed, below. */
 	NROCKETS,
 	NJETS,
 	NBRIDGES,
@@ -1927,6 +1928,7 @@ int destiny_facedown_timer2 = 0;	/* when to start goofy intro again. */
 int old_window_width = 0;
 int old_window_height = 0;
 int fullscreen = 0;
+int initial_random_seed = 31415927;
 GtkWidget *window = NULL; /* main window */
 
 #define NSTARS 150
@@ -9053,7 +9055,7 @@ void init_levels_to_beginning()
 	level.nkguns = NKGUNS;
 	level.kgun_health = KGUN_INIT_HEALTH;
 	if (credits > 0) {
-		level.random_seed = 31415927;
+		level.random_seed = initial_random_seed;
 		level.laser_fire_chance = LASER_FIRE_CHANCE;
 		level.large_scale_roughness = LARGE_SCALE_ROUGHNESS;
 		level.small_scale_roughness = SMALL_SCALE_ROUGHNESS;;
@@ -10313,6 +10315,8 @@ static struct option wordwarvi_options[] = {
 	{ "nomusic", 0, NULL, 10 },
 	{ "joystick", 1, NULL, 11 },
 	{ "retrogreen", 0, NULL, 12 },
+	{ "randomize", 0, NULL, 13 },
+	{ "randomseed", 1, NULL, 14 },
 	{ NULL, 0, NULL, 0 },
 };
 
@@ -10331,6 +10335,8 @@ void usage()
 	fprintf(stderr, "--nomusic         Do not play, or even decode music data.\n");
 	fprintf(stderr, "--nostarfield     Do not render the background starfield.\n");
 	fprintf(stderr, "--retrogreen      Render in the manner of a vector display from the '70's.\n");
+	fprintf(stderr, "--randomize       Use a clock generated random seed to initialize levels.\n");
+	fprintf(stderr, "--randomseed n    Use the specified random seed to initialize levels.\n");
 	fprintf(stderr, "--sounddevice n   Use the nth sound device for audio output.\n");
 	fprintf(stderr, "--version         Print the version number and exit.\n");
 	fprintf(stderr, "--width x         Render the game x pixels wide.\n");
@@ -10510,6 +10516,17 @@ int main(int argc, char *argv[])
 			case 12: /* --retrogreen */
 				retrogreen = 1;
 				break;
+			case 13: /* --randomize */
+				gettimeofday(&tm, NULL);
+				initial_random_seed = tm.tv_usec;	
+				break;
+			case 14: /* --randomseed n */
+				n = sscanf(optarg, "%d", &initial_random_seed);
+				if (n != 1) {
+					fprintf(stderr, "Bad random seed value '%s'\n", optarg);
+					exit(1);
+				}
+				break;
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
@@ -10519,8 +10536,7 @@ int main(int argc, char *argv[])
 
 
 	init_highscores();
-	gettimeofday(&tm, NULL);
-	srandom(tm.tv_usec);	
+	level.random_seed = initial_random_seed;
 
 	jsfd = open_joystick(joystick_device);
 	if (jsfd < 0) {
