@@ -155,7 +155,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define KGUN_INIT_HEALTH 1		/* number of hits it takes to kill kgun. */
 #define MAX_KGUN_HEALTH  1		/* An interesting idea, but >1 makes the game too hard. */
 #define NROCKETS 20 			/* Number of rockets sprinkled into the terrain */ 
-#define NJETS 5 			/* Number of jets sprinkled into the terrain */ 
+#define NJETS 15 			/* Number of jets sprinkled into the terrain */ 
 #define LAUNCH_DIST 1200			/* How close player can get in x dimension before rocket launches */
 #define MAX_ROCKET_SPEED -32		/* max vertical speed of rocket */
 #define SAM_LAUNCH_DIST 400		/* How close player can get in x deminsion before SAM might launch */
@@ -2469,7 +2469,7 @@ void move_jet(struct game_obj_t *o)
 
 	if (xdist > 0 && xdist < SCREEN_WIDTH * 2) {
 		if (o->vx == 0) {
-			o->y = KERNEL_Y_BOUNDARY + 10 + randomn(250);
+			o->y = player->y - 50 - randomn(200);
 			o->vx = -18;
 			o->vy = 0;
 			o->radar_image = 1;
@@ -2483,7 +2483,7 @@ void move_jet(struct game_obj_t *o)
 
 	}
 
-	desired_y = player->y - 30;
+	desired_y = player->y - 15 - randomn(25);
 	if (desired_y < KERNEL_Y_BOUNDARY)
 		desired_y = KERNEL_Y_BOUNDARY + 30;
 	if (o->y > desired_y)
