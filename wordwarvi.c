@@ -1929,6 +1929,10 @@ int old_window_width = 0;
 int old_window_height = 0;
 int fullscreen = 0;
 int initial_random_seed = 31415927;
+#define LEVELWARP
+#ifdef LEVELWARP
+int levelwarp = 0;
+#endif
 GtkWidget *window = NULL; /* main window */
 
 #define NSTARS 150
@@ -9034,6 +9038,7 @@ void start_level()
 
 void init_levels_to_beginning()
 {
+	int i;
 	level.nrockets = NROCKETS;
 	level.njets = NJETS;
 	level.nbridges = NBRIDGES;
@@ -9068,6 +9073,10 @@ void init_levels_to_beginning()
 		level.nrockets = NROCKETS + 20;
 		level.njets = NJETS + 5;
 	}
+#ifdef LEVELWARP
+	for (i=0;i<levelwarp;i++)
+		advance_level();
+#endif
 }
 
 void game_ended()
@@ -10317,6 +10326,9 @@ static struct option wordwarvi_options[] = {
 	{ "retrogreen", 0, NULL, 12 },
 	{ "randomize", 0, NULL, 13 },
 	{ "randomseed", 1, NULL, 14 },
+#ifdef LEVELWARP
+	{ "levelwarp", 1, NULL, 15 },
+#endif
 	{ NULL, 0, NULL, 0 },
 };
 
@@ -10332,6 +10344,9 @@ void usage()
 	fprintf(stderr, "--fullscreen      Render the game in full screen mode.\n");
 	fprintf(stderr, "--height y        Render the game y pixels high.\n");
 	fprintf(stderr, "--joystick dev    Use joystick input device dev.\n");
+#ifdef LEVELWARP
+	fprintf(stderr, "--levelwarp n     Warp ahead n levels.\n");
+#endif
 	fprintf(stderr, "--nomusic         Do not play, or even decode music data.\n");
 	fprintf(stderr, "--nostarfield     Do not render the background starfield.\n");
 	fprintf(stderr, "--retrogreen      Render in the manner of a vector display from the '70's.\n");
@@ -10527,6 +10542,15 @@ int main(int argc, char *argv[])
 					exit(1);
 				}
 				break;
+#ifdef LEVELWARP
+			case 15: /* --levelwarp */
+				n = sscanf(optarg, "%d", &levelwarp);
+				if (n != 1) {
+					fprintf(stderr, "Bad level warp value '%s'\n", optarg);
+					exit(1);
+				}
+				break;
+#endif
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
