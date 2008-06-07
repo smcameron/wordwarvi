@@ -298,8 +298,8 @@ struct level_descriptor_entry levelname = { \
 /***************************************************************************/
 /* level 1 starts here: */
 struct level_obj_descriptor_entry level_1_obj[] = {
-	{ OBJ_TYPE_ROCKET, 	20, DO_IT_RANDOMLY, 0 }, 
-	{ OBJ_TYPE_JET, 	15, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_ROCKET, 	140, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_JET, 	0, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_FUEL, 	20, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_JAMMER, 	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_CRON, 	15, DO_IT_RANDOMLY, 0 }, 
@@ -339,6 +339,47 @@ struct level_obj_descriptor_entry level_2_obj[] = {
 };
 /* end of level 2 */
 
+/* level 3 */
+struct level_obj_descriptor_entry level_3_obj[] = {
+	{ OBJ_TYPE_ROCKET,	25, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_JET,		2, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_FUEL, 	18, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_JAMMER,	2, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_CRON,	15, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_SHIP,	0, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_SAM_STATION, 8, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_GUN,		30, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_KGUN,	30, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_AIRSHIP,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_WORM,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_BALLOON,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_GDB,		7, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
+	// { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, 
+};
+/* end of level 3 */
+
+/* level 4 */
+struct level_obj_descriptor_entry level_4_obj[] = {
+	{ OBJ_TYPE_ROCKET,	5, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_JET,		2, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_FUEL, 	25, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_JAMMER,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_CRON,	10, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_SHIP,	0, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_SAM_STATION, 5, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_GUN,		15, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_KGUN,	20, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_AIRSHIP,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_WORM,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_BALLOON,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_GDB,		30, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
+	{ OBJ_TYPE_OCTOPUS,	1, 25, 1 }, 
+	// { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, 
+};
+/* end of level 4 */
+
 
 
 /* "jet" level begins */
@@ -377,18 +418,22 @@ struct level_obj_descriptor_entry jet_level_obj[] = {
 #define NBRIDGES 2		/* max initial number of bridges in terrain (less, if no valleys) */
 
 /* ---------------------level descriptors begin here.---------------------- */
-NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, DOCILE_LASER, NBRIDGES, NBOMBS, NGBOMBS);
+NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, LAZY_LASER, NBRIDGES, NBOMBS, NGBOMBS);
+NEW_LEVEL(jet_level, jet_level_obj, 0.11, 0.09, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
 NEW_LEVEL(level2, level_2_obj, 0.15, 0.09, LAZY_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
-NEW_LEVEL(jet_level, jet_level_obj, 0.15, 0.09, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
+NEW_LEVEL(level3, level_3_obj, 0.23, 0.23, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
+NEW_LEVEL(level4, level_3_obj, 0.29, 0.20, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, 10);
 /* ---------------------level descriptors end here.---------------------- */
 
 
 /* This is an array of all the levels.  Add your new level 
  * which you defined above, into the list below, where indicated: */
 struct level_descriptor_entry *leveld[] = {
-	&level1,    /* 2nd level */
 	&jet_level, /* 1st level */
+	&level1,    /* 2nd level */
 	&level2,    /* 3rd level, etc. */
+	&level3,
+	&level4,
 
 	/* Add your new level name above this line, with an ampersand. */
 	NULL,
