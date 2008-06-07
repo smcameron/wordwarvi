@@ -7773,7 +7773,7 @@ static void add_tentacles(struct terrain_t *t, struct level_obj_descriptor_entry
 	for (j=0;j<entry->nobjs;j++) {
 		length = randomn(30) + 9;
 		length_factor = 0.90;
-		xi = initial_x_location(entry, i);
+		xi = initial_x_location(entry, j);
 		o = add_generic_object(t->x[xi], t->y[xi], 0, 0,
 			tentacle_move, tentacle_draw, CYAN, NULL, 1, OBJ_TYPE_TENTACLE, 1);
 		if (o != NULL) {
