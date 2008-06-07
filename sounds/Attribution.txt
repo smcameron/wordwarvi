@@ -80,3 +80,4 @@ license.  See: http://creativecommons.org/licenses/by-sa/3.0/
 	gravity_bomb.ogg
 	destiny_facedown.ogg
 	highscoremusic.ogg
+	jetwash.ogg
