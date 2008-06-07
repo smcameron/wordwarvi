@@ -9130,6 +9130,9 @@ void advance_level()
 	if (leveld[level.level_number] == NULL)
 		level.level_number--;
 
+	level.ground_color = (level.ground_color + 1) % 
+		(sizeof(planet_color) / sizeof(planet_color[0]));
+
 	initialize_game_state_new_level();
 }
 
