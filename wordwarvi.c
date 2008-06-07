@@ -4658,7 +4658,6 @@ void laser_move(struct game_obj_t *o)
 			case OBJ_TYPE_ROCKET:
 			case OBJ_TYPE_HARPOON:
 			case OBJ_TYPE_GDB:
-			case OBJ_TYPE_CRON:
 			case OBJ_TYPE_OCTOPUS:
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_JAMMER:
@@ -4689,6 +4688,16 @@ void laser_move(struct game_obj_t *o)
 					}
 					if (t->otype == OBJ_TYPE_TRUSS)
 						truss_cut_loose_whats_below(t);
+					if (t->otype == OBJ_TYPE_JET &&
+						(randomn(100) < 50)) {
+						/* half the time, jets will drop out */
+						/* of the sky like a bomb when hit, instead of */
+						/* exploding. */
+						add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
+						explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+						t->move = bomb_move;
+						break;
+					}
 					if (score_table[t->otype] != 0) {
 						game_state.score += (score_table[t->otype]);
 						add_score_floater(t->x, t->y, score_table[t->otype]);
