@@ -1,0 +1,6 @@
+
+If you want to try to make your own custom levels for this
+game, open up the file levels.h with a text editor, and read
+the comments in that file which explain how to make new levels.
+
+

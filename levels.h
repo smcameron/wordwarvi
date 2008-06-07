@@ -21,43 +21,253 @@
 #ifndef __LEVELS_H__
 #define __LEVELS_H__
 
-#define DO_IT_RANDOMLY (-1)
+/* 
+ *
+ * This file controls how the levels look, to some degree.  If you want
+ * to make your own custom levels, this is the file to modify.
+ *
+ * How to make a new level.
+ *
+ * 1.  Copy an existing level.
+ *     a. Look for the comment below that says "level 1 starts here:"
+ *        and another comment that says "level 1 ends here. ^^^".
+ *        Copy the text between those comments to just above the
+ *        line which says:
+ *
+ *        INSERT NEW LEVELS ABOVE THIS LINE ^^^^
+ *
+ * 2.  Modify the new level:
+ *     a.  Change the name of the level.
+ *         There are two structures which make up a level, the
+ *         level_obj_descriptor_entry array, and the 
+ *         level_descriptor_entry.  You must change the name of
+ *         both of them to something not yet used:
+ *
+ *         Change "level_1_obj" to something else, "my_level_objects"
+ *         or maybe some descriptive term, like maybe your level has a 
+ *         lot of rockets and nothing else, so maybe you call it 
+ *         "rocket_level".  Likewise, change "level1" to a new name
+ *         which you make up.
+ *
+ *     b.  Customize the objects:
+ *         The level_obj_descriptor_entry array contains a list of objects
+ *         which get added to the game.  Each row in the table contains
+ *         4 items, as follows:
+ *
+ * 	   1. Object type, 
+ * 	   2. How many objects of this type this row adds.
+ * 	   3. X position in the game.
+ * 	   4. how much space to put between each object.
+ *
+ * 	   The value for Object type must be one of these:
+ *
+		OBJ_TYPE_AIRSHIP
+		OBJ_TYPE_BALLOON
+		OBJ_TYPE_CRON
+		OBJ_TYPE_FUEL
+		OBJ_TYPE_SHIP
+		OBJ_TYPE_GUN
+		OBJ_TYPE_ROCKET
+		OBJ_TYPE_SAM_STATION
+		OBJ_TYPE_GDB
+		OBJ_TYPE_OCTOPUS
+		OBJ_TYPE_TENTACLE
+		OBJ_TYPE_JAMMER
+		OBJ_TYPE_WORM
+		OBJ_TYPE_KGU
+		OBJ_TYPE_JET
+
+		See below for a description of what each one is.
+
+	   How many objects is pretty self explanatory.
+
+
+	   X position is expressed as a percentage of the width
+           of the game world.  A value of 50 would put the first
+           item smack in the center of the game world.  The special
+	   value "DO_IT_RANDOMLY" makes the game choose a random
+           location.
+
+	   The offset controls how far apart multiple objects are
+           spaced.  If the X value is DO_IT_RANDOMLY, then this
+           spacing value is not used (but you must specify a value
+           anyway, 0, in that case is good. 
+
+	   Some examples:
+
+           { OBJ_TYPE_JET, 	15, DO_IT_RANDOMLY, 0 }, 
+           This says add 15 jets, randomly sprinkled around on the terrain.
+
+           { OBJ_TYPE_JET, 	1, 30, 0 }, 
+           { OBJ_TYPE_JET, 	1, 50, 0 }, 
+           { OBJ_TYPE_JET, 	1, 80, 0 }, 
+
+	   The above adds 3 jets, one at 30% across the game's terrain,
+	   one at 50%, and one at 80%.
+
+           { OBJ_TYPE_JET, 	5, 20, 10 }, 
+	
+	   The above adds 5 jets, beginning at 20% across the terrain,
+	   and evenly spaced at 10 unit intervals.
+
+ *     c.  Customize the level_descriptor_entry values.
+
+	   Each level can be further customized by specifying:
+
+	   small scale roughness,
+           large scale roughness,
+	   laser_fire_chance,
+	   number of bridges
+           number of bombs
+           number of gravity bombs.
+
+	   Find the lines below near the bottom of this file 
+           which begin "NEW_LEVEL(....)" and have a comment that
+           says, "--- level descriptors begin here ---"
+
+	   The NEW_LEVEL macro constructs a level_descriptor_entry.
+
+	   The format is:
+
+	   NEW_LEVEL(levelname, levelobjectlist, ssr, lsr, lfc, nbr, nbo, ngb);
+
+	   levelname is the name of your level. e.g., my_level.
+
+           levelobjectlist is the name of the structure you made in step 2b, 
+           above, e.g. "my_level_objects".
+
+	   ssr is "small scale roughness."  It controls how smooth or rough
+           the terrain is at a small scale.  It should be between 0 and 1.
+           Values closer to zero are smoother, values closer to 1 are rougher.
+           A value of 0.15 is pretty good.  Experiment to see what it does.
+
+	   lsr is "large scale roughness."  It controls how smooth or rough
+           the terrain is at a large scale.  It should be between 0 and 1.
+           Values closer to zero are smoother, values closer to 1 are rougher.
+           A value of 0.09 or so is pretty good.  Experiment to see what it does.
+
+	   lfc is "laser fire chance", and it controls how aggressive or tame
+	   the laser guns in the game are.  A value of 20 is very aggressive.
+           smaller values are less aggressive, larger values more aggressive.
+	   Experiment with it.
+
+	   nbr is the number of bridges to add to the terrain.  Actually it is
+	   a maximum number, you may get less bridges.  If your terrain is too
+	   smooth, there might not be enough places to add bridges.  This is mostly
+	   a cosmetic thing.  A value of 5 or so is fine.
+
+	   nbo is the number of bombs the player starts the level with.  Normally
+	   this is NBOMBS, which is 100.  If you want to make a very hard level,
+	   you might set nbr to something small, or zero to take bombs out of
+	   the game. (Some ground based things are hard to kill without bombs though,
+	   so keep that in mind.
+
+	   ngb is the number of gravity bombs the player starts out with.  Normally,
+	   this is 3, as they are kind of like the "smart bomb" in this game.  You
+	   can set it to what you like for your level.
+
+	   Example:
+
+	NEW_LEVEL(my_level, my_level_obj, 0.09, 0.04, 20, 5, 100, 3);
+
+	This creates a new level named my_level using the objects specified in
+	my_level_obj list (not shown), with small scale roughness of 0.09,
+	large scale roughness of 0.04, laser fire chance of 20, up to 5 
+	bridges, the player has 100 bombs, and 3 gravity bombs. 
+
+	   
+ * 3.   Add your level into the level list. 
+ *
+ *      Go to the bottom of this file, and find the code that looks like:
+ *
+ *           struct level_descriptor_entry *leveld[] = {
+ *
+ *      near the comment that says:
+ *
+ *      "Add your new level name above this line, with an ampersand."
+ *
+ *      This is an array of levels.  Add your level which you defined 
+ *      with the NEW_LEVEL() macro in step 2c, above, into the list, 
+ *      preceded by an ampersand, and followed by a comma.
+ *
+ *      You would add a line into the array like:
+ *
+ *      &my_level,
+ *
+ *      The position in the array controls which level it is.  E.g.
+ *      if yours is first in the array, it will be level 1.  if it's 
+ *      2nd, it will be level 2, etc.
+ *
+ * 4.   Testing your level:
+ *
+ *      To test your level, the easiest way is to make it level 1, put
+ *      it first in the array of levels, then of course, build the 
+ *      game (type "make") and run it.  Once you have the level working
+ *      to your liking, you can then move it into the correct position 
+ *      in the array.
+ *
+ *      That's basically it.
+ *
+ *
+ *
+ *  If you make any particularly cool levels, feel free to send them to
+ *  me at smcameron@users.sourceforge.net.  Maybe I'll put them in 
+ *  the game.
+ *
+ */
+
 
 /* Object types, just arbitrary constants used to uniquely id object types */
-#define OBJ_TYPE_AIRSHIP 'a'
+
+/***********************************************************/
+/* 
+ * VALID OBJECT TYPES DESCRIBED BELOW
+ *
+ */
+/* The ones below are the ones which can be custom placed. */
+#define OBJ_TYPE_AIRSHIP 'a'		/* Blimp */ 
+#define OBJ_TYPE_BALLOON 'B'		/* Balloons... don't really do anything yet. */
+#define OBJ_TYPE_CRON 'C'		/* The green things that pick up humans */
+#define OBJ_TYPE_FUEL 'f'		/* Fuel tanks. */
+#define OBJ_TYPE_SHIP 'w'		/* Bill Gates's state of the art warship. */
+#define OBJ_TYPE_GUN 'g'		/* ground based laser gun */
+#define OBJ_TYPE_ROCKET 'r'		/* ground based rockets */
+#define OBJ_TYPE_SAM_STATION 'S'	/* ground based missile launching station */
+#define OBJ_TYPE_GDB 'd'		/* GDB enemy */
+#define OBJ_TYPE_OCTOPUS 'o'		/* a big ol' octopus */
+#define OBJ_TYPE_TENTACLE 'j'		/* a big ol' tentacle */
+#define OBJ_TYPE_JAMMER 'J'		/* A radar jamming station */
+#define OBJ_TYPE_WORM 'W'		/* A worm */
+#define OBJ_TYPE_KGUN 'k'		/* a "kernel gun", inverted laser gun suspended on a tower */
+#define OBJ_TYPE_JET '-'		/* a jet plane that swoops by and shoots missiles */
+/* The ones above are the ones which can be custom placed. */
+/***********************************************************/
+
+
+/* These cannot be custom placed, they are generally for more transient */
+/* objects like laser beams, and bullets and what not. */
 #define OBJ_TYPE_BOMB 'p'
-#define OBJ_TYPE_BALLOON 'B'
 #define OBJ_TYPE_BUILDING 'b'
 #define OBJ_TYPE_CHAFF 'c'
-#define OBJ_TYPE_CRON 'C'
-#define OBJ_TYPE_FUEL 'f'
-#define OBJ_TYPE_SHIP 'w'
-#define OBJ_TYPE_GUN 'g'
 #define OBJ_TYPE_HUMAN 'h'
 #define OBJ_TYPE_LASER 'L'
 #define OBJ_TYPE_MISSILE 'm'
 #define OBJ_TYPE_HARPOON 'H'
-#define OBJ_TYPE_ROCKET 'r'
 #define OBJ_TYPE_SOCKET 'x'
-#define OBJ_TYPE_SAM_STATION 'S'
 #define OBJ_TYPE_SPARK 's'
 #define OBJ_TYPE_BRIDGE 'T'
 #define OBJ_TYPE_SYMBOL 'z'
-#define OBJ_TYPE_GDB 'd'
-#define OBJ_TYPE_OCTOPUS 'o'
-#define OBJ_TYPE_TENTACLE 'j'
 #define OBJ_TYPE_FLOATING_MESSAGE 'M'
 #define OBJ_TYPE_BULLET '>'
 #define OBJ_TYPE_PLAYER '1'
 #define OBJ_TYPE_DEBRIS 'D'
-#define OBJ_TYPE_JAMMER 'J'
 #define OBJ_TYPE_VOLCANO 'v'
-#define OBJ_TYPE_WORM 'W'
-#define OBJ_TYPE_KGUN 'k'
 #define OBJ_TYPE_TRUSS 't'
-#define OBJ_TYPE_JET '-'
 
 
+#define DO_IT_RANDOMLY (-1)
+
+/* Type definitions for level describing structures. */
 struct level_obj_descriptor_entry {
 	int obj_type;
 	int nobjs;
@@ -76,7 +286,17 @@ struct level_descriptor_entry {
 	int ngbombs;
 };
 
-/* level 1 */
+
+#define NEW_LEVEL(levelname, theobjlist, ssr, lsr, lfc, nbr, nbo, ngb) \
+struct level_descriptor_entry levelname = { \
+	theobjlist, \
+	sizeof(theobjlist) / sizeof(theobjlist[0]), \
+	ssr, lsr, lfc, nbr, nbo, ngb }
+
+/* Below, the game's levels are defined. */
+
+/***************************************************************************/
+/* level 1 starts here: */
 struct level_obj_descriptor_entry level_1_obj[] = {
 	{ OBJ_TYPE_ROCKET, 	20, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_JET, 	15, DO_IT_RANDOMLY, 0 }, 
@@ -94,17 +314,10 @@ struct level_obj_descriptor_entry level_1_obj[] = {
 	/* { OBJ_TYPE_OCTOPUS,	0, DO_IT_RANDOMLY, 0 },  */
 	/* { OBJ_TYPE_TENTACLE,	0, DO_IT_RANDOMLY, 0 },  */
 };
+/* level 1 ends here. ^^^ */
+/***************************************************************************/
 
-struct level_descriptor_entry level1 = {
-	level_1_obj,
-	sizeof(level_1_obj) / sizeof(level_1_obj[0]),
-	0.09, /* small scale terrain roughness */
-	0.04, /* large scale terrain roughness */
-	20, /* laser fire chance */
-	NBRIDGES,
-	NBOMBS,
-	NGBOMBS,
-};
+
 
 /* level 2 */
 struct level_obj_descriptor_entry level_2_obj[] = {
@@ -124,18 +337,11 @@ struct level_obj_descriptor_entry level_2_obj[] = {
 	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
 	// { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, 
 };
+/* end of level 2 */
 
-struct level_descriptor_entry level2 = {
-	level_2_obj,
-	sizeof(level_2_obj) / sizeof(level_2_obj[0]),
-	0.15, /* small scale roughness */
-	0.09, /* large scale roughness */
-	LASER_FIRE_CHANCE,
-	NBRIDGES + 1,
-	NBOMBS,
-	NGBOMBS,
-};
 
+
+/* "jet" level begins */
 struct level_obj_descriptor_entry jet_level_obj[] = {
 	// { OBJ_TYPE_ROCKET,	25, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_JET,		55, DO_IT_RANDOMLY, 0 }, 
@@ -153,22 +359,27 @@ struct level_obj_descriptor_entry jet_level_obj[] = {
 	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
 	// { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, 
 };
+/* "jet" level ends */
 
-struct level_descriptor_entry jet_level = {
-	jet_level_obj,
-	sizeof(jet_level_obj) / sizeof(jet_level_obj[0]),
-	0.15, /* small scale roughness */
-	0.09, /* large scale roughness */
-	LASER_FIRE_CHANCE,
-	NBRIDGES + 1,
-	NBOMBS,
-	NGBOMBS,
-};
 
+/* -------------------- INSERT NEW LEVELS ABOVE THIS LINE ^^^^ ----------- */
+
+
+/* ---------------------level descriptors begin here.---------------------- */
+NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, 20, NBRIDGES, NBOMBS, NGBOMBS);
+NEW_LEVEL(level2, level_2_obj, 0.15, 0.09, LASER_FIRE_CHANCE, NBRIDGES + 1, NBOMBS, NGBOMBS);
+NEW_LEVEL(jet_level, jet_level_obj, 0.15, 0.09, LASER_FIRE_CHANCE, NBRIDGES + 1, NBOMBS, NGBOMBS);
+/* ---------------------level descriptors end here.---------------------- */
+
+
+/* This is an array of all the levels.  Add your new level 
+ * which you defined above, into the list below, where indicated: */
 struct level_descriptor_entry *leveld[] = {
-	&jet_level,
-	&level1,
-	&level2,
+	&jet_level, /* 1st level */
+	&level1,    /* 2nd level */
+	&level2,    /* 3rd level, etc. */
+
+	/* Add your new level name above this line, with an ampersand. */
 	NULL,
 };
 	
