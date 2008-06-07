@@ -6397,6 +6397,8 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 		if (o->otype == OBJ_TYPE_HUMAN || o->otype == OBJ_TYPE_PLAYER) {
 			/* for the player and the humans, make them a little more */
 			/* prominent. */
+			if ((timer & 0x08) == 0x08) /* make 'em blink */
+				return;
 			wwvi_draw_line(w->window, gc, x1, y2, x1, y1); 
 			wwvi_draw_line(w->window, gc, x1, y1, x2, y1); 
 			wwvi_draw_line(w->window, gc, x2, y1, x2, y2); 
