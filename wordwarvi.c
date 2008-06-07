@@ -55,7 +55,7 @@
 #define M_PI  (3.14159265)
 #endif
 #define TWOPI (M_PI * 2.0)
-#define NCLIPS (49)
+#define NCLIPS (50)
 #define MAX_CONCURRENT_SOUNDS (26)
 
 // #define DEBUG_TARGET_LIST 
@@ -114,7 +114,7 @@ int add_sound(int which_sound, int which_slot);
 #define GRAVITYBOMB_SOUND 46
 #define DESTINY_FACEDOWN 47
 #define HIGH_SCORE_MUSIC 48
-
+#define JETWASH_SOUND 49
 /* ...End of audio stuff */
 
 #define NHUMANOIDS 4 /* number of vi .swp files, initially */
@@ -333,40 +333,7 @@ int planet_color[] = {
 	RED, GREEN, YELLOW, ORANGE, MAGENTA, CYAN
 };
 
-
-/* Object types, just arbitrary constants used to uniquely id object types */
-#define OBJ_TYPE_AIRSHIP 'a'
-#define OBJ_TYPE_BOMB 'p'
-#define OBJ_TYPE_BALLOON 'B'
-#define OBJ_TYPE_BUILDING 'b'
-#define OBJ_TYPE_CHAFF 'c'
-#define OBJ_TYPE_CRON 'C'
-#define OBJ_TYPE_FUEL 'f'
-#define OBJ_TYPE_SHIP 'w'
-#define OBJ_TYPE_GUN 'g'
-#define OBJ_TYPE_HUMAN 'h'
-#define OBJ_TYPE_LASER 'L'
-#define OBJ_TYPE_MISSILE 'm'
-#define OBJ_TYPE_HARPOON 'H'
-#define OBJ_TYPE_ROCKET 'r'
-#define OBJ_TYPE_SOCKET 'x'
-#define OBJ_TYPE_SAM_STATION 'S'
-#define OBJ_TYPE_SPARK 's'
-#define OBJ_TYPE_BRIDGE 'T'
-#define OBJ_TYPE_SYMBOL 'z'
-#define OBJ_TYPE_GDB 'd'
-#define OBJ_TYPE_OCTOPUS 'o'
-#define OBJ_TYPE_TENTACLE 'j'
-#define OBJ_TYPE_FLOATING_MESSAGE 'M'
-#define OBJ_TYPE_BULLET '>'
-#define OBJ_TYPE_PLAYER '1'
-#define OBJ_TYPE_DEBRIS 'D'
-#define OBJ_TYPE_JAMMER 'J'
-#define OBJ_TYPE_VOLCANO 'v'
-#define OBJ_TYPE_WORM 'W'
-#define OBJ_TYPE_KGUN 'k'
-#define OBJ_TYPE_TRUSS 't'
-#define OBJ_TYPE_JET '-'
+#include "levels.h"
 
 int score_table[256]; /* table of scores for each object type. */
 int kill_tally[256];  /* tally of various things killed */
@@ -403,11 +370,15 @@ void init_kill_tally()
 int current_level = 0;		/* current level of the game, starts at zero */
 struct level_parameters_t {
 	int random_seed;	/* so the games always have the same terrain, setup, etc. */
+	int level_number;
 
 	/* numbers of various objects on a given level */
+	int nhumanoids;
+	int nbridges;
+	int nbuildings;
+
 	int nrockets;
 	int njets;
-	int nbridges;
 	int nflak;
 	int nfueltanks;
 	int njammers;
@@ -416,14 +387,14 @@ struct level_parameters_t {
 	int ngdbs;
 	int noctopi;
 	int ntentacles;
+	int nballoons;
 	int nsams;
-	int nhumanoids;
-	int nbuildings;
-	int nbombs;
-	int ngbombs;
+	// int nbombs;
+	// int ngbombs;
 	int nairships;
 	int nworms;
 	int nkguns;
+
 	int kgun_health;
 
 	/* how often flak guns (laser turrets) fire. */
@@ -437,9 +408,13 @@ struct level_parameters_t {
 	/* initial values */
 	31415927, /* This value is not used, so changing it here has no effect.*/
 		  /* instead change initial_random_seed, below. */
+	0,
+	NHUMANOIDS,
+	NBRIDGES,
+	NBUILDINGS,
+
 	NROCKETS,
 	NJETS,
-	NBRIDGES,
 	NFLAK,
 	NFUELTANKS,
 	NJAMMERS,
@@ -449,13 +424,13 @@ struct level_parameters_t {
 	NOCTOPI,
 	NTENTACLES,
 	NSAMS,
-	NHUMANOIDS,
-	NBUILDINGS,
-	NBOMBS,
-	NGBOMBS,
+	// NBOMBS,
+	// NGBOMBS,
 	NAIRSHIPS,
 	NWORMS,
 	NKGUNS,
+
+	KGUN_INIT_HEALTH,
 	LASER_FIRE_CHANCE,
 	LARGE_SCALE_ROUGHNESS,
 	SMALL_SCALE_ROUGHNESS,
@@ -2479,6 +2454,7 @@ void move_jet(struct game_obj_t *o)
 			o->vx = -18;
 			o->vy = 0;
 			o->radar_image = 1;
+			add_sound(JETWASH_SOUND, ANY_SLOT);
 		}
 
 		if (xdist < SCREEN_WIDTH && randomn(100) < 10 && o->missile_timer <= timer) {
@@ -6981,24 +6957,30 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 }
 
 /* for picking random locations of objects at level startup. */
-static int initial_x_location() 
+static int initial_x_location(struct level_obj_descriptor_entry *entry, int i) 
 {
 	int x;
 
-	/* don't put things on or near the volcano. */	
-	do {
-		x = randomn(TERRAIN_LENGTH - 40) + 40;
-	} while (abs(volcano_obj->x - terrain.x[x]) < 800);
+	if (entry == NULL || entry->x == DO_IT_RANDOMLY) {
+		/* don't put things on or near the volcano. */	
+		do {
+			x = randomn(TERRAIN_LENGTH - 40) + 40;
+		} while (abs(volcano_obj->x - terrain.x[x]) < 800);
+		return x;
+	}
+
+	x = ((entry->x * (TERRAIN_LENGTH - 40))/100) + 40;
+	x += i * (entry->xoffset * (TERRAIN_LENGTH - 40))/100;
 	return x;
 }
 
-static void add_flak_guns(struct terrain_t *t)
+static void add_flak_guns(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int i, xi;
 	struct game_obj_t *o;
 
-	for (i=0;i<level.nflak;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
 			kgun_move, kgun_draw, RED, &inverted_kgun_vect, 1, OBJ_TYPE_KGUN, 1);
 		if (o) {
@@ -7009,11 +6991,12 @@ static void add_flak_guns(struct terrain_t *t)
 			o->health.maxhealth = level.kgun_health;
 			o->health.health = o->health.maxhealth;
 			o->health.prevhealth = -1;
+			level.nflak++;
 		}
 	}
 }
 
-static void add_kernel_guns(struct terrain_t *t)
+static void add_kernel_guns(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int i, j, xi;
 	int ntrusses;
@@ -7022,8 +7005,8 @@ static void add_kernel_guns(struct terrain_t *t)
 
 	o = NULL;
 	p = NULL;
-	for (i=0;i<level.nkguns;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		ntrusses = randomn(9)+3;
 		for (j=0;j<ntrusses;j++) {
 			o = add_generic_object(t->x[xi], KERNEL_Y_BOUNDARY + 10 + (20*j), 0, 0, 
@@ -7054,6 +7037,7 @@ static void add_kernel_guns(struct terrain_t *t)
 		o = add_generic_object(t->x[xi], p->y + 10 + 25, 0, 0, 
 			kgun_move, kgun_draw, RED, &kgun_vect, 1, OBJ_TYPE_KGUN, 1);
 		if (o != NULL) {
+			level.nkguns++;
 			o->uses_health = 1;
 			o->health.prevhealth = -1;
 			o->health.maxhealth = level.kgun_health;
@@ -7067,24 +7051,25 @@ static void add_kernel_guns(struct terrain_t *t)
 	}
 }
 
-static void add_rockets(struct terrain_t *t)
+static void add_rockets(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int i, xi;
-	for (i=0;i<level.nrockets;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
 			move_rocket, NULL, WHITE, &rocket_vect, 1, OBJ_TYPE_ROCKET, 1);
+		level.nrockets++;
 	}
 }
 
-static void add_jets(struct terrain_t *t)
+static void add_jets(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int i, xi;
-	for (i=0;i<level.njets;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		add_generic_object(t->x[xi], KERNEL_Y_BOUNDARY + 5, 0, 0, 
 			move_jet, NULL, WHITE, &jet_vect, 1, OBJ_TYPE_JET, 1);
-		
+		level.njets++;
 	}
 }
 
@@ -7629,12 +7614,12 @@ static void add_bridges(struct terrain_t *t)
 	}
 }
 
-static void add_cron(struct terrain_t *t)
+static void add_cron(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int xi, i;
 	struct game_obj_t *o;
-	for (i=0;i<level.ncron;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
 			cron_move, cron_draw, GREEN, &cron_vect, 1, OBJ_TYPE_CRON, 1);
 		if (o != NULL) {
@@ -7646,6 +7631,7 @@ static void add_cron(struct terrain_t *t)
 			o->radar_image = 1;
 			o->tsd.cron.state = CRON_STATE_SEEKING_HUMAN;
 			o->tsd.cron.pissed_off_timer = 0;
+			level.ncron++;
 		}
 	}
 }
@@ -7655,61 +7641,67 @@ static struct game_obj_t *add_volcano(struct terrain_t *t, int x, int y)
 	return add_generic_object(x, y, 0, 0, volcano_move, no_draw, RED, NULL, 0, OBJ_TYPE_VOLCANO, 1);
 }
 
-static void add_jammers(struct terrain_t *t)
+static void add_jammers(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int xi, i;
 	struct game_obj_t *o;
-	for (i=0;i<level.njammers;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi], 0, 0, 
 			no_move, jammer_draw, GREEN, &jammer_vect, 1, OBJ_TYPE_JAMMER, 1);
 		if (o) {
 			o->tsd.jammer.width = 0;
 			o->tsd.jammer.direction = 2;
 			o->radar_image = 1;
+			level.njammers++;
 		}
 		
 	}
 }
 
 
-static void add_fuel(struct terrain_t *t)
+static void add_fuel(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int xi, i;
 	struct game_obj_t *o;
-	for (i=0;i<level.nfueltanks;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
 			fuel_move, fuel_draw, ORANGE, &fuel_vect, 1, OBJ_TYPE_FUEL, 1);
-		if (o) 
+		if (o) {
 			o->tsd.fuel.level = FUELTANK_CAPACITY;
+			level.nfueltanks++;
+		}
 	}
 }
 
-static void add_ships(struct terrain_t *t)
+static void add_ships(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	struct game_obj_t *o;
 	int xi, i;
-	for (i=0;i<level.nships;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
 			ship_move, NULL, ORANGE, &ship_vect, 1, OBJ_TYPE_SHIP, 50*PLAYER_LASER_DAMAGE);
-		if (o)
+		if (o) {
 			o->radar_image = 1;
+			level.nships++;
+		}
 	}
 }
 
-static void add_octopi(struct terrain_t *t)
+static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int xi, i, j, k, count;
 
 	count = 0;
 	struct game_obj_t *o;
-	for (i=0;i<level.noctopi;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-50 - randomn(100), 0, 0, 
 			octopus_move, NULL, YELLOW, &octopus_vect, 1, OBJ_TYPE_OCTOPUS, 1);
 		if (o != NULL) {
+			level.noctopi++;
 			count++;
 			o->destroy = octopus_destroy;
 			o->tsd.octopus.awake = 0;
@@ -7751,39 +7743,41 @@ static void add_octopi(struct terrain_t *t)
 	}
 }
 
-static void add_gdbs(struct terrain_t *t)
+static void add_gdbs(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int xi, i; //, j, k, count;
 
 	// count = 0;
 	struct game_obj_t *o;
-	for (i=0;i<level.ngdbs;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
 			gdb_move, gdb_draw, CYAN, &gdb_vect_left, 1, OBJ_TYPE_GDB, 1);
 		if (o != NULL) {
 			o->destroy = generic_destroy_func;
 			o->tsd.gdb.awake = 0;
 			o->radar_image = 1;
+			level.ngdbs++;
 		}
 	
 	}
 }
 
 /* Adds a bunch of loose tentacles sprinkled around the terrain. */
-static void add_tentacles(struct terrain_t *t)
+static void add_tentacles(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int xi, i,j, length;
 	struct game_obj_t *o;
 	double length_factor;
 
-	for (j=0;j<level.ntentacles;j++) {
+	for (j=0;j<entry->nobjs;j++) {
 		length = randomn(30) + 9;
 		length_factor = 0.90;
-		xi = initial_x_location();
+		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi], 0, 0,
 			tentacle_move, tentacle_draw, CYAN, NULL, 1, OBJ_TYPE_TENTACLE, 1);
 		if (o != NULL) {
+			level.ntentacles++;
 			o->tsd.tentacle.upper_angle = 160;
 			o->tsd.tentacle.lower_angle = 20;
 			o->tsd.tentacle.nsegs = MAX_TENTACLE_SEGS;
@@ -7807,13 +7801,14 @@ static void add_tentacles(struct terrain_t *t)
 
 }
 
-static void add_SAMs(struct terrain_t *t)
+static void add_SAMs(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int xi, i;
-	for (i=0;i<level.nsams;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		add_generic_object(t->x[xi], t->y[xi], 0, 0, 
 			sam_move, NULL, WHITE, &SAM_station_vect, 1, OBJ_TYPE_SAM_STATION, 1);
+		level.nsams++;
 	}
 }
 
@@ -7823,7 +7818,7 @@ static void add_humanoids(struct terrain_t *t)
 	struct game_obj_t *o;
 
 	for (i=0;i<level.nhumanoids;i++) {
-		xi = initial_x_location();
+		xi = initial_x_location(NULL, 0);
 		o = add_generic_object(t->x[xi], t->y[xi], 0, 0, 
 			humanoid_move, NULL, MAGENTA, &humanoid_vect, 1, OBJ_TYPE_HUMAN, 1);
 		human[i] = o;
@@ -7868,12 +7863,12 @@ struct game_obj_t *add_worm_tail(struct game_obj_t *parent, int coloroffset)
 	return o;
 }
 
-static void add_worms(struct terrain_t *t)
+static void add_worms(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int xi, i, j;
 	struct game_obj_t *o;
-	for (i=0;i<level.nworms;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
 			worm_move, worm_draw, GREEN, NULL, 1, OBJ_TYPE_WORM, 1);
 		if (o) {
@@ -7890,17 +7885,18 @@ static void add_worms(struct terrain_t *t)
 				o->tsd.worm.x[j] = o->x;
 				o->tsd.worm.y[j] = o->y;
 			}
+			level.nworms++;
 		}
 		o->tsd.worm.child = add_worm_tail(o, o->tsd.worm.coloroffset - 2);
 	}
 }
 
-static void add_airships(struct terrain_t *t)
+static void add_airships(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int xi, i;
 	struct game_obj_t *o;
-	for (i=0;i<level.nairships;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
 			airship_move, airship_draw, CYAN, &airship_vect, 1, OBJ_TYPE_AIRSHIP, 300*PLAYER_LASER_DAMAGE);
 		if (o) {
@@ -7908,6 +7904,7 @@ static void add_airships(struct terrain_t *t)
 			o->radar_image = 4;
 			o->tsd.airship.bannerline = 0;
 			o->tsd.airship.pressure = 0;
+			level.nairships++;
 		}
 	}
 }
@@ -7918,16 +7915,18 @@ static void add_socket(struct terrain_t *t)
 		0, 0, socket_move, NULL, CYAN, &socket_vect, 0, OBJ_TYPE_SOCKET, 1);
 }
 
-static void add_balloons(struct terrain_t *t)
+static void add_balloons(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	struct game_obj_t *o;
 	int xi, i;
-	for (i=0;i<NBALLOONS;i++) {
-		xi = initial_x_location();
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
 			balloon_move, NULL, CYAN, &balloon_vect, 1, OBJ_TYPE_BALLOON, 1);
-		if (o) 
+		if (o) {
 			o->radar_image = 1;
+			level.nballoons++;
+		}
 	}
 }
 
@@ -8748,10 +8747,12 @@ void timer_expired()
 		break;
 		}
 	case READY_EVENT:
+		set_font(BIG_FONT);
 		start_level();
 		add_sound(MUSIC_SOUND, MUSIC_SLOT);
 		strcpy(textline[CREDITS].string, "");
-		strcpy(textline[GAME_OVER].string, "Ready...");
+		sprintf(textline[GAME_OVER].string, "Level %d:Ready...",  
+			level.level_number+1);
 		gettimeofday(&game_state.start_time, NULL);
 		next_timer += frame_rate_hz;
 		timer_event = SET_EVENT;
@@ -8941,8 +8942,8 @@ void initialize_game_state_new_level()
 	game_state.humanoids = 0;
 	game_state.prev_score = 0;
 	game_state.health = MAXHEALTH;
-	game_state.nbombs = level.nbombs;
-	game_state.ngbombs = level.ngbombs;
+	game_state.nbombs = leveld[level.level_number]->nbombs;
+	game_state.ngbombs = leveld[level.level_number]->ngbombs;
 	game_state.prev_bombs = -1;
 	init_kill_tally();
 	game_state.cmd_multiplier = 1;
@@ -8964,7 +8965,7 @@ void initialize_game_state_new_level()
 void start_level()
 {
 	int i;
-
+	struct level_obj_descriptor_entry *objdesc;
 
 	if (timer != 0)
 		free_buildings();
@@ -8999,8 +9000,8 @@ void start_level()
 	player->radar_image = 2;
 	player->otype = OBJ_TYPE_PLAYER;
 	game_state.health = MAXHEALTH;
-	game_state.nbombs = level.nbombs;
-	game_state.ngbombs = level.ngbombs;
+	game_state.nbombs = leveld[level.level_number]->nbombs;
+	game_state.ngbombs = leveld[level.level_number]->ngbombs;
 	game_state.prev_bombs = -1;
 	game_state.nobjs = MAXOBJS-1;
 	game_state.x = 0;
@@ -9009,25 +9010,79 @@ void start_level()
 
 	srandom(level.random_seed);
 	generate_terrain(&terrain);
-	add_rockets(&terrain);
-	add_jets(&terrain);
+
 	add_buildings(&terrain);
-	add_fuel(&terrain);
-	add_jammers(&terrain);
-	add_cron(&terrain);
-	add_ships(&terrain);
-	add_SAMs(&terrain);
 	add_humanoids(&terrain);
 	add_bridges(&terrain);
-	add_flak_guns(&terrain);
-	add_kernel_guns(&terrain);
-	add_airships(&terrain);
-	add_worms(&terrain);
-	add_balloons(&terrain);
 	add_socket(&terrain);
-	add_gdbs(&terrain);
-	add_octopi(&terrain);
-	add_tentacles(&terrain);
+
+	level.nrockets = 0;
+	level.njets = 0;
+	level.nflak = 0;
+	level.nfueltanks = 0;
+	level.njammers = 0;
+	level.ncron = 0;
+	level.nships = 0;
+	level.ngdbs = 0;
+	level.noctopi = 0;
+	level.nballoons = 0;
+	level.ntentacles = 0;
+	level.nsams = 0;
+	level.nairships = 0;
+	level.nworms = 0;
+	level.nkguns = 0;
+
+	objdesc = leveld[level.level_number]->objdesc;
+
+	for (i=0;i<leveld[level.level_number]->nobj_desc_entries;i++) {
+		switch (objdesc[i].obj_type) {
+		case OBJ_TYPE_ROCKET: 
+			add_rockets(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_JET:
+			add_jets(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_FUEL:
+			add_fuel(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_JAMMER:
+			add_jammers(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_CRON:
+			add_cron(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_SHIP:
+			add_ships(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_SAM_STATION:
+			add_SAMs(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_GUN:
+			add_flak_guns(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_KGUN:
+			add_kernel_guns(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_AIRSHIP:
+			add_airships(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_WORM:
+			add_worms(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_BALLOON:
+			add_balloons(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_GDB:
+			add_gdbs(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_OCTOPUS:
+			add_octopi(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_TENTACLE:
+			add_tentacles(&terrain, &objdesc[i]);
+			break;
+		}
+	}
 
 	if (credits == 0)
 		setup_text();
@@ -9039,40 +9094,23 @@ void start_level()
 void init_levels_to_beginning()
 {
 	int i;
-	level.nrockets = NROCKETS;
-	level.njets = NJETS;
-	level.nbridges = NBRIDGES;
-	level.nflak = NFLAK;
-	level.nfueltanks = NFUELTANKS;
-	level.njammers = NJAMMERS;
-	level.ncron = NCRON;
-	level.nships = NSHIPS;
-	level.ngdbs = NGDBS;
-	level.noctopi = NOCTOPI;
-	level.ntentacles = NTENTACLES;
-	level.nsams = NSAMS;
-	level.nairships = NAIRSHIPS;
-	level.nworms = NWORMS;
-	level.nbuildings = NBUILDINGS;
-	level.nbombs = NBOMBS;
-	level.ngbombs = NGBOMBS;
-	level.nhumanoids = NHUMANOIDS;
-	level.nkguns = NKGUNS;
-	level.kgun_health = KGUN_INIT_HEALTH;
-	if (credits > 0) {
-		level.random_seed = initial_random_seed;
-		level.laser_fire_chance = LASER_FIRE_CHANCE;
-		level.large_scale_roughness = LARGE_SCALE_ROUGHNESS;
-		level.small_scale_roughness = SMALL_SCALE_ROUGHNESS;;
-	} else {
+	if (credits <= 0) {
 		level.random_seed = random();
-		level.laser_fire_chance = LASER_FIRE_CHANCE;
-		level.large_scale_roughness = LARGE_SCALE_ROUGHNESS;
-		level.small_scale_roughness = 0.45;
-		level.nflak = NFLAK + 20;
-		level.nrockets = NROCKETS + 20;
-		level.njets = NJETS + 5;
+		level.level_number = 0;
+	} else {
+		level.level_number = 0;
+		level.random_seed = initial_random_seed;
 	}
+
+	level.nbridges = NBRIDGES;
+	level.nbuildings = NBUILDINGS;
+	level.nhumanoids = NHUMANOIDS;
+	level.kgun_health = KGUN_INIT_HEALTH;
+
+	level.laser_fire_chance = leveld[level.level_number]->laser_fire_chance;
+	level.large_scale_roughness = leveld[level.level_number]->large_scale_roughness;
+	level.small_scale_roughness = leveld[level.level_number]->small_scale_roughness;
+
 #ifdef LEVELWARP
 	for (i=0;i<levelwarp;i++)
 		advance_level();
@@ -9089,46 +9127,14 @@ void game_ended()
 
 void advance_level()
 {
-	/* This is harsh. */
 	srandom(level.random_seed);
 	level.random_seed = random(); /* deterministic */
-	level.nrockets += 10;
-	level.njets += 1;
-	level.nbridges += 1;
-	level.nflak += 5;
-	level.nkguns += 5;
-	level.nfueltanks += 2;
-	level.njammers += 1;
-	level.ncron += 1;
-	level.nships += 1;
-	level.ngdbs += 2;
-	level.noctopi += 2;
-	level.ntentacles += 2;
-	level.nsams += 2;
-	level.nairships += 1;
-	level.nworms += 1;
-	level.nhumanoids += 1; 
-	if (level.kgun_health < MAX_KGUN_HEALTH)
-		level.kgun_health++;
-	if (level.nhumanoids > MAXHUMANS)
-		level.nhumanoids = MAXHUMANS;
-	level.large_scale_roughness+= (0.03);
-	if (level.large_scale_roughness > 0.3)
-		level.large_scale_roughness = 0.3;
-	level.small_scale_roughness+=(0.03);
-	if (level.small_scale_roughness > 0.60)
-		level.small_scale_roughness = 0.60;
-	// level.nbuildings;
-	level.nbombs -= 5;
-	if (level.nbombs < 50) 
-		level.nbombs = 50;
-	level.laser_fire_chance += 3; /* this is bad. */
-	if (level.laser_fire_chance > 100)
-		level.laser_fire_chance = 100;
-	level.ground_color = (level.ground_color + 1) % (sizeof(planet_color) / sizeof(planet_color[0]));
+
+	level.level_number++;
+	if (leveld[level.level_number] == NULL)
+		level.level_number--;
 
 	initialize_game_state_new_level();
-	/* start_level(); */
 }
 
 
@@ -9862,6 +9868,7 @@ int init_clips()
 	read_ogg_clip(IT_BURNS, "sounds/aaaah_it_burns.ogg");
 	read_ogg_clip(ZZZT_SOUND, "sounds/zzzt.ogg");
 	read_ogg_clip(GRAVITYBOMB_SOUND, "sounds/gravity_bomb.ogg");
+	read_ogg_clip(JETWASH_SOUND, "sounds/jetwash.ogg");
 	if (!nomusic) {
 		read_ogg_clip(DESTINY_FACEDOWN, "sounds/destiny_facedown.ogg");
 		read_ogg_clip(HIGH_SCORE_MUSIC, "sounds/highscoremusic.ogg");

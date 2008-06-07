@@ -49,7 +49,7 @@ stamp.h:	stamp
 stamp:	stamp.c
 	gcc -o stamp stamp.c	
 
-wordwarvi:	wordwarvi.c joystick.o ${OGGOBJ} Makefile version.h stamp.h
+wordwarvi:	wordwarvi.c joystick.o ${OGGOBJ} Makefile version.h stamp.h levels.h
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall  ${DEFINES} \
 		joystick.o \
 		${OGGOBJ} \
