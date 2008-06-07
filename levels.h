@@ -364,19 +364,30 @@ struct level_obj_descriptor_entry jet_level_obj[] = {
 
 /* -------------------- INSERT NEW LEVELS ABOVE THIS LINE ^^^^ ----------- */
 
+#define NBOMBS 100		/* Number of bombs allocated to player at beginning of levels */
+#define NGBOMBS 3		/* Number of gravity bombs allocated at beginning of levels */
+
+/* Some sample laser aggressiveness levels. */
+#define DOCILE_LASER     2	/* chance/1000 that flak guns (laser turrets) will fire if in range */
+#define LAZY_LASER       8
+#define AVERAGE_LASER    13 
+#define AGGRESSIVE_LASER 20
+#define KILLER_LASER     25 
+
+#define NBRIDGES 2		/* max initial number of bridges in terrain (less, if no valleys) */
 
 /* ---------------------level descriptors begin here.---------------------- */
-NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, 20, NBRIDGES, NBOMBS, NGBOMBS);
-NEW_LEVEL(level2, level_2_obj, 0.15, 0.09, LASER_FIRE_CHANCE, NBRIDGES + 1, NBOMBS, NGBOMBS);
-NEW_LEVEL(jet_level, jet_level_obj, 0.15, 0.09, LASER_FIRE_CHANCE, NBRIDGES + 1, NBOMBS, NGBOMBS);
+NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, DOCILE_LASER, NBRIDGES, NBOMBS, NGBOMBS);
+NEW_LEVEL(level2, level_2_obj, 0.15, 0.09, LAZY_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
+NEW_LEVEL(jet_level, jet_level_obj, 0.15, 0.09, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
 /* ---------------------level descriptors end here.---------------------- */
 
 
 /* This is an array of all the levels.  Add your new level 
  * which you defined above, into the list below, where indicated: */
 struct level_descriptor_entry *leveld[] = {
-	&jet_level, /* 1st level */
 	&level1,    /* 2nd level */
+	&jet_level, /* 1st level */
 	&level2,    /* 3rd level, etc. */
 
 	/* Add your new level name above this line, with an ampersand. */

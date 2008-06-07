@@ -164,7 +164,6 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define PLAYER_SPEED 8 			/* max X player speed, in pixels per frame */
 #define MAX_VX 15			/* Hmm... another max X player speed?  a bug, I think. */
 #define MAX_VY 25			/* Max player y speed, pixels per frame. */
-#define LASER_FIRE_CHANCE 20		/* INITIAL chance/1000 that flak guns (laser turrets) will fire if in range */
 #define LASERLEAD (11)			/* How many pixels left/right to lead the player in aiming flak guns */	
 #define LASERLEADX (11)			/* How many pixels left/right to lead the player in aiming flak guns */	
 #define LASERLEADY (0)			/* How many pixels up/down to lead the player in aiming flak guns */	
@@ -189,7 +188,6 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 
 
 #define NBUILDINGS 15 		/* initial number of buildings on the terrain */
-#define NBRIDGES 2		/* max initial number of bridges in terrain (less, if no valleys) */
 #define MAXBUILDING_WIDTH 9	/* max building width, in terrain line segments */
 #define NFUELTANKS 20		/* Initial number of fuel tanks sprinkled around the terrain */
 #define FUELTANK_CAPACITY 30	/* How many hit points a fuel tank contains */
@@ -203,8 +201,6 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define NTENTACLES 2 		/* Initial number of tentacles sprinkled through the terrain */
 #define NSAMS 3			/* Initial number of SAM stations sprinkled through the terrain */
 #define BOMB_SPEED 10		/* differential x velocity of bomb as it leaves player's ship */
-#define NBOMBS 100		/* Number of bombs allocated to player at beginning of levels */
-#define NGBOMBS 3		/* Number of gravity bombs allocated at beginning of levels */
 
 #define MAX_ALT 100		/* for "attract mode", max altitude above ground player flies. */
 #define MIN_ALT 50		/* for "attract mode", min altitude above ground player flies. */
@@ -431,7 +427,7 @@ struct level_parameters_t {
 	NKGUNS,
 
 	KGUN_INIT_HEALTH,
-	LASER_FIRE_CHANCE,
+	AVERAGE_LASER,
 	LARGE_SCALE_ROUGHNESS,
 	SMALL_SCALE_ROUGHNESS,
 	0,
@@ -8751,7 +8747,7 @@ void timer_expired()
 		start_level();
 		add_sound(MUSIC_SOUND, MUSIC_SLOT);
 		strcpy(textline[CREDITS].string, "");
-		sprintf(textline[GAME_OVER].string, "Level %d:Ready...",  
+		sprintf(textline[GAME_OVER].string, "Level %d...",  
 			level.level_number+1);
 		gettimeofday(&game_state.start_time, NULL);
 		next_timer += frame_rate_hz;
@@ -8763,7 +8759,7 @@ void timer_expired()
 		game_state.vx = 0;
 		break;
 	case SET_EVENT:
-		strcpy(textline[GAME_OVER].string, "Set...");
+		strcpy(textline[GAME_OVER].string, "Ready,Set...");
 		next_timer += frame_rate_hz;
 		timer_event = GO_EVENT;
 		break;
