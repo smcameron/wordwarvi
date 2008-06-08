@@ -1,5 +1,10 @@
 Changelog for wordwarvi:
 
+Sat Jun  7 21:48:01 CDT 2008
+-------------------------------------------------------------------------------
+
+* Fixed a horrible bug which made cron jobs unshootable.
+
 Sat Jun  7 20:38:24 CDT 2008
 -------------------------------------------------------------------------------
 Changes between version 0.12 and 0.13
