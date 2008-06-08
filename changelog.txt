@@ -1,5 +1,55 @@
 Changelog for wordwarvi:
 
+Sat Jun  7 20:38:24 CDT 2008
+-------------------------------------------------------------------------------
+Changes between version 0.12 and 0.13
+
+* Added "--retrogreen" option.  (Does exactly what it sounds like.)
+* Updated usage message to include some new options which had been
+  left out.
+* Removed a couple debug printfs that had been accidentally left in.
+* Fixed a bug that the intro screen would turn sound effects back on even
+  after they had been manually switched off.
+* removed unused variable sail_segment.
+* Fixed usage message about "--nostarfield" option.
+* Fixed a memory leak due to the old building data not being freed
+  when a level begins.
+* Got rid of a memory leak from the tentacle code (by simply
+  making the tentacle segments a static array.)
+* Added new enemy: jets.
+* Fixed bug that smashing into the ground, or sides, or roof, could
+  displace the player's ship relative to the edges of the screen,
+  throwing the viewport off a bit.
+* Improved y-axis viewport tracking.  The player is constrained
+  to an area in the center of the viewport such that he can't get
+  higher than 3/8ths of the way down the screen, nor lower than 5/8ths.
+  When moving down, the viewport moves down faster, revealing more of
+  what's below, and when moving up, the viewport moves up faster,
+  revealing more of what's above.  Seems to work ok.  Also, eliminated
+  gravity (used to be, if you slowed down, your ship sank down.
+  This made the viewport code push the player up the screen which
+  was a bit weird, so I took it out.
+* Added more jets, and made them buzz closer to the player.
+* Added --randomize and --randomseed options.
+* Added (in debug code) a level warp option
+* Added jetwash.ogg
+* Added jet sound.
+* Put in infrastructure for customizing the levels a bit rather than
+  having them be 100% procedurally generated.  There's more levers and
+  knobs to influence the procedural code now. (see levels.h).
+* Fixed the bug that "Prepare to die!!!" would sometimes appear in
+  the small font, rather than the big font (I think I fixed it anyway.)
+* Added instructions in case people want to make their own levels.
+* Fixed a bug in the tentacle placing code.
+* Moved some constants out of wordwarvi.c which belonged in levels.h
+* Changed the Ready/Set/Prepare to die!!! message so it tells you what
+  level you're on.
+* Fixed regression that ground color didn't change with each level.
+* Make humanoids and player blink on the radar screen.
+* Tweaking of levels
+* Now, sometimes jets will crash instead of exploding when hit.
+
+
 Sat May 24 03:48:04 CDT 2008
 -------------------------------------------------------------------------------
 Changes between version 0.11 and 0.12
