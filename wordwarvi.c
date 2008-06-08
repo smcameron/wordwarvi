@@ -4658,6 +4658,7 @@ void laser_move(struct game_obj_t *o)
 			case OBJ_TYPE_ROCKET:
 			case OBJ_TYPE_HARPOON:
 			case OBJ_TYPE_GDB:
+			case OBJ_TYPE_CRON:
 			case OBJ_TYPE_OCTOPUS:
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_JAMMER:
