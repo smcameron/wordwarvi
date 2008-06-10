@@ -3389,7 +3389,7 @@ void humanoid_move(struct game_obj_t *o)
 
 	xdist = abs(o->x - player->x);
 	ydist = abs(o->y - player->y);
-	if (xdist < HUMANOID_DIST && o->tsd.human.picked_up == 0) {
+	if (xdist < HUMANOID_DIST && o->tsd.human.abductor != player) {
 		if (ydist < HUMANOID_DIST) {	/* close enough for pickup? */
 			if (o->tsd.human.on_ground == 0 && 
 				o->tsd.human.picked_up == 0) { /* midair catch */
