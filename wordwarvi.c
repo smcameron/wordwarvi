@@ -3390,9 +3390,8 @@ void humanoid_move(struct game_obj_t *o)
 	xdist = abs(o->x - player->x);
 	ydist = abs(o->y - player->y);
 	if (xdist < HUMANOID_DIST && o->tsd.human.abductor != player) {
-		if (ydist < HUMANOID_DIST) {	/* close enough for pickup? */
-			if (o->tsd.human.on_ground == 0 && 
-				o->tsd.human.picked_up == 0) { /* midair catch */
+		if (ydist < HUMANOID_DIST && o->tsd.human.picked_up == 0) {	/* close enough for pickup? */
+			if (o->tsd.human.on_ground == 0) { /* midair catch */
 				add_floater_message(o->x, o->y + 25, "Nice Catch! +1000!");
 				game_state.score += 1000;
 			}
