@@ -3318,7 +3318,7 @@ void gdb_move(struct game_obj_t *o)
 		ydist = o->y - player->y;
 		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
-			add_harpoon(o->x+10, o->y, 0, 0, 300, MAGENTA, player, o);
+			add_harpoon(o->x+10, o->y, 0, 0, 300, RED, player, o);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 			if (!o->tsd.gdb.awake) {
 				/* if we weren't awake when we fired the missile, we are now. */
@@ -6401,20 +6401,23 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 	/* but do draw other stuff.. */	
 	if (o->otype != OBJ_TYPE_JAMMER) {
 		/* draw a little x.... */	
-		gdk_gc_set_foreground(gc, &huex[o->color]);
-		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
-		wwvi_draw_line(w->window, gc, x1, y2, x2, y1); 
 		if (o->otype == OBJ_TYPE_HUMAN || o->otype == OBJ_TYPE_PLAYER) {
 			/* for the player and the humans, make them a little more */
 			/* prominent. */
-			if ((timer & 0x08) == 0x08) /* make 'em blink */
+			if ((timer & 0x04) == 0x04) /* make 'em blink */
 				return;
+			gdk_gc_set_foreground(gc, &huex[o->color]);
+			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+			wwvi_draw_line(w->window, gc, x1, y2, x2, y1); 
 			wwvi_draw_line(w->window, gc, x1, y2, x1, y1); 
 			wwvi_draw_line(w->window, gc, x1, y1, x2, y1); 
 			wwvi_draw_line(w->window, gc, x2, y1, x2, y2); 
 			wwvi_draw_line(w->window, gc, x2, y2, x1, y2); 
 			return;
 		}
+		gdk_gc_set_foreground(gc, &huex[o->color]);
+		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+		wwvi_draw_line(w->window, gc, x1, y2, x2, y1); 
 	}
 
 	/* Here's where we put noise on the screen. total_radar_noise */
