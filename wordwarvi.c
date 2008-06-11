@@ -8290,7 +8290,7 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 }
 
 char spinner[] = "||||////----\\\\\\\\";
-char radar_msg1[] = "  Sirius Cybernetics Corp. RADAR -- firmware v. 1.04 (bootleg)";
+char radar_msg1[] = "  Sirius Cybernetics Corp. RADAR -- firmware v. 1.05 (bootleg)";
 char radar_msg2[] = "  Fly Safe!!! Fly Siriusly Safe!!!";
 
 void draw_radar(GtkWidget *w)
@@ -8298,11 +8298,10 @@ void draw_radar(GtkWidget *w)
 	int xoffset, height, width, yoffset; 
 	int x1, y1, x2, y2;
 	char statusstr[100]; 
-/*
+
 	int viewport_left, viewport_right, viewport_top, viewport_bottom;
 	int y_correction;
-*/
-	
+
 	height = RADAR_HEIGHT;
 	xoffset = RADAR_LEFT_MARGIN;
 	yoffset = RADAR_YMARGIN;
@@ -8328,42 +8327,69 @@ void draw_radar(GtkWidget *w)
 			SCREEN_HEIGHT - RADAR_HEIGHT - RADAR_YMARGIN - 10, 
 			((SCREEN_WIDTH - RADAR_LEFT_MARGIN - RADAR_RIGHT_MARGIN) * game_state.health / MAXHEALTH), 
 			RADAR_YMARGIN - 5);
-#if 0
-	/* calculate viewport edges projected onto radar screen. */
+#if 1
+	if (game_state.radar_state == RADAR_RUNNING) {
+		/* calculate viewport edges projected onto radar screen. */
 
-	viewport_left = ((SCREEN_WIDTH - (2*RADAR_XMARGIN)) * game_state.x) / WORLDWIDTH + RADAR_XMARGIN;
-	viewport_right = ((SCREEN_WIDTH - (2*RADAR_XMARGIN)) * (game_state.x + SCREEN_WIDTH)) / WORLDWIDTH + RADAR_XMARGIN;
-	viewport_top = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((game_state.y * RADAR_HEIGHT) / 1500);
-	viewport_bottom = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + (((game_state.y+SCREEN_HEIGHT) * RADAR_HEIGHT) / 1500);
+		viewport_left = ((SCREEN_WIDTH - (RADAR_LEFT_MARGIN + RADAR_RIGHT_MARGIN)) * 
+			game_state.x) / WORLDWIDTH + RADAR_LEFT_MARGIN;
+		viewport_right = ((SCREEN_WIDTH - (RADAR_LEFT_MARGIN + RADAR_RIGHT_MARGIN)) * 
+			(game_state.x + SCREEN_WIDTH)) / WORLDWIDTH + RADAR_LEFT_MARGIN;
+		viewport_top = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + 
+			(((game_state.y - (SCREEN_HEIGHT/2)) * RADAR_HEIGHT) / 1500);
+		viewport_bottom = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + 
+			(((game_state.y+(SCREEN_HEIGHT/2)) * RADAR_HEIGHT) / 1500);
 
-	y_correction = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((player->y * RADAR_HEIGHT) / 1500);
-	y_correction = (SCREEN_HEIGHT - (RADAR_HEIGHT >> 1)) - y_correction;
+		y_correction = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((player->y * RADAR_HEIGHT) / 1500);
+		y_correction = (SCREEN_HEIGHT - (RADAR_HEIGHT >> 1)) - y_correction;
 
-	viewport_bottom += y_correction;
-	viewport_top += y_correction;
+		viewport_bottom += y_correction;
+		viewport_top += y_correction;
 
-	if (viewport_top < y1) 
-		viewport_top = y1;
-	if (viewport_top > y2)
-		viewport_top = y2;
-	if (viewport_bottom < y1) 
-		viewport_bottom = y1;
-	if (viewport_bottom > y2)
-		viewport_bottom = y2;
+		if (viewport_top < y1) 
+			viewport_top = y1;
+		if (viewport_top > y2)
+			viewport_top = y2;
+		if (viewport_bottom < y1) 
+			viewport_bottom = y1;
+		if (viewport_bottom > y2)
+			viewport_bottom = y2;
 
-	if (viewport_left < x1) 
-		viewport_left = x1;
-	if (viewport_left > x2)
-		viewport_left = x2;
-	if (viewport_right < x1) 
-		viewport_right = x1;
-	if (viewport_right > x2)
-		viewport_right = x2;
+		if (viewport_left < x1) 
+			viewport_left = x1;
+		if (viewport_left > x2)
+			viewport_left = x2;
+		if (viewport_right < x1) 
+			viewport_right = x1;
+		if (viewport_right > x2)
+			viewport_right = x2;
 
-	wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_left, viewport_bottom);
-	wwvi_draw_line(w->window, gc, viewport_right, viewport_top, viewport_right, viewport_bottom);
-	wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_right, viewport_top);
-	wwvi_draw_line(w->window, gc, viewport_left, viewport_bottom, viewport_right, viewport_bottom);
+		gdk_gc_set_foreground(gc, &huex[WHITE]);
+
+		/* draw upper left corner */
+		wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_left, viewport_top + 5);
+		wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_left+5, viewport_top);
+
+		/* draw upper right corner */
+		wwvi_draw_line(w->window, gc, viewport_right, viewport_top, viewport_right, viewport_top + 5);
+		wwvi_draw_line(w->window, gc, viewport_right, viewport_top, viewport_right-5, viewport_top);
+
+		/* draw lower left corner */
+		wwvi_draw_line(w->window, gc, viewport_left, viewport_bottom, viewport_left, viewport_bottom - 5);
+		wwvi_draw_line(w->window, gc, viewport_left, viewport_bottom, viewport_left+5, viewport_bottom);
+
+		/* draw lower right corner */
+		wwvi_draw_line(w->window, gc, viewport_right, viewport_bottom, viewport_right, viewport_bottom - 5);
+		wwvi_draw_line(w->window, gc, viewport_right, viewport_bottom, viewport_right-5, viewport_bottom);
+
+	#if 0
+		wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_left, viewport_bottom);
+		wwvi_draw_line(w->window, gc, viewport_right, viewport_top, viewport_right, viewport_bottom);
+		wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_right, viewport_top);
+		wwvi_draw_line(w->window, gc, viewport_left, viewport_bottom, viewport_right, viewport_bottom);
+	#endif
+	}
+
 #endif
 
 	if (game_state.corrosive_atmosphere && game_state.radar_state == RADAR_RUNNING) {
