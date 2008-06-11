@@ -1,4 +1,4 @@
-.TH WORDWARVI "6" "May 2008" "wordwarvi" "Games"
+.TH WORDWARVI "6" "Jun 2008" "wordwarvi" "Games"
 .SH NAME
 wordwarvi \- Old school '80's style side scrolling space shoot'em up game.
 .SH SYNOPSIS
@@ -61,6 +61,12 @@ your OS presents joysticks at device nodes other than
 Don't play music, or even decode the music files into memory.
 Cuts down considerably on memory usage.
 .TP
+\fB\--nomissilealarm\fR
+Don't sound an alarm when a missile locks on to your ship. 
+Some people find the sound of the alarm incredibly annoying.  
+(Alarms are supposed to be annoying.)  The audio alarm can 
+also be toggled on and off with the '1' key.
+.TP
 \fB\--nostarfield\fR
 Don't draw a starfield in the background.
 .TP
@@ -114,11 +120,18 @@ using a Logitech Dual Action Rumble USB gamepad.  On this, the first
 (left) joystick controls your ship, and the top right trigger button
 fires the laser, while the bottom right trigger button drops bombs.
 (Just press all the buttons to see what they do.)
-
+.PP
+m toggles music on/off.
+.pP
+s toggles sound effects on/off.
+.PP
+1 toggles the audio missile lock-on alarm on/off.
 .SH ENEMIES AND OTHER THINGS YOU MAY ENCOUNTER
 .PP 
 Rockets.  Avoid hitting them.
 .PP 
+Jets, which fire heat seeking missiles.  Avoid the missiles.
+.PP
 Heat seeking SAMs.  Avoid.
 .PP 
 Octo-viruses and tentacles.  Shoot lightning.  Avoid.

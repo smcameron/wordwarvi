@@ -1900,6 +1900,7 @@ int old_window_width = 0;
 int old_window_height = 0;
 int fullscreen = 0;
 int initial_random_seed = 31415927;
+int want_missile_alarm = 1;
 #define LEVELWARP
 #ifdef LEVELWARP
 int levelwarp = 0;
@@ -8286,7 +8287,7 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 }
 
 char spinner[] = "||||////----\\\\\\\\";
-char radar_msg1[] = "  Sirius Cybernetics Corp. RADAR -- firmware v. 1.03 (bootleg)";
+char radar_msg1[] = "  Sirius Cybernetics Corp. RADAR -- firmware v. 1.04 (bootleg)";
 char radar_msg2[] = "  Fly Safe!!! Fly Siriusly Safe!!!";
 
 void draw_radar(GtkWidget *w)
@@ -8389,8 +8390,14 @@ void draw_radar(GtkWidget *w)
 		return;
 	}
 
-	if (game_state.radar_state == RADAR_RUNNING)
+	if (game_state.radar_state == RADAR_RUNNING) {
+		if (game_state.missile_locked) {
+			gdk_gc_set_foreground(gc, &huex[RED]);
+			abs_xy_draw_string(w, "MISSILE LOCK ON DETECTED", 
+				TINY_FONT, x1 + 210, y1 + RADAR_HEIGHT-3);
+		}	
 		return;
+	}
 
 	if (game_state.radar_state == RADAR_FRITZED) {
 		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS+NRAINBOWCOLORS)]);
@@ -8902,7 +8909,7 @@ gint advance_game(gpointer data)
 			// if (game_state.go[i].alive && game_state.go[i].move == NULL)
 				// printf("NULL MOVE!\n");
 		}
-		if (game_state.missile_locked && timer % 20 == 0)
+		if (game_state.missile_locked && timer % 20 == 0 && want_missile_alarm)
 			add_sound(MISSILE_LOCK_SIREN_SOUND, ANY_SLOT);
 	}
 	gtk_widget_queue_draw(main_da);
@@ -9604,6 +9611,9 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		return TRUE;
 	case GDK_m:
 		game_state.music_on = !game_state.music_on;
+		return TRUE;
+	case GDK_1:
+		want_missile_alarm = !want_missile_alarm;
 		return TRUE;
 	case GDK_Escape:
 		    gettimeofday(&end_time, NULL);
@@ -10343,6 +10353,7 @@ static struct option wordwarvi_options[] = {
 	{ "retrogreen", 0, NULL, 12 },
 	{ "randomize", 0, NULL, 13 },
 	{ "randomseed", 1, NULL, 14 },
+	{ "nomissilealarm", 0, NULL, 16 },
 #ifdef LEVELWARP
 	{ "levelwarp", 1, NULL, 15 },
 #endif
@@ -10365,6 +10376,7 @@ void usage()
 	fprintf(stderr, "--levelwarp n     Warp ahead n levels.\n");
 #endif
 	fprintf(stderr, "--nomusic         Do not play, or even decode music data.\n");
+	fprintf(stderr, "--nomissilealarm  Do not sound alarm for missile lock on.\n");
 	fprintf(stderr, "--nostarfield     Do not render the background starfield.\n");
 	fprintf(stderr, "--retrogreen      Render in the manner of a vector display from the '70's.\n");
 	fprintf(stderr, "--randomize       Use a clock generated random seed to initialize levels.\n");
@@ -10568,6 +10580,9 @@ int main(int argc, char *argv[])
 				}
 				break;
 #endif
+			case 16: /* no missile alarm */
+				want_missile_alarm = 0;
+				break;
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
