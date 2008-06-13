@@ -10461,6 +10461,14 @@ void init_highscores()
 	highscore[2].score = 2043000;
 }
 
+void set_cursor(GtkWidget *window)
+{
+	GdkCursor* cursor;
+	cursor = gdk_cursor_new(GDK_CROSS);
+	gdk_window_set_cursor(window->window, cursor);
+	gdk_cursor_destroy(cursor);
+}
+
 int main(int argc, char *argv[])
 {
 	/* GtkWidget is the storage type for widgets */
@@ -10747,6 +10755,7 @@ int main(int argc, char *argv[])
     
 	/* and the window */
 	gtk_widget_show (window);
+	set_cursor(window);
 
 	gc = gdk_gc_new(GTK_WIDGET(main_da)->window);
 	gdk_gc_set_foreground(gc, &huex[BLUE]);
