@@ -10516,27 +10516,27 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 		if (strcmp(s, "") == 0)
 			continue;
 		lineno++;
-		rc = sscanf(s, "framerate %d\n", &fr);
+		rc = sscanf(s, "set framerate=%d\n", &fr);
 		if (rc == 1) {
 			*framerate = fr;
 			continue;
 		}
-		rc = sscanf(s, "levelwarp %d\n", &lw);
+		rc = sscanf(s, "set levelwarp=%d\n", &lw);
 		if (rc == 1) {
 			*levelwarp = lw;
 			continue;
 		}
-		rc = sscanf(s, "randomseed %d\n", &rs);
+		rc = sscanf(s, "set randomseed=%d\n", &rs);
 		if (rc == 1) {
 			*randomseed = rs;
 			continue;
 		}
-		rc = sscanf(s, "sounddevice %d\n", &sd);
+		rc = sscanf(s, "set sounddevice=%d\n", &sd);
 		if (rc == 1) {
 			sound_device = rs;
 			continue;
 		}
-		rc = sscanf(s, "height %d\n", &h);
+		rc = sscanf(s, "set height=%d\n", &h);
 		if (rc == 1) {
 			real_screen_height = 600;
 			current_draw_line = gdk_draw_line;
@@ -10555,7 +10555,7 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 			}
 			continue;
 		}
-		rc = sscanf(s, "width %d\n", &w);
+		rc = sscanf(s, "set width=%d\n", &w);
 		if (rc == 1) {
 			real_screen_width = 800;
 			current_draw_line = gdk_draw_line;
@@ -10574,12 +10574,12 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 			}
 			continue;
 		}
-		rc = sscanf(s, "joystick %s\n", js);
+		rc = sscanf(s, "set joystick=%s\n", js);
 		if (rc == 1) {
 			strcpy(joystickdevice, js);
 			continue;
 		}
-		rc = sscanf(s, "%s", word);
+		rc = sscanf(s, "set %s", word);
 		if (rc == 1) {
 			if (strcmp(word, "bw") == 0) {
 				*bw = 1;
