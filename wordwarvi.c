@@ -9551,40 +9551,266 @@ void deal_with_keyboard()
 		drop_chaff();
 }
 
+enum keyaction { keynone, keydown, keyup, keyleft, keyright, 
+		keylaser, keybomb, keychaff, keygravitybomb,
+		keyquarter, keypause, key2, key3, key4, key5, key6,
+		key7, key8, key9, keyfullscreen, keythrust, 
+		keysoundeffects, keymusic, keyquit, keytogglemissilealarm
+};
+
+char *keyactionstring[] = {
+	"none", "down", "up", "left", "right", 
+	"laser", "bomb", "chaff", "gravitybomb",
+	"quarter", "pause", "2x", "3x", "4x", "5x", "6x",
+	"7x", "8x", "suicide", "fullscreen", "thrust", 
+	"soundeffest", "music", "quit", "missilealarm"
+};
+
+struct keyname_value_entry {
+	char *name;
+	unsigned int value;
+} keyname_value_map[] = {
+	{ "a", GDK_a }, 
+	{ "b", GDK_b }, 
+	{ "c", GDK_c }, 
+	{ "d", GDK_d }, 
+	{ "e", GDK_e }, 
+	{ "f", GDK_f }, 
+	{ "g", GDK_g }, 
+	{ "h", GDK_h }, 
+	{ "i", GDK_i }, 
+	{ "j", GDK_j }, 
+	{ "k", GDK_k }, 
+	{ "l", GDK_l }, 
+	{ "m", GDK_m }, 
+	{ "n", GDK_n }, 
+	{ "o", GDK_o }, 
+	{ "p", GDK_p }, 
+	{ "q", GDK_q }, 
+	{ "r", GDK_r }, 
+	{ "s", GDK_s }, 
+	{ "t", GDK_t }, 
+	{ "u", GDK_u }, 
+	{ "v", GDK_v }, 
+	{ "w", GDK_w }, 
+	{ "x", GDK_x }, 
+	{ "y", GDK_y }, 
+	{ "z", GDK_z }, 
+	{ "A", GDK_A }, 
+	{ "B", GDK_B }, 
+	{ "C", GDK_C }, 
+	{ "D", GDK_D }, 
+	{ "E", GDK_E }, 
+	{ "F", GDK_F }, 
+	{ "G", GDK_G }, 
+	{ "H", GDK_H }, 
+	{ "I", GDK_I }, 
+	{ "J", GDK_J }, 
+	{ "K", GDK_K }, 
+	{ "L", GDK_L }, 
+	{ "M", GDK_M }, 
+	{ "N", GDK_N }, 
+	{ "O", GDK_O }, 
+	{ "P", GDK_P }, 
+	{ "Q", GDK_Q }, 
+	{ "R", GDK_R }, 
+	{ "S", GDK_S }, 
+	{ "T", GDK_T }, 
+	{ "U", GDK_U }, 
+	{ "V", GDK_V }, 
+	{ "W", GDK_W }, 
+	{ "X", GDK_X }, 
+	{ "Y", GDK_Y }, 
+	{ "Z", GDK_Z }, 
+	{ "0", GDK_0 }, 
+	{ "1", GDK_1 }, 
+	{ "2", GDK_2 }, 
+	{ "3", GDK_3 }, 
+	{ "4", GDK_4 }, 
+	{ "5", GDK_5 }, 
+	{ "6", GDK_6 }, 
+	{ "7", GDK_7 }, 
+	{ "8", GDK_8 }, 
+	{ "9", GDK_9 }, 
+	{ "-", GDK_minus }, 
+	{ "+", GDK_plus }, 
+	{ "=", GDK_equal }, 
+	{ "?", GDK_question }, 
+	{ ".", GDK_period }, 
+	{ ",", GDK_comma }, 
+	{ "<", GDK_less }, 
+	{ ">", GDK_greater }, 
+	{ ":", GDK_colon }, 
+	{ ";", GDK_semicolon }, 
+	{ "@", GDK_at }, 
+	{ "*", GDK_asterisk }, 
+	{ "$", GDK_dollar }, 
+	{ "%", GDK_percent }, 
+	{ "&", GDK_ampersand }, 
+	{ "'", GDK_apostrophe }, 
+	{ "(", GDK_parenleft }, 
+	{ ")", GDK_parenright }, 
+	{ "space", GDK_space }, 
+	{ "enter", GDK_Return }, 
+	{ "return", GDK_Return }, 
+	{ "backspace", GDK_BackSpace }, 
+	{ "delete", GDK_Delete }, 
+	{ "pause", GDK_Pause }, 
+	{ "scrolllock", GDK_Scroll_Lock }, 
+	{ "escape", GDK_Escape }, 
+	{ "sysreq", GDK_Sys_Req }, 
+	{ "left", GDK_Left }, 
+	{ "right", GDK_Right }, 
+	{ "up", GDK_Up }, 
+	{ "down", GDK_Down }, 
+	{ "kp_home", GDK_KP_Home }, 
+	{ "kp_down", GDK_KP_Down }, 
+	{ "kp_up", GDK_KP_Up }, 
+	{ "kp_left", GDK_KP_Left }, 
+	{ "kp_right", GDK_KP_Right }, 
+	{ "kp_end", GDK_KP_End }, 
+	{ "kp_delete", GDK_KP_Delete }, 
+	{ "kp_insert", GDK_KP_Insert }, 
+	{ "home", GDK_Home }, 
+	{ "down", GDK_Down }, 
+	{ "up", GDK_Up }, 
+	{ "left", GDK_Left }, 
+	{ "right", GDK_Right }, 
+	{ "end", GDK_End }, 
+	{ "delete", GDK_Delete }, 
+	{ "insert", GDK_Insert }, 
+	{ "kp_0", GDK_KP_0 }, 
+	{ "kp_1", GDK_KP_1 }, 
+	{ "kp_2", GDK_KP_2 }, 
+	{ "kp_3", GDK_KP_3 }, 
+	{ "kp_4", GDK_KP_4 }, 
+	{ "kp_5", GDK_KP_5 }, 
+	{ "kp_6", GDK_KP_6 }, 
+	{ "kp_7", GDK_KP_7 }, 
+	{ "kp_8", GDK_KP_8 }, 
+	{ "kp_9", GDK_KP_9 }, 
+	{ "f1", GDK_F1 }, 
+	{ "f2", GDK_F2 }, 
+	{ "f3", GDK_F3 }, 
+	{ "f4", GDK_F4 }, 
+	{ "f5", GDK_F5 }, 
+	{ "f6", GDK_F6 }, 
+	{ "f7", GDK_F7 }, 
+	{ "f9", GDK_F9 }, 
+	{ "f9", GDK_F9 }, 
+	{ "f10", GDK_F10 }, 
+	{ "f11", GDK_F11 }, 
+	{ "f12", GDK_F12 }, 
+};
+
+enum keyaction keymap[256];
+enum keyaction ffkeymap[256];
+unsigned char *keycharmap[256];
+
+void init_keymap()
+{
+	memset(keymap, 0, sizeof(keymap));
+	memset(ffkeymap, 0, sizeof(ffkeymap));
+	memset(keycharmap, 0, sizeof(keycharmap));
+
+	keymap[GDK_j] = keydown;
+	ffkeymap[GDK_Down & 0x00ff] = keydown;
+
+	keymap[GDK_k] = keyup;
+	ffkeymap[GDK_Up & 0x00ff] = keyup;
+
+	keymap[GDK_l] = keyright;
+	ffkeymap[GDK_Right & 0x00ff] = keyright;
+	keymap[GDK_period] = keyright;
+	keymap[GDK_greater] = keyright;
+
+	keymap[GDK_h] = keyleft;
+	ffkeymap[GDK_Left & 0x00ff] = keyleft;
+	keymap[GDK_comma] = keyleft;
+	keymap[GDK_less] = keyleft;
+
+	keymap[GDK_space] = keylaser;
+	keymap[GDK_z] = keylaser;
+
+	keymap[GDK_b] = keybomb;
+	keymap[GDK_g] = keygravitybomb;
+	keymap[GDK_c] = keychaff;
+	keymap[GDK_x] = keythrust;
+	keymap[GDK_p] = keypause;
+	keymap[GDK_q] = keyquarter;
+	keymap[GDK_m] = keymusic;
+	keymap[GDK_s] = keysoundeffects;
+	ffkeymap[GDK_Escape & 0x00ff] = keyquit;
+	keymap[GDK_1] = keytogglemissilealarm;
+
+	keymap[GDK_2] = key2;
+	keymap[GDK_3] = key3;
+	keymap[GDK_4] = key4;
+	keymap[GDK_5] = key5;
+	keymap[GDK_6] = key6;
+	keymap[GDK_7] = key7;
+	keymap[GDK_8] = key8;
+	keymap[GDK_9] = key9;
+
+	ffkeymap[GDK_F11 & 0x00ff] = keyfullscreen;
+}
+
+int remapkey(char *keyname, char *actionname)
+{
+	enum keyaction i;
+	int j;
+	int index;
+
+	for (i=keynone;i<keytogglemissilealarm;i++) {
+		if (strcmp(keyactionstring[i], actionname) == 0) {
+			for (j=0;j<sizeof(keyname_value_map) / sizeof(keyname_value_map[0]);j++) {
+				if (strcmp(keyname_value_map[j].name, keyname) == 0) {
+					if ((keyname_value_map[j].value & 0xff00) != 0) {
+						index = keyname_value_map[j].value & 0x00ff;
+						ffkeymap[index] = i;
+					} else
+						keymap[keyname_value_map[j].value] = i;
+					return 0;
+				}
+			}
+		}
+	}
+	return 1;
+}
+
 static gint key_release_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 {
-	switch (event->keyval) {
-	case GDK_j:
-	case GDK_Down:
+
+	enum keyaction ka;
+
+	if ((event->keyval & 0xff00) == 0)
+		ka = keymap[event->keyval];
+	else
+		ka = ffkeymap[event->keyval & 0x00ff];
+
+	switch (ka) {
+	case keydown:
 		game_state.key_down_pressed = 0;
 		return TRUE;
-	case GDK_k:
-	case GDK_Up:
+	case keyup:
 		game_state.key_up_pressed = 0;
 		return TRUE;
-	case GDK_l:
-	case GDK_Right:
-	case GDK_period:
-	case GDK_greater:
+	case keyright:
 		game_state.key_right_pressed = 0;
 		return TRUE;
-	case GDK_h:
-	case GDK_Left:
-	case GDK_comma:
-	case GDK_less:
+	case keyleft:
 		game_state.key_left_pressed = 0;
 		return TRUE;
-	case GDK_space:
-	case GDK_z:
+	case keylaser:
 		game_state.key_laser_pressed = 0;
 		return TRUE;
-	case GDK_c:
+	case keychaff:
 		game_state.key_chaff_pressed = 0;
 		return TRUE;
-	case GDK_b:
+	case keybomb:
 		game_state.key_bomb_pressed = 0;
 		return TRUE;
-	case GDK_g:
+	case keygravitybomb:
 		game_state.key_gbomb_pressed = 0;
 		return TRUE;
 	default:
@@ -9597,6 +9823,7 @@ static gint key_release_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 
 static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 {
+	enum keyaction ka;
 	/* char *x = (char *) data; */
 #if 0
 	if (event->length > 0)
@@ -9605,56 +9832,61 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 	printf("The name of this keysym is `%s'\n", 
 		gdk_keyval_name(event->keyval));
 #endif
-	switch (event->keyval)
-	{
-	case GDK_2:
+
+	if ((event->keyval & 0xff00) == 0)
+		ka = keymap[event->keyval];
+	else
+		ka = ffkeymap[event->keyval & 0x00ff];
+
+	switch (ka) {
+	case key2:
 			game_state.cmd_multiplier = 2;
 			return TRUE;
-	case GDK_3:
+	case key3:
 			game_state.cmd_multiplier = 3;
 			return TRUE;
-	case GDK_4:
+	case key4:
 			game_state.cmd_multiplier = 4;
 			return TRUE;
-	case GDK_5:
+	case key5:
 			game_state.cmd_multiplier = 5;
 			return TRUE;
-	case GDK_6:
+	case key6:
 			game_state.cmd_multiplier = 6;
 			return TRUE;
-	case GDK_8:
+	case key8:
 			player->tsd.epd.count = 50;
 			player->tsd.epd.count2 = 0;
 			break;
-	case GDK_7:
+	case key7:
 			player->tsd.epd.count = -1;
 			player->tsd.epd.count2 = 50;
 			break;
-	case GDK_9:
+	case key9:
 		if (credits > 0)
 			game_state.health = -1;
 		return TRUE;
-	case GDK_s:
+	case keysoundeffects:
 		game_state.sound_effects_on = !game_state.sound_effects_on;
 		game_state.sound_effects_manually_turned_off = (!game_state.sound_effects_on);
 		return TRUE;
-	case GDK_m:
+	case keymusic:
 		game_state.music_on = !game_state.music_on;
 		return TRUE;
-	case GDK_1:
+	case keytogglemissilealarm:
 		want_missile_alarm = !want_missile_alarm;
 		return TRUE;
-	case GDK_Escape:
+	case keyquit:
 		    gettimeofday(&end_time, NULL);
 		    printf("%d frames / %d seconds, %g frames/sec\n", 
 				nframes, (int) (end_time.tv_sec - start_time.tv_sec),
 				(0.0 + nframes) / (0.0 + end_time.tv_sec - start_time.tv_sec));
 		destroy_event(widget, NULL);
 		return TRUE;	
-	case GDK_q:
+	case keyquarter:
 		insert_quarter();
 		return TRUE;
-	case GDK_F11: {
+	case keyfullscreen: {
 			if (fullscreen) {
 				gtk_window_unfullscreen(GTK_WINDOW(window));
 				fullscreen = 0;
@@ -9666,8 +9898,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 			}
 		}
 		break;
-	case GDK_j:
-	case GDK_Down:
+	case keydown:
 		game_state.key_down_pressed = 1;
 #if 0
 		if (player->vy < MAX_VY && game_state.health > 0 && credits > 0)
@@ -9675,18 +9906,14 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		game_state.cmd_multiplier = 1;
 #endif
 		return TRUE;
-	case GDK_k:
-	case GDK_Up:
+	case keyup:
 		game_state.key_up_pressed = 1;
 #if 0
 		if (player->vy > -MAX_VY && game_state.health > 0 && credits > 0)
 			player->vy -= 4 * game_state.cmd_multiplier;
 #endif
 		return TRUE;
-	case GDK_l:
-	case GDK_Right:
-	case GDK_period:
-	case GDK_greater: {
+	case keyright: {
 		game_state.key_right_pressed = 1;
 #if 0
 		int i;
@@ -9705,10 +9932,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 #endif
 		return TRUE;
 	}
-	case GDK_h:
-	case GDK_Left:
-	case GDK_comma:
-	case GDK_less: {
+	case keyleft: {
 		game_state.key_left_pressed = 1;
 #if 0
 		int i;
@@ -9727,27 +9951,26 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 #endif
 		return TRUE;
 	}
-	case GDK_space:
-	case GDK_z:
+	case keylaser:
 		game_state.key_laser_pressed = 1;
 		return TRUE;
-	case GDK_x:
+	case keythrust:
 		if (game_state.health <= 0 || credits <= 0)
 			return TRUE;
 		if (abs(player->vx + game_state.direction) < MAX_VX)
 			player->vx += game_state.direction;
 		return TRUE;
 
-	case GDK_c:
+	case keychaff:
 		game_state.key_chaff_pressed = 1;
 		return TRUE;
-	case GDK_b: 
+	case keybomb: 
 		game_state.key_bomb_pressed = 1;
 		return TRUE;
-	case GDK_g: 
+	case keygravitybomb: 
 		game_state.key_gbomb_pressed = 1;
 		return TRUE;
-	case GDK_p:
+	case keypause:
 		// if (game_state.health <= 0 || credits <= 0)
 		//	return TRUE;
 		do_game_pause(widget, NULL);
@@ -10498,6 +10721,7 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 	int rc;
 	int fr, lw, rs, sd, h, w;
 	int lineno = 0;
+	char keyname[256], actionname[256];
 
 	homedir = getenv("HOME");
 	if (homedir == NULL)
@@ -10614,6 +10838,11 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 				continue;
 			}
 		}
+		rc = sscanf(s, "map %s %s", keyname, actionname);
+		if (rc == 2) {
+			if (remapkey(keyname, actionname) == 0)
+				continue;
+		}
 		fprintf(stderr, "~/.wordwarvi/.exrc: syntax error at line %d\n", lineno);
 	}
 	fclose(exrcfile);
@@ -10642,6 +10871,7 @@ int main(int argc, char *argv[])
 	// current_draw_line = crazy_line;
 	// current_draw_rectangle = crazy_rectangle;
 
+	init_keymap();
 	read_exrc_file(&no_colors_any_more, &blueprint, &retrogreen, &frame_rate_hz,
 		&levelwarp, &initial_random_seed, &sound_device, joystick_device);
 

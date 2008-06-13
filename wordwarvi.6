@@ -211,7 +211,39 @@ Use the nth sound device for audio output.
 .TP
 set width=x
 Render the game x pixels wide.
-
+.TP
+map key action
+valid actions are:
+.DI
+     soundeffect  down  up       left      right
+     missilealarm bomb  chaff    quarter   pause
+     2x           3x    4x       5x        6x
+     7x           8x    suicide  thrust    music  
+     fullscreen   quit  laser
+.DE
+.br
+Valid keys are:
+a-z, A-Z, 0-9, and most printable characters.  Keypad numerals
+0-9 may be specified as kp_0 through kp_9, and function keys f1 through f12
+can be specified f1 through f12 (obviously).  In addition
+the following strings may be used to specify the corresponding keys:
+.DI
+     space       enter         return   backspace    delete
+     pause       scrolllock    escape   sysreq       left 
+     right       up            down     kp_home      kp_down
+     kp_up       kp_left       kp_right kp_end       kp_delete
+     kp_insert   home          down     end          delete  
+     insert
+.DE
+.TP
+Example .exrc file:
+.DI
+      fullscreen
+      retrogreen
+      map z chaff
+      map x bomb
+      map c laser
+.DE
 .SH GOOD LUCK
 .PP
 You'll need it.
