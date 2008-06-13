@@ -157,6 +157,61 @@ Beware of viruses which may be living inside.
 /dev/input/js0, the joystick device node.
 .PP
 /usr/share/wordwarvi/sounds/*.ogg contain the audio data used by the game.
+.PP
+~/.wordwarvi/.exrc
+This file can be used to customize default settings for the game.
+Each line of the file controls one aspect of the game.  The following
+commands are understood.
+
+.TP
+bw
+Render in black and white.
+.TP
+blueprint
+Render in the style of a blueprint.
+.TP
+brightsparks
+Render sparks brighter than usual.
+.TP
+framerate n
+Attempt to render the game at n frames per second.
+.TP
+fullscreen
+Render the game in full screen mode.
+.TP
+height y
+Render the game y pixels high.
+.TP
+joystick dev
+Use joystick input device dev.
+.TP
+levelwarp n
+Warp ahead n levels (if compiled in). 
+.TP
+nomusic
+Do not play, or even decode music data.
+.TP
+nomissilealarm
+Do not sound alarm for missile lock on.
+.TP
+nostarfield
+Do not render the background starfield.
+.TP
+retrogreen
+Render in the manner of a vector display from the '70's.
+.TP
+randomize
+Use a clock generated random seed to initialize levels.
+.TP
+randomseed n
+Use the specified random seed to initialize levels.
+.TP
+sounddevice n
+Use the nth sound device for audio output.
+.TP
+width x
+Render the game x pixels wide.
+
 .SH GOOD LUCK
 .PP
 You'll need it.

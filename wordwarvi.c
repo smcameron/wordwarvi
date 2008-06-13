@@ -10469,6 +10469,156 @@ void set_cursor(GtkWidget *window)
 	gdk_cursor_destroy(cursor);
 }
 
+char *trim_whitespace(char *s)
+{
+	char *x, *z;
+
+	for (x=s;*x == ' ' || *x == '\t'; x++)
+		;
+	z = x + (strlen(x) - 1);
+
+	while (z >= x && (*z == ' ' ||  *z == '\t' || *z == '\n')) {
+		*z = '\0';
+		z--;
+	}
+	return x;
+}
+
+void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
+	int *framerate, int *levelwarp, int *randomseed, 
+	int *sounddevice, char *joystickdevice)
+{
+	char line[256];
+	char word[256];
+	char *homedir;
+	char filename[PATH_MAX];
+	char js[256];
+	FILE *exrcfile;
+	char *s;
+	int rc;
+	int fr, lw, rs, sd, h, w;
+	int lineno = 0;
+
+	homedir = getenv("HOME");
+	if (homedir == NULL)
+		return;
+	sprintf(filename, "%s/.wordwarvi/.exrc", homedir);
+
+	exrcfile = fopen(filename, "r");
+	if (exrcfile == NULL)
+		return;
+
+	while (!feof(exrcfile)) {
+		s = fgets(line, 256, exrcfile);
+		if (s == NULL)
+			break;
+		s = trim_whitespace(s);
+		if (strcmp(s, "") == 0)
+			continue;
+		lineno++;
+		rc = sscanf(s, "framerate %d\n", &fr);
+		if (rc == 1) {
+			*framerate = fr;
+			continue;
+		}
+		rc = sscanf(s, "levelwarp %d\n", &lw);
+		if (rc == 1) {
+			*levelwarp = lw;
+			continue;
+		}
+		rc = sscanf(s, "randomseed %d\n", &rs);
+		if (rc == 1) {
+			*randomseed = rs;
+			continue;
+		}
+		rc = sscanf(s, "sounddevice %d\n", &sd);
+		if (rc == 1) {
+			sound_device = rs;
+			continue;
+		}
+		rc = sscanf(s, "height %d\n", &h);
+		if (rc == 1) {
+			real_screen_height = 600;
+			current_draw_line = gdk_draw_line;
+			current_draw_rectangle = gdk_draw_rectangle;
+			if (h >= 100 && h <= 2000) {
+				real_screen_height = h;
+				current_draw_line = scaled_line;
+				current_draw_rectangle = scaled_rectangle;
+			} else {
+				fprintf(stderr, "~/.wordwarvi/.exrc:%d Bad height"
+					" using 800.\n", lineno);
+				real_screen_width = 800;
+				real_screen_height = 600;
+				current_draw_line = gdk_draw_line;
+				current_draw_rectangle = gdk_draw_rectangle;
+			}
+			continue;
+		}
+		rc = sscanf(s, "width %d\n", &w);
+		if (rc == 1) {
+			real_screen_width = 800;
+			current_draw_line = gdk_draw_line;
+			current_draw_rectangle = gdk_draw_rectangle;
+			if (w >= 100 && w <= 3000) {
+				real_screen_width = w;
+				current_draw_line = scaled_line;
+				current_draw_rectangle = scaled_rectangle;
+			} else {
+				fprintf(stderr, "~/.wordwarvi/.exrc:%d: bad width"
+					", using 800.\n", lineno);
+				real_screen_width = 800;
+				real_screen_height = 600;
+				current_draw_line = gdk_draw_line;
+				current_draw_rectangle = gdk_draw_rectangle;
+			}
+			continue;
+		}
+		rc = sscanf(s, "joystick %s\n", js);
+		if (rc == 1) {
+			strcpy(joystickdevice, js);
+			continue;
+		}
+		rc = sscanf(s, "%s", word);
+		if (rc == 1) {
+			if (strcmp(word, "bw") == 0) {
+				*bw = 1;
+				continue;
+			}
+			if (strcmp(word, "brightsparks") == 0) {
+				brightsparks = 1;
+				continue;
+			}
+			if (strcmp(word, "blueprint") == 0) {
+				*blueprint = 1;
+				continue;
+			}
+			if (strcmp(word, "retrogreen") == 0) {
+				*retrogreen = 1;
+				continue;
+			}
+			if (strcmp(word, "nostarfield") == 0) {
+				want_starfield = 0;
+				continue;
+			}
+			if (strcmp(word, "fullscreen") == 0) {
+				fullscreen = 1;
+				continue;
+			}
+			if (strcmp(word, "nomusic") == 0) {
+				nomusic = 1;
+				continue;
+			}
+			if (strcmp(word, "nomissilealarm") == 0) {
+				want_missile_alarm = 0;
+				continue;
+			}
+		}
+		fprintf(stderr, "~/.wordwarvi/.exrc: syntax error at line %d\n", lineno);
+	}
+	fclose(exrcfile);
+}
+
 int main(int argc, char *argv[])
 {
 	/* GtkWidget is the storage type for widgets */
@@ -10491,6 +10641,9 @@ int main(int argc, char *argv[])
 	frame_rate_hz = FRAME_RATE_HZ;
 	// current_draw_line = crazy_line;
 	// current_draw_rectangle = crazy_rectangle;
+
+	read_exrc_file(&no_colors_any_more, &blueprint, &retrogreen, &frame_rate_hz,
+		&levelwarp, &initial_random_seed, &sound_device, joystick_device);
 
 	while (1) {
 		int rc, n; 
