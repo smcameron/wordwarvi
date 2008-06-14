@@ -380,7 +380,46 @@ struct level_obj_descriptor_entry level_4_obj[] = {
 };
 /* end of level 4 */
 
+/* level 5 */
+struct level_obj_descriptor_entry level_5_obj[] = {
+	{ OBJ_TYPE_ROCKET,	5, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_JET,		4, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_FUEL, 	23, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_JAMMER,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_CRON,	10, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_SHIP,	0, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_SAM_STATION, 8, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_GUN,		18, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_KGUN,	25, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_AIRSHIP,	1, 90, 0 }, 
+	{ OBJ_TYPE_WORM,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_BALLOON,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_GDB,		9, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_OCTOPUS,	1, 75, 1 }, 
+	// { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, 
+};
+/* end of level 5 */
 
+/* level 6 */
+struct level_obj_descriptor_entry level_6_obj[] = {
+	{ OBJ_TYPE_ROCKET,	25, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_JET,		7, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_FUEL, 	18, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_JAMMER,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_CRON,	10, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_SHIP,	0, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_SAM_STATION, 9, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_GUN,		28, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_KGUN,	28, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_AIRSHIP,	1, 90, 0 }, 
+	{ OBJ_TYPE_WORM,	3, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_BALLOON,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_GDB,		12, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_OCTOPUS,	1, 75, 1 }, 
+	{ OBJ_TYPE_OCTOPUS,	1, 15, 1 }, 
+	// { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, 
+};
+/* end of level 6 */
 
 /* "jet" level begins */
 struct level_obj_descriptor_entry jet_level_obj[] = {
@@ -422,7 +461,9 @@ NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, LAZY_LASER, NBRIDGES, NBOMBS, NGBOMBS
 NEW_LEVEL(jet_level, jet_level_obj, 0.11, 0.09, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
 NEW_LEVEL(level2, level_2_obj, 0.15, 0.09, LAZY_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
 NEW_LEVEL(level3, level_3_obj, 0.23, 0.23, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
-NEW_LEVEL(level4, level_3_obj, 0.29, 0.20, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, 10);
+NEW_LEVEL(level4, level_4_obj, 0.29, 0.20, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
+NEW_LEVEL(level5, level_5_obj, 0.32, 0.32, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
+NEW_LEVEL(level6, level_6_obj, 0.14, 0.32, AGGRESSIVE_LASER, NBRIDGES + 3, NBOMBS, NGBOMBS);
 /* ---------------------level descriptors end here.---------------------- */
 
 
@@ -434,6 +475,8 @@ struct level_descriptor_entry *leveld[] = {
 	&level2,    /* 3rd level, etc. */
 	&level3,
 	&level4,
+	&level5,
+	&level6,
 
 	/* Add your new level name above this line, with an ampersand. */
 	NULL,
