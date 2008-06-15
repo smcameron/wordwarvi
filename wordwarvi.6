@@ -219,7 +219,7 @@ valid actions are:
      missilealarm bomb  chaff    quarter   pause
      2x           3x    4x       5x        6x
      7x           8x    suicide  thrust    music  
-     fullscreen   quit  laser
+     fullscreen   quit  laser    none      reverse
 .DE
 .br
 Valid keys are:
@@ -236,6 +236,20 @@ the following strings may be used to specify the corresponding keys:
      insert
 .DE
 .TP
+map button n action
+maps joystick button n (where 0 <= n <= 9) to the specified action.
+Actions are the same as describe above, with the exception of 
+left, right, up and down, which are not yet implemented due to
+laziness on my part.
+.TP
+set joystick-[xy]-axis=n.  Allows specifying different axes for 
+control of the players ship for multi axis joysticks.  By default,
+the first x and first y axes are used (n = 0, for both.)  The 2nd
+axis may be specified by a value of 1.  A value of -1 disables 
+control of an axis.  See example .exrc file to find out why you 
+might want to do that.
+
+.TP
 Example .exrc file:
 .DI
       set fullscreen
@@ -243,6 +257,18 @@ Example .exrc file:
       map z chaff
       map x bomb
       map c laser
+      #
+      # to set up "Defender" style joystick
+      # controls, vertical motion controlled 
+      # by joystick axis, horizontal motion 
+      # controlled only by "reverse", and 
+      # "thrust" buttons, with x axis joystick
+      # control disabled.
+      #
+      set joystick-x-axis=-1
+      set joystick-y-axis=0
+      map button 0 thrust
+      map button 1 reverse
 .DE
 .SH GOOD LUCK
 .PP

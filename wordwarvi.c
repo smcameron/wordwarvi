@@ -1877,6 +1877,8 @@ struct game_state_t {
 	int key_gbomb_pressed;
 	int key_chaff_pressed;
 	int key_laser_pressed;
+	int x_joystick_axis;
+	int y_joystick_axis;
 
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
 
@@ -9229,6 +9231,37 @@ int yjstable[] = { 1,1,1,1,1,1,1,1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,  3, 3
 	19, 20, 21, 22, 23, 24, 25 };
 int nyjstable = (sizeof(yjstable)/sizeof(yjstable[0]));
 
+enum keyaction { keynone, keydown, keyup, keyleft, keyright, 
+		keylaser, keybomb, keychaff, keygravitybomb,
+		keyquarter, keypause, key2, key3, key4, key5, key6,
+		key7, key8, keysuicide, keyfullscreen, keythrust, 
+		keysoundeffects, keymusic, keyquit, keytogglemissilealarm,
+		keyreverse
+};
+
+char *keyactionstring[] = {
+	"none", "down", "up", "left", "right", 
+	"laser", "bomb", "chaff", "gravitybomb",
+	"quarter", "pause", "2x", "3x", "4x", "5x", "6x",
+	"7x", "8x", "suicide", "fullscreen", "thrust", 
+	"soundeffest", "music", "quit", "missilealarm", "reverse"
+};
+
+enum keyaction jsbuttonaction[10] = {
+		/* default joystick button assignments. */
+		keynone,	 /* button 0 */
+		keybomb,	 /* button 1 */
+		keybomb,	 /* button 2 */
+		keylaser,	 /* button 3 */
+		keylaser,	 /* button 4 */
+		keybomb,	 /* button 5 */
+		keylaser,	 /* button 6 */
+		keylaser,	 /* button 7 */
+		keyquarter,	 /* button 8 */
+		keygravitybomb,	 /* button 9 */
+
+	};
+
 void deal_with_joystick()
 {
 	int rc;
@@ -9242,8 +9275,41 @@ void deal_with_joystick()
 	static int next_joystick_button_timer = 0;
 	int  i;
 	int moved;
+	int zero = 0;
 
-	
+	int do_bomb = 0;
+	int do_quarter = 0;
+	int do_laser = 0;
+	int do_chaff = 0;
+	int do_gbomb = 0;
+	int do_thrust = 0;
+	int do_reverse = 0;
+	int do_right = 0;
+	int do_left = 0;
+	int do_up = 0;
+	int do_down = 0;
+	int do_quit = 0;	
+	int do_suicide = 0;
+
+	int *xaxis = &zero;
+	int *yaxis = &zero;
+
+	switch (game_state.x_joystick_axis) {
+		case 0: xaxis = &jse.stick1_x;
+			break;
+		case 1: xaxis = &jse.stick2_x;
+			break;
+		default:
+			break;
+	}
+	switch (game_state.y_joystick_axis) {
+		case 0: yaxis = &jse.stick1_y;
+			break;
+		case 1: yaxis = &jse.stick2_y;
+			break;
+		default:
+			break;
+	}
 
 #define JOYSTICK_SENSITIVITY 5000
 #define XJOYSTICK_THRESHOLD 30000
@@ -9259,25 +9325,25 @@ void deal_with_joystick()
 		/* user is entering high scores. */
 		if (timer > next_joystick_motion_timer) {
 			next_joystick_motion_timer = timer + (frame_rate_hz >> 3);
-			if (jse.stick1_x < -XJOYSTICK_THRESHOLD) {
+			if (*xaxis < -XJOYSTICK_THRESHOLD) {
 				highscore_letter--;
 				if (highscore_letter < 0)
 					highscore_letter = 26;
 				moved = 1;
 			}
-			if (jse.stick1_x > XJOYSTICK_THRESHOLD) {
+			if (*xaxis > XJOYSTICK_THRESHOLD) {
 				highscore_letter++;
 				if (highscore_letter > 26)
 					highscore_letter = 0;
 				moved = 1;
 			}
-			if (jse.stick1_y < -XJOYSTICK_THRESHOLD) {
+			if (*yaxis < -XJOYSTICK_THRESHOLD) {
 				highscore_letter -= 9;
 				if (highscore_letter < 0)
 					highscore_letter += 27;
 				moved = 1;
 			}
-			if (jse.stick1_y > XJOYSTICK_THRESHOLD) {
+			if (*yaxis > XJOYSTICK_THRESHOLD) {
 				highscore_letter += 9;
 				if (highscore_letter > 26)
 					highscore_letter -= 27;
@@ -9311,15 +9377,15 @@ void deal_with_joystick()
 	if (credits <= 0)
 		goto no_credits;
 
-	/* Stick 1 horizontal movement */	
-	if (jse.stick1_x < -XJOYSTICK_THRESHOLD) {
+	/* xaxis, horizontal movement */	
+	if (*xaxis < -XJOYSTICK_THRESHOLD) {
 		if (game_state.direction != -1) {
 			player->vx = player->vx / 2;
 			game_state.direction = -1;
 			player->v = &left_player_vect;
 		} else if (abs(player->vx + game_state.direction) < MAX_VX)
 				player->vx += game_state.direction;
-	} else if (jse.stick1_x > XJOYSTICK_THRESHOLD) {
+	} else if (*xaxis > XJOYSTICK_THRESHOLD) {
 		if (game_state.direction != 1) {
 			player->vx = player->vx / 2;
 			game_state.direction = 1;
@@ -9336,10 +9402,10 @@ void deal_with_joystick()
 #endif
 	}
 
-	/* Stick 1 vertical movement */
-	if (jse.stick1_y > JOYSTICK_SENSITIVITY) {
+	/* yaxis vertical movement */
+	if (*yaxis > JOYSTICK_SENSITIVITY) {
 		if (player->vy < MAX_VY)
-			index = nyjstable * jse.stick1_y / 32767;
+			index = nyjstable * *yaxis / 32767;
 			if (index < 0)
 				index = 0;
 			else if (index > nyjstable-1)
@@ -9354,9 +9420,9 @@ void deal_with_joystick()
 			// player->vy = MAX_VY * jse.stick1_y / 32767;
 			// player->vy += 2;
 			//player->vy += 4;
-	} else if (jse.stick1_y < -JOYSTICK_SENSITIVITY) {
+	} else if (*yaxis < -JOYSTICK_SENSITIVITY) {
 		if (player->vy > -MAX_VY)
-			index = -nyjstable * jse.stick1_y / 32767;
+			index = -nyjstable * *yaxis / 32767;
 			if (index < 0)
 				index = 0;
 			else if (index > nyjstable-1)
@@ -9378,27 +9444,128 @@ void deal_with_joystick()
 			player->vy++;
 	}
 
+	for (i=0;i<10;i++) {
+		if (jse.button[i] == 1) {
+			switch(jsbuttonaction[i]) {
+			case keysuicide:
+				do_suicide = 1;
+			case keydown:
+				do_down = 1;
+				break;
+			case keyup:
+				do_up = 1;
+				break;
+			case keyleft:
+				do_left = 1;
+				break;
+			case keyright:
+				do_right = 1;
+				break;
+			case keylaser:
+				do_laser = 1;
+				break;
+			case keybomb:
+				do_bomb = 1;
+				break;
+			case keypause:
+				break;
+			case keychaff:
+				do_chaff = 1;
+				break;
+			case keygravitybomb:
+				do_gbomb = 1;
+				break;
+			case keyquarter:
+				do_quarter = 1;
+				break;
+			case keythrust:
+				do_thrust = 1;
+				break;
+			case keyquit:
+				do_quit = 1;
+				break;
+			case keytogglemissilealarm:
+				want_missile_alarm = !want_missile_alarm;
+				break;
+			case keymusic:
+				game_state.music_on = !game_state.music_on;
+				break;
+			case keyreverse:
+				do_reverse = 1;
+				break;
+			case keysoundeffects:
+				game_state.sound_effects_on = !game_state.sound_effects_on;
+				game_state.sound_effects_manually_turned_off = (!game_state.sound_effects_on);
+				break;
+			default:
+				break;
+			}
+		}
+	}
+			
 	/* Buttons... */
-	if (jse.button[5] == 1 || jse.button[2] == 1 || jse.button[1] == 1) {
+	if (do_bomb)
 		drop_bomb();
-	} 
 
-	if (jse.button[7] == 1 || jse.button[6] == 1 || jse.button[3] == 1 || jse.button[4] == 1) {
+	if (do_laser)
 		player_fire_laser();
-	} 
 
-	if (jse.button[0] == 1) {
+	if (do_chaff)
 		drop_chaff();
-	}
 
-	if (jse.button[9] == 1) {
+	if (do_gbomb)
 		drop_gravity_bomb();
+
+	if (do_reverse) {
+		if (timer > next_joystick_button_timer) {
+			game_state.direction = -game_state.direction;
+			if (game_state.direction < 0)
+				player->v = &left_player_vect;
+			else
+				player->v = &player_vect;
+			next_joystick_button_timer = timer + frame_rate_hz / 8;
+		}
 	}
 
-	/* button 8 on joystick will put in a quarter. */
-	if ((jse.button[8] == 1) && timer > next_quarter_time) {
+#if 0
+	/* these aren't implemented yet because i'm lazy */
+	/* they should do the same as what happens when */
+	/* game_state.key_xxx_pressed == 1, though we can't */
+	/* just use that directly because nothing will set it */
+	/* back to zero -- it will conflict with actual keyboard. */
+	if (do_left) {
+	}
+	
+	if (do_right) {
+	}
+
+	if (do_up) {
+	}
+
+	if (do_down) {
+	}
+#endif
+
+	if (do_thrust)
+		if (abs(player->vx + game_state.direction) < MAX_VX)
+			player->vx += game_state.direction;
+
+	if ((do_quarter) && timer > next_quarter_time) {
 		insert_quarter();
 		next_quarter_time = timer + (frame_rate_hz);
+	}
+
+	if (do_quit) {
+		gettimeofday(&end_time, NULL);
+		printf("%d frames / %d seconds, %g frames/sec\n", 
+			nframes, (int) (end_time.tv_sec - start_time.tv_sec),
+			(0.0 + nframes) / (0.0 + end_time.tv_sec - start_time.tv_sec));
+		destroy_event(window, NULL);
+	}
+
+	if (do_suicide) {
+		if (credits > 0)
+			game_state.health = -1;
 	}
 	return;
 
@@ -9553,20 +9720,7 @@ void deal_with_keyboard()
 		drop_chaff();
 }
 
-enum keyaction { keynone, keydown, keyup, keyleft, keyright, 
-		keylaser, keybomb, keychaff, keygravitybomb,
-		keyquarter, keypause, key2, key3, key4, key5, key6,
-		key7, key8, key9, keyfullscreen, keythrust, 
-		keysoundeffects, keymusic, keyquit, keytogglemissilealarm
-};
 
-char *keyactionstring[] = {
-	"none", "down", "up", "left", "right", 
-	"laser", "bomb", "chaff", "gravitybomb",
-	"quarter", "pause", "2x", "3x", "4x", "5x", "6x",
-	"7x", "8x", "suicide", "fullscreen", "thrust", 
-	"soundeffest", "music", "quit", "missilealarm"
-};
 
 struct keyname_value_entry {
 	char *name;
@@ -9752,9 +9906,27 @@ void init_keymap()
 	keymap[GDK_6] = key6;
 	keymap[GDK_7] = key7;
 	keymap[GDK_8] = key8;
-	keymap[GDK_9] = key9;
+	keymap[GDK_9] = keysuicide;
 
 	ffkeymap[GDK_F11 & 0x00ff] = keyfullscreen;
+}
+
+int remap_joystick_button(int button, char *actionname)
+{
+	enum keyaction i;
+
+	if (button < 0 || button > 9)
+		return -1;
+
+	for (i=keynone;i<=keyreverse;i++) {
+		if (strcmp(keyactionstring[i], actionname) == 0) {
+			printf("remapped joystick button %d to %s\n", 
+				button, actionname);
+			jsbuttonaction[button] = i;
+			return 0;
+		}
+	}
+	return -1;
 }
 
 int remapkey(char *keyname, char *actionname)
@@ -9763,7 +9935,7 @@ int remapkey(char *keyname, char *actionname)
 	int j;
 	int index;
 
-	for (i=keynone;i<keytogglemissilealarm;i++) {
+	for (i=keynone;i<=keyreverse;i++) {
 		if (strcmp(keyactionstring[i], actionname) == 0) {
 			for (j=0;j<sizeof(keyname_value_map) / sizeof(keyname_value_map[0]);j++) {
 				if (strcmp(keyname_value_map[j].name, keyname) == 0) {
@@ -9864,7 +10036,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 			player->tsd.epd.count = -1;
 			player->tsd.epd.count2 = 50;
 			break;
-	case key9:
+	case keysuicide:
 		if (credits > 0)
 			game_state.health = -1;
 		return TRUE;
@@ -9883,7 +10055,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		    printf("%d frames / %d seconds, %g frames/sec\n", 
 				nframes, (int) (end_time.tv_sec - start_time.tv_sec),
 				(0.0 + nframes) / (0.0 + end_time.tv_sec - start_time.tv_sec));
-		destroy_event(widget, NULL);
+		    destroy_event(widget, NULL);
 		return TRUE;	
 	case keyquarter:
 		insert_quarter();
@@ -10721,9 +10893,12 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 	FILE *exrcfile;
 	char *s;
 	int rc;
-	int fr, lw, rs, sd, h, w;
+	int fr, lw, rs, sd, h, w, xa, ya, button;
 	int lineno = 0;
 	char keyname[256], actionname[256];
+
+	game_state.x_joystick_axis = 0;
+	game_state.y_joystick_axis = 0;
 
 	homedir = getenv("HOME");
 	if (homedir == NULL)
@@ -10802,6 +10977,16 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 			}
 			continue;
 		}
+		rc = sscanf(s, "set joystick-x-axis=%d\n", &xa);
+		if (rc == 1 && (xa == 0 || xa == 1 || xa == -1)) {
+			game_state.x_joystick_axis = xa;
+			continue;
+		}
+		rc = sscanf(s, "set joystick-y-axis=%d\n", &ya);
+		if (rc == 1 && (ya == 0 || ya == 1 || ya == -1)) {
+			game_state.y_joystick_axis = ya;
+			continue;
+		}
 		rc = sscanf(s, "set joystick=%s\n", js);
 		if (rc == 1) {
 			strcpy(joystickdevice, js);
@@ -10841,6 +11026,11 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 				want_missile_alarm = 0;
 				continue;
 			}
+		}
+		rc = sscanf(s, "map button %d %s", &button, actionname);
+		if (rc == 2) {
+			if (remap_joystick_button(button, actionname) == 0);
+				continue;
 		}
 		rc = sscanf(s, "map %s %s", keyname, actionname);
 		if (rc == 2) {
