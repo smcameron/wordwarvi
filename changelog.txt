@@ -1,7 +1,48 @@
 Changelog for wordwarvi:
 
+Sun Jun 15 05:19:30 CDT 2008
+-------------------------------------------------------------------------------
+Changes between version 0.14 and 0.15
+
+* Fixed bug that humanoids that were picked up by cron jobs no
+  longer said "Help up here!" or "Help down here."
+* Previous "fix" for the missing "up here!" "down here!" sounds had
+  made it so that you could steal a humanoid from a cron job just by
+  passing over them.  Fixed that.
+* Added "--nomissilealarm" option, which suppresses the audio alarm
+  you usually get when missiles lock on.
+* Now, the '1' key toggles the missile alarm on/off.
+* Now, the radar (if it's working) shows "MISSILE LOCK ON DETECTED" in red
+  when a missile has locked on, so if the audio alarm is suppressed, there
+  is still some warning.
+* Changed color of gdb's missiles from magenta to red.  This is so that
+  whan you shoot them, and magenta debris flies all around, the humanoids
+  on the main screen, and on the radar, will be easier to see.
+* Doubled the blink rate on the radar screen of the humanoids and the
+  players ship.  Also, on the radar, the humans and player are represented
+  by an x with a box around it.  It used to be, the x part didn't blink,
+  only the box.  Now, the x and the surrounding box both blink.  This is
+  to make the humans and player easier to see.
+* Draw the 4 corners of the viewport on the radar screen
+* Change mouse cursor to something more unobtrusive.
+* Now, default options can be set via a config file: ~/.wordwarvi/.exrc
+* Make .wordwarvi/.exrc file format more consitent with vi's .exrc format
+* Now you can remap keyboard controls how you like via .exrc "map" command.
+* Fix line counting of .exrc file, and allow shell style comments
+* Fixed error in example .exrc file
+* Added a couple more levels.
+* Fixed bug that terrain roughness settings in level descriptors didn't
+  actually take effect for any but the first level.
+* Made the "attract mode" pick a random level instead of always using the
+  first level.
+* Now joystick controls are customizable via ~/.wordwarvi/.exrc file.
+* Added a note about dealing with the lack of left/right/up/down joystick
+  button customizability.
+* Updated version.h
+
 Sat Jun  7 21:48:01 CDT 2008
 -------------------------------------------------------------------------------
+Changes between version 0.13 and 0.14
 
 * Fixed a horrible bug which made cron jobs unshootable.
 
