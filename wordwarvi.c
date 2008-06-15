@@ -9139,7 +9139,7 @@ void init_levels_to_beginning()
 	int i;
 	if (credits <= 0) {
 		level.random_seed = random();
-		level.level_number = 0;
+		level.level_number = randomn((sizeof(leveld) / sizeof(leveld[0]))-1);
 	} else {
 		level.level_number = 0;
 		level.random_seed = initial_random_seed;
@@ -9180,6 +9180,8 @@ void advance_level()
 	level.ground_color = (level.ground_color + 1) % 
 		(sizeof(planet_color) / sizeof(planet_color[0]));
 
+	level.large_scale_roughness = leveld[level.level_number]->large_scale_roughness;
+	level.small_scale_roughness = leveld[level.level_number]->small_scale_roughness;
 	initialize_game_state_new_level();
 }
 
