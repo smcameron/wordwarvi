@@ -240,7 +240,14 @@ map button n action
 maps joystick button n (where 0 <= n <= 9) to the specified action.
 Actions are the same as describe above, with the exception of 
 left, right, up and down, which are not yet implemented due to
-laziness on my part.
+laziness on my part.  In any case, if your joystick has a
+button pad you want to use to control the motion of the ship
+(left/right/up/down), most likely it also has some sort of
+switch to make this pad active instead of one of the sets of
+x/y joystick axes. (e.g. my Logitech Dual Action Rumble is 
+like that.)  If that's the case, then you don't need this
+feature anyway, as the joystick will map those button presses
+onto the appropriate axes for you.
 .TP
 set joystick-[xy]-axis=n.  Allows specifying different axes for 
 control of the players ship for multi axis joysticks.  By default,
