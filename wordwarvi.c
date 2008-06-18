@@ -9645,23 +9645,24 @@ void deal_with_joystick()
 	return;
 
 no_credits:
+
+	/* check to see if quit button pressed. */
+	for (i=0;i<10;i++) {
+		if (jse.button[i] && jsbuttonaction[i] == keyquit) {
+			in_the_process_of_quitting = 1;
+			return;
+		}
+	}
+
 	/* If credits are zero, or health is zero -- ANY button on the joystick */
 	/* will put in a quarter. */
 	if (timer > next_quarter_time) {
-		if (jse.button[0] == 1 ||
-			jse.button[1] == 1 ||
-			jse.button[2] == 1 ||
-			jse.button[3] == 1 ||
-			jse.button[4] == 1 ||
-			jse.button[5] == 1 ||
-			jse.button[6] == 1 ||
-			jse.button[7] == 1 ||
-			jse.button[8] == 1 ||
-			jse.button[9] == 1) {
-			
-			insert_quarter();
-			next_quarter_time = timer + frame_rate_hz;
-		}
+		for (i=0;i<10;i++)
+			if (jse.button[i]) {
+				insert_quarter();
+				next_quarter_time = timer + frame_rate_hz;
+				break;
+			}
 	}
 }
 
