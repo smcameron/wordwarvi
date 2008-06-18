@@ -8012,6 +8012,7 @@ int new_high_score(int newscore)
 
 void write_out_high_score_file();
 void cancel_sound(int queue_entry);
+static void draw_quit_screen(GtkWidget *w);
 static void do_newhighscore(GtkWidget *w, GdkEvent *event, gpointer p)
 {
 	int slot;
@@ -8126,6 +8127,8 @@ static void do_newhighscore(GtkWidget *w, GdkEvent *event, gpointer p)
 		sprintf(message, "Time remaining: %d", timeleft);
 		rainbow_abs_xy_draw_string(w, message, SMALL_FONT, 60, 80+100*5);
 	}
+	if (in_the_process_of_quitting)
+		draw_quit_screen(w);
 }
 
 int bonus_points_this_round;
@@ -8295,6 +8298,8 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 		setup_text();
 	}
 	/* printf("i, timer_event = %d\n", timer_event); */
+	if (in_the_process_of_quitting)
+		draw_quit_screen(w);
 	return 0;
 }
 
@@ -9382,6 +9387,26 @@ void deal_with_joystick()
 	if (rc != 0)
 		return;
 
+	if (in_the_process_of_quitting) {
+		if (*xaxis < -XJOYSTICK_THRESHOLD) {
+			current_quit_selection = 1;
+		} else
+			if (*xaxis > XJOYSTICK_THRESHOLD) {
+				current_quit_selection = 0;
+		}
+		for (i=0;i<10;i++)
+			if (jse.button[i] == 1 && jsbuttonaction[i] == keylaser) {
+				final_quit_selection = current_quit_selection;
+				if (!final_quit_selection) {
+					in_the_process_of_quitting = 0;
+					/* prevent just selecting "don't quit" from */
+					/* putting in a quarter. */
+					next_quarter_time = timer + frame_rate_hz;
+				}
+			}
+		return;
+	}
+
 	highscore_buttonpress = 0;
 	if (timer_event == NEW_HIGH_SCORE_EVENT) {
 		moved = 0;
@@ -9416,7 +9441,7 @@ void deal_with_joystick()
 		if (timer > next_joystick_button_timer) {
 			next_joystick_button_timer = timer + (frame_rate_hz >> 3);
 			for (i=0;i<10;i++) {
-				if (jse.button[i]) {
+				if (jse.button[i] && jsbuttonaction[i] == keylaser) {
 					highscore_buttonpress = 1;
 					if (highscore_letter >= 0 && highscore_letter < 26) {
 						highscore_initials[highscore_current_initial] = highscore_letter + 'A';
@@ -9426,30 +9451,12 @@ void deal_with_joystick()
 					}
 					moved = 1;
 				}
+				if (jse.button[i] && jsbuttonaction[i] == keyquit)
+					in_the_process_of_quitting = !in_the_process_of_quitting;
 			}
 		}
 		if (moved) 
 			add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
-		return;
-	}
-
-	if (in_the_process_of_quitting) {
-		if (*xaxis < -XJOYSTICK_THRESHOLD) {
-			current_quit_selection = 1;
-		} else
-			if (*xaxis > XJOYSTICK_THRESHOLD) {
-				current_quit_selection = 0;
-		}
-		for (i=0;i<10;i++)
-			if (jse.button[i] == 1 && jsbuttonaction[i] == keylaser) {
-				final_quit_selection = current_quit_selection;
-				if (!final_quit_selection) {
-					in_the_process_of_quitting = 0;
-					/* prevent just selecting "don't quit" from */
-					/* putting in a quarter. */
-					next_quarter_time = timer + frame_rate_hz;
-				}
-			}
 		return;
 	}
 
@@ -9672,10 +9679,22 @@ void deal_with_keyboard()
 	int moved;
 	static int next_keyboard_motion_timer = 0;
 
+	if (in_the_process_of_quitting) {
+		if (game_state.key_left_pressed)
+			current_quit_selection = 1;
+		if (game_state.key_right_pressed)
+			current_quit_selection = 0;
+		if (game_state.key_laser_pressed) {
+			final_quit_selection = current_quit_selection;
+			if (!final_quit_selection)
+				in_the_process_of_quitting = 0;
+		}
+	}
+
 	if (timer_event == NEW_HIGH_SCORE_EVENT) {
 		moved = 0;
 		if (timer > next_keyboard_motion_timer) {
-			next_keyboard_motion_timer = timer + (frame_rate_hz >> 3);
+			next_keyboard_motion_timer = timer + (frame_rate_hz >> 4);
 			if (game_state.key_left_pressed) {
 				highscore_letter--;
 				if (highscore_letter < 0)
@@ -9714,18 +9733,6 @@ void deal_with_keyboard()
 		if (moved) 
 			add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
 		return;
-	}
-
-	if (in_the_process_of_quitting) {
-		if (game_state.key_left_pressed)
-			current_quit_selection = 1;
-		if (game_state.key_right_pressed)
-			current_quit_selection = 0;
-		if (game_state.key_laser_pressed) {
-			final_quit_selection = current_quit_selection;
-			if (!final_quit_selection)
-				in_the_process_of_quitting = 0;
-		}
 	}
 
 	if (game_state.health <= 0)
