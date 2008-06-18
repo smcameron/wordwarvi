@@ -9445,7 +9445,9 @@ void deal_with_joystick()
 				final_quit_selection = current_quit_selection;
 				if (!final_quit_selection) {
 					in_the_process_of_quitting = 0;
-					final_quit_selection = 0;	
+					/* prevent just selecting "don't quit" from */
+					/* putting in a quarter. */
+					next_quarter_time = timer + frame_rate_hz;
 				}
 			}
 		return;
