@@ -255,6 +255,9 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 
 /* some globals... maybe should be in game_state */
 int game_pause = 0;		/* is game paused? */
+int in_the_process_of_quitting = 0;
+int current_quit_selection = 0;
+int final_quit_selection = 0;
 int attract_mode = 0;		/* is game in attract mode */
 int credits = 0;		/* how many quarters have been put in, but not played? */
 // int toggle = 0;		
@@ -8480,6 +8483,41 @@ static gint main_da_configure(GtkWidget *w, GdkEventConfigure *event)
 	return TRUE;
 }
 
+static void draw_quit_screen(GtkWidget *w)
+{
+	int x;
+	static int quittimer = 0;
+
+	quittimer++;
+
+	gdk_gc_set_foreground(gc, &huex[BLACK]);
+	wwvi_draw_rectangle(w->window, gc, TRUE, 100, 100, SCREEN_WIDTH-200, SCREEN_HEIGHT-200);
+	gdk_gc_set_foreground(gc, &huex[RED]);
+	wwvi_draw_rectangle(w->window, gc, FALSE, 100, 100, SCREEN_WIDTH-200, SCREEN_HEIGHT-200);
+
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Quit?", BIG_FONT, 300, 280);
+
+	if (current_quit_selection == 1) {
+		x = 130;
+		gdk_gc_set_foreground(gc, &huex[WHITE]);
+	} else {
+		x = 480;
+		gdk_gc_set_foreground(gc, &huex[RED]);
+	}
+	abs_xy_draw_string(w, "Quit Now", SMALL_FONT, 150, 450);
+	if (current_quit_selection == 0)
+		gdk_gc_set_foreground(gc, &huex[WHITE]);
+	else
+		gdk_gc_set_foreground(gc, &huex[RED]);
+	abs_xy_draw_string(w, "Don't Quit", SMALL_FONT, 500, 450);
+
+	if ((quittimer & 0x04)) {
+		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		wwvi_draw_rectangle(w->window, gc, FALSE, x, 420, 200, 50);
+	}
+}
+
 /* This is the expose function of the main drawing area.  This is */
 /* where everything gets drawn. */
 static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
@@ -8563,6 +8601,9 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	draw_objs(w);
 	draw_strings(w);
 	draw_radar(w);
+
+	if (in_the_process_of_quitting)
+		draw_quit_screen(w);
 
 	return 0;
 }
@@ -8891,6 +8932,15 @@ void timer_expired()
 	}
 }
 
+void really_quit()
+{
+	gettimeofday(&end_time, NULL);
+	printf("%d frames / %d seconds, %g frames/sec\n", 
+		nframes, (int) (end_time.tv_sec - start_time.tv_sec),
+		(0.0 + nframes) / (0.0 + end_time.tv_sec - start_time.tv_sec));
+	destroy_event(window, NULL);
+}
+
 void deal_with_joystick();
 void deal_with_keyboard();
 
@@ -8906,6 +8956,16 @@ gint advance_game(gpointer data)
 		deal_with_joystick();
 
 	deal_with_keyboard();
+
+	if (in_the_process_of_quitting) {
+		gdk_threads_enter();
+		gtk_widget_queue_draw(main_da);
+		nframes++;
+		gdk_threads_leave();
+		if (final_quit_selection)
+			really_quit();
+		return TRUE;
+	}
 
 	gdk_threads_enter();
 	ndead = 0;
@@ -9288,7 +9348,6 @@ void deal_with_joystick()
 	int do_left = 0;
 	int do_up = 0;
 	int do_down = 0;
-	int do_quit = 0;	
 	int do_suicide = 0;
 
 	int *xaxis = &zero;
@@ -9367,6 +9426,24 @@ void deal_with_joystick()
 		}
 		if (moved) 
 			add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
+		return;
+	}
+
+	if (in_the_process_of_quitting) {
+		if (*xaxis < -XJOYSTICK_THRESHOLD) {
+			current_quit_selection = 1;
+		} else
+			if (*xaxis > XJOYSTICK_THRESHOLD) {
+				current_quit_selection = 0;
+		}
+		for (i=0;i<10;i++)
+			if (jse.button[i] == 1) {
+				final_quit_selection = current_quit_selection;
+				if (!final_quit_selection) {
+					in_the_process_of_quitting = 0;
+					final_quit_selection = 0;	
+				}
+			}
 		return;
 	}
 
@@ -9482,7 +9559,7 @@ void deal_with_joystick()
 				do_thrust = 1;
 				break;
 			case keyquit:
-				do_quit = 1;
+				in_the_process_of_quitting = !in_the_process_of_quitting;
 				break;
 			case keytogglemissilealarm:
 				want_missile_alarm = !want_missile_alarm;
@@ -9553,14 +9630,6 @@ void deal_with_joystick()
 	if ((do_quarter) && timer > next_quarter_time) {
 		insert_quarter();
 		next_quarter_time = timer + (frame_rate_hz);
-	}
-
-	if (do_quit) {
-		gettimeofday(&end_time, NULL);
-		printf("%d frames / %d seconds, %g frames/sec\n", 
-			nframes, (int) (end_time.tv_sec - start_time.tv_sec),
-			(0.0 + nframes) / (0.0 + end_time.tv_sec - start_time.tv_sec));
-		destroy_event(window, NULL);
 	}
 
 	if (do_suicide) {
@@ -9638,6 +9707,18 @@ void deal_with_keyboard()
 		if (moved) 
 			add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
 		return;
+	}
+
+	if (in_the_process_of_quitting) {
+		if (game_state.key_left_pressed)
+			current_quit_selection = 1;
+		if (game_state.key_right_pressed)
+			current_quit_selection = 0;
+		if (game_state.key_laser_pressed) {
+			final_quit_selection = current_quit_selection;
+			if (!final_quit_selection)
+				in_the_process_of_quitting = 0;
+		}
 	}
 
 	if (game_state.health <= 0)
@@ -10051,11 +10132,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		want_missile_alarm = !want_missile_alarm;
 		return TRUE;
 	case keyquit:
-		    gettimeofday(&end_time, NULL);
-		    printf("%d frames / %d seconds, %g frames/sec\n", 
-				nframes, (int) (end_time.tv_sec - start_time.tv_sec),
-				(0.0 + nframes) / (0.0 + end_time.tv_sec - start_time.tv_sec));
-		    destroy_event(widget, NULL);
+		in_the_process_of_quitting = !in_the_process_of_quitting;
 		return TRUE;	
 	case keyquarter:
 		insert_quarter();
@@ -10338,7 +10415,7 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 	(void) inputBuffer; /* Prevent unused variable warning. */
 	float output = 0.0;
 
-	if (game_pause) {
+	if (game_pause || in_the_process_of_quitting) {
 		/* output silence when paused and        */
 		/* don't advance any sound slot pointers */
 		for (i=0; i<framesPerBuffer; i++)
