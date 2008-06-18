@@ -9441,7 +9441,7 @@ void deal_with_joystick()
 				current_quit_selection = 0;
 		}
 		for (i=0;i<10;i++)
-			if (jse.button[i] == 1) {
+			if (jse.button[i] == 1 && jsbuttonaction[i] == keylaser) {
 				final_quit_selection = current_quit_selection;
 				if (!final_quit_selection) {
 					in_the_process_of_quitting = 0;
