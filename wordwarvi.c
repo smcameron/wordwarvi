@@ -2971,6 +2971,7 @@ void octopus_move(struct game_obj_t *o)
 	/* hmm, I forget what this is for.  Seems to say, if octopus smacks into ground, */
 	/* blow up and die.... but why? */	
 	if (o->y >= gy + 3) {
+		remove_target(o);
 		kill_object(o);
 		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
 		o->destroy(o);
