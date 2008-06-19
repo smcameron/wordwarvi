@@ -1468,7 +1468,7 @@ struct text_line_t {
 #define MAXHIGHSCORES 10
 struct score_data {
 	char name[4];
-	uint32_t score;
+	int score;
 } highscore[MAXHIGHSCORES];
 int highscore_letter = 0;
 int highscore_buttonpress = 0;
