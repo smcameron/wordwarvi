@@ -9742,7 +9742,7 @@ void deal_with_keyboard()
 	if (timer_event == NEW_HIGH_SCORE_EVENT) {
 		moved = 0;
 		if (timer > next_keyboard_motion_timer) {
-			next_keyboard_motion_timer = timer + (frame_rate_hz >> 4);
+			next_keyboard_motion_timer = timer + (frame_rate_hz >> 3);
 			if (game_state.key_left_pressed) {
 				highscore_letter--;
 				if (highscore_letter < 0)
