@@ -4303,7 +4303,7 @@ void cancel_all_sounds();
 void no_draw(struct game_obj_t *o, GtkWidget *w);
 void move_player(struct game_obj_t *o)
 {
-	int deepest;
+	int deepest, i;
 	static int was_healthy = 1; /* notice this is static. */
 	o->x += o->vx; /* move him... */
 	o->y += o->vy;
@@ -4319,6 +4319,17 @@ void move_player(struct game_obj_t *o)
 
 		/* force 10 secs to elapse before another quarter can go in. */
 		next_quarter_time = timer + (frame_rate_hz * 10);
+
+		/* drop humans */
+		for (i=0;i<level.nhumanoids;i++) {
+			if (human[i]->tsd.human.picked_up &&
+				human[i]->tsd.human.abductor == player) {
+				human[i]->tsd.human.picked_up = 0;
+				human[i]->tsd.human.abductor = NULL;
+				human[i]->vx = player->vx + randomn(6)-3;
+				human[i]->vy = player->vy + randomn(6)-3;
+			}
+		}
 
 		player->move = bridge_move; /* bridge move makes the player fall. */
 		explode(player->x, player->y, player->vx, player->vy, 90, 350, 30); /* bunch of sparks. */
