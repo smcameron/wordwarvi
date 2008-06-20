@@ -11058,6 +11058,8 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 			continue;
 		if (s[0] == '#') /* comment? */
 			continue;
+		if (s[0] == '\"') /* comment? */
+			continue;
 		rc = sscanf(s, "set framerate=%d\n", &fr);
 		if (rc == 1) {
 			*framerate = fr;
