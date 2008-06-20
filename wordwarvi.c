@@ -4484,6 +4484,15 @@ void move_player(struct game_obj_t *o)
 		}
 	} else {
 		game_state.vy = 0;
+		/* are we above 1/4th the way from top of screen...? */
+		/* scoot the viewport to keep the viewport on screen */
+		if (player->y - game_state.y - SCREEN_HEIGHT/2 < -5*SCREEN_HEIGHT/8)
+			game_state.y = 5*SCREEN_HEIGHT/8 - SCREEN_HEIGHT/2 + player->y;
+		else
+			/* are we below 1/4th the way from the bottom of screen...? */
+			/* scoot the viewport to keep the player on screen */
+			if (player->y - game_state.y - SCREEN_HEIGHT/2  > -3*SCREEN_HEIGHT/8)
+				game_state.y = 3*SCREEN_HEIGHT/8 - SCREEN_HEIGHT/2 + player->y;
 	}
 
 	/* Check to see if radar is fritzed, or unfritzed. */
