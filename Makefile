@@ -8,8 +8,8 @@ WITHAUDIO=yes
 # WITHAUDIO=no
 
 ifeq (${WITHAUDIO},yes)
-SNDLIBS=-lportaudio -lvorbisfile
-SNDFLAGS=-DWITHAUDIOSUPPORT
+SNDLIBS=`pkg-config --libs portaudio-2.0 vorbisfile`
+SNDFLAGS=-DWITHAUDIOSUPPORT `pkg-config --cflags portaudio-2.0`
 OGGOBJ=ogg_to_pcm.o
 else
 SNDLIBS=
@@ -37,24 +37,35 @@ all:	wordwarvi
 
 endif
 
+HAS_PORTAUDIO_2_0:
+ifeq (${WITHAUDIO},yes)
+	pkg-config --print-errors --exists portaudio-2.0
+else
+endif
+
+HAS_VORBISFILE:
+ifeq (${WITHAUDIO},yes)
+	pkg-config --print-errors --exists vorbisfile
+else
+endif
+
 joystick.o:	joystick.c joystick.h Makefile
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall -c joystick.c
 
-ogg_to_pcm.o:	ogg_to_pcm.c ogg_to_pcm.h Makefile
-	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall -c ogg_to_pcm.c
-
-stamp.h:	stamp
-	./stamp > stamp.h
+ogg_to_pcm.o:	ogg_to_pcm.c ogg_to_pcm.h Makefile HAS_VORBISFILE
+	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `pkg-config --cflags vorbisfile` \
+	-pthread -Wall -c ogg_to_pcm.c
 
 stamp:	stamp.c
 	gcc -o stamp stamp.c	
 
-wordwarvi:	wordwarvi.c joystick.o ${OGGOBJ} Makefile version.h stamp.h levels.h
+wordwarvi:	wordwarvi.c joystick.o ${OGGOBJ} Makefile version.h stamp levels.h
+	./stamp > stamp.h
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall  ${DEFINES} \
 		joystick.o \
 		${OGGOBJ} \
 		wordwarvi.c -o wordwarvi -lm ${SNDLIBS} \
-		`pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0` `pkg-config --libs gthread-2.0`
+		`pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0 gthread-2.0`
 	/bin/rm stamp.h
 
 wordwarvi.6.gz:	wordwarvi.6
