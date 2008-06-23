@@ -46,9 +46,9 @@ endif
 joystick.o:	joystick.c joystick.h Makefile
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall -c joystick.c
 
-ogg_to_pcm.o:	ogg_to_pcm.c ogg_to_pcm.h Makefile HAS_VORBISFILE
+ogg_to_pcm.o:	ogg_to_pcm.c ogg_to_pcm.h Makefile
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `pkg-config --cflags vorbisfile` \
-	-pthread -Wall -c ogg_to_pcm.c
+		-pthread -Wall -c ogg_to_pcm.c
 
 stamp:	stamp.c
 	gcc -o stamp stamp.c	
