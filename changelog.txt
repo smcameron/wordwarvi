@@ -1,5 +1,44 @@
 Changelog for wordwarvi:
 
+Sun Jun 22 09:23:32 CDT 2008
+-------------------------------------------------------------------------------
+Changes between version 0.15 and 0.16
+
+* Added a confirmation screen when quitting, so you don't accidentally
+  quit a game by a single keystroke/button press..
+* Add apostrophe glyph
+* Added asterisk glyph.
+* Fixed bug that selecting 'Don't Quit' with the joystick tended to
+  also put a quarter in.
+* Make joystick selection of quit screen buttons use only the laser button.
+  This is so that if a joystick button is mapped to quit, the button will
+  not also select 'Don't Quit' almost immediately, making the quit screen
+  rapidly appear and disappear.
+* Now, if a joystick quit button is mapped, pressing it
+  while in attract mode doesn't put in a quarter instead.
+* Made quit screen work in high score screen, and also during
+  between-level intermissions.
+* Updated blimp messages to include the stuff you put at the front
+  of GPL'ed source files.
+* Fixed bug that negative scores would get counted as high scores.
+* Fixed bug that an octopus killing itself by smashing into the ground
+  would currupt the target list, crashing, or making things unshootable.
+* When player is killed, now humans that he's carrying are dropped
+  in a more random way.
+* Fixed bug that keyboard input of high scores was not allowing enough time
+  between keystrokes.
+* Support .exrc file comments via " character, a la vi.
+* Fixed a bug that the viewport could become unsynchronized from the player's
+  y-position via contact with the ground.
+* Make player's ship's exhaust behave a bit differently
+  -- take y velocity into account.
+* Improvements to makefile so "make install" doesn't always rebuild
+  (Thanks to Seth Klein for this.)
+* Fixed problem that if project made WITHAUDIO=no, compressed man page
+  wasn't built (for no apparent reason.)  Thanks to Seth Klein for pointing
+  this out.
+
+
 Sun Jun 15 05:19:30 CDT 2008
 -------------------------------------------------------------------------------
 Changes between version 0.14 and 0.15
