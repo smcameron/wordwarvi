@@ -4379,7 +4379,7 @@ void move_player(struct game_obj_t *o)
 	} else
 		if (was_healthy)
 			/* make some exhaust */
-			explode(o->x-(13 * game_state.direction), o->y, -((abs(o->vx)+7)*game_state.direction), 0, 10, 10, 9);
+			explode(o->x-(13 * game_state.direction), o->y, -((abs(o->vx)+7)*game_state.direction), -o->vy, 10, 10, 9);
 
 	/* Detect smashing into the ground */
 	if (deepest != GROUND_OOPS && player->y >= deepest) {
