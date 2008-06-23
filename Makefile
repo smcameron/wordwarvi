@@ -29,13 +29,7 @@ LDFLAGS=${PROFILE_FLAG}
 
 DEFINES=${SNDFLAGS} -DDATADIR=\"${DATADIR}/\"
 
-ifeq (${WITHAUDIO},yes)
 all:	wordwarvi wordwarvi.6.gz
-
-else
-all:	wordwarvi
-
-endif
 
 HAS_PORTAUDIO_2_0:
 ifeq (${WITHAUDIO},yes)
