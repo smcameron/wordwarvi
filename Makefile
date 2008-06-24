@@ -83,7 +83,10 @@ tarball:
 	mkdir -p d/wordwarvi-${VERSION}/sounds
 	cp Makefile version.h ogg_to_pcm.c ogg_to_pcm.h levels.h \
 		joystick.c joystick.h changelog.txt wordwarvi.c wordwarvi.6 \
-		stamp.c README AUTHORS COPYING d/wordwarvi-${VERSION}
+		stamp.c README AUTHORS COPYING \
+		AAA_HOW_TO_MAKE_NEW_LEVELS.txt \
+		changelog.txt \
+		d/wordwarvi-${VERSION}
 	cp sounds/*.ogg d/wordwarvi-${VERSION}/sounds
 	cp sounds/Attribution.txt d/wordwarvi-${VERSION}/sounds
 	chown -R root:root d;
