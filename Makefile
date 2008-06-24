@@ -79,7 +79,15 @@ uninstall:
 	/bin/rm -fr $(DESTDIR)${DATADIR}
 	/bin/rm -f $(DESTDIR)${MANPAGEDIR}/wordwarvi.6.gz
 
-tarball:
+CHECK_VERSION:
+	@echo Checking VERSION string ${VERSION}... 1>&2
+	@echo ${VERSION} | grep '[0-9][0-9]*[.][0-9][0-9]*' > /dev/null 2>&1
+	@echo VERSION=${VERSION} which looks ok. 1>&2
+	@echo Checking that ${VERSION} matches what is in version.h 1>&2
+	@grep ${VERSION} version.h > /dev/null 2>&1
+	@echo VERSION ${VERSION} matches cursory check of version.h 1>&2
+
+tarball:	CHECK_VERSION
 	mkdir -p d/wordwarvi-${VERSION}/sounds
 	cp Makefile version.h ogg_to_pcm.c ogg_to_pcm.h levels.h \
 		joystick.c joystick.h changelog.txt wordwarvi.c wordwarvi.6 \
