@@ -186,6 +186,10 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define GDB_MAX_VX 13 	      /* max x and y velocities of GDBs. */
 #define GDB_MAX_VY 13 
 
+#define JETPILOT_BIG_DY_THRESHOLD 40
+#define JETPILOT_SMALL_DY_THRESHOLD 20 
+#define JETPILOT_MAX_VX 5
+#define JETPILOT_MAX_VY 13 
 
 #define NBUILDINGS 15 		/* initial number of buildings on the terrain */
 #define MAXBUILDING_WIDTH 9	/* max building width, in terrain line segments */
@@ -403,6 +407,7 @@ struct level_parameters_t {
 	double large_scale_roughness;
 	double small_scale_roughness;
 	int ground_color;
+	int jetpilot_firechance;
 } level = {
 	/* initial values */
 	31415927, /* This value is not used, so changing it here has no effect.*/
@@ -765,6 +770,26 @@ struct my_point_t humanoid_points[] = {
 	{ 1, -9, },
 	{ 1, -7 },
 };
+
+struct my_point_t jetpilot_points_left[] = {
+	{ 0, -8 },
+	{ 0,  0 },
+	{ -2, 5 },
+	{ 0, 9 },
+	{ -2, 11 }, 
+	{ LINE_BREAK, LINE_BREAK },
+	{ 0,  0 },
+	{ 3, -2 },
+	{ -5, 0 }, 
+	{ LINE_BREAK, LINE_BREAK },
+	{ 0, -8,  },
+	{ 2, -8,  },
+	{ 2, -5,  },
+	{ 4, -5,  },
+	{ 4, -0,  },
+};
+
+struct my_point_t jetpilot_points_right[sizeof(jetpilot_points_left)/sizeof(jetpilot_points_left[0])];
 
 struct my_point_t SAM_station_points[] = {
 	{ -5, 0 },   /* Bottom base */
@@ -1412,6 +1437,8 @@ struct my_vect_obj airship_vect;
 struct my_vect_obj balloon_vect;
 struct my_vect_obj SAM_station_vect;
 struct my_vect_obj humanoid_vect;
+struct my_vect_obj jetpilot_vect_right;
+struct my_vect_obj jetpilot_vect_left;
 struct my_vect_obj socket_vect;
 struct my_vect_obj bullet_vect;
 struct my_vect_obj gdb_vect_right;
@@ -3237,6 +3264,134 @@ void cron_move(struct game_obj_t *o)
 #endif
 }
 
+void pilot_move(struct game_obj_t *o)
+{
+	int dvx, dvy, tx, ty;
+	int gy = 32756; /* big number. */
+
+	if (!o->alive)
+		return;
+
+	gy = find_ground_level(o, NULL);
+	dvx = 0; /* make compiler happy */
+	dvy = 0; /* make compiler happy */ 	
+
+	/* compute a desired velocity which will move towards target coords */
+	tx = o->tsd.gdb.tx;
+	ty = o->tsd.gdb.ty;
+	if (o->x < tx && tx - o->x > GDB_DX_THRESHOLD)
+		dvx = JETPILOT_MAX_VX;
+	else if (o->x < tx)
+		dvx = 0;
+	else if (o->x > tx && o->x - tx > GDB_DX_THRESHOLD)
+		dvx = -JETPILOT_MAX_VX;
+	else if (o->x > tx)
+		dvx = 0;
+	if (o->y < ty && ty - o->y > JETPILOT_BIG_DY_THRESHOLD)
+		dvy = JETPILOT_MAX_VY;
+	else if (o->y < ty && ty - o->y > JETPILOT_SMALL_DY_THRESHOLD)
+		dvy = 3;
+	else if (o->y < ty)
+		dvy = 0;
+	else if (o->y > ty && o->y - ty > JETPILOT_BIG_DY_THRESHOLD)
+		dvy = -5;
+	else if (o->y > ty && o->y - ty > JETPILOT_SMALL_DY_THRESHOLD)
+		dvy = -3;
+	else if (o->y > ty)
+		dvy = 0;
+#if 0
+		/* If we aren't close to the destination, every once in awhile, */
+		/* change the distination a bit.  This makes it a little less predictable */
+		if (abs(player->x - tx) > GDB_DX_THRESHOLD ||
+			abs(player->y - ty) > GDB_DY_THRESHOLD || randomn(100) < 3) {
+			o->tsd.gdb.tx = player->x + randomn(300)-150;
+			o->tsd.gdb.ty = player->y + randomn(300)-150;
+		}
+#endif
+
+	{
+		int angle = ((timer * 3 + o->number*47) % 360);
+		tx = player->x + sine[angle] * 250;  
+		ty = player->y + cosine[angle] * 250;
+
+		if (ty > gy)
+			ty -= 100;
+
+		o->tsd.gdb.tx = tx;
+		o->tsd.gdb.ty = ty;
+	}
+
+	/* avoid the ground. */
+	if (o->y > gy - 200 && o->vy > 0)
+		dvy = -JETPILOT_MAX_VY;	
+
+	/* adjust velocity towards desired velocity. */
+	if (o->vx < dvx)
+		o->vx++;
+	else if (o->vx > dvx)
+		o->vx--;
+	/* let gravity do this. */
+	/* if (o->vy < dvy)
+		o->vy++; */
+	else if (o->vy > dvy) {
+		o->vy -= 2;
+		if (o->vy - dvy > 5)
+			o->vy -= 2;
+		if (o->vy - dvy > 10)
+			o->vy -= 2;
+	}
+
+	o->x += o->vx; /* move... */
+	o->y += o->vy;
+
+	o->vy++; /* gravity */
+
+	/* shoot out some exhaust, only if we're trying to go "more up." */	
+	if (o->vy > dvy)
+		explode(o->x, o->y + 15, -o->vx, 20, 4, 8, 9);
+
+	if (randomn(1000) < (level.jetpilot_firechance)) {
+		int vx, vy;
+		aim_vx_vy(player, o, 28, 10, &vx, &vy);
+		add_laserbolt(o->x, o->y, vx, vy, GREEN, 50);
+		add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
+	}
+
+	/* make him face the right way, the way he's trying to go. */
+	if (dvx > 0)
+		o->v = &jetpilot_vect_right;
+	else if (dvx < 0)
+		o->v = &jetpilot_vect_left;
+
+
+#if 0
+	/* launch a missile? */	
+	xdist = abs(o->x - player->x);
+	if (xdist < GDB_LAUNCH_DIST) {
+		ydist = o->y - player->y;
+		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
+			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			add_harpoon(o->x+10, o->y, 0, 0, 300, RED, player, o);
+			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
+			if (!o->tsd.gdb.awake) {
+				/* if we weren't awake when we fired the missile, we are now. */
+				o->tsd.gdb.awake = 1;
+				o->tsd.gdb.tx = player->x + randomn(200)-100;
+				o->tsd.gdb.ty = player->y + randomn(200)-100;
+			}
+		}
+	}
+#endif
+	/* If GDB's smash into the ground... they die. */
+	/* Somewhat counteracts their bad-assitude.... */
+	if (o->y >= gy + 3) {
+		remove_target(o);
+		kill_object(o);
+		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
+		o->destroy(o);
+	}
+}
+
 void gdb_move(struct game_obj_t *o)
 {
 	int xdist, ydist;
@@ -3702,6 +3857,7 @@ void no_move(struct game_obj_t *o);
 static void add_score_floater(int x, int y, int score);
 static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t *victim, int metal);
 void truss_cut_loose_whats_below(struct game_obj_t *o);
+static void add_pilot(int pilotx, int piloty, int pilotvx, int pilotvy);
 
 void bomb_move(struct game_obj_t *o)
 {
@@ -3710,6 +3866,10 @@ void bomb_move(struct game_obj_t *o)
 	int dist2;
 	int removed;
 	int do_remove_bomb;
+	int addpilot = 0;
+	int pilotx, piloty, pilotvx, pilotvy;
+
+	pilotx = piloty = pilotvx = pilotvy = 0;
 
 	if (!o->alive)
 		return;
@@ -3744,6 +3904,7 @@ void bomb_move(struct game_obj_t *o)
 			case OBJ_TYPE_FUEL:
 			case OBJ_TYPE_JAMMER:
 			case OBJ_TYPE_GUN:
+			case OBJ_TYPE_JETPILOT:
 			/* case OBJ_TYPE_BOMB:  no, bomb can't bomb himself... */
 			case OBJ_TYPE_SAM_STATION:  {
 				/* find distance squared... don't take square root. */
@@ -3763,6 +3924,15 @@ void bomb_move(struct game_obj_t *o)
 						}
 						if (t->otype == OBJ_TYPE_TRUSS)
 							truss_cut_loose_whats_below(t);
+
+						/* if it's a gdb or a jet, then pilot ejects. */
+						if (t->otype == OBJ_TYPE_JET || t->otype == OBJ_TYPE_GDB) {
+							addpilot = 1;
+							pilotx = t->x;
+							piloty = t->y;
+							pilotvx = t->vx;
+							pilotvy = t->vy - 10;
+						}
 					}
 					if (score_table[t->otype] != 0) {
 						game_state.score += score_table[t->otype];
@@ -3820,6 +3990,7 @@ void bomb_move(struct game_obj_t *o)
 				case OBJ_TYPE_BOMB:
 				case OBJ_TYPE_JAMMER:
 				case OBJ_TYPE_SAM_STATION:
+				case OBJ_TYPE_JETPILOT:
 				case OBJ_TYPE_FUEL: {
 					dist2 = (o->x - t->x)*(o->x - t->x) + 
 						(o->y - t->y)*(o->y - t->y);
@@ -3886,6 +4057,8 @@ void bomb_move(struct game_obj_t *o)
 		kill_object(o);
 		o->destroy(o);
 	}
+	if (addpilot)
+		add_pilot(pilotx, piloty, pilotvx, pilotvy);
 }
 
 static void add_spark(int x, int y, int vx, int vy, int time);
@@ -4644,7 +4817,10 @@ void laser_move(struct game_obj_t *o)
 	struct game_obj_t *t, *next;
 	int hit;
 	int removed;
+	int addpilot = 0;
+	int pilotx, piloty, pilotvx, pilotvy;
 
+	pilotx = piloty = pilotvx = pilotvy = 0;
 	if (!o->alive)
 		return;
 	o->x += o->vx;
@@ -4695,6 +4871,7 @@ void laser_move(struct game_obj_t *o)
 			case OBJ_TYPE_BOMB:
 			case OBJ_TYPE_SAM_STATION:
 			case OBJ_TYPE_TRUSS:
+			case OBJ_TYPE_JETPILOT:
 			case OBJ_TYPE_MISSILE:{
 
 				/* check y value first. */
@@ -4717,6 +4894,13 @@ void laser_move(struct game_obj_t *o)
 					}
 					if (t->otype == OBJ_TYPE_TRUSS)
 						truss_cut_loose_whats_below(t);
+					if (t->otype == OBJ_TYPE_JET || t->otype == OBJ_TYPE_GDB) {
+						addpilot = 1;
+						pilotx = t->x;
+						piloty = t->y;
+						pilotvx = t->vx;
+						pilotvy = t->vy - 10;
+					}
 					if (t->otype == OBJ_TYPE_JET &&
 						(randomn(100) < 50)) {
 						/* half the time, jets will drop out */
@@ -4825,6 +5009,8 @@ void laser_move(struct game_obj_t *o)
 	}
 	if (o->alive)
 		age_object(o);
+	if (addpilot)
+		add_pilot(pilotx, piloty, pilotvx, pilotvy);
 }
 
 void move_obj(struct game_obj_t *o)
@@ -6000,6 +6186,19 @@ void init_object_numbers()
 		game_state.go[i].number = i;
 }
 
+void mirror_points(struct my_vect_obj *points, struct my_vect_obj *mirror)
+{
+	int i;
+	mirror->npoints = points->npoints;
+	for (i = 0; i < points->npoints; i++) {
+		mirror->p[i].y = points->p[i].y;
+		mirror->p[i].x = points->p[i].x;
+		if (points->p[i].x != COLOR_CHANGE &&
+			points->p[i].x != LINE_BREAK)
+			mirror->p[i].x = -points->p[i].x ;
+	}
+}
+
 /* this is just cramming arrays, and counts into structures... it's kind of
  * stupid.  There are a few times when some mirror images are computed, and
  * some things are scaled, since when I made the lists of points, mostly
@@ -6031,14 +6230,21 @@ void init_vects()
 	/* I just duplicated them in the source.  So we have to flip them */
 	left_player_vect.p = left_player_ship_points;
 	left_player_vect.npoints = sizeof(left_player_ship_points) / sizeof(left_player_ship_points[0]);
+	mirror_points(&player_vect, &left_player_vect);
+#if 0
 	for (i=0;i<left_player_vect.npoints;i++) {
 		if (left_player_ship_points[i].x != COLOR_CHANGE &&
 			left_player_ship_points[i].x != LINE_BREAK)
 			left_player_ship_points[i].x *= -1;
 	}
+#endif
 
 	rocket_vect.p = rocket_points;
 	rocket_vect.npoints = sizeof(rocket_points) / sizeof(rocket_points[0]);
+	jetpilot_vect_left.p = jetpilot_points_left;
+	jetpilot_vect_left.npoints = sizeof(jetpilot_points_left) / sizeof(jetpilot_points_left[0]);	
+	jetpilot_vect_right.p = jetpilot_points_right;
+	mirror_points(&jetpilot_vect_left, &jetpilot_vect_right);
 	jet_vect.p = jet_points;
 	jet_vect.npoints = sizeof(jet_points) / sizeof(jet_points[0]);
 	spark_vect.p = spark_points;
@@ -6080,9 +6286,13 @@ void init_vects()
 	/* left gdb points are mirror image of right points. */
 	gdb_vect_left.p = gdb_points_left;
 	gdb_vect_left.npoints = sizeof(gdb_points_left) / sizeof(gdb_points_left[0]);
+	gdb_vect_right.p = gdb_points_right;
+	mirror_points(&gdb_vect_left, &gdb_vect_right);
+#if 0
 	for (i=0;i<gdb_vect_right.npoints;i++)
 		if (gdb_vect_right.p[i].x != LINE_BREAK && gdb_vect_right.p[i].x != COLOR_CHANGE) 
 			gdb_vect_right.p[i].x = -gdb_vect_left.p[i].x;
+#endif
 
 	bomb_vect.p = bomb_points;
 	bomb_vect.npoints = sizeof(bomb_points) / sizeof(bomb_points[0]);
@@ -7137,6 +7347,14 @@ static void add_rockets(struct terrain_t *t, struct level_obj_descriptor_entry *
 			move_rocket, NULL, WHITE, &rocket_vect, 1, OBJ_TYPE_ROCKET, 1);
 		level.nrockets++;
 	}
+}
+
+static void add_pilot(int pilotx, int piloty, int pilotvx, int pilotvy) 
+{
+	struct game_obj_t *pilot;
+	pilot = add_generic_object(pilotx, piloty, pilotvx, pilotvy, 
+		pilot_move, NULL, WHITE, 
+		&jetpilot_vect_left, 1, OBJ_TYPE_JETPILOT, 1);
 }
 
 static void add_jets(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
@@ -9279,6 +9497,7 @@ void init_levels_to_beginning()
 	level.kgun_health = KGUN_INIT_HEALTH;
 
 	level.laser_fire_chance = leveld[level.level_number]->laser_fire_chance;
+	level.jetpilot_firechance = leveld[level.level_number]->jetpilot_firechance;
 	level.large_scale_roughness = leveld[level.level_number]->large_scale_roughness;
 	level.small_scale_roughness = leveld[level.level_number]->small_scale_roughness;
 

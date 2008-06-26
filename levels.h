@@ -263,6 +263,7 @@
 #define OBJ_TYPE_DEBRIS 'D'
 #define OBJ_TYPE_VOLCANO 'v'
 #define OBJ_TYPE_TRUSS 't'
+#define OBJ_TYPE_JETPILOT 'e'
 
 
 #define DO_IT_RANDOMLY (-1)
@@ -284,14 +285,15 @@ struct level_descriptor_entry {
 	int nbridges;
 	int nbombs;
 	int ngbombs;
+	int jetpilot_firechance;
 };
 
 
-#define NEW_LEVEL(levelname, theobjlist, ssr, lsr, lfc, nbr, nbo, ngb) \
+#define NEW_LEVEL(levelname, theobjlist, ssr, lsr, lfc, nbr, nbo, ngb, jfc) \
 struct level_descriptor_entry levelname = { \
 	theobjlist, \
 	sizeof(theobjlist) / sizeof(theobjlist[0]), \
-	ssr, lsr, lfc, nbr, nbo, ngb }
+	ssr, lsr, lfc, nbr, nbo, ngb, jfc }
 
 /* Below, the game's levels are defined. */
 
@@ -457,13 +459,13 @@ struct level_obj_descriptor_entry jet_level_obj[] = {
 #define NBRIDGES 2		/* max initial number of bridges in terrain (less, if no valleys) */
 
 /* ---------------------level descriptors begin here.---------------------- */
-NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, LAZY_LASER, NBRIDGES, NBOMBS, NGBOMBS);
-NEW_LEVEL(jet_level, jet_level_obj, 0.11, 0.09, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
-NEW_LEVEL(level2, level_2_obj, 0.15, 0.09, LAZY_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
-NEW_LEVEL(level3, level_3_obj, 0.23, 0.23, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
-NEW_LEVEL(level4, level_4_obj, 0.29, 0.20, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
-NEW_LEVEL(level5, level_5_obj, 0.32, 0.32, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS);
-NEW_LEVEL(level6, level_6_obj, 0.14, 0.32, AGGRESSIVE_LASER, NBRIDGES + 3, NBOMBS, NGBOMBS);
+NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, LAZY_LASER, NBRIDGES, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
+NEW_LEVEL(jet_level, jet_level_obj, 0.11, 0.09, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
+NEW_LEVEL(level2, level_2_obj, 0.15, 0.09, LAZY_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
+NEW_LEVEL(level3, level_3_obj, 0.23, 0.23, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
+NEW_LEVEL(level4, level_4_obj, 0.29, 0.20, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
+NEW_LEVEL(level5, level_5_obj, 0.32, 0.32, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
+NEW_LEVEL(level6, level_6_obj, 0.14, 0.32, AGGRESSIVE_LASER, NBRIDGES + 3, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
 /* ---------------------level descriptors end here.---------------------- */
 
 
