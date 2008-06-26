@@ -4529,7 +4529,7 @@ void move_player(struct game_obj_t *o)
 				next_timer = timer + 60;	/* give them a little breather. */
 			}
 		} else {					/* same game, no new credit, no new lives */
-			next_timer = timer + 30;		/* 30 sec breather */
+			next_timer = timer + frame_rate_hz * 4;	/* 4 sec breather */
 			timer_event = READY_EVENT;		/* back to beginning of level. */
 		}
 	} 
