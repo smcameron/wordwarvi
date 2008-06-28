@@ -801,7 +801,9 @@ struct my_point_t jetpilot_points_left[] = {
 	{ 0, -8,  },
 	{ 2, -8,  },
 	{ 2, -5,  },
+	{ LINE_BREAK, LINE_BREAK },
 	{ COLOR_CHANGE, ORANGE },
+	{ 2, -5,  },
 	{ 0, -5,  },
 	{ 0, -8,  },
 	{ LINE_BREAK, LINE_BREAK },
@@ -3967,7 +3969,7 @@ void bomb_move(struct game_obj_t *o)
 							pilotx = t->x;
 							piloty = t->y;
 							pilotvx = t->vx;
-							pilotvy = t->vy - 10;
+							pilotvy = t->vy - 30;
 						}
 					}
 					if (score_table[t->otype] != 0) {
@@ -4935,7 +4937,7 @@ void laser_move(struct game_obj_t *o)
 						pilotx = t->x;
 						piloty = t->y;
 						pilotvx = t->vx;
-						pilotvy = t->vy - 10;
+						pilotvy = t->vy - 30;
 					}
 					if (t->otype == OBJ_TYPE_JET &&
 						(randomn(100) < 50)) {
