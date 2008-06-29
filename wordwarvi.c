@@ -3305,6 +3305,7 @@ void pilot_move(struct game_obj_t *o)
 {
 	int dvx, dvy, tx, ty;
 	int gy = 32756; /* big number. */
+	int exhaust_dx;
 
 	if (!o->alive)
 		return;
@@ -3336,6 +3337,7 @@ void pilot_move(struct game_obj_t *o)
 		dvy = -3;
 	else if (o->y > ty)
 		dvy = 0;
+
 #if 0
 		/* If we aren't close to the destination, every once in awhile, */
 		/* change the distination a bit.  This makes it a little less predictable */
@@ -3347,9 +3349,13 @@ void pilot_move(struct game_obj_t *o)
 #endif
 
 	{
-		int angle = ((timer * 3 + o->number*47) % 360);
-		tx = player->x + sine[angle] * 250;  
-		ty = player->y + cosine[angle] * 250;
+		int angle = ((timer * (3 + (o->number & 0x01)) + o->number) % 360);
+
+		if (o->number & 0x01)
+			angle = 360 - angle;
+
+		tx = player->x + sine[angle] * (250 + (o->number & 0x3f));
+		ty = player->y + cosine[angle] * (250 + (o->number & 0x3f));
 
 		if (ty > gy)
 			ty -= 100;
@@ -3383,9 +3389,21 @@ void pilot_move(struct game_obj_t *o)
 
 	o->vy++; /* gravity */
 
+	if (randomn(5) == 1) /* just to make things non-deterministic */
+		o->vy--;
+
+	/* make him face the right way, the way he's trying to go. */
+	if (dvx > 0) {
+		o->v = &jetpilot_vect_right;
+		exhaust_dx = 3;
+	} else if (dvx < 0) {
+		o->v = &jetpilot_vect_left;
+		exhaust_dx = 3;
+	}
+
 	/* shoot out some exhaust, only if we're trying to go "more up." */	
 	if (o->vy > dvy)
-		explode(o->x, o->y + 15, -o->vx, 20, 4, 8, 9);
+		explode(o->x + exhaust_dx, o->y, -o->vx, 7, 4, 8, 9);
 
 	if (randomn(1000) < (level.jetpilot_firechance)) {
 		int vx, vy;
@@ -3393,12 +3411,6 @@ void pilot_move(struct game_obj_t *o)
 		add_laserbolt(o->x, o->y, vx, vy, GREEN, 50);
 		add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
 	}
-
-	/* make him face the right way, the way he's trying to go. */
-	if (dvx > 0)
-		o->v = &jetpilot_vect_right;
-	else if (dvx < 0)
-		o->v = &jetpilot_vect_left;
 
 
 #if 0
@@ -5066,12 +5078,12 @@ void draw_spark(struct game_obj_t *o, GtkWidget *w)
 	if (x2 < 0 || x2 > SCREEN_WIDTH)
 		return;
 
-	x1 = x2 - o->vx;
+	x1 = x2 + o->vx;
 	if (x1 < 0 || x1 > SCREEN_WIDTH)
 		return;
 
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
-	y1 = y2 - o->vy;
+	y1 = y2 + o->vy;
 	if (brightsparks) {
 		gdk_gc_set_foreground(gc, &huex[WHITE]);
 		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
