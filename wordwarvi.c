@@ -3981,7 +3981,7 @@ void bomb_move(struct game_obj_t *o)
 							pilotx = t->x;
 							piloty = t->y;
 							pilotvx = t->vx;
-							pilotvy = t->vy - 30;
+							pilotvy = t->vy - 20;
 						}
 					}
 					if (score_table[t->otype] != 0) {
@@ -4949,7 +4949,7 @@ void laser_move(struct game_obj_t *o)
 						pilotx = t->x;
 						piloty = t->y;
 						pilotvx = t->vx;
-						pilotvy = t->vy - 30;
+						pilotvy = t->vy - 20;
 					}
 					if (t->otype == OBJ_TYPE_JET &&
 						(randomn(100) < 50)) {
