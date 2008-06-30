@@ -1,5 +1,39 @@
 Changelog for wordwarvi:
 
+Sun Jun 29 07:48:40 CDT 2008
+-------------------------------------------------------------------------------
+
+* Lose dependency of ogg_to_pcm.o on fake target HAS_VORBISFILE as
+  this caused "make install" to rebuild it, which is a no-go for
+  certain things (e.g. Fedora live-cd environment).   Thanks to
+  Hans de Goede for this correction.
+* Added a DESTDIR variable into the makefile to make packaging for
+  CRUX linux easier.  Thanks to Danny Rawlins for this patch.
+* Add changelog.txt and file describing how to make new levels
+  into the tarball.
+* Add some sanity checks of the VERSION string and version.h file
+  to help prevent me from screwing up the version numbers in released
+  tarballs.
+* Added little guys with jetpacks who shoot lasers at you.
+* Fixed bug that when you got killed and consequently drop the guys you'd been
+  carrying, the guys thought you just picked them up, and consequently shouted
+  in unison, "woohoo!", even though you just got killed, which was kind of cruel
+  of them.
+* When you get killed, the comments in the code say you get a 30 sec
+  breather (which is incredibly long.)   Actually, you got a 30 frame
+  breather -- a one second breather -- which was a bit too short.  Fixed
+  the code to give you a 4 second breather, which seems about right.
+* Improved the appearance of the jetpack guys.
+* Fixed a problem with the drawing of the jet pilots.
+* Now the jet pilots eject a lot faster, and so survive
+  the ejection (don't get immediately shot) more frequently.
+* Changed how sparks are drawn a bit to make exhaust of jetpacks
+  look better.
+* Changed how jetpack guys move to make them less robotic.
+* Reduce ejection speed of jetpilots so that you can kind of see
+  them and they don't seem to just come out of nowhere.
+* updated version.h to 0.17
+
 Sun Jun 22 09:23:32 CDT 2008
 -------------------------------------------------------------------------------
 Changes between version 0.15 and 0.16
