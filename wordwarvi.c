@@ -3349,7 +3349,7 @@ void pilot_move(struct game_obj_t *o)
 #endif
 
 	{
-		int angle = ((timer * (3 + (o->number & 0x01)) + o->number) % 360);
+		int angle = (((timer >> (o->number & 0x01)) * (3 + (o->number & 0x01)) + o->number) % 360);
 
 		if (o->number & 0x01)
 			angle = 360 - angle;
@@ -3393,7 +3393,7 @@ void pilot_move(struct game_obj_t *o)
 		o->vy--;
 
 	/* make him face the right way, the way he's trying to go. */
-	if (dvx > 0) {
+	if (dvx >= 0) {
 		o->v = &jetpilot_vect_right;
 		exhaust_dx = 3;
 	} else if (dvx < 0) {
