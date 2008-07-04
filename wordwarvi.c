@@ -5134,15 +5134,26 @@ void draw_missile(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, y1;
 	int dx, dy;
+	int rdx, rdy, rdx2, rdy2;
 
 	/* similar to sparks, but with a constant length.  Offsets are precomputed */
 	x1 = o->x - game_state.x;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 	dx = dx_from_vxy(o->vx, o->vy);
 	dy = -dy_from_vxy(o->vx, o->vy);
+	rdx = -dy / 16;
+	rdy = dx / 16;
+	rdx2 = -dy / 4;
+	rdy2 = dx / 4;
 	gdk_gc_set_foreground(gc, &huex[o->color]);
-	if (x1 > 0 && x1+dx*2 > 0)
-		wwvi_draw_line(w->window, gc, x1, y1, x1+dx*2, y1+dy*2); 
+	if (x1 > 0 && x1+dx*2 > 0 && x1 < SCREEN_WIDTH &&  x1+dx*2 < SCREEN_WIDTH) {
+		wwvi_draw_line(w->window, gc, x1+rdx, y1+rdy, x1+dx*2+rdx, y1+dy*2+rdy); 
+		wwvi_draw_line(w->window, gc, x1-rdx, y1-rdy, x1+dx*2-rdx, y1+dy*2-rdy); 
+		wwvi_draw_line(w->window, gc, x1+dx*2+rdx, y1+dy*2+rdy, x1+dx*2-rdx, y1+dy*2-rdy); 
+		wwvi_draw_line(w->window, gc, x1-rdx2, y1-rdy2, x1+rdx2, y1+rdy2); 
+		wwvi_draw_line(w->window, gc, x1-rdx2, y1-rdy2, x1+(dx/2), y1+(dy/2)); 
+		wwvi_draw_line(w->window, gc, x1+rdx2, y1+rdy2, x1+(dx/2), y1+(dy/2)); 
+	}
 }
 
 void draw_harpoon(struct game_obj_t *o, GtkWidget *w)
