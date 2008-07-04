@@ -8770,7 +8770,7 @@ void draw_radar(GtkWidget *w)
 	}
 
 	if (game_state.radar_state == RADAR_RUNNING) {
-		if (game_state.missile_locked) {
+		if (game_state.missile_locked && (timer & 0x04) == 0) {
 			gdk_gc_set_foreground(gc, &huex[RED]);
 			abs_xy_draw_string(w, "***MISSILE LOCK ON DETECTED***", 
 				TINY_FONT, x1 + 210-18, y1 + RADAR_HEIGHT-3);
