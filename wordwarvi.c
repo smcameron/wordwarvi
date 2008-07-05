@@ -194,9 +194,14 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define NBUILDINGS 15 		/* initial number of buildings on the terrain */
 #define MAXBUILDING_WIDTH 9	/* max building width, in terrain line segments */
 #define NFUELTANKS 20		/* Initial number of fuel tanks sprinkled around the terrain */
-#define FUELTANK_CAPACITY 30	/* How many hit points a fuel tank contains */
-#define REFUEL_RATE 1 		/* lower numbers = faster, used as modulo of timer */
-#define REFILL_RATE (frame_rate_hz * 3) /* lower numbers == faster, used as modulo of timer */
+/* How many hit points a fuel tank contains */
+#define FUELTANK_CAPACITY (game_state.max_player_health / 3)
+// #define REFUEL_RATE 1 		/* lower numbers = faster, used as modulo of timer */
+/* lower numbers = faster, used as modulo of timer */
+#define REFUEL_RATE (game_state.max_player_health >= 100 ? 1 : 100/game_state.max_player_health)	
+/* lower numbers == faster, used as modulo of timer */
+#define REFILL_RATE (FUELTANK_CAPACITY <= 30 ? 30/FUELTANK_CAPACITY * frame_rate_hz * 3 : frame_rate_hz * 3) 
+
 #define NJAMMERS 1		/* Initial number of radar jammers sprinkled through the terrain */
 #define NCRON 15 		/* Initial number of cron jobs sprinkeled through the terrain */
 #define NSHIPS 1		/* Initial number of clipper ships sprinkeled through the terrain */
@@ -209,8 +214,14 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define MAX_ALT 100		/* for "attract mode", max altitude above ground player flies. */
 #define MIN_ALT 50		/* for "attract mode", min altitude above ground player flies. */
 
-#define MAXHEALTH 100		/* Max, and initial health value of player */
-#define RADAR_FRITZ_HEALTH 30   /* If player's health drops below this, the radar goes on the fritz */
+#define EASY_MAXHEALTH 150		/* Max, and initial health value of player */
+#define MEDIUM_MAXHEALTH 100		/* Max, and initial health value of player */
+#define HARD_MAXHEALTH 32		/* Max, and initial health value of player */
+#define INSANE_MAXHEALTH 10		/* Max, and initial health value of player */
+#define BATSHIT_INSANE_MAXHEALTH 3	/* Max, and initial health value of player */
+
+		/* If player's health drops below this, the radar goes on the fritz */
+#define RADAR_FRITZ_HEALTH (game_state.max_player_health / 4)   
 #define NAIRSHIPS 1		/* Initial number of blimps sprinkled through the terrain */
 #define NBALLOONS 2 		/* Initial number of balloons sprinkled through the terrain */
 #define NWORMS 2		/* Initial number of worms sprinkled through the terrain */
@@ -1912,6 +1923,7 @@ struct game_state_t {
 	int nobjs;			/* max number of objects in the game */
 	int direction;			/* direction player is facing. 1 = left, -1 = right. */
 	int health;			/* Think of this as the player's hit points. */
+	int max_player_health;		/* maximum player health, affected by difficulty setting. */
 	int score;			/* Player's score */
 	int prev_score;			/* Used to detect changes in score for drawing routine efficiency. */
 	int nbombs;			/* number of bombs in the player's possession */
@@ -2255,7 +2267,7 @@ void fuel_move(struct game_obj_t *o)
 		ydist <= HUMANOID_DIST*5 &&		/* player close enough? */
 		(timer % REFUEL_RATE) == 0 && 		/* control refuel rate... */
 		o->tsd.fuel.level > 0 && 		/* there is some fuel to dispense? */
-		game_state.health < MAXHEALTH ) {	/* player's tank not full? */
+		game_state.health < game_state.max_player_health ) {	/* player's tank not full? */
 			o->tsd.fuel.level--;		/* ...give player some fuel. */
 			game_state.health++;
 	} else 
@@ -4072,8 +4084,8 @@ void bomb_move(struct game_obj_t *o)
 						t->destroy(t);
 						/* if (t->otype == OBJ_TYPE_FUEL) {
 							game_state.health += 10;
-							if (game_state.health > MAXHEALTH)
-								game_state.health = MAXHEALTH;
+							if (game_state.health > game_state.max_player_health)
+								game_state.health = game_state.max_player_health;
 						} */
 						t = next;
 						removed = 1;
@@ -4236,7 +4248,7 @@ void volcano_move(struct game_obj_t *o)
 	if (player_dist < 250) {
 		game_state.corrosive_atmosphere = 1;
 		// corrosive_atmosphere_sound();
-		if ((timer & 0x03) == 3) 
+		if ((timer & 0x03) == 3 && game_state.max_player_health >= 50) 
 			game_state.health--;
 	} else
 		game_state.corrosive_atmosphere = 0;
@@ -4973,8 +4985,8 @@ void laser_move(struct game_obj_t *o)
 					kill_object(t);
 					/* if (t->otype == OBJ_TYPE_FUEL) {
 						game_state.health += 10;
-						if (game_state.health > MAXHEALTH)
-							game_state.health = MAXHEALTH;
+						if (game_state.health > game_state.max_player_health)
+							game_state.health = game_state.max_player_health;
 					} */
 					t->destroy(t);
 					t = next;
@@ -8675,7 +8687,7 @@ void draw_radar(GtkWidget *w)
 	if (game_state.health > 0)
 		wwvi_draw_rectangle(w->window, gc, TRUE, RADAR_LEFT_MARGIN, 
 			SCREEN_HEIGHT - RADAR_HEIGHT - RADAR_YMARGIN - 10, 
-			((SCREEN_WIDTH - RADAR_LEFT_MARGIN - RADAR_RIGHT_MARGIN) * game_state.health / MAXHEALTH), 
+			((SCREEN_WIDTH - RADAR_LEFT_MARGIN - RADAR_RIGHT_MARGIN) * game_state.health / game_state.max_player_health), 
 			RADAR_YMARGIN - 5);
 #if 1
 	if (game_state.radar_state == RADAR_RUNNING) {
@@ -9391,7 +9403,7 @@ void initialize_game_state_new_level()
 	game_state.lives = 3;
 	game_state.humanoids = 0;
 	game_state.prev_score = 0;
-	game_state.health = MAXHEALTH;
+	game_state.health = game_state.max_player_health;
 	game_state.nbombs = leveld[level.level_number]->nbombs;
 	game_state.ngbombs = leveld[level.level_number]->ngbombs;
 	game_state.prev_bombs = -1;
@@ -9449,7 +9461,7 @@ void start_level()
 	player->tsd.epd.count2 = 50;
 	player->radar_image = 2;
 	player->otype = OBJ_TYPE_PLAYER;
-	game_state.health = MAXHEALTH;
+	game_state.health = game_state.max_player_health;
 	game_state.nbombs = leveld[level.level_number]->nbombs;
 	game_state.ngbombs = leveld[level.level_number]->ngbombs;
 	game_state.prev_bombs = -1;
@@ -11208,6 +11220,7 @@ static struct option wordwarvi_options[] = {
 	{ "randomize", 0, NULL, 13 },
 	{ "randomseed", 1, NULL, 14 },
 	{ "nomissilealarm", 0, NULL, 16 },
+	{ "difficulty", 1, NULL, 17 },
 #ifdef LEVELWARP
 	{ "levelwarp", 1, NULL, 15 },
 #endif
@@ -11222,6 +11235,7 @@ void usage()
 	fprintf(stderr, "--bw              Render in black and white.\n");
 	fprintf(stderr, "--blueprint       Render in the style of a blueprint.\n");
 	fprintf(stderr, "--brightsparks    Render sparks brighter than usual.\n");
+	fprintf(stderr, "--difficulty      Sets difficulty level: medium, hard, insane, batshit-insane.\n");
 	fprintf(stderr, "--framerate n     Attempt to render the game at n frames per second.\n");
 	fprintf(stderr, "--fullscreen      Render the game in full screen mode.\n");
 	fprintf(stderr, "--height y        Render the game y pixels high.\n");
@@ -11309,6 +11323,27 @@ char *trim_whitespace(char *s)
 	return x;
 }
 
+int set_difficulty(char *difficulty)
+{
+	if (strcmp(difficulty, "easy")==0) {
+		game_state.max_player_health = EASY_MAXHEALTH;
+		return 0;
+	} else if (strcmp(difficulty, "medium")==0) {
+		game_state.max_player_health = MEDIUM_MAXHEALTH;
+		return 0;
+	} else if (strcmp(difficulty, "hard")==0) {
+		game_state.max_player_health = HARD_MAXHEALTH;
+		return 0;
+	} else if (strcmp(difficulty, "insane")==0) {
+		game_state.max_player_health = INSANE_MAXHEALTH;
+		return 0;
+	} else if (strcmp(difficulty, "batshit-insane")==0) {
+		game_state.max_player_health = BATSHIT_INSANE_MAXHEALTH;
+		return 0;
+	}
+	return 1;
+}
+
 void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 	int *framerate, int *levelwarp, int *randomseed, 
 	int *sounddevice, char *joystickdevice)
@@ -11324,6 +11359,7 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 	int fr, lw, rs, sd, h, w, xa, ya, button;
 	int lineno = 0;
 	char keyname[256], actionname[256];
+	char difficulty[256];
 
 	game_state.x_joystick_axis = 0;
 	game_state.y_joystick_axis = 0;
@@ -11406,6 +11442,11 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 				current_draw_rectangle = gdk_draw_rectangle;
 			}
 			continue;
+		}
+		rc = sscanf(s, "set difficulty=%s\n", difficulty);
+		if (rc == 1) {
+			if (set_difficulty(difficulty) == 0)
+				continue;
 		}
 		rc = sscanf(s, "set joystick-x-axis=%d\n", &xa);
 		if (rc == 1 && (xa == 0 || xa == 1 || xa == -1)) {
@@ -11492,10 +11533,12 @@ int main(int argc, char *argv[])
 	real_screen_width = SCREEN_WIDTH;
 	real_screen_height = SCREEN_HEIGHT;
 	frame_rate_hz = FRAME_RATE_HZ;
+	char difficulty[256];
 	// current_draw_line = crazy_line;
 	// current_draw_rectangle = crazy_rectangle;
 
 	init_keymap();
+	game_state.max_player_health = MEDIUM_MAXHEALTH;
 	read_exrc_file(&no_colors_any_more, &blueprint, &retrogreen, &frame_rate_hz,
 		&levelwarp, &initial_random_seed, &sound_device, joystick_device);
 
@@ -11627,13 +11670,22 @@ int main(int argc, char *argv[])
 			case 16: /* no missile alarm */
 				want_missile_alarm = 0;
 				break;
+			case 17: /* difficulty */
+				n = sscanf(optarg, "%s", difficulty);
+				if (n != 1) {
+					fprintf(stderr, "Bad difficulty level setting\n");
+					exit(1);
+				}
+				if (set_difficulty(difficulty) != 0) {
+					fprintf(stderr, "Bad difficulty level setting: '%s'\n", difficulty);
+					exit(1);
+				}
+				break;
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
-				
 		}
 	}
-
 
 	init_highscores();
 	level.random_seed = initial_random_seed;
