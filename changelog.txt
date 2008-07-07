@@ -1,7 +1,19 @@
 Changelog for wordwarvi:
 
+Sun Jul  6 22:27:48 CDT 2008
+-------------------------------------------------------------------------------
+Changes between version 0.17 and 0.18
+
+* Improved motion of jetpack pilots, fixed problem where jetpack pilots
+  exhaust offset (left or right) could be uninitialized.
+* Made ***MISSILE LOCK ON DETECTED*** message blink.
+* Added "--difficulty" option with new difficulty levels, easy, medium, hard,
+  insane, and batshit-insane.
+
+
 Sun Jun 29 07:48:40 CDT 2008
 -------------------------------------------------------------------------------
+Changes between version 0.16 and 0.17
 
 * Lose dependency of ogg_to_pcm.o on fake target HAS_VORBISFILE as
   this caused "make install" to rebuild it, which is a no-go for
