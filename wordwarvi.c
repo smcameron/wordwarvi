@@ -9487,7 +9487,7 @@ gint advance_game(gpointer data)
 			// if (game_state.go[i].alive && game_state.go[i].move == NULL)
 				// printf("NULL MOVE!\n");
 		}
-		if (game_state.missile_locked && timer % 20 == 0 && want_missile_alarm)
+		if (game_state.missile_locked && timer % 10 == 0 && want_missile_alarm)
 			add_sound(MISSILE_LOCK_SIREN_SOUND, ANY_SLOT);
 	}
 	gtk_widget_queue_draw(main_da);
@@ -11044,7 +11044,7 @@ int init_clips()
 	read_ogg_clip(SAM_LAUNCH_SOUND, "sounds/missile_launch_2.ogg");
 	read_ogg_clip(THUNDER_SOUND, "sounds/synthetic_thunder_short.ogg");
 	read_ogg_clip(INTERMISSION_MUSIC_SOUND, "sounds/dtox3monomix.ogg");
-	read_ogg_clip(MISSILE_LOCK_SIREN_SOUND, "sounds/missile_alarm.ogg");
+	read_ogg_clip(MISSILE_LOCK_SIREN_SOUND, "sounds/missile_alarm_2.ogg");
 	read_ogg_clip(CARDOOR_SOUND, "sounds/toyota_celica_cardoor_sample.ogg");
 	read_ogg_clip(WOOHOO_SOUND, "sounds/woohoo.ogg");
 	read_ogg_clip(OWMYSPINE_SOUND, "sounds/ow_my_spine.ogg");
