@@ -3667,7 +3667,7 @@ void socket_move(struct game_obj_t *o)
 	xdist = abs(o->x - player->x);
 	ydist = abs(o->y - player->y);
 	/* HUMANOID_DIST is close enough */
-	if (xdist < HUMANOID_DIST && ydist < HUMANOID_DIST 
+	if (xdist < HUMANOID_DIST*3 && ydist < HUMANOID_DIST*2 
 		&& timer_event != START_INTERMISSION_EVENT) {
 		gettimeofday(&game_state.finish_time, NULL);
 		add_sound(WOOHOO_SOUND, ANY_SLOT);
