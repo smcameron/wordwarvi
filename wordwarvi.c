@@ -58,6 +58,8 @@
 #define NCLIPS (50)
 #define MAX_CONCURRENT_SOUNDS (26)
 
+#define DEBUG_HITZONE 0
+
 // #define DEBUG_TARGET_LIST 
 
 /* define sound clip constants, and dedicated sound queue slots. */
@@ -1886,6 +1888,8 @@ struct game_obj_t {
 	struct my_vect_obj *v;		/* drawing instructions */
 	int x, y;			/* current position, in game coords */
 	int vx, vy;			/* velocity */
+	int above_target_y;
+	int below_target_y;
 	int color;			/* initial color */
 	int alive;			/* alive?  Or dead? */
 	int otype;			/* object type */
@@ -4873,6 +4877,13 @@ void laser_draw(struct game_obj_t *o,  GtkWidget *w)
 	gdk_gc_set_foreground(gc, &huex[o->color]);
 	wwvi_draw_line(w->window, gc, x1, y1-1, x2, y1-1);
 	wwvi_draw_line(w->window, gc, x1, y1+1, x2, y1+1);
+#if DEBUG_HITZONE
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	if (o->vx < 0) 
+		wwvi_draw_rectangle(w->window, gc, 0, x1 + o->vx, y1 - LASER_Y_PROXIMITY, -o->vx, LASER_Y_PROXIMITY*2);
+	else
+		wwvi_draw_rectangle(w->window, gc, 0, x1 - o->vx, y1 - LASER_Y_PROXIMITY, o->vx, LASER_Y_PROXIMITY*2);
+#endif
 }
 
 void laser_move(struct game_obj_t *o)
@@ -4939,7 +4950,19 @@ void laser_move(struct game_obj_t *o)
 
 				/* check y value first. */
 				hit = 0;
+#if 0
 				if (abs(o->y - t->y) <= LASER_Y_PROXIMITY) {
+					if (o->vx > 0) {
+						if (o->x > t->x && o->x - o->vx < t->x)
+							hit=1;
+					} else {
+						if (o->x < t->x && o->x - o->vx > t->x)
+							hit=1;
+					}
+				}
+#endif
+
+				if (o->y > t->y + t->above_target_y && o->y < t->y + t->below_target_y) {
 					if (o->vx > 0) {
 						if (o->x > t->x && o->x - o->vx < t->x)
 							hit=1;
@@ -5463,6 +5486,8 @@ static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
 	o->missile_timer = 0;
 	o->counter = 0;
 	o->radar_image = 0;
+	o->above_target_y = - LASER_Y_PROXIMITY;
+	o->below_target_y = LASER_Y_PROXIMITY;
 	return o;
 }
 
@@ -6479,6 +6504,19 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 {
 	int j;
 	int x1, y1, x2, y2;
+#if DEBUG_HITZONE
+	if (o->ontargetlist) {
+		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		x1 = o->x - game_state.x;
+		y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
+		if (x1 > 0 && x1 < SCREEN_WIDTH && y1 < SCREEN_HEIGHT && y1 > 0) {
+			// wwvi_draw_line(w->window, gc, x1-10, y1, x1+10, y1); 
+			wwvi_draw_line(w->window, gc, x1, y1-10, x1, y1+10); 
+			wwvi_draw_line(w->window, gc, x1-10, y1 + o->above_target_y, x1+10, y1 + o->above_target_y); 
+			wwvi_draw_line(w->window, gc, x1-10, y1 + o->below_target_y, x1+10, y1 + o->below_target_y); 
+		}
+	}
+#endif
 	gdk_gc_set_foreground(gc, &huex[o->color]);
 	x1 = o->x + o->v->p[0].x - game_state.x;
 	y1 = o->y + o->v->p[0].y - game_state.y + (SCREEN_HEIGHT/2);  
@@ -6885,6 +6923,19 @@ void draw_objs(GtkWidget *w)
 			wwvi_draw_line(w->window, gc, x1-5, y1, x1+5, y1);
 			wwvi_draw_line(w->window, gc, x1, y1-5, x1, y1+5);
 		}
+#endif
+#if DEBUG_HITZONE
+	if (o->ontargetlist) {
+		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		x1 = o->x - game_state.x;
+		y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
+		if (x1 > 0 && x1 < SCREEN_WIDTH && y1 < SCREEN_HEIGHT && y1 > 0) {
+			//wwvi_draw_line(w->window, gc, x1-10, y1, x1+10, y1); 
+			wwvi_draw_line(w->window, gc, x1, y1-10, x1, y1+10); 
+			wwvi_draw_line(w->window, gc, x1-10, y1 + o->above_target_y, x1+10, y1 + o->above_target_y); 
+			wwvi_draw_line(w->window, gc, x1-10, y1 + o->below_target_y, x1+10, y1 + o->below_target_y); 
+		}
+	}
 #endif
 		/* If there's no special drawing function, and the object has */
 		/* a list of line segments to draw, draw them.  This is an */
@@ -7380,6 +7431,7 @@ static void add_flak_guns(struct terrain_t *t, struct level_obj_descriptor_entry
 			o->health.maxhealth = level.kgun_health;
 			o->health.health = o->health.maxhealth;
 			o->health.prevhealth = -1;
+			o->above_target_y = -3 * LASER_Y_PROXIMITY;
 			level.nflak++;
 		}
 	}
@@ -7413,6 +7465,8 @@ static void add_kernel_guns(struct terrain_t *t, struct level_obj_descriptor_ent
 			o->health.maxhealth = level.kgun_health;
 			o->health.health = o->health.maxhealth;
 			o->health.prevhealth = -1;
+			o->above_target_y = -10;
+			o->below_target_y = 10;
 			if (j != 0) {
 				o->tsd.truss.above = p;
 				p->tsd.truss.below = o;
@@ -7434,6 +7488,7 @@ static void add_kernel_guns(struct terrain_t *t, struct level_obj_descriptor_ent
 			o->tsd.kgun.size = 31;	/* biggest size */
 			o->tsd.kgun.invert = 1;	/* this means hanging upside down */
 			o->tsd.kgun.velocity_factor = 1;	/* normal laser speed */
+			o->below_target_y = 3 * LASER_Y_PROXIMITY;
 		}
 		if (p != NULL)
 			p->tsd.truss.below = o;
@@ -8028,6 +8083,8 @@ static void add_cron(struct terrain_t *t, struct level_obj_descriptor_entry *ent
 			o->radar_image = 1;
 			o->tsd.cron.state = CRON_STATE_SEEKING_HUMAN;
 			o->tsd.cron.pissed_off_timer = 0;
+			o->above_target_y = -15;
+			o->below_target_y = 0;
 			level.ncron++;
 		}
 	}
@@ -8050,6 +8107,8 @@ static void add_jammers(struct terrain_t *t, struct level_obj_descriptor_entry *
 			o->tsd.jammer.width = 0;
 			o->tsd.jammer.direction = 2;
 			o->radar_image = 1;
+			o->above_target_y = -20;
+			o->below_target_y = 0;
 			level.njammers++;
 		}
 		
@@ -8068,6 +8127,8 @@ static void add_fuel(struct terrain_t *t, struct level_obj_descriptor_entry *ent
 		if (o) {
 			o->tsd.fuel.level = FUELTANK_CAPACITY;
 			level.nfueltanks++;
+			o->above_target_y = -2 * LASER_Y_PROXIMITY;
+			o->below_target_y = 3 * LASER_Y_PROXIMITY;
 		}
 	}
 }
@@ -8103,6 +8164,8 @@ static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *e
 			o->destroy = octopus_destroy;
 			o->tsd.octopus.awake = 0;
 			o->radar_image = 1;
+			o->above_target_y = -25;
+			o->below_target_y = 5;
 
 			/* Make the tentacles. */
 			for (j=0;j<8;j++) {
@@ -8155,6 +8218,8 @@ static void add_gdbs(struct terrain_t *t, struct level_obj_descriptor_entry *ent
 			o->tsd.gdb.awake = 0;
 			o->radar_image = 1;
 			level.ngdbs++;
+			o->above_target_y = -20;
+			o->below_target_y = 0;
 		}
 	
 	}
@@ -8201,11 +8266,16 @@ static void add_tentacles(struct terrain_t *t, struct level_obj_descriptor_entry
 static void add_SAMs(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int xi, i;
+	struct game_obj_t *o;
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
-		add_generic_object(t->x[xi], t->y[xi], 0, 0, 
+		o = add_generic_object(t->x[xi], t->y[xi], 0, 0, 
 			sam_move, NULL, WHITE, &SAM_station_vect, 1, OBJ_TYPE_SAM_STATION, 1);
-		level.nsams++;
+		if (o) {
+			o->above_target_y = -50;
+			o->below_target_y = 0;
+			level.nsams++;
+		}
 	}
 }
 
