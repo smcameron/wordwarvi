@@ -270,6 +270,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 
 /* some globals... maybe should be in game_state */
 int game_pause = 0;		/* is game paused? */
+int game_pause_help = 0;	/* is game in help-pause mode? */
 int in_the_process_of_quitting = 0;
 int current_quit_selection = 0;
 int final_quit_selection = 0;
@@ -6409,6 +6410,34 @@ void no_draw(struct game_obj_t *o, GtkWidget *w)
 	return;
 }
 
+void draw_abs_scaled_generic(int x, int y, 
+	struct my_vect_obj *v, GtkWidget *w, float xscale, float yscale)
+{
+	int j;
+	int x1, y1, x2, y2;
+	x1 = x + (v->p[0].x * xscale);
+	y1 = y + (v->p[0].y * yscale);  
+	for (j=0;j<v->npoints-1;j++) {
+		if (v->p[j+1].x == LINE_BREAK) { /* Break in the line segments. */
+			j+=2;
+			x1 = x + (v->p[j].x * xscale);
+			y1 = y + (v->p[j].y * yscale);  
+		}
+		if (v->p[j].x == COLOR_CHANGE) {
+			gdk_gc_set_foreground(gc, &huex[v->p[j].y]);
+			j+=1;
+			x1 = x + (v->p[j].x * xscale);
+			y1 = y + (v->p[j].y * yscale);  
+		}
+		x2 = x + (v->p[j+1].x * xscale); 
+		y2 = y + (v->p[j+1].y * yscale);
+		if (x1 > 0 && x2 > 0)
+			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+		x1 = x2;
+		y1 = y2;
+	}
+}
+
 /* this is what can draw a list of line segments with line
  * breaks and color changes...   This one scales in x, y.
  * It's used for drawing blimps which are overpressurized.
@@ -8875,6 +8904,9 @@ static void draw_quit_screen(GtkWidget *w)
 	}
 }
 
+
+
+static void draw_help_screen(GtkWidget *w);
 /* This is the expose function of the main drawing area.  This is */
 /* where everything gets drawn. */
 static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
@@ -8962,6 +8994,9 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	if (in_the_process_of_quitting)
 		draw_quit_screen(w);
 
+	if (game_pause_help)
+		draw_help_screen(w);
+
 	return 0;
 }
 static void do_game_pause( GtkWidget *widget,
@@ -8977,6 +9012,23 @@ static void do_game_pause( GtkWidget *widget,
 		gtk_widget_queue_draw(main_da);
 	}
 }
+
+static void do_game_pause_help( GtkWidget *widget,
+                   gpointer   data )
+{
+	if (game_pause_help) {
+		game_pause_help = 0;
+		game_pause = 0;
+	} else {
+		game_pause_help = 1;
+		game_pause = 1;
+		/* Queue a redraw, otherwise, we won't necessarily get a */
+		/* redraw. Need this for the "Time warp activated."      */
+		/* message to appear in the radar screen. */
+		gtk_widget_queue_draw(main_da);
+	}
+}
+
 
 /* This is a callback function. The data arguments are ignored
  * in this example. More on callbacks below. */
@@ -9305,7 +9357,15 @@ gint advance_game(gpointer data)
 {
 	int i, ndead, nalive;
 
+
 	if (game_pause == 1) {
+		if (game_pause_help) {
+			deal_with_keyboard();
+			gdk_threads_enter();
+			gtk_widget_queue_draw(main_da);
+			nframes++;
+			gdk_threads_leave();
+		}
 		return TRUE;
 	}
 
@@ -9654,7 +9714,7 @@ enum keyaction { keynone, keydown, keyup, keyleft, keyright,
 		keyquarter, keypause, key2, key3, key4, key5, key6,
 		key7, key8, keysuicide, keyfullscreen, keythrust, 
 		keysoundeffects, keymusic, keyquit, keytogglemissilealarm,
-		keyreverse
+		keypausehelp, keyreverse
 };
 
 char *keyactionstring[] = {
@@ -9662,7 +9722,7 @@ char *keyactionstring[] = {
 	"laser", "bomb", "chaff", "gravitybomb",
 	"quarter", "pause", "2x", "3x", "4x", "5x", "6x",
 	"7x", "8x", "suicide", "fullscreen", "thrust", 
-	"soundeffest", "music", "quit", "missilealarm", "reverse"
+	"soundeffect", "music", "quit", "missilealarm", "help", "reverse"
 };
 
 enum keyaction jsbuttonaction[10] = {
@@ -9753,6 +9813,10 @@ void deal_with_joystick()
 					next_quarter_time = timer + frame_rate_hz;
 				}
 			}
+		return;
+	}
+
+	if (game_pause_help) {
 		return;
 	}
 
@@ -9907,6 +9971,8 @@ void deal_with_joystick()
 				do_bomb = 1;
 				break;
 			case keypause:
+				break;
+			case keypausehelp:
 				break;
 			case keychaff:
 				do_chaff = 1;
@@ -10307,6 +10373,184 @@ enum keyaction keymap[256];
 enum keyaction ffkeymap[256];
 unsigned char *keycharmap[256];
 
+static int helpscreen_pixel_row = -40;
+line_drawing_function *old_line_draw;
+
+void draw_line_help(GdkDrawable *drawable,
+	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
+{
+	y1 = y1 - helpscreen_pixel_row;
+	y2 = y2 - helpscreen_pixel_row;
+
+	if (	x1 < 50 || x1 > SCREEN_WIDTH-100 || 
+		y1 < 100 || y1 > SCREEN_HEIGHT-100 ||
+		x2 < 50 || x2 > SCREEN_WIDTH-100 ||
+		y2 < 100 || y2 > SCREEN_HEIGHT-100) 
+		return;
+	old_line_draw(drawable, gc, x1, y1, x2, y2);
+}
+
+static void draw_help_screen(GtkWidget *w)
+{
+	enum keyaction k;
+	int row, column;
+	int max_y;
+
+
+	gdk_gc_set_foreground(gc, &huex[BLACK]);
+	wwvi_draw_rectangle(w->window, gc, TRUE, 50, 50, SCREEN_WIDTH-100, SCREEN_HEIGHT-100);
+	gdk_gc_set_foreground(gc, &huex[RED]);
+	wwvi_draw_rectangle(w->window, gc, FALSE, 50, 50, SCREEN_WIDTH-100, SCREEN_HEIGHT-100);
+
+	if (helpscreen_pixel_row > -30)
+		abs_xy_draw_string(w, "-- More Above --", TINY_FONT, 80, 70);
+
+	old_line_draw = current_draw_line; 
+	current_draw_line = draw_line_help; 
+
+	gdk_gc_set_foreground(gc, &huex[GREEN]);
+	abs_xy_draw_string(w, "Things you may encounter:", SMALL_FONT, 80, 90);
+	// abs_xy_draw_string(w, "Help?", BIG_FONT, 300, 280);
+	gdk_gc_set_foreground(gc, &huex[GREEN]);
+	draw_abs_scaled_generic(80, 130, &cron_vect, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Cron Job", TINY_FONT, 110, 130);
+	gdk_gc_set_foreground(gc, &huex[CYAN]);
+	draw_abs_scaled_generic(80, 180, &gdb_vect_left, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "gdb", TINY_FONT, 110, 180);
+	gdk_gc_set_foreground(gc, &huex[CYAN]);
+	draw_abs_scaled_generic(80, 230, &rocket_vect, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Rocket", TINY_FONT, 110, 230);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	draw_abs_scaled_generic(80, 280, &SAM_station_vect, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "SAM station", TINY_FONT, 110, 280);
+
+	gdk_gc_set_foreground(gc, &huex[CYAN]);
+	draw_abs_scaled_generic(260, 130, &airship_vect, w, 0.1, 0.1);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "EMACS (Stallman's airship)", TINY_FONT, 310, 130);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	draw_abs_scaled_generic(260, 180, &jet_vect, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Jet", TINY_FONT, 310, 180);
+	gdk_gc_set_foreground(gc, &huex[RED]);
+	draw_abs_scaled_generic(260, 230, &kgun_vect, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Laser turret", TINY_FONT, 310, 230);
+	gdk_gc_set_foreground(gc, &huex[CYAN]);
+	draw_abs_scaled_generic(260, 280, &balloon_vect, w, 0.2, 0.2);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "fetchmail", TINY_FONT, 310, 280);
+	abs_xy_draw_string(w, "(Raymond's Gasbag)", TINY_FONT, 310, 300);
+	
+	gdk_gc_set_foreground(gc, &huex[ORANGE]);
+	draw_abs_scaled_generic(570, 130, &fuel_vect, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Fuel tank", TINY_FONT, 620, 130);
+	gdk_gc_set_foreground(gc, &huex[MAGENTA]);
+	draw_abs_scaled_generic(570, 180, &humanoid_vect, w, 1.0, 1.0);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, ".swp file", TINY_FONT, 620, 180);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	draw_abs_scaled_generic(570, 230, &socket_vect, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "socket", TINY_FONT, 620, 230);
+	gdk_gc_set_foreground(gc, &huex[GREEN]);
+	draw_abs_scaled_generic(570, 280, &jetpilot_vect_right, w, 1.0, 1.0);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Jet pilot", TINY_FONT, 620, 280);
+
+	row = 0;
+	column = 0;
+	gdk_gc_set_foreground(gc, &huex[GREEN]);
+	abs_xy_draw_string(w, "Controls:", SMALL_FONT, 80, 330);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+
+	for (k=keydown;k<=keyreverse;k++) {
+		char str[50];
+		int i, j, foundit;
+
+		foundit = 0;
+		for (i=0;i<sizeof(keymap)/sizeof(keymap[0]);i++) {
+			if (keymap[i] == k) {
+				for (j=0;j<sizeof(keyname_value_map)/sizeof(keyname_value_map[0]);j++) {
+					if (keyname_value_map[j].value == i) {
+						sprintf(str, "%15s %s", keyactionstring[k],
+							keyname_value_map[j].name);
+
+						abs_xy_draw_string(w, str, TINY_FONT, 80 + 200*column, 380 + row*20);
+						column++;
+						if (column > 2) {
+							column = 0;
+							row++;
+						}
+						// foundit = 1;
+						// break;
+					}
+				}
+			} else if (ffkeymap[i] == k) {
+				for (j=0;j<sizeof(keyname_value_map)/sizeof(keyname_value_map[0]);j++) {
+					if ((keyname_value_map[j].value & 0x00ff) == i &&
+						(keyname_value_map[j].value & 0xff00) != 0) {
+						sprintf(str, "%15s %s", keyactionstring[k],
+							keyname_value_map[j].name);
+
+						abs_xy_draw_string(w, str, TINY_FONT, 80 + 200*column, 380 + row*20);
+						column++;
+						if (column > 2) {
+							column = 0;
+							row++;
+						}
+						// foundit = 1;
+						// break;
+					}
+				}
+			}
+			if (foundit)
+				break;
+		}
+	}
+	max_y = 380 + row*20 + 30;
+
+	if (game_state.key_up_pressed  && helpscreen_pixel_row > -40) {
+			helpscreen_pixel_row -= 5;
+	}
+	if ((game_state.key_down_pressed || game_state.key_laser_pressed)
+		&& helpscreen_pixel_row < (max_y - (SCREEN_HEIGHT-100)) ) {
+			helpscreen_pixel_row += 5;
+	}
+
+	current_draw_line = old_line_draw; 
+
+	gdk_gc_set_foreground(gc, &huex[RED]);
+	if (helpscreen_pixel_row < (max_y - (SCREEN_HEIGHT-100)))
+		abs_xy_draw_string(w, "-- More Below --", TINY_FONT, 80, SCREEN_HEIGHT-65);
+
+#if 0
+	if (current_help_selection == 1) {
+		x = 130;
+		gdk_gc_set_foreground(gc, &huex[WHITE]);
+	} else {
+		x = 480;
+		gdk_gc_set_foreground(gc, &huex[RED]);
+	}
+	abs_xy_draw_string(w, "Yes help", SMALL_FONT, 150, 450);
+	if (current_quit_selection == 0)
+		gdk_gc_set_foreground(gc, &huex[WHITE]);
+	else
+		gdk_gc_set_foreground(gc, &huex[RED]);
+	abs_xy_draw_string(w, "no help", SMALL_FONT, 500, 450);
+
+	if ((quittimer & 0x04)) {
+		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		wwvi_draw_rectangle(w->window, gc, FALSE, x, 420, 200, 50);
+	}
+#endif
+}
+
 void init_keymap()
 {
 	memset(keymap, 0, sizeof(keymap));
@@ -10337,6 +10581,7 @@ void init_keymap()
 	keymap[GDK_c] = keychaff;
 	keymap[GDK_x] = keythrust;
 	keymap[GDK_p] = keypause;
+	ffkeymap[GDK_F1 & 0x00ff] = keypausehelp;
 	keymap[GDK_q] = keyquarter;
 	keymap[GDK_m] = keymusic;
 	keymap[GDK_s] = keysoundeffects;
@@ -10495,7 +10740,10 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		want_missile_alarm = !want_missile_alarm;
 		return TRUE;
 	case keyquit:
-		in_the_process_of_quitting = !in_the_process_of_quitting;
+		if (game_pause_help)
+			do_game_pause_help(widget, NULL);
+		else
+			in_the_process_of_quitting = !in_the_process_of_quitting;
 		return TRUE;	
 	case keyquarter:
 		insert_quarter();
@@ -10588,6 +10836,10 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		// if (game_state.health <= 0 || credits <= 0)
 		//	return TRUE;
 		do_game_pause(widget, NULL);
+		return TRUE;
+
+	case keypausehelp:
+		do_game_pause_help(widget, NULL);
 		return TRUE;
 #if 0
 	/* just for debugging. */
