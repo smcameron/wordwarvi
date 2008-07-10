@@ -71,6 +71,7 @@ license.  See: http://creativecommons.org/licenses/by-sa/3.0/
 	missile_launch_2.ogg
 	missile_explosion.ogg
 	missile_alarm.ogg
+	missile_alarm_2.ogg
 	flak_hit.ogg
 	flak_gun_sound.ogg
 	bombexplosion.ogg
