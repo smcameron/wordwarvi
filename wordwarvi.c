@@ -5290,7 +5290,7 @@ void move_missile(struct game_obj_t *o)
 	}
 
 	/* Adjust velocity towards desired vx,vy, but, only once every other clock tick */
-	if ((timer % 2) == 0) {
+	if ((timer & 0x3) != 0) {
 		if (o->vx < desired_vx)
 			o->vx++;
 		else if (o->vx > desired_vx)
@@ -5299,6 +5299,21 @@ void move_missile(struct game_obj_t *o)
 			o->vy++;
 		else if (o->vy > desired_vy)
 			o->vy--;
+
+		/* keep missile from going too slow. */
+		if ((abs(o->vx) + abs(o->vy)) < (MAX_MISSILE_VELOCITY - 10)) {
+			if (abs(dx) < abs(dy)) {
+				if (o->vx < 0)
+					o->vx -= 2;
+				else
+				   o->vx +=2;
+			} else {
+				if (o->vy < 0)
+					o->vy -= 2;
+				else
+					o->vy +=2;
+			}
+		}
 	}
 
 	/* make some exhaust sparks. */
