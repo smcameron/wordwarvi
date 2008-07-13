@@ -5417,7 +5417,7 @@ void move_harpoon(struct game_obj_t *o)
 	/* make some exhaust sparks. */
 	exvx = -dx_from_vxy(o->vx, o->vy) + randomn(2)-1;
 	exvy = dy_from_vxy(o->vx, o->vy) + randomn(2)-1;
-	explode(o->x + exvx + randomn(4)-2, o->y + exvy + randomn(4)-2, exvx, exvy, 4, 8, 9);
+	explode(o->x, o->y, exvx, exvy, 4, 8, 9);
 }
 
 void move_bullet(struct game_obj_t *o)
