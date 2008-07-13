@@ -458,8 +458,8 @@ struct level_parameters_t {
 /**** LETTERS and stuff *****/
 
 /* special values to do with drawing shapes. */
-#define LINE_BREAK (-999)
-#define COLOR_CHANGE (-1000) /* note, color change can ONLY follow LINE_BREAK */
+#define LINE_BREAK (-9999)
+#define COLOR_CHANGE (-9998) /* note, color change can ONLY follow LINE_BREAK */
 
 typedef unsigned char stroke_t;
 
@@ -574,7 +574,7 @@ stroke_t glyph_apostrophe[] = { 7, 5, 99 };
 stroke_t glyph_asterisk[] = { 9, 5, 21, 3, 11, 21, 6, 8, 21, 4, 10, 99 };
 
 struct my_point_t {
-	int x,y;
+	short x,y;
 };
 
 /* x and y offsets for decoding stroke_t's, above */
