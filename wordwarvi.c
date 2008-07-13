@@ -26,7 +26,10 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <limits.h>
+#include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <arpa/inet.h> /* for htonl, etc. */
 
 #include <gdk/gdkkeysyms.h>
 #include <stdint.h>
@@ -11599,6 +11602,30 @@ void write_out_high_score_file()
 	/* The .score element is a uint32_t, and should be run */
 	/* through htonl() before writing it out, as the high score. */
 	/* file should be endian neutral. */
+
+	int fd;
+	int i, n;
+	uint32_t bigendian_score;
+	off_t pos;
+
+	fd = high_score_file_descriptor;
+
+	if (fd == -1)
+		return;
+
+	pos = lseek(fd, 0, SEEK_SET);
+	if (pos != 0)
+		return;
+
+	for (i=0;i<MAXHIGHSCORES;i++) {
+		n = write(fd, highscore[i].name, 3);
+		if (n != 3)
+			break;
+		bigendian_score = htonl(highscore[i].score);
+		n = write(fd, &bigendian_score, sizeof(bigendian_score));
+		if (n != sizeof(bigendian_score))
+			break;
+	}
 }
 
 int open_high_score_file_and_lose_permissions()
@@ -11614,8 +11641,38 @@ int open_high_score_file_and_lose_permissions()
  *
  */
 
-	/* this is not implemented. */
-	return -1;
+	char *homedir;
+	char filename[PATH_MAX+1];
+	int i, n, fd;
+	off_t pos;
+	uint32_t bigendian_score;
+
+	homedir = getenv("HOME");
+	if (homedir == NULL)
+		return -1;
+
+	sprintf(filename, "%s/.wordwarvi/.highscores", homedir);
+	fd = open(filename, O_CREAT | O_RDWR, 0644);
+	if (fd < 0)
+		return -1;
+
+	pos = lseek(fd, 0, SEEK_SET);
+	if (pos != 0) {
+		close(fd);
+		return -1;
+	}
+
+	for (i=0;i<MAXHIGHSCORES;i++) {
+		n = read(fd, highscore[i].name, 3);
+		if (n != 3)
+			break;
+		n = read(fd, &bigendian_score, sizeof(bigendian_score));
+		if (n != sizeof(bigendian_score))
+			break;
+		highscore[i].name[3] = '\0';
+		highscore[i].score = ntohl(bigendian_score);
+	}
+	return fd;
 }
 
 void init_highscores()
@@ -11864,6 +11921,7 @@ int main(int argc, char *argv[])
 
 	struct timeval tm;
 
+	init_highscores();
 	high_score_file_descriptor = open_high_score_file_and_lose_permissions();
 
 	strcpy(joystick_device, JOYSTICK_DEVNAME);
@@ -12024,7 +12082,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	init_highscores();
 	level.random_seed = initial_random_seed;
 
 	jsfd = open_joystick(joystick_device);
