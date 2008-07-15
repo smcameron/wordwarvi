@@ -1,5 +1,20 @@
 Changelog for wordwarvi:
 
+Mon Jul 14 19:44:33 CDT 2008
+-------------------------------------------------------------------------------
+Changes between version 0.18 and 0.19
+* Make missile exhaust emit from closer to the right spot
+* Improved the precision with which collisions between the player's laser
+  and various targets are evaluated.
+* Made it easier to enter the "socket" at the end of each level.
+* Use new, and I hope, less annoying missile alarm sound.
+* Make missile turn a bit more realisitcally (they can't stop midair now.)
+* Tweak the exhaust of the small missiles a bit.
+* Changed point structure to use shorts instead of ints (very slightly
+  better performance.)
+* Now high scores get saved in ~/.wordwarvi/.highscores
+
+
 Sun Jul  6 22:27:48 CDT 2008
 -------------------------------------------------------------------------------
 Changes between version 0.17 and 0.18
