@@ -30,6 +30,10 @@
 
 static int joystick_fd = -1;
 
+/* These are sensible on Logitech Dual Action Rumble and xbox360 controller. */
+static int joystick_x_axis = 0;
+static int joystick_y_axis = 1;
+
 int open_joystick(char *joystick_device)
 {
 	if (joystick_device == NULL)
@@ -76,20 +80,12 @@ int get_joystick_status(struct wwvi_js_event *wjse)
 	while ((rc = read_joystick_event(&jse) == 1)) {
 		jse.type &= ~JS_EVENT_INIT; /* ignore synthetic events */
 		if (jse.type == JS_EVENT_AXIS) {
-			switch (jse.number) {
-			case 0: wjse->stick1_x = jse.value;
-				break;
-			case 1: wjse->stick1_y = jse.value;
-				break;
-			case 2: wjse->stick2_x = jse.value;
-				break;
-			case 3: wjse->stick2_y = jse.value;
-				break;
-			default:
-				break;
-			}
+			if (jse.number == joystick_x_axis)
+				wjse->stick_x = jse.value;
+			if (jse.number == joystick_y_axis)
+				wjse->stick_y = jse.value;
 		} else if (jse.type == JS_EVENT_BUTTON) {
-			if (jse.number < 10) {
+			if (jse.number < 11) {
 				switch (jse.value) {
 				case 0:
 				case 1: wjse->button[jse.number] = jse.value;
@@ -103,6 +99,17 @@ int get_joystick_status(struct wwvi_js_event *wjse)
 	// printf("%d\n", wjse->stick1_y);
 	return 0;
 }
+
+void set_joystick_y_axis(int axis)
+{
+	joystick_y_axis = axis;
+}
+
+void set_joystick_x_axis(int axis)
+{
+	joystick_x_axis = axis;
+}
+
 
 #if 0
 /* a little test program */

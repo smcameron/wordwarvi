@@ -9859,22 +9859,8 @@ void deal_with_joystick()
 	int *xaxis = &zero;
 	int *yaxis = &zero;
 
-	switch (game_state.x_joystick_axis) {
-		case 0: xaxis = &jse.stick1_x;
-			break;
-		case 1: xaxis = &jse.stick2_x;
-			break;
-		default:
-			break;
-	}
-	switch (game_state.y_joystick_axis) {
-		case 0: yaxis = &jse.stick1_y;
-			break;
-		case 1: yaxis = &jse.stick2_y;
-			break;
-		default:
-			break;
-	}
+	xaxis = &jse.stick_x;
+	yaxis = &jse.stick_y;
 
 #define JOYSTICK_SENSITIVITY 5000
 #define XJOYSTICK_THRESHOLD 30000
@@ -11756,7 +11742,7 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 	char difficulty[256];
 
 	game_state.x_joystick_axis = 0;
-	game_state.y_joystick_axis = 0;
+	game_state.y_joystick_axis = 1;
 
 	homedir = getenv("HOME");
 	if (homedir == NULL)
@@ -11843,12 +11829,12 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 				continue;
 		}
 		rc = sscanf(s, "set joystick-x-axis=%d\n", &xa);
-		if (rc == 1 && (xa == 0 || xa == 1 || xa == -1)) {
+		if (rc == 1 && xa >= 0 && xa < 8) {
 			game_state.x_joystick_axis = xa;
 			continue;
 		}
 		rc = sscanf(s, "set joystick-y-axis=%d\n", &ya);
-		if (rc == 1 && (ya == 0 || ya == 1 || ya == -1)) {
+		if (rc == 1 && ya >= 0 && ya < 8) {
 			game_state.y_joystick_axis = ya;
 			continue;
 		}
@@ -12083,6 +12069,9 @@ int main(int argc, char *argv[])
 	}
 
 	level.random_seed = initial_random_seed;
+
+	set_joystick_x_axis(game_state.x_joystick_axis);
+	set_joystick_y_axis(game_state.y_joystick_axis);
 
 	jsfd = open_joystick(joystick_device);
 	if (jsfd < 0) {

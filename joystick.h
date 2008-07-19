@@ -37,15 +37,15 @@ struct js_event {
 };
 
 struct wwvi_js_event {
-	int button[10];
-	int stick1_x;
-	int stick1_y;
-	int stick2_x;
-	int stick2_y;
+	int button[11];
+	int stick_x;
+	int stick_y;
 };
 
 extern int open_joystick(char *joystick_device);
 extern int read_joystick_event(struct js_event *jse);
+extern void set_joystick_y_axis(int axis);
+extern void set_joystick_x_axis(int axis);
 extern void close_joystick();
 extern int get_joystick_status(struct wwvi_js_event *wjse);
 
