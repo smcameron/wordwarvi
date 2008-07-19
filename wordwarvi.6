@@ -71,6 +71,9 @@ Some people find the sound of the alarm incredibly annoying.
 (Alarms are supposed to be annoying.)  The audio alarm can 
 also be toggled on and off with the '1' key.
 .TP
+\fB\--norumble\fR
+Don't use joystick rumble effects.
+.TP
 \fB\--nostarfield\fR
 Don't draw a starfield in the background.
 .TP
@@ -87,6 +90,9 @@ allows access to new levels which you may play again by
 specifying the same random seed value.  The default
 random seed value the game uses if none is specified
 is 31415927.
+.TP
+\fB\--rumbledevice d\fR
+Use device d for rumble effects.  The default is /dev/input/event5.
 .TP
 \fB\--retrogreen\fR
 Does exactly what it sounds like.
@@ -160,6 +166,8 @@ Beware of viruses which may be living inside.
 .PP
 /dev/input/js0, the joystick device node.
 .PP
+/dev/input/event5, the rumble effect device. 
+.PP
 /usr/share/wordwarvi/sounds/*.ogg contain the audio data used by the game.
 .PP
 ~/.wordwarvi/.highscores
@@ -208,6 +216,9 @@ Do not sound alarm for missile lock on.
 set nostarfield
 Do not render the background starfield.
 .TP
+set norumble
+Do not use joystick rumble effects.
+.TP
 set retrogreen
 Render in the manner of a vector display from the '70's.
 .TP
@@ -216,6 +227,9 @@ Use a clock generated random seed to initialize levels.
 .TP
 set randomseed=n
 Use the specified random seed to initialize levels.
+.TP
+set rumbledeviced=d
+Use the specified device for rumble effects.  The default is /dev/input/event5.
 .TP
 set sounddevice=n
 Use the nth sound device for audio output.
@@ -262,10 +276,9 @@ onto the appropriate axes for you.
 .TP
 set joystick-[xy]-axis=n.  Allows specifying different axes for 
 control of the players ship for multi axis joysticks.  By default,
-the first x and first y axes are used (n = 0, for both.)  The 2nd
-axis may be specified by a value of 1.  A value of -1 disables 
-control of an axis.  See example .exrc file to find out why you 
-might want to do that.
+the first x and first y axes are used (n = 0 for x, n=1 for y)
+A value of -1 disables control of an axis.  See example .exrc 
+file to find out why you might want to do that.
 
 .TP
 Example .exrc file:

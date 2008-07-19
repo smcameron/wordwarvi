@@ -51,13 +51,18 @@ ogg_to_pcm.o:	ogg_to_pcm.c ogg_to_pcm.h Makefile
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `pkg-config --cflags vorbisfile` \
 		-pthread -Wall -c ogg_to_pcm.c
 
+rumble.o:	rumble.c rumble.h Makefile
+	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `pkg-config --cflags vorbisfile` \
+		-pthread -Wall -c rumble.c
+
 stamp:	stamp.c
 	gcc -o stamp stamp.c	
 
-wordwarvi:	wordwarvi.c joystick.o ${OGGOBJ} Makefile version.h stamp levels.h
+wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} Makefile version.h stamp levels.h rumble.h
 	./stamp > stamp.h
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall  ${DEFINES} \
 		joystick.o \
+		rumble.o \
 		${OGGOBJ} \
 		wordwarvi.c -o wordwarvi -lm ${SNDLIBS} \
 		`pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0 gthread-2.0`

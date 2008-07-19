@@ -45,6 +45,7 @@
 #endif
 
 #include "joystick.h"
+#include "rumble.h"
 #include "version.h"
 #include "stamp.h"
 
@@ -1968,8 +1969,12 @@ struct game_state_t {
 	int key_laser_pressed;
 	int x_joystick_axis;
 	int y_joystick_axis;
+	int rumble_wanted;
 
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
+
+char rumbledevicestring[PATH_MAX];
+char *rumbledevice = NULL;
 
 struct game_obj_t * human[MAXHUMANS];	/* Keep a special array of just the humans so we can scan it quickly */
 
@@ -2115,6 +2120,18 @@ int approximate_horizon(int x, int y, int *last_xi)
 	*last_xi = -1;
 	return GROUND_OOPS;
 }
+
+void do_strong_rumble()
+{
+	if (credits > 0 && game_state.rumble_wanted)
+		play_rumble_effect(RUMBLE_STRONG_RUMBLE_EFFECT);
+}
+
+void do_weak_rumble()
+{
+	if (credits > 0 && game_state.rumble_wanted)
+		play_rumble_effect(RUMBLE_WEAK_RUMBLE_EFFECT);
+}
 	
 void draw_stars(GtkWidget *w)
 {
@@ -2257,6 +2274,7 @@ void move_laserbolt(struct game_obj_t *o)
 		explode(o->x, o->y, o->vx, 1, 70, 20, 20);
 		add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 		game_state.health -= LASER_BOLT_DAMAGE;
+		do_strong_rumble();
 		kill_object(o);
 		o->destroy(o);
 	}
@@ -2822,6 +2840,7 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 
 		draw_lightning(w, x2, y2, player->x - game_state.x, 
 			player->y - game_state.y + (SCREEN_HEIGHT/2));
+		do_weak_rumble();
 		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 		game_state.health -= 1; /* just take off one, the octo's are bad... */
 		/* keep thunder from going oof too much */
@@ -4639,6 +4658,7 @@ void move_player(struct game_obj_t *o)
 		/* if player smacks the ground too hard, sparks, noise, damage ensue. */
 		if (abs(player->vx) > 5 || abs(player->vy) > 5) {
 			ground_smack_sound();
+			do_strong_rumble();
 			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 			game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 			player->vy = -5;
@@ -4658,18 +4678,21 @@ void move_player(struct game_obj_t *o)
 			player->vy = 15;
 		if (abs(player->vx) > 5 || abs(player->vy) > 5) {
 			ground_smack_sound();
+			do_strong_rumble();
 			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 			game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 		}
 	}
 	if (player->x < 0) {
 		ground_smack_sound();
+		do_strong_rumble();
 		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 		game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 		player->x = 20;
 		player->vx = 5;
 	} else if (player->x > terrain.x[TERRAIN_LENGTH - 1]) {
 		ground_smack_sound();	
+		do_strong_rumble();
 		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 		game_state.health -= 4 - player->vy * 0.3 -abs(player->vx) * 0.1;
 		player->x = terrain.x[TERRAIN_LENGTH - 1] - 20;
@@ -5262,9 +5285,10 @@ void move_missile(struct game_obj_t *o)
 	/* have we hit the target? */
 	if ((abs(dx) < MISSILE_PROXIMITY) && (abs(dy) < MISSILE_PROXIMITY)) {
 		/* We've hit the target */
-		if (player == o->bullseye)
+		if (player == o->bullseye) {
 			game_state.health -= MISSILE_DAMAGE;
-		else
+			do_strong_rumble();
+		} else
 			target_obj->alive -= MISSILE_DAMAGE;
 		remove_target(o);
 		kill_object(o);
@@ -5374,9 +5398,10 @@ void move_harpoon(struct game_obj_t *o)
 	/* have we hit the target? */
 	if ((abs(dx) < MISSILE_PROXIMITY) && (abs(dy) < MISSILE_PROXIMITY)) {
 		/* We've hit the target */
-		if (player == o->bullseye)
+		if (player == o->bullseye) {
+			do_strong_rumble();
 			game_state.health -= MISSILE_DAMAGE;
-		else
+		} else
 			target_obj->alive -= MISSILE_DAMAGE;
 		remove_target(o);
 		kill_object(o);
@@ -5451,9 +5476,10 @@ void move_bullet(struct game_obj_t *o)
 	/* did we hit? */
 	if ((abs(dx) < BULLET_PROXIMITY) && (abs(dy) < BULLET_PROXIMITY)) {
 		/* We've hit the target */
-		if (player == o->bullseye)
+		if (player == o->bullseye) {
 			game_state.health -= BULLET_DAMAGE;
-		else
+			do_strong_rumble();
+		} else
 			target_obj->alive -= BULLET_DAMAGE;
 		remove_target(o);
 		kill_object(o);
@@ -5960,6 +5986,7 @@ void worm_move(struct game_obj_t *o)
 				/* Touching player?  Zap him. */
 				if (pdx < 8 && pdy < 8) {
 					add_sound(ZZZT_SOUND, ANY_SLOT);
+					do_weak_rumble();
 					explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 					game_state.health -= WORM_DAMAGE;
 				}
@@ -6059,6 +6086,7 @@ void worm_move(struct game_obj_t *o)
 		/* touching the player?  Zap him. */
 		if (pdx < 8 && pdy < 8) {
 			add_sound(ZZZT_SOUND, ANY_SLOT);
+			do_weak_rumble();
 			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
 			game_state.health -= WORM_DAMAGE;
 		}
@@ -11547,6 +11575,8 @@ static struct option wordwarvi_options[] = {
 	{ "randomseed", 1, NULL, 14 },
 	{ "nomissilealarm", 0, NULL, 16 },
 	{ "difficulty", 1, NULL, 17 },
+	{ "norumble", 0, NULL, 18 },
+	{ "rumbledevice", 1, NULL, 19 },
 #ifdef LEVELWARP
 	{ "levelwarp", 1, NULL, 15 },
 #endif
@@ -11571,10 +11601,12 @@ void usage()
 #endif
 	fprintf(stderr, "--nomusic         Do not play, or even decode music data.\n");
 	fprintf(stderr, "--nomissilealarm  Do not sound alarm for missile lock on.\n");
+	fprintf(stderr, "--norumble        Do not use joystick rumble effects.\n");
 	fprintf(stderr, "--nostarfield     Do not render the background starfield.\n");
 	fprintf(stderr, "--retrogreen      Render in the manner of a vector display from the '70's.\n");
 	fprintf(stderr, "--randomize       Use a clock generated random seed to initialize levels.\n");
 	fprintf(stderr, "--randomseed n    Use the specified random seed to initialize levels.\n");
+	fprintf(stderr, "--rumbledevice d  Use the device file d for rumble effects. (default is /dev/input/event5)\n");
 	fprintf(stderr, "--sounddevice n   Use the nth sound device for audio output.\n");
 	fprintf(stderr, "--version         Print the version number and exit.\n");
 	fprintf(stderr, "--width x         Render the game x pixels wide.\n");
@@ -11785,6 +11817,12 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 			sound_device = rs;
 			continue;
 		}
+		rc = sscanf(s, "set rumbledevice=%s\n", filename);
+		if (rc == 1) {
+			strcpy(rumbledevicestring, filename);	
+			rumbledevice = rumbledevicestring;
+			continue;
+		}
 		rc = sscanf(s, "set height=%d\n", &h);
 		if (rc == 1) {
 			real_screen_height = 600;
@@ -11877,6 +11915,10 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 				want_missile_alarm = 0;
 				continue;
 			}
+			if (strcmp(word, "norumble") == 0) {
+				game_state.rumble_wanted = 0;
+				continue;
+			}
 		}
 		rc = sscanf(s, "map button %d %s", &button, actionname);
 		if (rc == 2) {
@@ -11920,6 +11962,7 @@ int main(int argc, char *argv[])
 
 	init_keymap();
 	game_state.max_player_health = MEDIUM_MAXHEALTH;
+	game_state.rumble_wanted = 1;
 	read_exrc_file(&no_colors_any_more, &blueprint, &retrogreen, &frame_rate_hz,
 		&levelwarp, &initial_random_seed, &sound_device, joystick_device);
 
@@ -12062,6 +12105,17 @@ int main(int argc, char *argv[])
 					exit(1);
 				}
 				break;
+			case 18: /* norumble */
+				game_state.rumble_wanted = 0;
+				break;
+			case 19: /* rumbledevice */
+				n = sscanf(optarg, "%s", rumbledevicestring);
+				if (n != 1) {
+					fprintf(stderr, "Bad rumbledevice setting\n");
+					exit(1);
+				}
+				rumbledevice = rumbledevicestring;
+				break;
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
@@ -12077,6 +12131,7 @@ int main(int argc, char *argv[])
 	if (jsfd < 0) {
 		printf("No joystick...\n");
 	};
+
 #ifdef WITHAUDIOSUPPORT
 	if (initialize_portaudio() != paNoError)
 		printf("Guess sound's not working...\n");
@@ -12106,6 +12161,13 @@ int main(int argc, char *argv[])
 	if (retrogreen)
 		paint_it_green();
  
+	if (game_state.rumble_wanted) {
+		if (get_ready_to_rumble(rumbledevice) != 0) {
+			printf("No rumble...\n");
+			game_state.rumble_wanted = 0;
+		}
+	} 
+
     /* create a new window */
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 
@@ -12242,6 +12304,7 @@ int main(int argc, char *argv[])
     stop_portaudio();
     free_debris_forms();
 	close_joystick();
+	close_rumble_fd();
     
     return 0;
 }
