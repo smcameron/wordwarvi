@@ -11829,12 +11829,12 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 				continue;
 		}
 		rc = sscanf(s, "set joystick-x-axis=%d\n", &xa);
-		if (rc == 1 && xa >= 0 && xa < 8) {
+		if (rc == 1 && xa >= -1 && xa < 8) {
 			game_state.x_joystick_axis = xa;
 			continue;
 		}
 		rc = sscanf(s, "set joystick-y-axis=%d\n", &ya);
-		if (rc == 1 && ya >= 0 && ya < 8) {
+		if (rc == 1 && ya >= -1 && ya < 8) {
 			game_state.y_joystick_axis = ya;
 			continue;
 		}
