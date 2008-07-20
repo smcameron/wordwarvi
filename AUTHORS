@@ -9,3 +9,6 @@ callback prototype.).
 And, ogg_to_pcm.c is just a hacked version of
 oggdec.c from vorbistools, by Michael Smith <msmith@xiph.org>
 
+rumble.h and rumble.c borrow heavily from Johann Deneux's fftest.c
+
+
