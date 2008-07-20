@@ -1,5 +1,14 @@
 Changelog for wordwarvi:
 
+Sat Jul 19 07:48:18 CDT 2008
+-------------------------------------------------------------------------------
+Changes between version 0.19 and 0.29
+* Make the game work better with the xbox 360 controller
+* Make -1 a valid value for joystick axes (to disable).
+* Added support for xbox 360 controller rumble effects.
+* Added --norumble and --rumbledevice options.
+* Make rockets hitting you cause rumble effect to trigger (had forgetten them.)
+
 Mon Jul 14 19:44:33 CDT 2008
 -------------------------------------------------------------------------------
 Changes between version 0.18 and 0.19
