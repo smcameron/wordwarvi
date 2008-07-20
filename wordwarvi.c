@@ -2517,6 +2517,7 @@ void move_rocket(struct game_obj_t *o)
 		ydist = o->y - player->y;
 		if ((ydist*ydist + xdist*xdist) < 400) { /* hit the player? */
 			add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+			do_strong_rumble();
 			explode(o->x, o->y, o->vx, 1, 70, 150, 20);
 			game_state.health -= 20;
 			remove_target(o);
