@@ -94,7 +94,7 @@ CHECK_VERSION:
 
 tarball:	CHECK_VERSION
 	mkdir -p d/wordwarvi-${VERSION}/sounds
-	cp Makefile version.h ogg_to_pcm.c ogg_to_pcm.h levels.h \
+	cp Makefile version.h ogg_to_pcm.c ogg_to_pcm.h levels.h rumble.c rumble.h \
 		joystick.c joystick.h changelog.txt wordwarvi.c wordwarvi.6 \
 		stamp.c README AUTHORS COPYING \
 		AAA_HOW_TO_MAKE_NEW_LEVELS.txt \
