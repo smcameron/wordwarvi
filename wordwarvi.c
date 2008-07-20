@@ -9842,7 +9842,7 @@ char *keyactionstring[] = {
 	"soundeffect", "music", "quit", "missilealarm", "help", "reverse"
 };
 
-enum keyaction jsbuttonaction[10] = {
+enum keyaction jsbuttonaction[11] = {
 		/* default joystick button assignments. */
 		keynone,	 /* button 0 */
 		keybomb,	 /* button 1 */
@@ -9852,9 +9852,10 @@ enum keyaction jsbuttonaction[10] = {
 		keybomb,	 /* button 5 */
 		keylaser,	 /* button 6 */
 		keylaser,	 /* button 7 */
-		keyquarter,	 /* button 8 */
+		// keyquarter,	 /* button 8 */ <-- This is no good on xbox360 controller
+		keylaser,	 /* button 8 */
 		keygravitybomb,	 /* button 9 */
-
+		keylaser,	 /* button 10 */
 	};
 
 void deal_with_joystick()
@@ -10050,7 +10051,7 @@ void deal_with_joystick()
 			player->vy++;
 	}
 
-	for (i=0;i<10;i++) {
+	for (i=0;i<11;i++) {
 		if (jse.button[i] == 1) {
 			switch(jsbuttonaction[i]) {
 			case keysuicide:
