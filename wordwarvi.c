@@ -8900,7 +8900,7 @@ void draw_radar(GtkWidget *w)
 
 #endif
 
-	if (game_state.corrosive_atmosphere && game_state.radar_state == RADAR_RUNNING) {
+	if (game_state.corrosive_atmosphere && game_state.radar_state == RADAR_RUNNING && credits > 0) {
 		gdk_gc_set_foreground(gc, &huex[GREEN]);
 		abs_xy_draw_string(w, "Corrosive atmosphere detected!  Vacate the area immediately!", 
 			TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2);
@@ -8928,11 +8928,18 @@ void draw_radar(GtkWidget *w)
 	}
 
 	if (game_state.radar_state == RADAR_RUNNING) {
-		if (game_state.missile_locked && (timer & 0x04) == 0) {
-			gdk_gc_set_foreground(gc, &huex[RED]);
-			abs_xy_draw_string(w, "***MISSILE LOCK ON DETECTED***", 
-				TINY_FONT, x1 + 210-18, y1 + RADAR_HEIGHT-3);
-		}	
+		if ((timer & 0x04) == 0) {
+			if (game_state.missile_locked) {
+				gdk_gc_set_foreground(gc, &huex[RED]);
+				abs_xy_draw_string(w, "***MISSILE LOCK ON DETECTED***", 
+					TINY_FONT, x1 + 210-18, y1 + RADAR_HEIGHT-3);
+			}	
+			if (credits <= 0) {
+				gdk_gc_set_foreground(gc, &huex[GREEN]);
+				abs_xy_draw_string(w, "Press 'q' to Insert Quarter and Start Game -- F1 for Help", 
+					TINY_FONT, x1 + 60, y1 + RADAR_HEIGHT-30);
+			}
+		}
 		return;
 	}
 
@@ -9336,16 +9343,16 @@ void timer_expired()
 		set_font(SMALL_FONT);
 		gotoxy(x,yline++);
 		gameprint("Controls:"); yline++; gotoxy(x,yline++);
-		gameprint("h - move left"); gotoxy(x,yline++);
-		gameprint("l - move right"); gotoxy(x,yline++);
-		gameprint("k - move up"); gotoxy(x,yline++);
-		gameprint("j - move down"); gotoxy(x,yline++);
-		gameprint("z - fires laser"); gotoxy(x,yline++);
-		gameprint("b - drops bomb"); gotoxy(x,yline++);
-		gameprint("c - drops chaff"); gotoxy(x,yline++);
+		gameprint("h  move left"); gotoxy(x,yline++);
+		gameprint("l  move right"); gotoxy(x,yline++);
+		gameprint("k  move up"); gotoxy(x,yline++);
+		gameprint("j  move down"); gotoxy(x,yline++);
+		gameprint("z  fires laser"); gotoxy(x,yline++);
+		gameprint("b  drops bomb"); gotoxy(x,yline++);
+		gameprint("c  drops chaff"); gotoxy(x,yline++);
 		yline++;
-		gameprint("Q - Insert Quarter"); gotoxy(x, yline++);
-		gameprint("Esc to Exit"); gotoxy(x,yline++);
+		gameprint("Q  Insert Quarter"); gotoxy(x-8, yline++);
+		gameprint("Esc to Exit -- F1 for Help"); gotoxy(x,yline++);
 		next_timer = timer + 8 * frame_rate_hz;
 		game_over_count = 0;
 		timer_event = KEYS2_EVENT;
@@ -10507,7 +10514,7 @@ static void draw_help_screen(GtkWidget *w)
 	wwvi_draw_rectangle(w->window, gc, FALSE, 50, 50, SCREEN_WIDTH-100, SCREEN_HEIGHT-100);
 
 	if (helpscreen_pixel_row > -30)
-		abs_xy_draw_string(w, "-- More Above --", TINY_FONT, 80, 70);
+		abs_xy_draw_string(w, "-- More Above -- (press 'up' arrow)", TINY_FONT, 80, 70);
 
 	old_line_draw = current_draw_line; 
 	current_draw_line = draw_line_help; 
@@ -10631,7 +10638,7 @@ static void draw_help_screen(GtkWidget *w)
 
 	gdk_gc_set_foreground(gc, &huex[RED]);
 	if (helpscreen_pixel_row < (max_y - (SCREEN_HEIGHT-100)))
-		abs_xy_draw_string(w, "-- More Below --", TINY_FONT, 80, SCREEN_HEIGHT-65);
+		abs_xy_draw_string(w, "-- More Below -- (press 'down' arrow)", TINY_FONT, 80, SCREEN_HEIGHT-65);
 
 #if 0
 	if (current_help_selection == 1) {
