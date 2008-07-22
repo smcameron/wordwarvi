@@ -2003,6 +2003,7 @@ int levelwarp = 0;
 #endif
 GtkWidget *window = NULL; /* main window */
 
+#define STAR_SHIFT 3 
 #define NSTARS 150
 struct star_t {
 	int x; 
@@ -2018,8 +2019,8 @@ void init_stars()
 	int i;
 
 	for (i=0;i<NSTARS;i++) {
-		star[i].x = randomn(SCREEN_WIDTH);
-		star[i].y = randomn(SCREEN_HEIGHT);
+		star[i].x = randomn(SCREEN_WIDTH) << STAR_SHIFT;
+		star[i].y = randomn(SCREEN_HEIGHT) << STAR_SHIFT;
 		star[i].bright = randomn(100) & 0x01;
 		star[i].last_xi = -1;
 	}
@@ -2137,22 +2138,28 @@ void draw_stars(GtkWidget *w)
 {
 	int i;
 	int worldx, worldy;
-	int gl;
+	int gl, sx, sy;
 
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
 	for (i=0;i<NSTARS;i++) {
 		if (randomn(100) < 3)
 			continue;
-		worldx = game_state.x + star[i].x;
-		worldy = star[i].y + game_state.y - (SCREEN_HEIGHT/2); 
+		sx = star[i].x >> STAR_SHIFT;
+		sy = star[i].y >> STAR_SHIFT;
+		worldx = game_state.x  + sx;
+		worldy = sy + game_state.y - (SCREEN_HEIGHT/2); 
 
 		gl = approximate_horizon(worldx, worldy, &star[i].last_xi);
 		if (worldy < gl) {
 			if (star[i].bright && randomn(100) > 10) {
-				wwvi_draw_line(w->window, gc, star[i].x, star[i].y-1, star[i].x+1, star[i].y-1);
+				wwvi_draw_line(w->window, gc, sx, sy-1, sx+1, sy-1);
 			}
-			wwvi_draw_line(w->window, gc, star[i].x, star[i].y, star[i].x+1, star[i].y);
+			wwvi_draw_line(w->window, gc, sx, sy, sx+1, sy);
 		}
+
+		/* move stars */
+		star[i].x = ((star[i].x - player->vx) + (SCREEN_WIDTH << STAR_SHIFT)) % (SCREEN_WIDTH << STAR_SHIFT);
+		star[i].y = ((star[i].y - player->vy) + (SCREEN_HEIGHT << STAR_SHIFT)) % (SCREEN_HEIGHT << STAR_SHIFT);
 	}
 }
 
