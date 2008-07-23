@@ -2011,6 +2011,8 @@ struct star_t {
 	int last_xi;
 	int bright;
 } star[NSTARS];
+int star_x_offset = 0;
+int star_y_offset = 0;
 
 static inline int randomn(int n);
 int want_starfield = 1;
@@ -2144,11 +2146,17 @@ void draw_stars(GtkWidget *w)
 	for (i=0;i<NSTARS;i++) {
 		if (randomn(100) < 3)
 			continue;
-		sx = star[i].x >> STAR_SHIFT;
-		sy = star[i].y >> STAR_SHIFT;
-		worldx = game_state.x  + sx;
-		worldy = sy + game_state.y - (SCREEN_HEIGHT/2); 
 
+		/* extra SCREEN_DIMENSTION << STAR_SHIFT to correct for wraparound */
+		/* is already added into star_xy_offset, after this loop. */
+		/* Careful with precision here, don't shift right too early. */
+		sx = (star[i].x + star_x_offset) % (SCREEN_WIDTH << STAR_SHIFT);
+		sy = (star[i].y + star_y_offset) % (SCREEN_HEIGHT << STAR_SHIFT);
+		worldx = ((game_state.x << STAR_SHIFT)  + sx) >> STAR_SHIFT;
+		worldy = ((sy + (game_state.y << STAR_SHIFT)) - 
+			((SCREEN_HEIGHT/2) << STAR_SHIFT)) >> STAR_SHIFT; 
+		sx = sx >> STAR_SHIFT;
+		sy = sy >> STAR_SHIFT;
 		gl = approximate_horizon(worldx, worldy, &star[i].last_xi);
 		if (worldy < gl) {
 			if (star[i].bright && randomn(100) > 10) {
@@ -2156,11 +2164,12 @@ void draw_stars(GtkWidget *w)
 			}
 			wwvi_draw_line(w->window, gc, sx, sy, sx+1, sy);
 		}
-
-		/* move stars */
-		star[i].x = ((star[i].x - player->vx) + (SCREEN_WIDTH << STAR_SHIFT)) % (SCREEN_WIDTH << STAR_SHIFT);
-		star[i].y = ((star[i].y - player->vy) + (SCREEN_HEIGHT << STAR_SHIFT)) % (SCREEN_HEIGHT << STAR_SHIFT);
 	}
+	/* move stars */
+	star_x_offset = (star_x_offset + (SCREEN_WIDTH << STAR_SHIFT) - player->vx) 
+			% (SCREEN_WIDTH << STAR_SHIFT) + (SCREEN_WIDTH << STAR_SHIFT);
+	star_y_offset = (star_y_offset + (SCREEN_HEIGHT << STAR_SHIFT) - player->vy) 
+			% (SCREEN_HEIGHT << STAR_SHIFT) + (SCREEN_HEIGHT << STAR_SHIFT);
 }
 
 
