@@ -10642,6 +10642,21 @@ static void draw_help_screen(GtkWidget *w)
 	}
 	max_y = 380 + row*20 + 30;
 
+	gdk_gc_set_foreground(gc, &huex[GREEN]);
+	abs_xy_draw_string(w, "About Word War vi:", SMALL_FONT, 80, max_y + 40);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+
+	abs_xy_draw_string(w, "This is Word War vi version " WORDWARVI_VERSION, 
+		TINY_FONT, 80, max_y + 80); 
+	abs_xy_draw_string(w, "Be sure to read the wordwarvi man page as well.", 
+		TINY_FONT, 80, max_y + 100); 
+	abs_xy_draw_string(w, "(yes there is a man page.  Type 'man wordwarvi'.)", 
+		TINY_FONT, 80, max_y + 120); 
+	abs_xy_draw_string(w, "Check http://wordwarvi.sourceforge.net for updates.", 
+		TINY_FONT, 80, max_y + 160); 
+
+	max_y += 180;
+
 	if (game_state.key_up_pressed  && helpscreen_pixel_row > -40) {
 			helpscreen_pixel_row -= 5;
 	}
