@@ -2004,15 +2004,15 @@ int levelwarp = 0;
 GtkWidget *window = NULL; /* main window */
 
 #define STAR_SHIFT 3 
-#define NSTARS 150
+#define NSTARS 150 
 struct star_t {
-	int x; 
-	int y;
+	short x; 
+	short y;
 	int last_xi;
-	int bright;
+	char bright;
 } star[NSTARS];
-int star_x_offset = 0;
-int star_y_offset = 0;
+short star_x_offset = 0;
+short star_y_offset = 0;
 
 static inline int randomn(int n);
 int want_starfield = 1;
@@ -2138,9 +2138,9 @@ void do_weak_rumble()
 	
 void draw_stars(GtkWidget *w)
 {
-	int i;
-	int worldx, worldy;
-	int gl, sx, sy;
+	short i;
+	short worldx, worldy;
+	short gl, sx, sy;
 
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
 	for (i=0;i<NSTARS;i++) {
