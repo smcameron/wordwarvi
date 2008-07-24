@@ -2166,9 +2166,9 @@ void draw_stars(GtkWidget *w)
 		}
 	}
 	/* move stars */
-	star_x_offset = (star_x_offset + (SCREEN_WIDTH << STAR_SHIFT) - player->vx) 
+	star_x_offset = (star_x_offset + (SCREEN_WIDTH << STAR_SHIFT) - game_state.vx) 
 			% (SCREEN_WIDTH << STAR_SHIFT) + (SCREEN_WIDTH << STAR_SHIFT);
-	star_y_offset = (star_y_offset + (SCREEN_HEIGHT << STAR_SHIFT) - player->vy) 
+	star_y_offset = (star_y_offset + (SCREEN_HEIGHT << STAR_SHIFT) - game_state.vy) 
 			% (SCREEN_HEIGHT << STAR_SHIFT) + (SCREEN_HEIGHT << STAR_SHIFT);
 }
 
