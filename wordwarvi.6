@@ -92,7 +92,16 @@ random seed value the game uses if none is specified
 is 31415927.
 .TP
 \fB\--rumbledevice d\fR
-Use device d for rumble effects.  The default is /dev/input/event5.
+Use the specified device for rumble effects (XBox 360 wired
+controller only, and linux 2.6.26 or better required.)  
+The default is /dev/input/event5.  Your controller may show up
+elsewhere, like /dev/input/event6, for example.  
+Also, you will have to (as root) chown this device node
+to the user you're running the game as, and do this again after
+each boot, and each time you hotplug the controller.  There
+is probably a way to get udev to do this for you automatically 
+every time, but I don't know what it is offhand, and it may 
+differ from distro to distro.
 .TP
 \fB\--retrogreen\fR
 Does exactly what it sounds like.
@@ -126,10 +135,14 @@ B drops bombs.
 G drops a gravity bomb, of which you start with 3.
 .PP
 Additionally, a game pad or joystick may be used.  I have only tried
-using a Logitech Dual Action Rumble USB gamepad.  On this, the first
-(left) joystick controls your ship, and the top right trigger button
-fires the laser, while the bottom right trigger button drops bombs.
-(Just press all the buttons to see what they do.)
+two controllers, the Microsoft XBox 360 wired controller, and 
+a Logitech Dual Action Rumble USB gamepad.  On these, the first
+(left) joystick controls your ship.  For other controls, 
+just press all the buttons to see what they do, as it's not
+the same from one controller to the next.  The rumble effect
+only works with the XBox 360 wired controller, and then only
+if you have linux kernel 2.6.26 or better.  See also
+the "--rumbledevice" option.
 .PP
 m toggles music on/off.
 .pP
@@ -229,7 +242,16 @@ set randomseed=n
 Use the specified random seed to initialize levels.
 .TP
 set rumbledeviced=d
-Use the specified device for rumble effects.  The default is /dev/input/event5.
+Use the specified device for rumble effects (XBox 360 wired
+controller only, and linux 2.6.26 or better required.)  
+The default is /dev/input/event5.  Your controller may show up
+elsewhere, like /dev/input/event6, for example.  
+Also, you will have to (as root) chown this device node
+to the user you're running the game as, and do this again after
+each boot, and each time you hotplug the controller.  There
+is probably a way to get udev to do this for you automatically 
+every time, but I don't know what it is offhand, and it may 
+differ from distro to distro.
 .TP
 set sounddevice=n
 Use the nth sound device for audio output.
@@ -278,7 +300,11 @@ set joystick-[xy]-axis=n.  Allows specifying different axes for
 control of the players ship for multi axis joysticks.  By default,
 the first x and first y axes are used (n = 0 for x, n=1 for y)
 A value of -1 disables control of an axis.  See example .exrc 
-file to find out why you might want to do that.
+file below to find out why you might want to do that.  There are
+pictures at http://wordwarvi.sourceforge.net which show how 
+the axis numbers and button numbers map to the physical
+controls for the Microsoft XBox 360 controller and the 
+Logitech Dual Action Rumble controller
 
 .TP
 Example .exrc file:
