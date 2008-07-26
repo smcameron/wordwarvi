@@ -77,6 +77,11 @@ Don't use joystick rumble effects.
 \fB\--nostarfield\fR
 Don't draw a starfield in the background.
 .TP
+\fB\--nstars n\fR
+Controls how many stars are rendered.  Valid
+values for n must be greater than or equal to
+zero, and less than or equal to 600.
+.TP
 \fB\--randomize\fR
 Uses the microseconds value of the clock as the random seed
 for generating terrain, enemy placement etc.  If you get tired
@@ -112,6 +117,10 @@ By default, wordwarvi uses the "default" sound device as
 estimated by the PortAudio library, which is 0.  
 You can specify other numbers if you have other sound cards, or
 a multichannel sound card.
+.TP
+\fB\--starmotion x\fR
+Controls how the starfield moves.  Possible values of x
+are 'astronomically-correct', 'wrong', 'wronger', and 'wrongest'.
 .TP
 \fB\--version\fR
 Print the program's version number and exit.
@@ -232,6 +241,11 @@ Do not render the background starfield.
 set norumble
 Do not use joystick rumble effects.
 .TP
+set nstars=n
+Controls how many stars are rendered.  Valid
+values for n must be greater than or equal to
+zero, and less than or equal to 600.
+.TP
 set retrogreen
 Render in the manner of a vector display from the '70's.
 .TP
@@ -255,6 +269,10 @@ differ from distro to distro.
 .TP
 set sounddevice=n
 Use the nth sound device for audio output.
+.TP
+set starmotion=x
+Controls how the starfield moves.  Possible values 
+are 'astronomically-correct', 'wrong', 'wronger', and 'wrongest'.
 .TP
 set width=x
 Render the game x pixels wide.

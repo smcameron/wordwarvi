@@ -2003,8 +2003,10 @@ int levelwarp = 0;
 #endif
 GtkWidget *window = NULL; /* main window */
 
-#define STAR_SHIFT 3 
-#define NSTARS 150 
+#define STAR_SHIFT 3
+#define NSTARS 600 
+int number_of_stars = 150;
+int starshift = STAR_SHIFT; 
 struct star_t {
 	short x; 
 	short y;
@@ -2020,9 +2022,9 @@ void init_stars()
 {
 	int i;
 
-	for (i=0;i<NSTARS;i++) {
-		star[i].x = randomn(SCREEN_WIDTH) << STAR_SHIFT;
-		star[i].y = randomn(SCREEN_HEIGHT) << STAR_SHIFT;
+	for (i=0;i<number_of_stars;i++) {
+		star[i].x = randomn(SCREEN_WIDTH) << starshift;
+		star[i].y = randomn(SCREEN_HEIGHT) << starshift;
 		star[i].bright = randomn(100) & 0x01;
 		star[i].last_xi = -1;
 	}
@@ -2136,27 +2138,27 @@ void do_weak_rumble()
 		play_rumble_effect(RUMBLE_WEAK_RUMBLE_EFFECT);
 }
 	
-void draw_stars(GtkWidget *w)
+void incorrect_draw_stars(GtkWidget *w)
 {
 	short i;
 	short worldx, worldy;
 	short gl, sx, sy;
 
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	for (i=0;i<NSTARS;i++) {
+	for (i=0;i<number_of_stars;i++) {
 		if (randomn(100) < 3)
 			continue;
 
-		/* extra SCREEN_DIMENSTION << STAR_SHIFT to correct for wraparound */
+		/* extra SCREEN_DIMENSTION << starshift to correct for wraparound */
 		/* is already added into star_xy_offset, after this loop. */
 		/* Careful with precision here, don't shift right too early. */
-		sx = (star[i].x + star_x_offset) % (SCREEN_WIDTH << STAR_SHIFT);
-		sy = (star[i].y + star_y_offset) % (SCREEN_HEIGHT << STAR_SHIFT);
-		worldx = ((game_state.x << STAR_SHIFT)  + sx) >> STAR_SHIFT;
-		worldy = ((sy + (game_state.y << STAR_SHIFT)) - 
-			((SCREEN_HEIGHT/2) << STAR_SHIFT)) >> STAR_SHIFT; 
-		sx = sx >> STAR_SHIFT;
-		sy = sy >> STAR_SHIFT;
+		sx = (star[i].x + star_x_offset) % (SCREEN_WIDTH << starshift);
+		sy = (star[i].y + star_y_offset) % (SCREEN_HEIGHT << starshift);
+		worldx = ((game_state.x << starshift)  + sx) >> starshift;
+		worldy = ((sy + (game_state.y << starshift)) - 
+			((SCREEN_HEIGHT/2) << starshift)) >> starshift; 
+		sx = sx >> starshift;
+		sy = sy >> starshift;
 		gl = approximate_horizon(worldx, worldy, &star[i].last_xi);
 		if (worldy < gl) {
 			if (star[i].bright && randomn(100) > 10) {
@@ -2166,11 +2168,38 @@ void draw_stars(GtkWidget *w)
 		}
 	}
 	/* move stars */
-	star_x_offset = (star_x_offset + (SCREEN_WIDTH << STAR_SHIFT) - game_state.vx) 
-			% (SCREEN_WIDTH << STAR_SHIFT) + (SCREEN_WIDTH << STAR_SHIFT);
-	star_y_offset = (star_y_offset + (SCREEN_HEIGHT << STAR_SHIFT) - game_state.vy) 
-			% (SCREEN_HEIGHT << STAR_SHIFT) + (SCREEN_HEIGHT << STAR_SHIFT);
+	star_x_offset = (star_x_offset + (SCREEN_WIDTH << starshift) - game_state.vx) 
+			% (SCREEN_WIDTH << starshift) + (SCREEN_WIDTH << starshift);
+	star_y_offset = (star_y_offset + (SCREEN_HEIGHT << starshift) - game_state.vy) 
+			% (SCREEN_HEIGHT << starshift) + (SCREEN_HEIGHT << starshift);
 }
+
+void correct_draw_stars(GtkWidget *w)
+{
+	short i;
+	short worldx, worldy;
+	short gl, sx, sy;
+
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	for (i=0;i<number_of_stars;i++) {
+		if (randomn(100) < 3)
+			continue;
+
+		sx = (star[i].x + star_x_offset) % (SCREEN_WIDTH);
+		sy = (star[i].y + star_y_offset) % (SCREEN_HEIGHT);
+		worldx = ((game_state.x)  + sx);
+		worldy = ((sy + (game_state.y)) - ((SCREEN_HEIGHT/2))); 
+		gl = approximate_horizon(worldx, worldy, &star[i].last_xi);
+		if (worldy < gl) {
+			if (star[i].bright && randomn(100) > 10) {
+				wwvi_draw_line(w->window, gc, sx, sy-1, sx+1, sy-1);
+			}
+			wwvi_draw_line(w->window, gc, sx, sy, sx+1, sy);
+		}
+	}
+}
+
+void (*draw_stars)(GtkWidget *w) = incorrect_draw_stars;
 
 
 /* add an object to the list of targets... */
@@ -11617,6 +11646,8 @@ static struct option wordwarvi_options[] = {
 	{ "difficulty", 1, NULL, 17 },
 	{ "norumble", 0, NULL, 18 },
 	{ "rumbledevice", 1, NULL, 19 },
+	{ "starmotion", 1, NULL, 20 },
+	{ "nstars", 1, NULL, 21 },
 #ifdef LEVELWARP
 	{ "levelwarp", 1, NULL, 15 },
 #endif
@@ -11643,11 +11674,14 @@ void usage()
 	fprintf(stderr, "--nomissilealarm  Do not sound alarm for missile lock on.\n");
 	fprintf(stderr, "--norumble        Do not use joystick rumble effects.\n");
 	fprintf(stderr, "--nostarfield     Do not render the background starfield.\n");
+	fprintf(stderr, "--nstars n        How many stars to draw.  Default=150\n");
 	fprintf(stderr, "--retrogreen      Render in the manner of a vector display from the '70's.\n");
 	fprintf(stderr, "--randomize       Use a clock generated random seed to initialize levels.\n");
 	fprintf(stderr, "--randomseed n    Use the specified random seed to initialize levels.\n");
 	fprintf(stderr, "--rumbledevice d  Use the device file d for rumble effects. (default is /dev/input/event5)\n");
 	fprintf(stderr, "--sounddevice n   Use the nth sound device for audio output.\n");
+	fprintf(stderr, "--starmotion x    Set how starfield should move.  Possile values are:\n");
+	fprintf(stderr, "                  astronomically-correct, wrong, wronger, and wrongest.\n");
 	fprintf(stderr, "--version         Print the version number and exit.\n");
 	fprintf(stderr, "--width x         Render the game x pixels wide.\n");
 	exit(1);
@@ -11810,8 +11844,10 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 	int rc;
 	int fr, lw, rs, sd, h, w, xa, ya, button;
 	int lineno = 0;
+	int nstars;
 	char keyname[256], actionname[256];
 	char difficulty[256];
+	char starmotion[256];
 
 	game_state.x_joystick_axis = 0;
 	game_state.y_joystick_axis = 1;
@@ -11861,6 +11897,41 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 		if (rc == 1) {
 			strcpy(rumbledevicestring, filename);	
 			rumbledevice = rumbledevicestring;
+			continue;
+		}
+		rc = sscanf(s, "set starmotion=%s\n", starmotion);
+		if (rc == 1) {
+			if (strcmp(starmotion, "astronomically-correct") == 0) {
+				draw_stars = correct_draw_stars;
+				continue;
+			}
+			if (strcmp(starmotion, "wrong") == 0) {
+				draw_stars = incorrect_draw_stars;
+				starshift = 3;
+				continue;
+			}
+			if (strcmp(starmotion, "wronger") == 0) {
+				draw_stars = incorrect_draw_stars;
+				starshift = 2;
+				continue;
+			}
+			if (strcmp(starmotion, "wrongest") == 0) {
+				draw_stars = incorrect_draw_stars;
+				starshift = 1;
+				continue;
+			}
+			fprintf(stderr, "~/.wordwarvi/.exrc:%d Bad starmotion '%s',"
+				" will use default value.\n", lineno, starmotion);
+			continue;
+		}
+		rc = sscanf(s, "set nstars=%d\n", &nstars);
+		if (rc == 1) {
+			if (nstars <= NSTARS && nstars >= 0) {
+				number_of_stars = nstars;
+				continue;
+			}
+			fprintf(stderr, "~/.wordwarvi/.exrc:%d Bad nstars value %d\n", 
+				lineno, nstars);
 			continue;
 		}
 		rc = sscanf(s, "set height=%d\n", &h);
@@ -12156,6 +12227,44 @@ int main(int argc, char *argv[])
 				}
 				rumbledevice = rumbledevicestring;
 				break;
+			case 20:{
+					char starmotion[256];
+					n = sscanf(optarg, "%s", starmotion);
+					if (strcmp(starmotion, "astronomically-correct") == 0) {
+						draw_stars = correct_draw_stars;
+						break;
+					}
+					if (strcmp(starmotion, "wrong") == 0) {
+						draw_stars = incorrect_draw_stars;
+						starshift = 3;
+						break;
+					}
+					if (strcmp(starmotion, "wronger") == 0) {
+						draw_stars = incorrect_draw_stars;
+						starshift = 2;
+						break;
+					}
+					if (strcmp(starmotion, "wrongest") == 0) {
+						draw_stars = incorrect_draw_stars;
+						starshift = 1;
+						break;
+					}
+					fprintf(stderr, "Bad starmotion '%s',"
+						" will use default value.\n", starmotion);
+					break;
+				}
+			case 21:{
+					int nstars;
+					n = sscanf(optarg, "%d", &nstars);
+					if (n == 1) {
+						if (nstars >= 0 && nstars <= NSTARS) {
+							number_of_stars = nstars;
+							break;
+						}
+					}
+					fprintf(stderr, "Bad nstars value\n");
+					break;
+				}
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
