@@ -1,5 +1,32 @@
 Changelog for wordwarvi:
 
+Sun Jul 27 00:17:42 CDT 2008
+-------------------------------------------------------------------------------
+Changes between version 0.20 and 0.21
+
+* Remove the 'in game' inserting of quarter by joystick button.
+  (no single button on both logitech and xbox 360 controllers
+  maps sanely for this.)
+* deal with xbox 360 having 11 buttons.
+* Mention 'q' and 'F1' keys more prominently so people don't have a hard
+  time figuring out how to start the game, find out what keys are what.
+* Made stars move... not sure I like it, not sure I'm going to keep it.
+* Fixed a bug in the calculations for star motion.  Was shifting right
+  too early, and losing precision in calculation of worldx, worldy, which
+  made the motion of the stars kind of jerky and weird.
+* Use shorts and chars rather than ints where possible in star
+  drawing/moving algorithm.
+* Added the version and a mention of the man page and the website
+  into the help screen.
+* Fixed bug that star motion was tied to player rather than to viewport.
+* Update some info about the Xbox 360 wired controller and rumble effects
+* Added --nstars and --starmotion options (and corresponding "set" commands
+  for .exrc file.)
+* very slightly improve spark_move()
+* Improved how "bright" lines are drawn, and esp. how they are scaled.
+* Make the bullets which are shot out by the cron jobs
+  (green robots) throw off sparks.
+
 Sat Jul 19 07:48:18 CDT 2008
 -------------------------------------------------------------------------------
 Changes between version 0.19 and 0.29
