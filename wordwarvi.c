@@ -6165,20 +6165,19 @@ void ship_move(struct game_obj_t *o)
 void move_spark(struct game_obj_t *o)
 {
 	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
-	if (o->alive <= 0) {
-		o->draw = NULL;
-		o->destroy(o);
-		return;
-	}
 	o->x += o->vx;
 	o->y += o->vy;
-	age_object(o);
+
+        o->alive--;
+        if (o->alive <= 0)
+                kill_object(o);
+
 	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
 
 	/* Fade the colors. */
 	if (o->alive >= NSPARKCOLORS)
 		o->color = NCOLORS + NSPARKCOLORS - 1; 
-	else if (o->alive < 0) 
+	else if (o->alive < 0)
 		o->color = NCOLORS;
 	else
 		o->color = NCOLORS + o->alive;
@@ -6200,7 +6199,6 @@ void move_spark(struct game_obj_t *o)
 		kill_object(o);
 		o->draw = NULL;
 	}
-
 	/* If the sparks are too far away, kill them so we won't have to process them. */
 	if (abs(o->y - player->y) > 2000 || o->x > 2000+WORLDWIDTH || o->x < -2000) {
 		kill_object(o);
