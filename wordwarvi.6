@@ -2,9 +2,14 @@
 .SH NAME
 wordwarvi \- Old school '80's style side scrolling space shoot'em up game.
 .SH SYNOPSIS
-.B wordwarvi [ --bw ] [ --width w ] [ --height h ] [ --framerate f ]
-[ --fullscreen ] [ --joystick joystick-device ] [ --retrogreen ]
-[ --sounddevice n ] [ --brightsparks ] [ --version ] [ --blueprint ]
+.B wordwarvi [ --bw ] [ --blueprint ] [ --brightsparks  ]
+[ --difficulty easy|medium|hard|insane|batshit-insane ]
+[ --fullscreen ] [ --joystick device ] [ --nomusic ]
+[ --nomissilealarm ] [ --norumble ] [ --nostarfield ]
+[ --nstars n ] [ --randomize ] [ --randomseed n ]
+[ --rumbledevice device ] [ --sounddevice n ]
+[ --width w ] [ --height h ] [ --framerate f ]
+[ --retrogreen ] [ --version ]
 .SH DESCRIPTION
 .\" Add any additional description here
 .PP
@@ -48,7 +53,10 @@ to be played at 30 frames per second.
 \fB\--fullscreen\fR
 Expand the window to fill the screen.  This option overrides the 
 --width and --height options, if either of those are also specified, 
-and scales the graphics to the size of the screen.
+and scales the graphics to the size of the screen.  You can also
+use the F11 key to toggle between  fullscreen and windowed mode 
+after the program is started.  If the --fullscreen option is 
+used, then the F11 key has no effect.
 .TP
 \fB\--height h\fR
 Sets the window size to h pixels high, scaling all
