@@ -5547,6 +5547,9 @@ void move_bullet(struct game_obj_t *o)
 	dx = target_obj->x + target_obj->vx - o->x;
 	dy = target_obj->y + target_obj->vy - o->y;
 
+	/* throw some sparks. */
+	explode(o->x, o->y, 0, 0, 10, 10, 10);
+
 	/* did we hit? */
 	if ((abs(dx) < BULLET_PROXIMITY) && (abs(dy) < BULLET_PROXIMITY)) {
 		/* We've hit the target */
