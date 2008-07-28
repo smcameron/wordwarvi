@@ -7,7 +7,7 @@ wordwarvi \- Old school '80's style side scrolling space shoot'em up game.
 [ --fullscreen ] [ --joystick device ] [ --nomusic ]
 [ --nomissilealarm ] [ --norumble ] [ --nostarfield ]
 [ --nstars n ] [ --randomize ] [ --randomseed n ]
-[ --rumbledevice device ] [ --sounddevice n ]
+[ --rumbledevice device ] [ --sounddevice n ] [ --thicklines ]
 [ --width w ] [ --height h ] [ --framerate f ]
 [ --retrogreen ] [ --version ]
 .SH DESCRIPTION
@@ -129,6 +129,9 @@ a multichannel sound card.
 \fB\--starmotion x\fR
 Controls how the starfield moves.  Possible values of x
 are 'astronomically-correct', 'wrong', 'wronger', and 'wrongest'.
+.TP
+\fB\--thicklines\fR
+Render everything with extra thick lines.
 .TP
 \fB\--version\fR
 Print the program's version number and exit.
@@ -281,6 +284,9 @@ Use the nth sound device for audio output.
 set starmotion=x
 Controls how the starfield moves.  Possible values 
 are 'astronomically-correct', 'wrong', 'wronger', and 'wrongest'.
+.TP
+set thicklines
+Render everything with extra thick lines. 
 .TP
 set width=x
 Render the game x pixels wide.
