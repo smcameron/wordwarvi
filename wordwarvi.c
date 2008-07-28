@@ -323,6 +323,7 @@ int timer_event = 0;		/* timer_expired() switches on this value... */
 int nomusic = 0;
 int sound_working = 0;
 int brightsparks = 0;		/* controls preference for how to draw sparks */
+int thicklines = 0;		/* controls preference for how to draw lines. */
 int nframes = 0;		/* count of total frames drawn, used for calculating actual frame rate */
 struct timeval start_time, end_time;		/* start and end time of game, for calc'ing frame rate */
 
@@ -1602,6 +1603,28 @@ void scaled_line(GdkDrawable *drawable,
 {
 	gdk_draw_line(drawable, gc, x1*xscale_screen, y1*yscale_screen,
 		x2*xscale_screen, y2*yscale_screen);
+}
+
+void thick_scaled_line(GdkDrawable *drawable,
+	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
+{
+	int sx1,sy1,sx2,sy2,dx,dy;
+
+	if (abs(x1-x2) > abs(y1-y2)) {
+		dx = 0;
+		dy = 1;
+	} else {
+		dx = 1;
+		dy = 0;
+	}
+	sx1 = x1*xscale_screen;
+	sx2 = x2*xscale_screen;
+	sy1 = y1*yscale_screen;	
+	sy2 = y2*yscale_screen;	
+	
+	gdk_draw_line(drawable, gc, sx1,sy1,sx2,sy2);
+	gdk_draw_line(drawable, gc, sx1-dx,sy1-dy,sx2-dx,sy2-dy);
+	gdk_draw_line(drawable, gc, sx1+dx,sy1+dy,sx2+dx,sy2+dy);
 }
 
 void scaled_rectangle(GdkDrawable *drawable,
@@ -9059,6 +9082,8 @@ static gint main_da_configure(GtkWidget *w, GdkEventConfigure *event)
 		current_draw_line = scaled_line;
 		current_draw_rectangle = scaled_rectangle;
 		current_bright_line = scaled_bright_line;
+		if (thicklines)
+			current_draw_line = thick_scaled_line;
 	}
 	gdk_gc_set_clip_origin(gc, 0, 0);
 	cliprect.x = 0;	
@@ -11679,6 +11704,7 @@ static struct option wordwarvi_options[] = {
 	{ "rumbledevice", 1, NULL, 19 },
 	{ "starmotion", 1, NULL, 20 },
 	{ "nstars", 1, NULL, 21 },
+	{ "thicklines", 0, NULL, 22 },
 #ifdef LEVELWARP
 	{ "levelwarp", 1, NULL, 15 },
 #endif
@@ -11713,6 +11739,7 @@ void usage()
 	fprintf(stderr, "--sounddevice n   Use the nth sound device for audio output.\n");
 	fprintf(stderr, "--starmotion x    Set how starfield should move.  Possile values are:\n");
 	fprintf(stderr, "                  astronomically-correct, wrong, wronger, and wrongest.\n");
+	fprintf(stderr, "--thicklines      Render everything with thick lines.\n");
 	fprintf(stderr, "--version         Print the version number and exit.\n");
 	fprintf(stderr, "--width x         Render the game x pixels wide.\n");
 	exit(1);
@@ -12039,6 +12066,10 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 				brightsparks = 1;
 				continue;
 			}
+			if (strcmp(word, "thicklines") == 0) {
+				thicklines = 1;
+				continue;
+			}
 			if (strcmp(word, "blueprint") == 0) {
 				*blueprint = 1;
 				continue;
@@ -12310,6 +12341,9 @@ int main(int argc, char *argv[])
 					fprintf(stderr, "Bad nstars value\n");
 					break;
 				}
+			case 22: /* thicklines */
+				thicklines = 1;
+				break;
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
@@ -12480,6 +12514,9 @@ int main(int argc, char *argv[])
 	xscale_screen = (float) real_screen_width / (float) SCREEN_WIDTH;
 	yscale_screen = (float) real_screen_height / (float) SCREEN_HEIGHT;
 
+
+	if (thicklines)
+		current_draw_line = thick_scaled_line;
 
     timer_tag = g_timeout_add(1000 / frame_rate_hz, advance_game, NULL);
     
