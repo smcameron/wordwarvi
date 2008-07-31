@@ -2043,6 +2043,7 @@ struct game_state_t {
 	int rumble_wanted;
 
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
+int highest_object_number = 1;
 
 char rumbledevicestring[PATH_MAX];
 char *rumbledevice = NULL;
@@ -7033,7 +7034,7 @@ void draw_objs(GtkWidget *w)
 	radary = (SCREEN_HEIGHT - (RADAR_HEIGHT >> 1)) - radary;
 
 	total_radar_noise = 0; /* Each frame gets it's own allotment of noise. */
-	for (i=0;i<MAXOBJS;i++) {
+	for (i=0;i<=highest_object_number;i++) {
 		struct my_vect_obj *v = game_state.go[i].v;
 		struct game_obj_t *o = &game_state.go[i];
 
@@ -7979,6 +7980,8 @@ int find_free_obj()
 						printf("T%c ", game_state.go[answer].otype);
 				}
 				game_state.go[answer].ontargetlist=0;
+				if (answer > highest_object_number)
+					highest_object_number = answer;
 				return answer;
 			}
 			return -1;
@@ -9626,7 +9629,8 @@ gint advance_game(gpointer data)
 	game_state.missile_locked = 0;
 	if (timer_event != START_INTERMISSION_EVENT && 
 		timer_event != NEW_HIGH_SCORE_EVENT) {
-		for (i=0;i<MAXOBJS;i++) {
+		int temp_highest_obj = 0;
+		for (i=0;i<=highest_object_number;i++) {
 #if 0
 			if (game_state.go[i].alive) {
 				// printf("%d ", i);
@@ -9637,11 +9641,15 @@ gint advance_game(gpointer data)
 			}
 #endif
 
-			if (game_state.go[i].alive && game_state.go[i].move != NULL)
-				game_state.go[i].move(&game_state.go[i]);
+			if (game_state.go[i].alive) {
+				if (game_state.go[i].move != NULL)
+					game_state.go[i].move(&game_state.go[i]);
+				temp_highest_obj = i;	
+			}
 			// if (game_state.go[i].alive && game_state.go[i].move == NULL)
 				// printf("NULL MOVE!\n");
 		}
+		highest_object_number = temp_highest_obj;
 		if (game_state.missile_locked && timer % 10 == 0 && want_missile_alarm)
 			add_sound(MISSILE_LOCK_SIREN_SOUND, ANY_SLOT);
 	}
