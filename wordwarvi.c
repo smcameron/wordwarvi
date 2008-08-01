@@ -7963,6 +7963,16 @@ int find_free_obj()
 		if (free_obj_bitmap[i] == 0xffffffff) /* is this block full?  continue. */
 			continue;
 
+		/* I tried doing a preliminary binary search using bitmasks to figure */
+		/* which byte in block contains a free slot so that the for loop only */
+		/* compared 8 bits, rather than up to 32.  This resulted in a performance */
+		/* drop, (according to the gprof) perhaps contrary to intuition.  My guess */
+		/* is branch misprediction hurt performance in that case.  Just a guess though. */
+
+		/* undoubtedly the best way to find the first empty bit in an array of ints */
+		/* is some custom ASM code.  But, this is portable, and seems fast enough. */
+		/* profile says we spend about 3.8% of time in here. */
+	
 		/* Not full. There is an empty slot in this block, find it. */
 		block = free_obj_bitmap[i];			
 		for (j=0;j<32;j++) {
