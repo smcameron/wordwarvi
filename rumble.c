@@ -28,7 +28,6 @@
  * You can contact the author by email at this address:
  * Johann Deneux <deneux@ifrance.com>
  */
-
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -38,7 +37,14 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <errno.h>
+
+#ifdef __linux__
+#define HAS_LINUX_JOYSTICK_INTERFACE 1
+#endif
+
+#ifdef HAS_LINUX_JOYSTICK_INTERFACE
 #include <linux/input.h>
+#endif
 
 #define BITS_PER_LONG (sizeof(long) * 8)
 #define OFF(x)  ((x)%BITS_PER_LONG)
@@ -57,14 +63,20 @@ char* effect_names[] = {
 	"Weak Rumble"
 };
 
+#ifdef HAS_LINUX_JOYSTICK_INTERFACE
+
+
 static int event_fd;
 static char *default_event_file = "/dev/input/event5";
 static int n_effects;	/* Number of effects the device can play at the same time */
 static unsigned long features[4];
 static struct ff_effect effects[N_EFFECTS];
 
+#endif /* HAS_LINUX_JOYSTICK_INTERFACE */
+
 int stop_all_rumble_effects()
 {
+#ifdef HAS_LINUX_JOYSTICK_INTERFACE
 	int i;
 	struct input_event stop;
 
@@ -78,10 +90,14 @@ int stop_all_rumble_effects()
 			exit(1);
 		}
 	}
+#else
+	return 0;
+#endif
 }
 
 int play_rumble_effect(int effect)
 {
+#ifdef HAS_LINUX_JOYSTICK_INTERFACE
 	if (effect < 0 || effect >= N_EFFECTS)
 		return -1;
 
@@ -93,17 +109,20 @@ int play_rumble_effect(int effect)
 
 	if (write(event_fd, (const void*) &play, sizeof(play)) == -1)
 		return -1;
-
+#endif
 	return 0;
 }
 
 void close_rumble_fd()
 {
+#ifdef HAS_LINUX_JOYSTICK_INTERFACE
 	close(event_fd);
+#endif
 }
 
 int get_ready_to_rumble(char *filename)
 {
+#ifdef HAS_LINUX_JOYSTICK_INTERFACE
 	if (filename == NULL)
 		filename = default_event_file;
 
@@ -264,5 +283,7 @@ int get_ready_to_rumble(char *filename)
 	}
 
 	return 0;
+#else
+	return -1;
+#endif
 }
-
