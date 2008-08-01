@@ -4099,6 +4099,17 @@ void bomb_move(struct game_obj_t *o)
 		}
 		removed = 0;
 		switch (t->otype) {
+			case OBJ_TYPE_AIRSHIP:
+				if (abs(o->x - t->x) < 3*60 &&	/* hit a blimp or clipper ship? */
+					o->y - t->y <= 0 &&
+					o->y - t->y > -50*3) {
+					if (o->vy > 0) {
+						o->vy = -o->vy * 0.8;
+					}
+					o->vx = o->vx + randomn(6)-3;
+				}
+				break;
+				
 			case OBJ_TYPE_KGUN:
 			case OBJ_TYPE_TRUSS:
 			case OBJ_TYPE_ROCKET:
