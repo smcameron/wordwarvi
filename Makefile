@@ -102,6 +102,8 @@ tarball:	CHECK_VERSION
 		d/wordwarvi-${VERSION}
 	cp sounds/*.ogg d/wordwarvi-${VERSION}/sounds
 	cp sounds/Attribution.txt d/wordwarvi-${VERSION}/sounds
+	mkdir -p d/wordwarvi-${VERSION}/icons
+	cp icons/*.png icons/*.xcf d/wordwarvi-${VERSION}/icons
 	chown -R root:root d;
 	( cd d; tar cvf ../wordwarvi-${VERSION}.tar ./wordwarvi-${VERSION} )
 	gzip wordwarvi-${VERSION}.tar
