@@ -1,5 +1,18 @@
 Changelog for wordwarvi:
 
+Sat Aug  2 22:56:04 CDT 2008
+-------------------------------------------------------------------------------
+Changes between version 0.21 and 0.22
+* Added --thicklines option.
+* Add --thicklines option to man page.
+* Added icons
+* Keep track of how many objects there are instead of just looping over
+  MAX_OBJS objects for moving and drawing.  Gives a slight boost to the
+  acheivable frame rate, depending on your system.
+* Surrounded linux specific rumble code with ifdefs.
+* Added a comment about some failed optimization attempt in find_free_obj()
+* Made bombs bounce off of blimps.
+
 Sun Jul 27 00:17:42 CDT 2008
 -------------------------------------------------------------------------------
 Changes between version 0.20 and 0.21
