@@ -4,6 +4,7 @@ wordwarvi \- Old school '80's style side scrolling space shoot'em up game.
 .SH SYNOPSIS
 .B wordwarvi [ --bw ] [ --blueprint ] [ --brightsparks  ]
 [ --difficulty easy|medium|hard|insane|batshit-insane ]
+[ --explosionfactor n ]
 [ --fullscreen ] [ --joystick device ] [ --nomusic ]
 [ --nomissilealarm ] [ --norumble ] [ --nostarfield ]
 [ --nstars n ] [ --randomize ] [ --randomseed n ] [ --roundexplosions ]
@@ -38,6 +39,14 @@ or worse.
 \fB\--difficulty easy|medium|hard|insane|batshit-insane\fR
 Sets the difficulty level to one of easy, medium, hard, insane,
 or batshit-insane.
+.TP
+\fB\--explosionfactor n\fR
+Produce explosions with the number of sparks
+mulitplied by n.  Default is 1, integers up
+to 5 are permitted.  Performance may suffer
+with large values of n.  This option only has
+an effect when used in conjunction with the
+roundexplosions option.
 .TP
 \fB\--framerate f\fR
 Sets the target frame rate to f frames per second.
@@ -238,6 +247,14 @@ set difficulty=x
 Sets the difficulty level.  Valid values are
 easy, medium, hard, insane, and batshit-insane.
 .TP
+set explosionfactor=n
+Produce explosions with the number of sparks
+mulitplied by n.  Default is 1, integers up
+to 5 are permitted.  Performance may suffer
+with large values of n.  This option only has
+an effect when used in conjunction with the
+roundexplosions option.
+.TP
 set framerate=n
 Attempt to render the game at n frames per second.
 .TP
@@ -290,6 +307,19 @@ each boot, and each time you hotplug the controller.  There
 is probably a way to get udev to do this for you automatically 
 every time, but I don't know what it is offhand, and it may 
 differ from distro to distro.
+.TP
+set roundexplosions
+Makes explosions round rather than rectangular.  By default
+spark velocities are chosen by simply assiging independent 
+uniformly distributed random x and y velocities.  This results 
+in an explosion which is rectangular in shape.  If there aren't
+too many sparks, you don't really notice.  With larger numbers
+of sparks, this rectangular shape can become apparent.  The
+roundexplosions options causes a uniformly distributed random 
+angle and velocity to be chosen for each spark, and then x and
+y velocities are computed from those values.  In this way, x
+and y velocities are no longer independent, and  the explosion 
+takes on a more natural looking round shape.
 .TP
 set sounddevice=n
 Use the nth sound device for audio output.

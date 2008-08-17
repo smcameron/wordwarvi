@@ -323,6 +323,7 @@ int timer_event = 0;		/* timer_expired() switches on this value... */
 int nomusic = 0;
 int sound_working = 0;
 int round_explosions = 0;
+int explosion_factor = 1;
 int brightsparks = 0;		/* controls preference for how to draw sparks */
 int thicklines = 0;		/* controls preference for how to draw lines. */
 int nframes = 0;		/* count of total frames drawn, used for calculating actual frame rate */
@@ -6307,7 +6308,7 @@ void round_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
 	int vx, vy, i;
 	int angle, tmpv; 
 
-	for (i=0;i<nsparks;i++) {
+	for (i=0;i<nsparks * explosion_factor;i++) {
 		// vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivx));
 		// vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivy));
 		// vx = randomn(v) - (v>>1) + ivx;
@@ -11765,6 +11766,7 @@ static struct option wordwarvi_options[] = {
 	{ "nstars", 1, NULL, 21 },
 	{ "thicklines", 0, NULL, 22 },
 	{ "roundexplosions", 0, NULL, 23 },
+	{ "explosionfactor", 1, NULL, 24 },
 #ifdef LEVELWARP
 	{ "levelwarp", 1, NULL, 15 },
 #endif
@@ -11780,6 +11782,7 @@ void usage()
 	fprintf(stderr, "--blueprint       Render in the style of a blueprint.\n");
 	fprintf(stderr, "--brightsparks    Render sparks brighter than usual.\n");
 	fprintf(stderr, "--difficulty      Sets difficulty level: medium, hard, insane, batshit-insane.\n");
+	fprintf(stderr, "--explosionfactor Multiplier for number of sparks in explosions.\n");
 	fprintf(stderr, "--framerate n     Attempt to render the game at n frames per second.\n");
 	fprintf(stderr, "--fullscreen      Render the game in full screen mode.\n");
 	fprintf(stderr, "--height y        Render the game y pixels high.\n");
@@ -12097,6 +12100,14 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 			}
 			continue;
 		}
+		rc = sscanf(s, "set explosionfactor=%d\n", &xa);
+		if (rc == 1) {
+			if (xa >= 1 && xa <= 5)
+				explosion_factor = xa;
+			else
+				explosion_factor = 1;
+			continue;
+		}
 		rc = sscanf(s, "set difficulty=%s\n", difficulty);
 		if (rc == 1) {
 			if (set_difficulty(difficulty) == 0)
@@ -12412,6 +12423,19 @@ int main(int argc, char *argv[])
 			case 23: /* roundexplosions */
 				round_explosions = 1;
 				break;
+			case 24:/* explosionfactor */ {
+					int x;
+					n = sscanf( optarg, "%d", &x);
+					if (n == 1) {
+						if (x >= 1 && x <= 5) {
+							explosion_factor = x;
+							break;
+						}
+					}
+					explosion_factor = 1;
+					fprintf(stderr, "Bad explosionfactor value.\n");
+					break;
+				}
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
