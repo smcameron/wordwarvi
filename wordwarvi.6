@@ -6,7 +6,7 @@ wordwarvi \- Old school '80's style side scrolling space shoot'em up game.
 [ --difficulty easy|medium|hard|insane|batshit-insane ]
 [ --fullscreen ] [ --joystick device ] [ --nomusic ]
 [ --nomissilealarm ] [ --norumble ] [ --nostarfield ]
-[ --nstars n ] [ --randomize ] [ --randomseed n ]
+[ --nstars n ] [ --randomize ] [ --randomseed n ] [ --roundexplosions ]
 [ --rumbledevice device ] [ --sounddevice n ] [ --thicklines ]
 [ --width w ] [ --height h ] [ --framerate f ]
 [ --retrogreen ] [ --version ]
@@ -103,6 +103,19 @@ allows access to new levels which you may play again by
 specifying the same random seed value.  The default
 random seed value the game uses if none is specified
 is 31415927.
+.TP
+\fB\--roundexplosions\fR
+Makes explosions round rather than rectangular.  By default
+spark velocities are chosen by simply assiging independent 
+uniformly distributed random x and y velocities.  This results 
+in an explosion which is rectangular in shape.  If there aren't
+too many sparks, you don't really notice.  With larger numbers
+of sparks, this rectangular shape can become apparent.  The
+roundexplosions options causes a uniformly distributed random 
+angle and velocity to be chosen for each spark, and then x and
+y velocities are computed from those values.  In this way, x
+and y velocities are no longer independent, and  the explosion 
+takes on a more natural looking round shape.
 .TP
 \fB\--rumbledevice d\fR
 Use the specified device for rumble effects (XBox 360 wired

@@ -322,6 +322,7 @@ int timer_event = 0;		/* timer_expired() switches on this value... */
 
 int nomusic = 0;
 int sound_working = 0;
+int round_explosions = 0;
 int brightsparks = 0;		/* controls preference for how to draw sparks */
 int thicklines = 0;		/* controls preference for how to draw lines. */
 int nframes = 0;		/* count of total frames drawn, used for calculating actual frame rate */
@@ -1576,9 +1577,12 @@ typedef void bright_line_drawing_function(GdkDrawable *drawable,
 typedef void rectangle_drawing_function(GdkDrawable *drawable,
 	GdkGC *gc, gboolean filled, gint x, gint y, gint width, gint height);
 
+typedef void explosion_function(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
+
 line_drawing_function *current_draw_line = gdk_draw_line;
 rectangle_drawing_function *current_draw_rectangle = gdk_draw_rectangle;
 bright_line_drawing_function *current_bright_line = NULL;
+explosion_function *explosion = NULL;
 
 /* I can switch out the line drawing function with these macros */
 /* in case I come across something faster than gdk_draw_line */
@@ -2372,6 +2376,7 @@ static inline int randomab(int a, int b)
 }
 
 void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
+void round_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
 static inline void kill_object(struct game_obj_t *o);
 static inline void age_object(struct game_obj_t *o);
 
@@ -2388,7 +2393,7 @@ void move_laserbolt(struct game_obj_t *o)
 		return;
 	}
 	if (abs(dy) < 9 && abs(player->x - o->x) < 15) { /* hit the player? */
-		explode(o->x, o->y, o->vx, 1, 70, 20, 20);
+		explosion(o->x, o->y, o->vx, 1, 70, 20, 20);
 		add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 		game_state.health -= LASER_BOLT_DAMAGE;
 		do_strong_rumble();
@@ -2625,7 +2630,7 @@ void move_rocket(struct game_obj_t *o)
 		gl = find_ground_level(o, NULL);
 		if (o->y > gl) {
 			add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
-			explode(o->x, o->y, o->vx, 1, 70, 150, 20);
+			explosion(o->x, o->y, o->vx, 1, 70, 150, 20);
 			remove_target(o);
 			kill_object(o);
 			return;
@@ -2635,7 +2640,7 @@ void move_rocket(struct game_obj_t *o)
 		if ((ydist*ydist + xdist*xdist) < 400) { /* hit the player? */
 			add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 			do_strong_rumble();
-			explode(o->x, o->y, o->vx, 1, 70, 150, 20);
+			explosion(o->x, o->y, o->vx, 1, 70, 150, 20);
 			game_state.health -= 20;
 			remove_target(o);
 			kill_object(o);
@@ -3194,7 +3199,7 @@ void octopus_move(struct game_obj_t *o)
 	if (o->y >= gy + 3) {
 		remove_target(o);
 		kill_object(o);
-		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
+		explosion(o->x, o->y, o->vx, 1, 70, 150, 20);
 		o->destroy(o);
 	}
 }
@@ -3593,7 +3598,7 @@ void pilot_move(struct game_obj_t *o)
 	if (o->y >= gy + 3) {
 		remove_target(o);
 		kill_object(o);
-		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
+		explosion(o->x, o->y, o->vx, 1, 70, 150, 20);
 		o->destroy(o);
 	}
 }
@@ -3703,7 +3708,7 @@ void gdb_move(struct game_obj_t *o)
 	if (o->y >= gy + 3) {
 		remove_target(o);
 		kill_object(o);
-		explode(o->x, o->y, o->vx, 1, 70, 150, 20);
+		explosion(o->x, o->y, o->vx, 1, 70, 150, 20);
 		o->destroy(o);
 	}
 }
@@ -4135,7 +4140,7 @@ void bomb_move(struct game_obj_t *o)
 						if (t->health.health > 0) {
 							do_remove_bomb = 1;
 							add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
-							explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+							explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 							spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 							/* target object not dead yet. */
 							break;
@@ -4158,7 +4163,7 @@ void bomb_move(struct game_obj_t *o)
 					}
 					kill_tally[t->otype]++;
 					add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
-					explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+					explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 					spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 					// t->alive = 0;
 					next = remove_target(t);
@@ -4181,7 +4186,7 @@ void bomb_move(struct game_obj_t *o)
 	deepest = find_ground_level(o, NULL);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
-		explode(o->x, o->y, o->vx, 1, 90, 150, 20);
+		explosion(o->x, o->y, o->vx, 1, 90, 150, 20);
 		do_remove_bomb = 1;
 		/* find nearby targets */
 		for (t=target_head;t != NULL;) {
@@ -4218,7 +4223,7 @@ void bomb_move(struct game_obj_t *o)
 							t->health.health -= 1;
 							if (t->health.health > 0) {
 								add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
-								explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+								explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 								spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 								/* object not dead yet. */
 								break;
@@ -4232,7 +4237,7 @@ void bomb_move(struct game_obj_t *o)
 							game_state.score += score_table[t->otype];
 							add_score_floater(t->x, t->y, score_table[t->otype]);
 						}
-						explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+						explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 						spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 						next = remove_target(t);
 						kill_object(t);
@@ -4723,7 +4728,7 @@ void move_player(struct game_obj_t *o)
 		}
 
 		player->move = bridge_move; /* bridge move makes the player fall. */
-		explode(player->x, player->y, player->vx, player->vy, 90, 350, 30); /* bunch of sparks. */
+		explosion(player->x, player->y, player->vx, player->vy, 90, 350, 30); /* bunch of sparks. */
 		player->draw = no_draw;				/* Make player invisible. */
 		spray_debris(o->x, o->y, o->vx, o->vy, 70, o, 1);/* Throw hunks of metal around, */
 		add_sound(LARGE_EXPLOSION_SOUND, ANY_SLOT);	/* and make a lot of noise */
@@ -5076,7 +5081,7 @@ void laser_move(struct game_obj_t *o)
 						next = remove_target(t);
 						kill_object(t);
 						t->destroy(t);
-						explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+						explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 						spray_debris(t->x, t->y, t->vx, t->vy, 30, t, 1);
 						add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 						t = next;
@@ -5145,7 +5150,7 @@ void laser_move(struct game_obj_t *o)
 						/* of the sky like a bomb when hit, instead of */
 						/* exploding. */
 						add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
-						explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+						explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 						t->move = bomb_move;
 						break;
 					}
@@ -5155,7 +5160,7 @@ void laser_move(struct game_obj_t *o)
 					}
 					kill_tally[t->otype]++;
 					add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
-					explode(t->x, t->y, t->vx, 1, 70, 150, 20);
+					explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 					spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 					next = remove_target(t);
 					kill_object(t);
@@ -5199,7 +5204,7 @@ void laser_move(struct game_obj_t *o)
 						remove_target(parent);
 						kill_object(parent);
 						parent->destroy(parent);
-						explode(t->x, t->y, t->vx, 1, 70, 25, 20);
+						explosion(t->x, t->y, t->vx, 1, 70, 25, 20);
 						spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 					}
 					t->tsd.worm.parent->tsd.worm.child = NULL;
@@ -5222,7 +5227,7 @@ void laser_move(struct game_obj_t *o)
 						remove_target(child);
 						kill_object(child);
 						child->destroy(child);
-						explode(t->x, t->y, t->vx, 1, 70, 25, 20);
+						explosion(t->x, t->y, t->vx, 1, 70, 25, 20);
 						spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 					}
 				}
@@ -5363,7 +5368,7 @@ void move_missile(struct game_obj_t *o)
 	deepest = find_ground_level(o, NULL);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
-		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		explosion(o->x, o->y, o->vx, o->vy, 70, 150, 20);
 		remove_target(o);
 		kill_object(o);
 		o->destroy(o);
@@ -5374,7 +5379,7 @@ void move_missile(struct game_obj_t *o)
 	age_object(o);
 	if (o->alive <= 0) { 
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
-		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		explosion(o->x, o->y, o->vx, o->vy, 70, 150, 20);
 		remove_target(o);
 		kill_object(o);
 		o->destroy(o);
@@ -5405,7 +5410,7 @@ void move_missile(struct game_obj_t *o)
 		if (target_obj->alive <= 0)
 			kill_object(target_obj);
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
-		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		explosion(o->x, o->y, o->vx, o->vy, 70, 150, 20);
 		o->destroy(o);
 		return;
 	}
@@ -5476,7 +5481,7 @@ void move_harpoon(struct game_obj_t *o)
 	deepest = find_ground_level(o, NULL);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
-		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		explosion(o->x, o->y, o->vx, o->vy, 70, 150, 20);
 		remove_target(o);
 		kill_object(o);
 		o->destroy(o);
@@ -5487,7 +5492,7 @@ void move_harpoon(struct game_obj_t *o)
 	age_object(o);
 	if (o->alive <= 0) { 
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
-		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		explosion(o->x, o->y, o->vx, o->vy, 70, 150, 20);
 		remove_target(o);
 		kill_object(o);
 		o->destroy(o);
@@ -5517,7 +5522,7 @@ void move_harpoon(struct game_obj_t *o)
 		if (target_obj->alive <= 0)
 			kill_object(target_obj);
 		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
-		explode(o->x, o->y, o->vx, o->vy, 70, 150, 20);
+		explosion(o->x, o->y, o->vx, o->vy, 70, 150, 20);
 		o->destroy(o);
 		return;
 	}
@@ -5598,7 +5603,7 @@ void move_bullet(struct game_obj_t *o)
 		if (target_obj->alive <= 0)
 			kill_object(target_obj);
 		add_sound(CLANG_SOUND, ANY_SLOT);
-		explode(o->x, o->y, o->vx, o->vy, 70, 10, 10);
+		explosion(o->x, o->y, o->vx, o->vy, 70, 10, 10);
 		o->destroy(o);
 		return;
 	}
@@ -6259,6 +6264,7 @@ void move_spark(struct game_obj_t *o)
 		o->vy++;
 
 	/* no gravity on the sparks, I've tried it, I like it better without it. */
+	//o->vy += (timer & 0x01);
 
 	/* If the sparks reach speed of zero due to air resistance, kill them. */
 	if (o->vx == 0 && o->vy == 0) {
@@ -6288,6 +6294,30 @@ void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
 		// vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivy));
 		vx = randomn(v) - (v>>1) + ivx;
 		vy = randomn(v) - (v>>1) + ivy;
+		add_spark(x, y, vx, vy, time); 
+		/* printf("%d,%d, v=%d,%d, time=%d\n", x,y, vx, vy, time); */
+	}
+}
+
+/* round_explode is just like explode() above, except make the distribution 
+ * of velocities result in a round, rather than square explosion. 
+ */
+void round_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
+{
+	int vx, vy, i;
+	int angle, tmpv; 
+
+	for (i=0;i<nsparks;i++) {
+		// vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivx));
+		// vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivy));
+		// vx = randomn(v) - (v>>1) + ivx;
+		// vy = randomn(v) - (v>>1) + ivy;
+		angle = (randomn(360)+1) % 360;
+		/* multiply by square root of 2 so the "energy" of the explosion */
+		/* will be the same as that of the rectangular version. */
+		tmpv = (randomn(v >> 1) * 1.4142135623);	
+		vx = cosine[angle] * tmpv + ivx;
+		vy = sine[angle] * tmpv + ivy;
 		add_spark(x, y, vx, vy, time); 
 		/* printf("%d,%d, v=%d,%d, time=%d\n", x,y, vx, vy, time); */
 	}
@@ -11734,6 +11764,7 @@ static struct option wordwarvi_options[] = {
 	{ "starmotion", 1, NULL, 20 },
 	{ "nstars", 1, NULL, 21 },
 	{ "thicklines", 0, NULL, 22 },
+	{ "roundexplosions", 0, NULL, 23 },
 #ifdef LEVELWARP
 	{ "levelwarp", 1, NULL, 15 },
 #endif
@@ -11764,6 +11795,7 @@ void usage()
 	fprintf(stderr, "--retrogreen      Render in the manner of a vector display from the '70's.\n");
 	fprintf(stderr, "--randomize       Use a clock generated random seed to initialize levels.\n");
 	fprintf(stderr, "--randomseed n    Use the specified random seed to initialize levels.\n");
+	fprintf(stderr, "--roundexplosions Make explosions round rather than rectangular.\n");
 	fprintf(stderr, "--rumbledevice d  Use the device file d for rumble effects. (default is /dev/input/event5)\n");
 	fprintf(stderr, "--sounddevice n   Use the nth sound device for audio output.\n");
 	fprintf(stderr, "--starmotion x    Set how starfield should move.  Possile values are:\n");
@@ -12095,6 +12127,10 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 				brightsparks = 1;
 				continue;
 			}
+			if (strcmp(word, "roundexplosions") == 0) {
+				round_explosions = 1;
+				continue;
+			}
 			if (strcmp(word, "thicklines") == 0) {
 				thicklines = 1;
 				continue;
@@ -12373,6 +12409,9 @@ int main(int argc, char *argv[])
 			case 22: /* thicklines */
 				thicklines = 1;
 				break;
+			case 23: /* roundexplosions */
+				round_explosions = 1;
+				break;
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
@@ -12546,6 +12585,10 @@ int main(int argc, char *argv[])
 
 	if (thicklines)
 		current_draw_line = thick_scaled_line;
+
+	explosion = explode;
+	if (round_explosions)
+		explosion = round_explode;
 
     timer_tag = g_timeout_add(1000 / frame_rate_hz, advance_game, NULL);
     
