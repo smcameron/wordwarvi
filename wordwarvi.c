@@ -9413,9 +9413,11 @@ void timer_expired()
 		gotoxy(x,yline++);
 		gameprint("Game design:   Stephen Cameron");
 		gotoxy(x,yline++);
-		gameprint("Music:         Stephen Cameron");
+		gameprint("Music:         Stephen Cameron,");
 		gotoxy(x,yline++);
-		gameprint("               and Marty Kiel");
+		gameprint("               Marty Kiel and");
+		gotoxy(x,yline++);
+		gameprint("               Skip Kavanaugh");
 		gotoxy(x,yline++);
 		gameprint("Sound effects: Stephen Cameron.");
 		gotoxy(x,yline++);
