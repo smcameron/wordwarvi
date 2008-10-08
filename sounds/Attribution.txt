@@ -11,6 +11,13 @@ with "vorbiscomment -l"
   http://creativecommons.org/licenses/by/2.0/
   (Note, this is different than the other audio clips.)
 
+* lucky-holiday-cornbread-stuffing-mono.ogg is composed and
+  recorded by m (Stephen M. Cameron, rhythm guitar), Skip
+  Kavanaugh (lead guitar) and Marty Kiel (everything else).
+  It is licensed under the Creative Commons Attribution 2.0 license
+  http://creativecommons.org/licenses/by/2.0/
+  (Note, this is different than the other audio clips.)
+
 * dtox3monomix.ogg was composed, performed, and recorded by me
   (Stephen M. Cameron).  It is licensed under the Creative
   Commons Attribution-Share Alike 3.0 license.

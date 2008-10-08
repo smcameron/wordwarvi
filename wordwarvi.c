@@ -24,6 +24,7 @@
 #include <gtk/gtk.h>
 #include <string.h>
 #include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 #include <limits.h>
 #include <sys/types.h>
@@ -325,6 +326,7 @@ int sound_working = 0;
 int round_explosions = 0;
 int explosion_factor = 1;
 int brightsparks = 0;		/* controls preference for how to draw sparks */
+int xmas_mode = 0;
 int thicklines = 0;		/* controls preference for how to draw lines. */
 int nframes = 0;		/* count of total frames drawn, used for calculating actual frame rate */
 struct timeval start_time, end_time;		/* start and end time of game, for calc'ing frame rate */
@@ -11297,7 +11299,10 @@ int init_clips()
 	if (!nomusic) {
 		read_ogg_clip(DESTINY_FACEDOWN, "sounds/destiny_facedown.ogg");
 		read_ogg_clip(HIGH_SCORE_MUSIC, "sounds/highscoremusic.ogg");
-		read_ogg_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.ogg");
+		if (!xmas_mode)
+			read_ogg_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.ogg");
+		else
+			read_ogg_clip(MUSIC_SOUND, "sounds/lucky-holiday-cornbread-stuffing-mono.ogg");
 	}
 	printf("done.\n");
 	return 0;
@@ -11767,6 +11772,7 @@ static struct option wordwarvi_options[] = {
 	{ "thicklines", 0, NULL, 22 },
 	{ "roundexplosions", 0, NULL, 23 },
 	{ "explosionfactor", 1, NULL, 24 },
+	{ "xmas", 0, NULL, 25 },
 #ifdef LEVELWARP
 	{ "levelwarp", 1, NULL, 15 },
 #endif
@@ -11806,6 +11812,7 @@ void usage()
 	fprintf(stderr, "--thicklines      Render everything with thick lines.\n");
 	fprintf(stderr, "--version         Print the version number and exit.\n");
 	fprintf(stderr, "--width x         Render the game x pixels wide.\n");
+	fprintf(stderr, "--xmas            Merry Christmas.\n");
 	exit(1);
 }
 
@@ -12130,6 +12137,9 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 		}
 		rc = sscanf(s, "set %s", word);
 		if (rc == 1) {
+			if (strcmp(word, "xmas") == 0) {
+				xmas_mode = !xmas_mode;
+			}
 			if (strcmp(word, "bw") == 0) {
 				*bw = 1;
 				continue;
@@ -12190,6 +12200,21 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 	fclose(exrcfile);
 }
 
+void check_xmastime()
+{
+	struct timeval tv;
+	struct tm *t;
+
+	xmas_mode = 0;
+
+	gettimeofday(&tv, NULL);
+	t = localtime(&tv.tv_sec);
+	if (t != NULL) {
+		if (t->tm_mon == 11 && t->tm_mday >= 20)
+			xmas_mode = 1;
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	/* GtkWidget is the storage type for widgets */
@@ -12203,6 +12228,8 @@ int main(int argc, char *argv[])
 	char joystick_device[PATH_MAX+1];
 
 	struct timeval tm;
+
+	check_xmastime();
 
 	init_highscores();
 	high_score_file_descriptor = open_high_score_file_and_lose_permissions();
@@ -12436,6 +12463,8 @@ int main(int argc, char *argv[])
 					fprintf(stderr, "Bad explosionfactor value.\n");
 					break;
 				}
+			case 25: /* --xmas */ xmas_mode = !xmas_mode;
+				break;
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
