@@ -1137,6 +1137,62 @@ struct my_point_t player_ship_points[] = {
 #endif
 };
 
+struct my_point_t sleigh_points[] = {
+	{ -20, 10 },
+	{ 20, 10 },
+	{ 23, 7 },
+	{ 23, 4 },
+	{ 21, 3 }, 
+	{ LINE_BREAK, LINE_BREAK },
+	{ -10, 10 },
+	{ -10, 5 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 10, 10 },
+	{ 10, 5 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, RED },
+	{ 3, 5 },
+	{ 0, -8 },
+	{ -25, -10 },
+	{ -20, 5 },
+	{ 13, 5 },
+	{ 15, 3 },
+	{ 13, -10 },
+	{ 15, -12 },
+	{ 17, -12 },
+	{ 18, -10 },
+};
+
+struct my_point_t left_sleigh_points[sizeof(sleigh_points)/sizeof(sleigh_points[0])];
+
+struct my_point_t reindeer_points[] = {
+	{ -5, 13 },
+	{ -7, 8 },
+	{ -5, 3 },
+	{ 0, 5 },
+	{ 5, 3 },
+	{ 7, 8 },
+	{ 5, 13 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 5, 3 },
+	{ 9, -4 },
+	{ 14, -4 },
+	{ 14, -6 },
+	{ 9, -8 },
+	{ 9, -12 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 9, -6 },
+	{ 9, -6 },
+	{ 5, -2 },
+	{ -5, -2 },
+	{ -7, -4 },
+	{ -7, -8 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -5, -2 },
+	{ -6, -1 },
+	{ -5, 3 },
+};
+
 struct my_point_t socket_points[] = {
 	{ 9, 0 }, /* front of hatch */
 	{ -3, -6 }, /* top of hatch */
@@ -1481,6 +1537,8 @@ struct my_vect_obj {
 /* contains instructions on how to draw all the objects */
 struct my_vect_obj player_vect;
 struct my_vect_obj left_player_vect;
+struct my_vect_obj sleigh_vect;
+struct my_vect_obj left_sleigh_vect;
 struct my_vect_obj rocket_vect;
 struct my_vect_obj jet_vect;
 struct my_vect_obj spark_vect;
@@ -1824,6 +1882,13 @@ struct extra_player_data {  /* these are used when drawing the player zooming in
 	int count2;
 };
 
+struct reindeer_data {
+	int count; /* must match extra_player_data */
+	int count2;
+	int direction;
+	int sleigh;
+}; 
+
 struct harpoon_data {		
 	struct game_obj_t *gdb;	/* which gdb this harpoon came from */
 };
@@ -1949,6 +2014,7 @@ union type_specific_data {		/* union of all the typs specific data */
 	struct gdb_data gdb;
 	struct octopus_data octopus;
 	struct extra_player_data epd;
+	struct reindeer_data reindeer;
 	struct tentacle_data tentacle;
 	struct floating_message_data floating_message;
 	struct cron_data cron;
@@ -2059,6 +2125,7 @@ struct game_obj_t * human[MAXHUMANS];	/* Keep a special array of just the humans
 
 struct game_obj_t *volcano_obj;
 struct game_obj_t *player = &game_state.go[0];	/* The player is object zero. */
+struct game_obj_t *player_target;
 int lasthuman = 0;				/* debug code... for 'n' key. */
 
 GdkGC *gc = NULL;		/* our graphics context. */
@@ -2389,13 +2456,13 @@ void move_laserbolt(struct game_obj_t *o)
 	int dy;
 	if (!o->alive)
 		return;
-	dy = (o->y - player->y);
+	dy = (o->y - player_target->y);
 	if (dy < -1000) { /* if laser bolt is very far away, just get forget about it. */
 		kill_object(o);
 		o->destroy(o);
 		return;
 	}
-	if (abs(dy) < 9 && abs(player->x - o->x) < 15) { /* hit the player? */
+	if (abs(dy) < 9 && abs(player_target->x - o->x) < 15) { /* hit the player? */
 		explosion(o->x, o->y, o->vx, 1, 70, 20, 20);
 		add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
 		game_state.health -= LASER_BOLT_DAMAGE;
@@ -2412,8 +2479,8 @@ void fuel_move(struct game_obj_t *o)
 {
 	int xdist, ydist;
 
-	xdist = abs(player->x - (o->x + 20));
-	ydist = abs(player->y - o->y);
+	xdist = abs(player_target->x - (o->x + 20));
+	ydist = abs(player_target->y - o->y);
 	if (xdist <= HUMANOID_DIST*3 && 
 		ydist <= HUMANOID_DIST*5 &&		/* player close enough? */
 		(timer % REFUEL_RATE) == 0 && 		/* control refuel rate... */
@@ -2502,8 +2569,8 @@ void kgun_move(struct game_obj_t *o)
 		o->health.health < o->health.maxhealth)
 		o->health.health++;
 
-	xdist = abs(o->x - player->x); /* in range? */
-	ydist = abs(o->y - player->y);
+	xdist = abs(o->x - player_target->x); /* in range? */
+	ydist = abs(o->y - player_target->y);
 
 	if (xdist < 600)
 		chance = 100 + xdist;
@@ -2517,8 +2584,8 @@ void kgun_move(struct game_obj_t *o)
 		o->tsd.kgun.recoil_amount = 7;
 
 		/* Find x,y dist to player... */
-		dx = player->x+LASERLEADX*player->vx - o->x;
-		dy = player->y+LASERLEADY*player->vy - o->y;
+		dx = player_target->x+LASERLEADX*player_target->vx - o->x;
+		dy = player_target->y+LASERLEADY*player_target->vy - o->y;
 
 		adx = abs(dx);
 		ady = abs(dy);
@@ -2605,9 +2672,9 @@ void move_rocket(struct game_obj_t *o)
 	/* launch once, blow up, then that's the end of them. */
 
 	/* see if rocket should launch... */
-	xdist = abs(o->x - player->x);
+	xdist = abs(o->x - player_target->x);
 	if (xdist < LAUNCH_DIST && o->alive != 2 && randomn(100) < 20) {
-		ydist = o->y - player->y;
+		ydist = o->y - player_target->y;
 		if (((xdist<<1) <= ydist && ydist > 0) || o->vy != 0) {
 			if (o->vy == 0) { /* only add the sound once. */
 				add_sound(ROCKET_LAUNCH_SOUND, ANY_SLOT);
@@ -2621,9 +2688,9 @@ void move_rocket(struct game_obj_t *o)
 			o->vy--;
 
 		/* let the rockets veer slightly left or right. */
-		if (player->x < o->x && player->vx < 0)
+		if (player_target->x < o->x && player_target->vx < 0)
 			o->vx = -2;
-		else if (player->x > o->x && player->vx > 0)
+		else if (player_target->x > o->x && player_target->vx > 0)
 			o->vx = 2;
 		else 
 			o->vx = 0;
@@ -2639,7 +2706,7 @@ void move_rocket(struct game_obj_t *o)
 			return;
 		}
 
-		ydist = o->y - player->y;
+		ydist = o->y - player_target->y;
 		if ((ydist*ydist + xdist*xdist) < 400) { /* hit the player? */
 			add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
 			do_strong_rumble();
@@ -2676,13 +2743,13 @@ void move_jet(struct game_obj_t *o)
 	if (!o->alive)
 		return;	
 
-	xdist = o->x - player->x;
+	xdist = o->x - player_target->x;
 	if (xdist > SCREEN_WIDTH * 2)
 		return;
 
 	if (xdist > 0 && xdist < SCREEN_WIDTH * 2) {
 		if (o->vx == 0) {
-			o->y = player->y - 50 - randomn(200);
+			o->y = player_target->y - 50 - randomn(200);
 			o->vx = -18;
 			o->vy = 0;
 			o->radar_image = 1;
@@ -2691,13 +2758,13 @@ void move_jet(struct game_obj_t *o)
 
 		if (xdist < SCREEN_WIDTH && randomn(100) < 10 && o->missile_timer <= timer) {
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
-			add_missile(o->x, o->y, o->vx, 0, 300, RED, player);
+			add_missile(o->x, o->y, o->vx, 0, 300, RED, player_target);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 		}
 
 	}
 
-	desired_y = player->y - 15 - randomn(25);
+	desired_y = player_target->y - 15 - randomn(25);
 	if (desired_y < KERNEL_Y_BOUNDARY)
 		desired_y = KERNEL_Y_BOUNDARY + 30;
 	if (o->y > desired_y)
@@ -2724,14 +2791,14 @@ void sam_move(struct game_obj_t *o)
 	if (!o->alive)
 		return;
 
-	xdist = abs(o->x - player->x);
+	xdist = abs(o->x - player_target->x);
 	if (xdist < SAM_LAUNCH_DIST) { /* player in range? */
-		ydist = o->y - player->y;
+		ydist = o->y - player_target->y;
 		/* should we launch?  And not too many at once... */
 		if (ydist > 0 && randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
 			/* launching a missile... */
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
-			add_missile(o->x+20, o->y-30, 0, -10, 300, GREEN, player);
+			add_missile(o->x+20, o->y-30, 0, -10, 300, GREEN, player_target);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 		}
 	}
@@ -2745,8 +2812,8 @@ void fuel_draw(struct game_obj_t *o, GtkWidget *w)
 	int x1, y1, x2, y2;
 	int xdist, ydist;
 
-	xdist = abs(player->x - o->x);
-	ydist = abs(player->y - o->y);
+	xdist = abs(player_target->x - o->x);
+	ydist = abs(player_target->y - o->y);
 		
 	/* draw the fuel in the tank. */
 	x1 = o->x - game_state.x - 25;
@@ -2764,8 +2831,8 @@ void fuel_draw(struct game_obj_t *o, GtkWidget *w)
 	if (xdist <= HUMANOID_DIST*3 && ydist <= HUMANOID_DIST*5) {
 		x1 = o->x - game_state.x;
 		y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);
-		x2 = player->x - game_state.x;
-		y2 = player->y - game_state.y + (SCREEN_HEIGHT/2);
+		x2 = player_target->x - game_state.x;
+		y2 = player_target->y - game_state.y + (SCREEN_HEIGHT/2);
 		wwvi_draw_line(w->window, gc, x1, y1, x2, y2);
 	}
 }
@@ -2961,13 +3028,13 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 	/* Shoot lightning at the player occasionally if he gets too close. */
 	if ((timer & 0x01) && 
 		randomn(1000) < 45 && 
-		abs(o->x - player->x) < 200 && 
-		abs(o->y - player->y) < 500) {
+		abs(o->x - player_target->x) < 200 && 
+		abs(o->y - player_target->y) < 500) {
 
-		draw_lightning(w, x2, y2, player->x - game_state.x, 
-			player->y - game_state.y + (SCREEN_HEIGHT/2));
+		draw_lightning(w, x2, y2, player_target->x - game_state.x, 
+			player_target->y - game_state.y + (SCREEN_HEIGHT/2));
 		do_weak_rumble();
-		explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
+		explode(player_target->x, player_target->y, player_target->vx*1.5, 1, 20, 20, 15);
 		game_state.health -= 1; /* just take off one, the octo's are bad... */
 		/* keep thunder from going oof too much */
 		if ((next_thunder_time) < timer) {
@@ -3143,10 +3210,10 @@ void octopus_move(struct game_obj_t *o)
 
 		/* if we're not already close enough, sometimes choose a destination near */
 		/* the player's location. */
-		if (abs(player->x - tx) > GDB_DX_THRESHOLD ||
-			abs(player->y - ty) > GDB_DY_THRESHOLD || randomn(100) < 3) {
-			o->tsd.octopus.tx = player->x + randomn(300)-150;
-			o->tsd.octopus.ty = player->y + randomn(300)-150;
+		if (abs(player_target->x - tx) > GDB_DX_THRESHOLD ||
+			abs(player_target->y - ty) > GDB_DY_THRESHOLD || randomn(100) < 3) {
+			o->tsd.octopus.tx = player_target->x + randomn(300)-150;
+			o->tsd.octopus.ty = player_target->y + randomn(300)-150;
 		}
 
 		/* don't sink through the ground... */
@@ -3171,9 +3238,9 @@ void octopus_move(struct game_obj_t *o)
 	}
 
 	/* see if we're close to the player, and if so, and we're not awake, then wake up. */	
-	xdist = abs(o->x - player->x);
+	xdist = abs(o->x - player_target->x);
 	if (xdist < GDB_LAUNCH_DIST) {
-		ydist = o->y - player->y;
+		ydist = o->y - player_target->y;
 #if 1
 		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
 			// add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
@@ -3181,8 +3248,8 @@ void octopus_move(struct game_obj_t *o)
 			// o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 			if (!o->tsd.octopus.awake) {
 				o->tsd.octopus.awake = 1;
-				o->tsd.octopus.tx = player->x + randomn(200)-100;
-				o->tsd.octopus.ty = player->y + randomn(200)-100;
+				o->tsd.octopus.tx = player_target->x + randomn(200)-100;
+				o->tsd.octopus.ty = player_target->y + randomn(200)-100;
 			}
 		}
 #endif
@@ -3365,13 +3432,13 @@ void cron_move(struct game_obj_t *o)
 
 	/* should we take a shot at the player? */
 	if (randomn(100) <= CRON_SHOT_CHANCE && timer % 10 == 0) {
-		dist2 = (player->x - o->x) * (player->x - o->x) + 
-			(player->y - o->y) * (player->y - o->y);
+		dist2 = (player_target->x - o->x) * (player_target->x - o->x) + 
+			(player_target->y - o->y) * (player_target->y - o->y);
 		if (dist2 <= CRON_SHOT_DIST_SQR) {
 			int dx, dy, vx, vy;
 			/* calculate vx, vy by similar triangles */
-			dx = (player->x + player->vx * BULLET_LEAD_TIME) - o->x;
-			dy = (player->y + player->vy * BULLET_LEAD_TIME) - o->y;
+			dx = (player_target->x + player_target->vx * BULLET_LEAD_TIME) - o->x;
+			dy = (player_target->y + player_target->vy * BULLET_LEAD_TIME) - o->y;
 			if (dx == 0 && dy == 0) {
 				vx = 0;
 				vy = 0;
@@ -3385,7 +3452,7 @@ void cron_move(struct game_obj_t *o)
 			// vx += randomn(3)-1;
 			// vy += randomn(3)-1;
 			explode(o->x, o->y, o->vx, o->vy, 4, 8, 9);
-			add_bullet(o->x, o->y, vx, vy, 40, WHITE, player);
+			add_bullet(o->x, o->y, vx, vy, 40, WHITE, player_target);
 			// add_floater_message(o->x, o->y, "Bang!");
 			add_sound(CRONSHOT, ANY_SLOT);
 		}
@@ -3519,8 +3586,8 @@ void pilot_move(struct game_obj_t *o)
 		if (o->number & 0x01)
 			angle = 360 - angle;
 
-		tx = player->x + sine[angle] * (250 + (o->number & 0x3f));
-		ty = player->y + cosine[angle] * (250 + (o->number & 0x3f));
+		tx = player_target->x + sine[angle] * (250 + (o->number & 0x3f));
+		ty = player_target->y + cosine[angle] * (250 + (o->number & 0x3f));
 
 		if (ty > gy)
 			ty -= 100;
@@ -3572,7 +3639,7 @@ void pilot_move(struct game_obj_t *o)
 
 	if (randomn(1000) < (level.jetpilot_firechance)) {
 		int vx, vy;
-		aim_vx_vy(player, o, 28, 10, &vx, &vy);
+		aim_vx_vy(player_target, o, 28, 10, &vx, &vy);
 		add_laserbolt(o->x, o->y, vx, vy, GREEN, 50);
 		add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
 	}
@@ -3656,8 +3723,8 @@ void gdb_move(struct game_obj_t *o)
 
 		{
 			int angle = ((timer * 3 + o->number*47) % 360);
-			tx = player->x + sine[angle] * 250;  
-			ty = player->y + cosine[angle] * 250;
+			tx = player_target->x + sine[angle] * 250;  
+			ty = player_target->y + cosine[angle] * 250;
 	
 			if (ty > gy)
 				ty -= 100;
@@ -3690,18 +3757,18 @@ void gdb_move(struct game_obj_t *o)
 	}
 
 	/* launch a missile? */	
-	xdist = abs(o->x - player->x);
+	xdist = abs(o->x - player_target->x);
 	if (xdist < GDB_LAUNCH_DIST) {
-		ydist = o->y - player->y;
+		ydist = o->y - player_target->y;
 		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
-			add_harpoon(o->x+10, o->y, 0, 0, 300, RED, player, o);
+			add_harpoon(o->x+10, o->y, 0, 0, 300, RED, player_target, o);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 			if (!o->tsd.gdb.awake) {
 				/* if we weren't awake when we fired the missile, we are now. */
 				o->tsd.gdb.awake = 1;
-				o->tsd.gdb.tx = player->x + randomn(200)-100;
-				o->tsd.gdb.ty = player->y + randomn(200)-100;
+				o->tsd.gdb.tx = player_target->x + randomn(200)-100;
+				o->tsd.gdb.ty = player_target->y + randomn(200)-100;
 			}
 		}
 	}
@@ -3730,7 +3797,7 @@ void humanoid_move(struct game_obj_t *o)
 	/* humans move around with their abductors. */
 	abductor = o->tsd.human.abductor;
 	if (o->tsd.human.picked_up && abductor != NULL) {
-		if (abductor->otype == OBJ_TYPE_PLAYER) {
+		if (abductor->otype == OBJ_TYPE_PLAYER || abductor->otype == OBJ_TYPE_REINDEER) {
 			o->x = 10 + abductor->x + (o->tsd.human.seat_number * 8) 
 				- (game_state.humanoids * 4);
 			o->y = o->tsd.human.abductor->y + 20;
@@ -3765,9 +3832,9 @@ void humanoid_move(struct game_obj_t *o)
 		}
 	}
 
-	xdist = abs(o->x - player->x);
-	ydist = abs(o->y - player->y);
-	if (xdist < HUMANOID_DIST && o->tsd.human.abductor != player) {
+	xdist = abs(o->x - player_target->x);
+	ydist = abs(o->y - player_target->y);
+	if (xdist < HUMANOID_DIST && o->tsd.human.abductor != player_target) {
 		if (ydist < HUMANOID_DIST && o->tsd.human.picked_up == 0 &&	/* close enough for pickup? */
 			game_state.health > 0) {
 			if (o->tsd.human.on_ground == 0) { /* midair catch */
@@ -3779,7 +3846,7 @@ void humanoid_move(struct game_obj_t *o)
 			add_floater_message(o->x, o->y, "Woohoo!");
 			o->x = -1000; /* take him off screen. */
 			o->y = -1000;
-			o->tsd.human.abductor = player;
+			o->tsd.human.abductor = player_target;
 			o->tsd.human.picked_up = 1;
 			o->tsd.human.seat_number = game_state.humanoids;
 			o->tsd.human.on_ground = 0;
@@ -3793,7 +3860,7 @@ void humanoid_move(struct game_obj_t *o)
 			if (o->counter == 0 && (o->tsd.human.on_ground != 0 || 
 				o->tsd.human.picked_up != 0)) {
 				add_floater_message(o->x, o->y, "Help!");
-				if (o->y > player->y)
+				if (o->y > player_target->y)
 					add_sound(HELPDOWNHERE_SOUND, ANY_SLOT);
 				else
 					add_sound(HELPUPHERE_SOUND, ANY_SLOT);
@@ -3877,7 +3944,7 @@ void player_fire_laser()
 		return;
 	game_state.nextlasertime = timer + (frame_rate_hz / 12);
 
-	p = &game_state.go[0];
+	p = player_target;
 
 	/* Fire laser... cmd muliplier times. */
 	y = p->y - ((game_state.cmd_multiplier-1)/2) * 10;
@@ -3885,15 +3952,13 @@ void player_fire_laser()
 		i = find_free_obj();
 		o = &game_state.go[i];
 
-		if (p != player) {
-			printf("p != player!\n");
-		} 
-
 		o->last_xi = -1;
 		o->x = p->x+(0 * game_state.direction);
 		o->y = y;
 		y += 10;
-		o->vx = p->vx + LASER_SPEED * game_state.direction;
+		o->vx = p->vx + LASER_SPEED * 
+			(player_target == player ? game_state.direction : 
+			player_target->tsd.reindeer.direction);
 		o->vy = 0;
 		o->v = &right_laser_vect;
 		o->draw = laser_draw;
@@ -4515,9 +4580,11 @@ void drop_bomb()
 
 		o = &game_state.go[i];
 		o->last_xi = -1;
-		o->x = player->x+(5 * game_state.direction);
-		o->y = player->y;
-		o->vx = player->vx + BOMB_SPEED * game_state.direction + (j*3*game_state.direction);
+		o->x = player_target->x+(5 * game_state.direction);
+		o->y = player_target->y;
+		o->vx = player->vx + BOMB_SPEED * 
+			(player_target == player ? game_state.direction :
+				player_target->tsd.reindeer.direction) + (j*3*game_state.direction);
 		o->vy = player->vy;
 		o->v = &bomb_vect;
 		o->move = bomb_move;
@@ -4581,6 +4648,69 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 		/* this is the insanity that makes the player "zoom" into the game */
 		/* at the start of levels. */
 		if (player->tsd.epd.count > 0) {
+			scale = 1.07;
+			scalefactor = 1.07;
+			countdir = 1;
+		} else {
+			scale = 1.07;
+			scalefactor = 1.07;
+			countdir = -1;
+		}
+
+		/* Each frame, we draw a bunch of images of the player, each scaled */
+		/* to a different size.  With each frame, the number of images reduces by 1.  */
+		/* o->tsd.epd.count2 is this number of images. */
+		/* o->tsd.epd.count is the number of frame iterations it takes to reduce */
+		/* things down to normal. It's a bit funky, but it works. */
+		for (i = 0; i<o->tsd.epd.count2; i++) {
+			int j;
+			int x1, y1, x2, y2;
+			gdk_gc_set_foreground(gc, &huex[o->color]);
+			for (j=0;j<o->v->npoints-1;j++) {
+				if (o->v->p[j+1].x == LINE_BREAK) /* Break in the line segments. */
+					j+=2;
+				if (o->v->p[j].x == COLOR_CHANGE) {
+					gdk_gc_set_foreground(gc, &huex[o->v->p[j].y]);
+					j+=1;
+				}
+				x1 = o->x + o->v->p[j].x*scale - game_state.x;
+				y1 = o->y + o->v->p[j].y*scale - game_state.y + (SCREEN_HEIGHT/2);  
+				x2 = o->x + o->v->p[j+1].x*scale - game_state.x; 
+				y2 = o->y + o->v->p[j+1].y*scale+(SCREEN_HEIGHT/2) - game_state.y;
+				wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+			}
+			scale = scale * scalefactor;
+		}
+		o->tsd.epd.count2 += countdir;
+		if (o->tsd.epd.count2 == 0 && countdir == -1)
+			o->tsd.epd.count = 0;
+		if (o->tsd.epd.count != 0 && o->tsd.epd.count2 == o->tsd.epd.count && countdir == 1)
+			o->tsd.epd.count = 0;
+	}
+}
+
+void xmas_player_draw(struct game_obj_t *o, GtkWidget *w)
+{
+
+	int i, countdir, x1, y1, x2, y2;
+	double scale, scalefactor;
+
+	if (o->tsd.epd.count == 0) {  /* normal case, just draw the player normally. */
+		draw_generic(o, w);
+		if (o->bullseye != NULL) {
+			gdk_gc_set_foreground(gc, &huex[RED]);
+			x1 = o->x - game_state.x;
+			y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
+			x2 = o->bullseye->x - game_state.x;
+			y2 = o->bullseye->y - game_state.y + (SCREEN_HEIGHT/2);  
+			if (x1 > 0 && x1 < SCREEN_WIDTH && y1 < SCREEN_HEIGHT && y1 > 0) {
+				wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+			}
+		}
+	} else {
+		/* this is the insanity that makes the player "zoom" into the game */
+		/* at the start of levels. */
+		if (o->tsd.epd.count > 0) {
 			scale = 1.07;
 			scalefactor = 1.07;
 			countdir = 1;
@@ -4773,10 +4903,10 @@ void move_player(struct game_obj_t *o)
 		
 		if (o->vy > MAX_VY)
 			o->vy = MAX_VY;
-		if (was_healthy)
+		if (was_healthy && !xmas_mode)
 			explode(o->x-(13 * game_state.direction), o->y, -(7*game_state.direction), 0, 7, 10, 9);
 	} else
-		if (was_healthy)
+		if (was_healthy && !xmas_mode)
 			/* make some exhaust */
 			explode(o->x-(13 * game_state.direction), o->y, -((abs(o->vx)+7)*game_state.direction), -o->vy, 10, 10, 9);
 
@@ -5357,6 +5487,78 @@ void draw_harpoon(struct game_obj_t *o, GtkWidget *w)
 	} */
 }
 
+void reindeer_move(struct game_obj_t *o)
+{
+	int dx, dy, direction;
+	int dvx, dvy, vx, vy;
+	struct my_vect_obj *left = NULL;
+	struct my_vect_obj *right = NULL;
+
+
+	/* Find out which direction the reindeer ahead of us is facing */
+	if (o->bullseye == player) {
+		direction = game_state.direction;
+		right = &player_vect;
+		left = &left_player_vect;
+	} else {
+		direction = o->bullseye->tsd.reindeer.direction;
+		if (o->tsd.reindeer.sleigh) {
+			right = &sleigh_vect;
+			left = &left_sleigh_vect;
+		} else {
+			right = &player_vect;
+			left = &left_player_vect;
+		}
+	}
+
+	/* Calculate desired position */
+	dx = o->bullseye->x -direction * 15;
+	dy = o->bullseye->y;
+
+	dvx = dx - o->x;
+	dvy = dy - o->y;
+
+	if (abs(dvx) < 4)
+		vx = dvx;
+	else
+		vx = (dvx >> 1);
+	if (abs(dvy) < 4)
+		vy = dvy;
+	else
+		vy = (dvy >> 1);
+
+	if (vx < -MAX_VX*2)
+		vx = -MAX_VX*2;
+	else if (vx > MAX_VX*2)
+		vx = MAX_VX*2;
+
+	if (vy < -MAX_VY*2)
+		vy = -MAX_VY*2;
+	else if (vy > MAX_VY*2)
+		vy = MAX_VY*2;
+
+	if (direction > 0) {
+		if (o->x < o->bullseye->x - 10) {
+			o->v = right;
+			o->tsd.reindeer.direction = 1;
+		} else {
+			o->v = left;
+			o->tsd.reindeer.direction = -1;
+		}
+	} else {
+		if (o->x > o->bullseye->x + 10) {
+			o->v = left;
+			o->tsd.reindeer.direction = -1;
+		} else {
+			o->v = right;
+			o->tsd.reindeer.direction = 1;
+		}
+	}
+
+	o->x += vx;
+	o->y += vy;
+}
+
 void move_missile(struct game_obj_t *o)
 {
 	struct game_obj_t *target_obj;
@@ -5391,7 +5593,7 @@ void move_missile(struct game_obj_t *o)
 
 	/* Figure out where we're trying to go, dx,dy */
 	target_obj = o->bullseye;
-	if (target_obj == player) {
+	if (target_obj == player_target) {
 		/* this is so we know to sound the alarm. */
 		game_state.missile_locked = 1; 
 		/* printf("mlock1\n"); */
@@ -5402,7 +5604,7 @@ void move_missile(struct game_obj_t *o)
 	/* have we hit the target? */
 	if ((abs(dx) < MISSILE_PROXIMITY) && (abs(dy) < MISSILE_PROXIMITY)) {
 		/* We've hit the target */
-		if (player == o->bullseye) {
+		if (player_target == o->bullseye) {
 			game_state.health -= MISSILE_DAMAGE;
 			do_strong_rumble();
 		} else
@@ -5504,7 +5706,7 @@ void move_harpoon(struct game_obj_t *o)
 
 	/* Figure out where we're trying to go, dx,dy */
 	target_obj = o->bullseye;
-	if (target_obj == player) {
+	if (target_obj == player_target) {
 		/* this is so we know to sound the alarm. */
 		game_state.missile_locked = 1;
 		/* printf("mlock2\n"); */
@@ -5515,7 +5717,7 @@ void move_harpoon(struct game_obj_t *o)
 	/* have we hit the target? */
 	if ((abs(dx) < MISSILE_PROXIMITY) && (abs(dy) < MISSILE_PROXIMITY)) {
 		/* We've hit the target */
-		if (player == o->bullseye) {
+		if (player_target == o->bullseye) {
 			do_strong_rumble();
 			game_state.health -= MISSILE_DAMAGE;
 		} else
@@ -5596,7 +5798,7 @@ void move_bullet(struct game_obj_t *o)
 	/* did we hit? */
 	if ((abs(dx) < BULLET_PROXIMITY) && (abs(dy) < BULLET_PROXIMITY)) {
 		/* We've hit the target */
-		if (player == o->bullseye) {
+		if (player_target == o->bullseye) {
 			game_state.health -= BULLET_DAMAGE;
 			do_strong_rumble();
 		} else
@@ -5802,8 +6004,8 @@ static void flying_thing_shoot_missile(struct game_obj_t *o)
 {
 	int gambling, xdist, ydist;
 
-	xdist = abs(o->x - player->x);
-	ydist = abs(o->y - player->y);
+	xdist = abs(o->x - player_target->x);
+	ydist = abs(o->y - player_target->y);
 	if (xdist < SAM_LAUNCH_DIST && ydist < SAM_LAUNCH_DIST) {
 		if (xdist < SAM_LAUNCH_DIST/3)
 			gambling = 4;
@@ -5820,7 +6022,7 @@ static void flying_thing_shoot_missile(struct game_obj_t *o)
 
 		if (randomn(2000) < (SAM_LAUNCH_CHANCE*2+gambling)) {
 			int vx, vy;
-			aim_vx_vy(player, o, 28, 10, &vx, &vy);
+			aim_vx_vy(player_target, o, 28, 10, &vx, &vy);
 			add_laserbolt(o->x, o->y, vx, vy, RED, 50);
 			add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
 		}
@@ -6070,8 +6272,8 @@ void worm_move(struct game_obj_t *o)
 	int xi, n, gy, pdx, pdy;
 	int ldx, ldy, sdx, sdy, dvx, dvy;
 
-	pdx = abs(o->x - player->x);
-	pdy = abs(o->y - player->y);
+	pdx = abs(o->x - player_target->x);
+	pdy = abs(o->y - player_target->y);
 	/* is this the head of a worm? Or just a body segment? */
 	if (o->tsd.worm.parent == NULL) {
 		/* It's a head...  think about where to go */
@@ -6100,14 +6302,14 @@ void worm_move(struct game_obj_t *o)
 
 			/* If player is close, follow him... */
 			if (pdx < 170 && pdy < 170) {
-				o->tsd.worm.tx = player->x + player->vx * 10 + randomn(30) - 15;
-				o->tsd.worm.ty = player->y + player->vy * 10 + randomn(30) - 15;
+				o->tsd.worm.tx = player_target->x + player_target->vx * 10 + randomn(30) - 15;
+				o->tsd.worm.ty = player_target->y + player_target->vy * 10 + randomn(30) - 15;
 
 				/* Touching player?  Zap him. */
 				if (pdx < 8 && pdy < 8) {
 					add_sound(ZZZT_SOUND, ANY_SLOT);
 					do_weak_rumble();
-					explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
+					explode(player_target->x, player_target->y, player_target->vx*1.5, 1, 20, 20, 15);
 					game_state.health -= WORM_DAMAGE;
 				}
 
@@ -6207,7 +6409,7 @@ void worm_move(struct game_obj_t *o)
 		if (pdx < 8 && pdy < 8) {
 			add_sound(ZZZT_SOUND, ANY_SLOT);
 			do_weak_rumble();
-			explode(player->x, player->y, player->vx*1.5, 1, 20, 20, 15);
+			explode(player_target->x, player_target->y, player_target->vx*1.5, 1, 20, 20, 15);
 			game_state.health -= WORM_DAMAGE;
 		}
 	}
@@ -6511,14 +6713,26 @@ void init_vects()
 	}
 
 	/* memset(&game_state.go[0], 0, sizeof(game_state.go[0])*MAXOBJS); */
-	player_vect.p = player_ship_points;
-	player_vect.npoints = sizeof(player_ship_points) / sizeof(player_ship_points[0]);
-
+	if (!xmas_mode) {
+		player_vect.p = player_ship_points;
+		player_vect.npoints = sizeof(player_ship_points) / sizeof(player_ship_points[0]);
+	} else {
+		player_vect.p = reindeer_points;
+		player_vect.npoints = sizeof(reindeer_points) / sizeof(reindeer_points[0]);
+		// player_vect.p = sleigh_points;
+		// player_vect.npoints = sizeof(sleigh_points) / sizeof(sleigh_points[0]);
+	}
 	/* The left player ship oints are a copy of the right player ship points. */
 	/* I just duplicated them in the source.  So we have to flip them */
 	left_player_vect.p = left_player_ship_points;
 	left_player_vect.npoints = sizeof(left_player_ship_points) / sizeof(left_player_ship_points[0]);
 	mirror_points(&player_vect, &left_player_vect);
+
+	sleigh_vect.p = sleigh_points;
+	sleigh_vect.npoints = sizeof(sleigh_points) / sizeof(sleigh_points[0]);
+	left_sleigh_vect.p = left_sleigh_points;
+	left_sleigh_vect.npoints = sizeof(left_sleigh_points) / sizeof(left_sleigh_points[0]);
+	mirror_points(&sleigh_vect, &left_sleigh_vect);
 #if 0
 	for (i=0;i<left_player_vect.npoints;i++) {
 		if (left_player_ship_points[i].x != COLOR_CHANGE &&
@@ -6801,8 +7015,8 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 
 	draw_generic(o, w);
 	/* Find x and y dist to player.... */
-	dx = player->x+LASERLEADX*player->vx - o->x;
-	dy = player->y+LASERLEADY*player->vy - o->y;
+	dx = player_target->x+LASERLEADX*player_target->vx - o->x;
+	dy = player_target->y+LASERLEADY*player_target->vy - o->y;
 
 	x1 = o->x-5 - game_state.x;
 	y1 = o->y+(5*invert) - game_state.y + (SCREEN_HEIGHT/2);  
@@ -7041,7 +7255,7 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 		if (nc >= CRADARN) nc = 0;
 
 		/* based on distance from jammer, figure how much noise to paint. */
-		xdist = abs(player->x - o->x);
+		xdist = abs(player_target->x - o->x);
 		noisecount = 2000 - xdist;
 
 		/* paint the noise... */
@@ -8480,6 +8694,38 @@ static void add_SAMs(struct terrain_t *t, struct level_obj_descriptor_entry *ent
 	}
 }
 
+static void add_reindeer()
+{
+	int i;
+	struct game_obj_t *o, *previous;
+
+	if (!xmas_mode) {
+		player_target = player;
+		return;
+	}
+
+	previous = player;
+	for (i=0;i<4;i++) {
+		if (i != 3) {
+			o = add_generic_object(previous->x - 20, previous->y, 0, 0,
+				reindeer_move, xmas_player_draw, ORANGE, &player_vect, 1, OBJ_TYPE_REINDEER, 1);
+		} else {
+			o = add_generic_object(previous->x - 20, previous->y, 0, 0,
+				reindeer_move, xmas_player_draw, WHITE, &sleigh_vect, 1, OBJ_TYPE_REINDEER, 1);
+			player_target = o;
+		}
+		if (o == NULL)
+			return;
+		o->tsd.reindeer.sleigh = (i == 3);
+		o->bullseye = previous;
+		o->tsd.reindeer.count = previous->tsd.reindeer.count;
+		o->tsd.reindeer.count2 = previous->tsd.reindeer.count2;
+		o->tsd.reindeer.direction = 1;
+		o->radar_image = 0;
+		previous = o;
+	}
+}
+
 static void add_humanoids(struct terrain_t *t)
 {
 	int xi, i;
@@ -9795,7 +10041,10 @@ void start_level()
 	game_state.humanoids = 0;
 	game_state.direction = 1;
 	player = &game_state.go[0];
-	player->draw = player_draw;
+	if (xmas_mode)
+		player->draw = xmas_player_draw;
+	else
+		player->draw = player_draw;
 	player->move = move_player;
 	player->v = (game_state.direction == 1) ? &player_vect : &left_player_vect;
 	player->x = 200;
@@ -9804,6 +10053,11 @@ void start_level()
 	player->vy = 0;
 	add_target(player);
 	player->alive = 1;
+	player->bullseye = NULL;
+	if (xmas_mode)
+		player->color = ORANGE;
+	else
+		player->color = WHITE;
 	
 	player->destroy = generic_destroy_func;
 	player->tsd.epd.count = -1;
@@ -9818,6 +10072,8 @@ void start_level()
 	game_state.x = 0;
 	game_state.y = 0;
 	game_state.radar_state = RADAR_BOOTUP;
+
+	add_reindeer();
 
 	srandom(level.random_seed);
 	generate_terrain(&terrain);
@@ -11346,7 +11602,7 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 				continue;
 			}
 			if (j != MUSIC_SLOT && game_state.sound_effects_on)
-				output += (float) audio_queue[j].sample[sample] / (float) (INT16_MAX) ;
+				output += (float) audio_queue[j].sample[sample] * 0.5 / (float) (INT16_MAX) ;
 			else if (j == MUSIC_SLOT && game_state.music_on)
 				output += (float) audio_queue[j].sample[sample] / (float) (INT16_MAX);
 		}
@@ -12137,7 +12393,7 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 			strcpy(joystickdevice, js);
 			continue;
 		}
-		rc = sscanf(s, "set %s", word);
+		rc = sscanf(s, "set %s\n", word);
 		if (rc == 1) {
 			if (strcmp(word, "xmas") == 0) {
 				xmas_mode = !xmas_mode;

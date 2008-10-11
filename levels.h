@@ -264,6 +264,7 @@
 #define OBJ_TYPE_VOLCANO 'v'
 #define OBJ_TYPE_TRUSS 't'
 #define OBJ_TYPE_JETPILOT 'e'
+#define OBJ_TYPE_REINDEER 'R'
 
 
 #define DO_IT_RANDOMLY (-1)
