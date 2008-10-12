@@ -1161,6 +1161,13 @@ struct my_point_t sleigh_points[] = {
 	{ 15, -12 },
 	{ 17, -12 },
 	{ 18, -10 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, GREEN },
+	{ -23, -10 },
+	{ -15, -15 },
+	{ -12, -16 },
+	{ -9, -15 },
+	{ -7, -10 },
 };
 
 struct my_point_t left_sleigh_points[sizeof(sleigh_points)/sizeof(sleigh_points[0])];
@@ -6016,7 +6023,7 @@ static void flying_thing_shoot_missile(struct game_obj_t *o)
 		
 		if (randomn(2000) < (SAM_LAUNCH_CHANCE+gambling) && timer >= o->missile_timer) {
 			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
-			add_missile(o->x, o->y, 0, 0, 300, RED, player);
+			add_missile(o->x, o->y, 0, 0, 300, RED, player_target);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 		}
 
