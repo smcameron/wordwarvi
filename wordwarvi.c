@@ -2453,6 +2453,7 @@ static inline int randomab(int a, int b)
 }
 
 void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
+void explode_pixie_dust(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
 void round_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
 static inline void kill_object(struct game_obj_t *o);
 static inline void age_object(struct game_obj_t *o);
@@ -4360,6 +4361,7 @@ void bomb_move(struct game_obj_t *o)
 }
 
 static void add_spark(int x, int y, int vx, int vy, int time);
+static void add_pixie_dust(int x, int y, int vx, int vy, int time);
 
 #define GRAVITY_BOMB_X_INFLUENCE 400
 #define GRAVITY_BOMB_Y_INFLUENCE 400
@@ -4413,6 +4415,7 @@ void gravity_bomb_move(struct game_obj_t *o)
 			case OBJ_TYPE_BRIDGE:
 				t->move = bridge_move;
 			case OBJ_TYPE_SPARK:
+			case OBJ_TYPE_PIXIE_DUST:
 			case OBJ_TYPE_ROCKET:
 			case OBJ_TYPE_MISSILE:
 			case OBJ_TYPE_HARPOON:
@@ -4468,6 +4471,7 @@ void volcano_move(struct game_obj_t *o)
 	player_dist = abs(player->x - o->x);
 	if (timer % (frame_rate_hz*2) == 0) {
 		if (randomn(100) < 25)  {
+			spray_debris(o->x, o->y, 0, -40, 40, o, 0);
 			spray_debris(o->x, o->y, 0, -30, 30, o, 0);
 			spray_debris(o->x, o->y, 0, -20, 20, o, 0);
 			spray_debris(o->x, o->y, 0, -10, 10, o, 0);
@@ -5425,6 +5429,22 @@ void draw_spark(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
+void draw_pixie_dust(struct game_obj_t *o, GtkWidget *w)
+{
+	int x1, y1, x2, y2;
+
+	x2 = o->x - game_state.x; 
+	if (x2 < 0 || x2 > SCREEN_WIDTH)
+		return;
+	x1 = x2 + randomn(4);
+	if (x1 < 0 || x1 > SCREEN_WIDTH)
+		return;
+	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
+	y1 = y2 + randomn(4);
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_draw_line(w->window, gc, x1, y1, x2, y2);
+}
+
 void draw_laserbolt(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, y1, x2, y2, dx, dy;
@@ -5512,6 +5532,7 @@ void reindeer_move(struct game_obj_t *o)
 		if (o->tsd.reindeer.sleigh) {
 			right = &sleigh_vect;
 			left = &left_sleigh_vect;
+			explode_pixie_dust(o->x-(13 * direction), o->y, -(7*direction), 0, 7, 3, 30 + randomn(15));
 		} else {
 			right = &player_vect;
 			left = &left_player_vect;
@@ -6490,6 +6511,27 @@ void move_spark(struct game_obj_t *o)
 	}
 }
 
+/* this is called VERY often.  Don't do anything slow in here. */
+void move_pixie_dust(struct game_obj_t *o)
+{
+	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
+	o->x += o->vx;
+	o->y += o->vy;
+
+	o->vx = randomn(10)-5;
+	o->vy = randomn(10)-7;
+
+        o->alive--;
+        if (o->alive <= 0)
+                kill_object(o);
+
+	/* If the pixie dust is too far away, kill them so we won't have to process them. */
+	if (abs(o->y - player->y) > 2000 || o->x > 2000+WORLDWIDTH || o->x < -2000) {
+		kill_object(o);
+		o->draw = NULL;
+	}
+}
+
 
 /* Make a bunch of sparks going in random directions. 
  * x, and y are where, ivx,ivy are initial vx, vy, v is the
@@ -6508,6 +6550,23 @@ void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
 		vy = randomn(v) - (v>>1) + ivy;
 		add_spark(x, y, vx, vy, time); 
 		/* printf("%d,%d, v=%d,%d, time=%d\n", x,y, vx, vy, time); */
+	}
+}
+
+/* Make a bunch of pixie dust going in random directions. 
+ * x, and y are where, ivx,ivy are initial vx, vy, v is the
+ * radial velocity, think of it as the "power" of the explosion
+ * and nsparks is how many sparks to make.  time is how long
+ * the sparks are set to live. 
+ */
+void explode_pixie_dust(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
+{
+	int vx, vy, i;
+
+	for (i=0;i<nsparks;i++) {
+		vx = randomn(v) - (v>>1) + ivx;
+		vy = randomn(v) - (v>>1) + ivy;
+		add_pixie_dust(x, y, vx, vy, time); 
 	}
 }
 
@@ -7549,6 +7608,12 @@ static void add_spark(int x, int y, int vx, int vy, int time)
 {
 	add_generic_object(x, y, vx, vy, move_spark, draw_spark,
 		YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
+}
+
+static void add_pixie_dust(int x, int y, int vx, int vy, int time)
+{
+	add_generic_object(x, y, vx, vy, move_pixie_dust, draw_pixie_dust,
+		WHITE, &spark_vect, 0, OBJ_TYPE_PIXIE_DUST, time);
 }
 
 /* Modify *value by a random amount that is a percentage of a difference. */

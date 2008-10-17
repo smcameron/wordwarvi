@@ -255,6 +255,7 @@
 #define OBJ_TYPE_HARPOON 'H'
 #define OBJ_TYPE_SOCKET 'x'
 #define OBJ_TYPE_SPARK 's'
+#define OBJ_TYPE_PIXIE_DUST '.'
 #define OBJ_TYPE_BRIDGE 'T'
 #define OBJ_TYPE_SYMBOL 'z'
 #define OBJ_TYPE_FLOATING_MESSAGE 'M'
@@ -460,7 +461,7 @@ struct level_obj_descriptor_entry jet_level_obj[] = {
 #define NBRIDGES 2		/* max initial number of bridges in terrain (less, if no valleys) */
 
 /* ---------------------level descriptors begin here.---------------------- */
-NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, LAZY_LASER, NBRIDGES, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
+NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, LAZY_LASER, NBRIDGES, NBOMBS, NGBOMBS, KILLER_LASER);
 NEW_LEVEL(jet_level, jet_level_obj, 0.11, 0.09, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
 NEW_LEVEL(level2, level_2_obj, 0.15, 0.09, LAZY_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
 NEW_LEVEL(level3, level_3_obj, 0.23, 0.23, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
