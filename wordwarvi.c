@@ -1037,6 +1037,21 @@ struct my_point_t jammer_points[] = {
 	{ -10, 0 },
 };
 
+struct my_point_t present_points[] = {
+	{ -10, -5 },
+	{ -10,  5 },
+	{   0, 10 },
+	{  10,  5 },
+	{  10, -5 },
+	{  0, -10 },
+	{ -10, -5 },
+	{   0,  0 },
+	{  10, -5 },
+	{ LINE_BREAK, LINE_BREAK },
+	{   0,  0 },
+	{   0, 10 },
+};
+
 struct my_point_t house_points[] = {
 	{ -30, -10 },
 	{ -30, 25 },
@@ -1624,6 +1639,7 @@ struct my_vect_obj spark_vect;
 struct my_vect_obj right_laser_vect;
 struct my_vect_obj fuel_vect;
 struct my_vect_obj house_vect;
+struct my_vect_obj present_vect;
 struct my_vect_obj house_green_vect;
 struct my_vect_obj jammer_vect;
 struct my_vect_obj cron_vect;
@@ -2090,6 +2106,10 @@ struct kgun_data {
 	int recoil_amount; /* when shooting, set to 10, then decrement to 0 each frame. */
 };
 
+struct house_data {
+	int santa_came;
+};
+
 union type_specific_data {		/* union of all the typs specific data */
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
@@ -2107,6 +2127,7 @@ union type_specific_data {		/* union of all the typs specific data */
 	struct worm_data worm;
 	struct truss_data truss;
 	struct kgun_data kgun;
+	struct house_data house;
 };
 
 struct game_obj_t {
@@ -2189,6 +2210,7 @@ struct game_state_t {
 	int key_left_pressed;
 	int key_right_pressed;
 	int key_bomb_pressed;
+	int key_present_pressed;
 	int key_gbomb_pressed;
 	int key_chaff_pressed;
 	int key_laser_pressed;
@@ -4226,6 +4248,65 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 void truss_cut_loose_whats_below(struct game_obj_t *o);
 static void add_pilot(int pilotx, int piloty, int pilotvx, int pilotvy);
 
+void present_move(struct game_obj_t *o)
+{
+	struct game_obj_t *t;
+	int deepest;
+	int dist2;
+	int do_remove_present;
+
+	if (!o->alive)
+		return;
+	
+	do_remove_present = 0;
+
+	o->x += o->vx;
+	o->y += o->vy;
+	o->vy++; /* gravity */
+
+	/* Scan the target list to see if we've hit anything. */
+	for (t=target_head;t != NULL; t = t->next) {
+		if (t == o || t->otype != OBJ_TYPE_HOUSE) /* presents only care about houses */
+			continue;
+		/* find distance squared... don't take square root. */
+		dist2 = (o->x - t->x)*(o->x - t->x) + 
+			(o->y - t->y)*(o->y - t->y);
+		if (dist2 < LASER_PROXIMITY && t->tsd.house.santa_came == 0) { /* a hit (LASER_PROXIMITY is already squared.) */
+			t->tsd.house.santa_came = 1;
+			t->v = &house_green_vect;
+			do_remove_present = 1;
+			/* FIXME, add some sound. */
+			goto out;
+		}
+	}
+
+	/* Detect smashing into the ground */
+	deepest = find_ground_level(o, NULL);
+	if (deepest != GROUND_OOPS && o->y > deepest) {
+		do_remove_present = 1;
+		/* find nearby targets */
+		for (t=target_head;t != NULL; t = t-> next) {
+			if (t->otype != OBJ_TYPE_HOUSE) /* presents only care for houses */
+				continue;
+			dist2 = (o->x - t->x)*(o->x - t->x) + 
+				(o->y - t->y)*(o->y - t->y);
+			if (dist2 < BOMB_PROXIMITY && t->tsd.house.santa_came) { /* a hit */
+				t->tsd.house.santa_came = 1;
+				t->v = &house_green_vect;
+				/* FIXME, add some sound. */
+				goto out;
+			}
+		}
+	}
+
+out:
+	if (do_remove_present) {
+		remove_target(o);
+		kill_object(o);
+		o->destroy(o);
+	}
+}
+
 void bomb_move(struct game_obj_t *o)
 {
 	struct game_obj_t *t, *next;
@@ -4683,6 +4764,42 @@ void drop_bomb()
 		o->otype = OBJ_TYPE_BOMB;
 		add_target(o);
 		o->color = ORANGE;
+		o->alive = 20;
+	}
+	game_state.cmd_multiplier = 1;
+}
+
+void drop_present()
+{
+	int i, j;
+	struct game_obj_t *o;
+
+	if (game_state.nextbombtime > timer)
+		return;
+	game_state.nextbombtime = timer + (frame_rate_hz >> 2);
+
+	/* Player drops cmd_multiplier presents.  */
+	for (j=0;j<game_state.cmd_multiplier;j++) {
+	
+		i = find_free_obj();
+		if (i < 0)
+			return;
+
+		o = &game_state.go[i];
+		o->last_xi = -1;
+		o->x = player_target->x+(5 * game_state.direction);
+		o->y = player_target->y;
+		o->vx = player->vx + BOMB_SPEED * 
+			(player_target == player ? game_state.direction :
+				player_target->tsd.reindeer.direction) + (j*3*game_state.direction);
+		o->vy = player->vy;
+		o->v = &present_vect;
+		o->move = present_move;
+		o->draw = NULL;
+		o->destroy = generic_destroy_func;
+		o->otype = OBJ_TYPE_PRESENT;
+		add_target(o);
+		o->color = GREEN;
 		o->alive = 20;
 	}
 	game_state.cmd_multiplier = 1;
@@ -6904,6 +7021,8 @@ void init_vects()
 	house_vect.npoints = sizeof(house_points) / sizeof(house_points[0]);
 	house_green_vect.p = house_green_points;
 	house_green_vect.npoints = sizeof(house_green_points) / sizeof(house_green_points[0]);
+	present_vect.p = present_points;
+	present_vect.npoints = sizeof(present_points) / sizeof(present_points[0]);
 	jammer_vect.p = jammer_points;
 	jammer_vect.npoints = sizeof(jammer_points) / sizeof(jammer_points[0]);
 	cron_vect.p = cron_points;
@@ -8697,10 +8816,11 @@ static void add_houses(struct terrain_t *t, struct level_obj_descriptor_entry *e
 	for (i=0;i<10;i++) {
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-25, 0, 0, 
-			house_move, NULL, WHITE, &house_vect, 0, OBJ_TYPE_HOUSE, 1);
+			house_move, NULL, WHITE, &house_vect, 1, OBJ_TYPE_HOUSE, 1);
 		if (o) {
 			o->above_target_y = -2 * LASER_Y_PROXIMITY;
 			o->below_target_y = 3 * LASER_Y_PROXIMITY;
+			o->tsd.house.santa_came = 0;
 		}
 	}
 }
@@ -10191,6 +10311,7 @@ void initialize_game_state_new_level()
 	game_state.key_left_pressed = 0;
 	game_state.key_right_pressed = 0;
 	game_state.key_bomb_pressed = 0;
+	game_state.key_present_pressed = 0;
 	game_state.key_gbomb_pressed = 0;
 	game_state.key_laser_pressed = 0;
 	game_state.key_chaff_pressed = 0;
@@ -10440,7 +10561,7 @@ enum keyaction { keynone, keydown, keyup, keyleft, keyright,
 		keyquarter, keypause, key2, key3, key4, key5, key6,
 		key7, key8, keysuicide, keyfullscreen, keythrust, 
 		keysoundeffects, keymusic, keyquit, keytogglemissilealarm,
-		keypausehelp, keyreverse
+		keypausehelp, keyreverse, key_droppresent
 };
 
 char *keyactionstring[] = {
@@ -10483,6 +10604,7 @@ void deal_with_joystick()
 	int zero = 0;
 
 	int do_bomb = 0;
+	int do_droppresent = 0;
 	int do_quarter = 0;
 	int do_laser = 0;
 	int do_chaff = 0;
@@ -10683,6 +10805,9 @@ void deal_with_joystick()
 			case keybomb:
 				do_bomb = 1;
 				break;
+			case key_droppresent:
+				do_droppresent = 1;
+				break;
 			case keypause:
 				break;
 			case keypausehelp:
@@ -10724,6 +10849,9 @@ void deal_with_joystick()
 	/* Buttons... */
 	if (do_bomb)
 		drop_bomb();
+
+	if (do_droppresent)
+		drop_present();
 
 	if (do_laser)
 		player_fire_laser();
@@ -10932,6 +11060,9 @@ void deal_with_keyboard()
 
 	if (game_state.key_bomb_pressed)
 		drop_bomb();
+
+	if (game_state.key_present_pressed)
+		drop_present();
 
 	if (game_state.key_gbomb_pressed)
 		drop_gravity_bomb();
@@ -11305,6 +11436,7 @@ void init_keymap()
 	keymap[GDK_z] = keylaser;
 
 	keymap[GDK_b] = keybomb;
+	keymap[GDK_v] = key_droppresent;
 	keymap[GDK_g] = keygravitybomb;
 	keymap[GDK_c] = keychaff;
 	keymap[GDK_x] = keythrust;
@@ -11400,6 +11532,9 @@ static gint key_release_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		return TRUE;
 	case keybomb:
 		game_state.key_bomb_pressed = 0;
+		return TRUE;
+	case key_droppresent:
+		game_state.key_present_pressed = 0;
 		return TRUE;
 	case keygravitybomb:
 		game_state.key_gbomb_pressed = 0;
@@ -11556,6 +11691,9 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		return TRUE;
 	case keybomb: 
 		game_state.key_bomb_pressed = 1;
+		return TRUE;
+	case key_droppresent: 
+		game_state.key_present_pressed = 1;
 		return TRUE;
 	case keygravitybomb: 
 		game_state.key_gbomb_pressed = 1;
