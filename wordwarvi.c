@@ -2218,6 +2218,7 @@ struct game_state_t {
 	int x_joystick_axis;
 	int y_joystick_axis;
 	int rumble_wanted;
+	int houses_gifted;
 
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
 int highest_object_number = 1;
@@ -4277,6 +4278,8 @@ void present_move(struct game_obj_t *o)
 			t->v = &house_green_vect;
 			game_state.score += DELIVER_PRESENTS_SCORE;
 			do_remove_present = 1;
+			game_state.houses_gifted++;
+			add_floater_message(t->x, t->y, "1000");
 			/* FIXME, add some sound. */
 			goto out;
 		}
@@ -4294,8 +4297,10 @@ void present_move(struct game_obj_t *o)
 				(o->y - t->y)*(o->y - t->y);
 			if (dist2 < BOMB_PROXIMITY && t->tsd.house.santa_came == 0) { /* a hit */
 				t->tsd.house.santa_came = 1;
+				game_state.houses_gifted++;
 				game_state.score += DELIVER_PRESENTS_SCORE;
 				t->v = &house_green_vect;
+				add_floater_message(t->x, t->y, "1000");
 				/* FIXME, add some sound. */
 				goto out;
 			}
@@ -8816,7 +8821,7 @@ static void add_houses(struct terrain_t *t, struct level_obj_descriptor_entry *e
 		return;
 
 	// for (i=0;i<entry->nobjs;i++) {
-	for (i=0;i<10;i++) {
+	for (i=0;i<NHOUSES;i++) {
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-25, 0, 0, 
 			house_move, NULL, WHITE, &house_vect, 1, OBJ_TYPE_HOUSE, 1);
@@ -10318,6 +10323,7 @@ void initialize_game_state_new_level()
 	game_state.key_gbomb_pressed = 0;
 	game_state.key_laser_pressed = 0;
 	game_state.key_chaff_pressed = 0;
+	game_state.houses_gifted = 0;
 }
 
 void start_level()

@@ -269,6 +269,7 @@
 #define OBJ_TYPE_HOUSE '^'
 #define OBJ_TYPE_PRESENT 'G'
 
+#define NHOUSES 10
 
 #define DO_IT_RANDOMLY (-1)
 
