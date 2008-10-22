@@ -4280,6 +4280,10 @@ void present_move(struct game_obj_t *o)
 			do_remove_present = 1;
 			game_state.houses_gifted++;
 			add_floater_message(t->x, t->y, "1000");
+			if (game_state.houses_gifted == NHOUSES) {
+				add_floater_message(t->x, t->y + 25, "All Houses visited! +1000000!");
+				game_state.score += 1000000;
+			}
 			/* FIXME, add some sound. */
 			goto out;
 		}
@@ -4301,6 +4305,11 @@ void present_move(struct game_obj_t *o)
 				game_state.score += DELIVER_PRESENTS_SCORE;
 				t->v = &house_green_vect;
 				add_floater_message(t->x, t->y, "1000");
+				if (game_state.houses_gifted == NHOUSES) {
+					add_floater_message(t->x, t->y + 25, "All Houses visited! +1000000!");
+					game_state.score += 1000000;
+				}
+					
 				/* FIXME, add some sound. */
 				goto out;
 			}
