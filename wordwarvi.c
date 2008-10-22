@@ -10572,7 +10572,7 @@ char *keyactionstring[] = {
 	"laser", "bomb", "chaff", "gravitybomb",
 	"quarter", "pause", "2x", "3x", "4x", "5x", "6x",
 	"7x", "8x", "suicide", "fullscreen", "thrust", 
-	"soundeffect", "music", "quit", "missilealarm", "help", "reverse", "drop gift"
+	"soundeffect", "music", "quit", "missilealarm", "help", "reverse", "gift"
 };
 
 enum keyaction jsbuttonaction[11] = {
