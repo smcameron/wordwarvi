@@ -267,6 +267,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define GDB_SCORE 400		/* score for killing a GDB */
 #define CRON_SCORE 400		/* score for killing a cron job */
 #define TENTACLE_SCORE 100
+#define DELIVER_PRESENTS_SCORE 1000
 
 #define GROUND_OOPS 64000	/* There are some functions which, given an x value, */
 				/* return the corresponding y value for the terrain */
@@ -4274,6 +4275,7 @@ void present_move(struct game_obj_t *o)
 		if (dist2 < LASER_PROXIMITY && t->tsd.house.santa_came == 0) { /* a hit (LASER_PROXIMITY is already squared.) */
 			t->tsd.house.santa_came = 1;
 			t->v = &house_green_vect;
+			game_state.score += DELIVER_PRESENTS_SCORE;
 			do_remove_present = 1;
 			/* FIXME, add some sound. */
 			goto out;
@@ -4290,8 +4292,9 @@ void present_move(struct game_obj_t *o)
 				continue;
 			dist2 = (o->x - t->x)*(o->x - t->x) + 
 				(o->y - t->y)*(o->y - t->y);
-			if (dist2 < BOMB_PROXIMITY && t->tsd.house.santa_came) { /* a hit */
+			if (dist2 < BOMB_PROXIMITY && t->tsd.house.santa_came == 0) { /* a hit */
 				t->tsd.house.santa_came = 1;
+				game_state.score += DELIVER_PRESENTS_SCORE;
 				t->v = &house_green_vect;
 				/* FIXME, add some sound. */
 				goto out;
