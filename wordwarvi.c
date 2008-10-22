@@ -11470,7 +11470,7 @@ int remap_joystick_button(int button, char *actionname)
 	if (button < 0 || button > 9)
 		return -1;
 
-	for (i=keynone;i<=keyreverse;i++) {
+	for (i=keynone;i<=key_droppresent;i++) {
 		if (strcmp(keyactionstring[i], actionname) == 0) {
 			printf("remapped joystick button %d to %s\n", 
 				button, actionname);
@@ -11487,7 +11487,7 @@ int remapkey(char *keyname, char *actionname)
 	int j;
 	int index;
 
-	for (i=keynone;i<=keyreverse;i++) {
+	for (i=keynone;i<=key_droppresent;i++) {
 		if (strcmp(keyactionstring[i], actionname) == 0) {
 			for (j=0;j<sizeof(keyname_value_map) / sizeof(keyname_value_map[0]);j++) {
 				if (strcmp(keyname_value_map[j].name, keyname) == 0) {
