@@ -10572,7 +10572,7 @@ char *keyactionstring[] = {
 	"laser", "bomb", "chaff", "gravitybomb",
 	"quarter", "pause", "2x", "3x", "4x", "5x", "6x",
 	"7x", "8x", "suicide", "fullscreen", "thrust", 
-	"soundeffect", "music", "quit", "missilealarm", "help", "reverse"
+	"soundeffect", "music", "quit", "missilealarm", "help", "reverse", "drop gift"
 };
 
 enum keyaction jsbuttonaction[11] = {
@@ -11316,7 +11316,7 @@ static void draw_help_screen(GtkWidget *w)
 	abs_xy_draw_string(w, "Controls:", SMALL_FONT, 80, 330);
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
 
-	for (k=keydown;k<=keyreverse;k++) {
+	for (k=keydown;k<=key_droppresent;k++) {
 		char str[50];
 		int i, j, foundit;
 
