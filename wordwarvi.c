@@ -356,7 +356,7 @@ GdkColor *rainbow_color;	/* a pointer into the huex[] array where the rainbow co
 #define DARKGREEN 9
 
 int planet_color[] = {
-	RED, GREEN, YELLOW, ORANGE, MAGENTA, CYAN
+	RED, GREEN, YELLOW, ORANGE, MAGENTA, CYAN, WHITE
 };
 
 #include "levels.h"
@@ -1037,6 +1037,78 @@ struct my_point_t jammer_points[] = {
 	{ -10, 0 },
 };
 
+struct my_point_t house_points[] = {
+	{ -30, -10 },
+	{ -30, 25 },
+	{ 30, 25 },
+	{ 30, -10},
+	{ LINE_BREAK, LINE_BREAK },
+	{ -5, 25 }, /* door */
+	{ -5, 0 },
+	{ 5, 0 },
+	{ 5, 25 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 13, 15 }, /* window */
+	{ 23, 15 },
+	{ 23, 5 },
+	{ 13, 5 },
+	{ 13, 15 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -20, -10 }, /* left front corner vertical */
+	{ -20, 25 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 20, -25 }, /* chimney */
+	{ 20, -30 },
+	{ 24, -30 },
+	{ 24, -25 }, 
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, RED },
+	{ 30, -10}, /* roof */
+	{ 25, -25},
+	{ -25, -25},
+	{ -30, -10 },
+	{ 30, -10 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -25, -25 }, /* roof */
+	{ -20, -10 },
+};
+
+struct my_point_t house_green_points[] = {
+	{ -30, -10 },
+	{ -30, 25 },
+	{ 30, 25 },
+	{ 30, -10},
+	{ LINE_BREAK, LINE_BREAK },
+	{ -5, 25 }, /* door */
+	{ -5, 0 },
+	{ 5, 0 },
+	{ 5, 25 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 13, 15 }, /* window */
+	{ 23, 15 },
+	{ 23, 5 },
+	{ 13, 5 },
+	{ 13, 15 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -20, -10 }, /* left front corner vertical */
+	{ -20, 25 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 20, -25 }, /* chimney */
+	{ 20, -30 },
+	{ 24, -30 },
+	{ 24, -25 }, 
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, GREEN },
+	{ 30, -10}, /* roof */
+	{ 25, -25},
+	{ -25, -25},
+	{ -30, -10 },
+	{ 30, -10 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -25, -25 }, /* roof */
+	{ -20, -10 },
+};
+
 struct my_point_t fuel_points[] = {
 	{ -30, -15 },
 
@@ -1551,6 +1623,8 @@ struct my_vect_obj jet_vect;
 struct my_vect_obj spark_vect;
 struct my_vect_obj right_laser_vect;
 struct my_vect_obj fuel_vect;
+struct my_vect_obj house_vect;
+struct my_vect_obj house_green_vect;
 struct my_vect_obj jammer_vect;
 struct my_vect_obj cron_vect;
 struct my_vect_obj ship_vect;
@@ -2481,6 +2555,11 @@ void move_laserbolt(struct game_obj_t *o)
 	o->x += o->vx;
 	o->y += o->vy;
 	age_object(o);
+}
+
+void house_move(struct game_obj_t *o)
+{
+	return;
 }
 
 void fuel_move(struct game_obj_t *o)
@@ -6821,6 +6900,10 @@ void init_vects()
 	right_laser_vect.npoints = sizeof(right_laser_beam_points) / sizeof(right_laser_beam_points[0]);
 	fuel_vect.p = fuel_points;
 	fuel_vect.npoints = sizeof(fuel_points) / sizeof(fuel_points[0]);
+	house_vect.p = house_points;
+	house_vect.npoints = sizeof(house_points) / sizeof(house_points[0]);
+	house_green_vect.p = house_green_points;
+	house_green_vect.npoints = sizeof(house_green_points) / sizeof(house_green_points[0]);
 	jammer_vect.p = jammer_points;
 	jammer_vect.npoints = sizeof(jammer_points) / sizeof(jammer_points[0]);
 	cron_vect.p = cron_points;
@@ -8602,6 +8685,25 @@ static void add_jammers(struct terrain_t *t, struct level_obj_descriptor_entry *
 	}
 }
 
+static void add_houses(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
+{
+	int xi, i;
+	struct game_obj_t *o;
+
+	if (!xmas_mode) 
+		return;
+
+	// for (i=0;i<entry->nobjs;i++) {
+	for (i=0;i<10;i++) {
+		xi = initial_x_location(entry, i);
+		o = add_generic_object(t->x[xi], t->y[xi]-25, 0, 0, 
+			house_move, NULL, WHITE, &house_vect, 0, OBJ_TYPE_HOUSE, 1);
+		if (o) {
+			o->above_target_y = -2 * LASER_Y_PROXIMITY;
+			o->below_target_y = 3 * LASER_Y_PROXIMITY;
+		}
+	}
+}
 
 static void add_fuel(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
@@ -9865,7 +9967,10 @@ void timer_expired()
 		timer_event = GO_EVENT;
 		break;
 	case GO_EVENT:
-		strcpy(textline[GAME_OVER].string, "Prepare to die!");
+		if (!xmas_mode)
+			strcpy(textline[GAME_OVER].string, "Prepare to die!");
+		else
+			strcpy(textline[GAME_OVER].string, "Go Santa, Go!");
 		next_timer += frame_rate_hz;
 		timer_event = BLANK_EVENT;
 		break;
@@ -10222,6 +10327,7 @@ void start_level()
 			break;
 		}
 	}
+	add_houses(&terrain, NULL);
 
 	if (credits == 0)
 		setup_text();
@@ -10274,8 +10380,11 @@ void advance_level()
 	if (leveld[level.level_number] == NULL)
 		level.level_number--;
 
-	level.ground_color = (level.ground_color + 1) % 
-		(sizeof(planet_color) / sizeof(planet_color[0]));
+	if (!xmas_mode)
+		level.ground_color = (level.ground_color + 1) % 
+			(sizeof(planet_color) / sizeof(planet_color[0]));
+	else
+		level.ground_color = 6;  /* white */
 
 	level.large_scale_roughness = leveld[level.level_number]->large_scale_roughness;
 	level.small_scale_roughness = leveld[level.level_number]->small_scale_roughness;
