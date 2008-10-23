@@ -1051,6 +1051,16 @@ struct my_point_t present_points[] = {
 	{ LINE_BREAK, LINE_BREAK },
 	{   0,  0 },
 	{   0, 10 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, RED },
+	{ -5, 7 },
+	{ -5, -3 },
+	{  5, -7 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, RED },
+	{ 5, 7 },
+	{ 5, -3 },
+	{ -5, -7 },
 };
 
 struct my_point_t house_points[] = {
