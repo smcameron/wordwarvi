@@ -1298,6 +1298,62 @@ struct my_point_t reindeer_points[] = {
 	{ -5, 3 },
 };
 
+struct my_point_t reindeer_points2[] = {
+	{ -2, 12 },
+	{ -5, 8 },
+	{ -5, 3 },
+	{ 0, 5 },
+	{ 5, 3 },
+	{ 5, 8 },
+	{ 2, 12 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 5, 3 },
+	{ 9, -4 },
+	{ 14, -4 },
+	{ 14, -6 },
+	{ 9, -8 },
+	{ 9, -12 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 9, -6 },
+	{ 9, -6 },
+	{ 5, -2 },
+	{ -5, -2 },
+	{ -7, -4 },
+	{ -7, -8 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -5, -2 },
+	{ -6, -1 },
+	{ -5, 3 },
+};
+
+struct my_point_t left_reindeer_points2[] = {
+	{ -2, 12 },
+	{ -5, 8 },
+	{ -5, 3 },
+	{ 0, 5 },
+	{ 5, 3 },
+	{ 5, 8 },
+	{ 2, 12 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 5, 3 },
+	{ 9, -4 },
+	{ 14, -4 },
+	{ 14, -6 },
+	{ 9, -8 },
+	{ 9, -12 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 9, -6 },
+	{ 9, -6 },
+	{ 5, -2 },
+	{ -5, -2 },
+	{ -7, -4 },
+	{ -7, -8 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -5, -2 },
+	{ -6, -1 },
+	{ -5, 3 },
+};
+
 struct my_point_t socket_points[] = {
 	{ 9, 0 }, /* front of hatch */
 	{ -3, -6 }, /* top of hatch */
@@ -1642,6 +1698,8 @@ struct my_vect_obj {
 /* contains instructions on how to draw all the objects */
 struct my_vect_obj player_vect;
 struct my_vect_obj left_player_vect;
+struct my_vect_obj reindeer2_vect;
+struct my_vect_obj left_reindeer2_vect;
 struct my_vect_obj sleigh_vect;
 struct my_vect_obj left_sleigh_vect;
 struct my_vect_obj rocket_vect;
@@ -4319,7 +4377,6 @@ void present_move(struct game_obj_t *o)
 					add_floater_message(t->x, t->y + 25, "All Houses visited! +1000000!");
 					game_state.score += 1000000;
 				}
-					
 				/* FIXME, add some sound. */
 				goto out;
 			}
@@ -5061,6 +5118,30 @@ void autopilot()
 		drop_bomb();
 }
 
+void set_player_vect()
+{
+	if (!xmas_mode) {  
+		player->v = (game_state.direction == 1) ? 
+			&player_vect : 
+			&left_player_vect;
+		return;
+	}
+
+	if (game_state.direction == 1) {
+		if (timer & 0x8)
+			player->v = &player_vect;
+		else
+			player->v = &reindeer2_vect;
+		return;
+	}
+
+	if (timer & 0x8)
+		player->v = &left_player_vect;
+	else
+		player->v = &left_reindeer2_vect;
+	return;
+}
+
 int new_high_score(int newscore);
 void cancel_all_sounds();
 void no_draw(struct game_obj_t *o, GtkWidget *w);
@@ -5294,6 +5375,7 @@ void move_player(struct game_obj_t *o)
 				game_state.sound_effects_on = 1;
 		}
 	}
+	set_player_vect();
 }
 
 void bounce(int *vx, int *vy, int slope, double bouncefactor)
@@ -5748,8 +5830,13 @@ void reindeer_move(struct game_obj_t *o)
 	/* Find out which direction the reindeer ahead of us is facing */
 	if (o->bullseye == player) {
 		direction = game_state.direction;
-		right = &player_vect;
-		left = &left_player_vect;
+		if (timer & 0x8) {
+			right = &player_vect;
+			left = &left_player_vect;
+		} else {
+			right = &reindeer2_vect;
+			left = &left_reindeer2_vect;
+		}
 	} else {
 		direction = o->bullseye->tsd.reindeer.direction;
 		if (o->tsd.reindeer.sleigh) {
@@ -5757,8 +5844,15 @@ void reindeer_move(struct game_obj_t *o)
 			left = &left_sleigh_vect;
 			explode_pixie_dust(o->x-(13 * direction), o->y, -(7*direction), 0, 7, 3, 30 + randomn(15));
 		} else {
-			right = &player_vect;
-			left = &left_player_vect;
+			if (timer & 0x8) {
+				right = &player_vect;
+				left = &left_player_vect;
+			} else {
+				right = &reindeer2_vect;
+				left = &left_reindeer2_vect;
+			}
+			// right = &player_vect;
+			// left = &left_player_vect;
 		}
 	}
 
@@ -7008,6 +7102,8 @@ void init_vects()
 	} else {
 		player_vect.p = reindeer_points;
 		player_vect.npoints = sizeof(reindeer_points) / sizeof(reindeer_points[0]);
+		reindeer2_vect.p = reindeer_points2;
+		reindeer2_vect.npoints = sizeof(reindeer_points2) / sizeof(reindeer_points2[0]);
 		// player_vect.p = sleigh_points;
 		// player_vect.npoints = sizeof(sleigh_points) / sizeof(sleigh_points[0]);
 	}
@@ -7016,6 +7112,12 @@ void init_vects()
 	left_player_vect.p = left_player_ship_points;
 	left_player_vect.npoints = sizeof(left_player_ship_points) / sizeof(left_player_ship_points[0]);
 	mirror_points(&player_vect, &left_player_vect);
+	if (xmas_mode) {
+		left_reindeer2_vect.p = left_reindeer_points2;
+		left_reindeer2_vect.npoints = 
+			sizeof(left_reindeer_points2) / (sizeof(left_reindeer_points2[0]));
+		mirror_points(&reindeer2_vect, &left_reindeer2_vect);
+	}
 
 	sleigh_vect.p = sleigh_points;
 	sleigh_vect.npoints = sizeof(sleigh_points) / sizeof(sleigh_points[0]);
@@ -10748,14 +10850,13 @@ void deal_with_joystick()
 		if (game_state.direction != -1) {
 			player->vx = player->vx / 2;
 			game_state.direction = -1;
-			player->v = &left_player_vect;
+			set_player_vect();
 		} else if (abs(player->vx + game_state.direction) < MAX_VX)
 				player->vx += game_state.direction;
 	} else if (*xaxis > XJOYSTICK_THRESHOLD) {
 		if (game_state.direction != 1) {
 			player->vx = player->vx / 2;
-			game_state.direction = 1;
-			player->v = &player_vect;
+			set_player_vect();
 		} else if (abs(player->vx + game_state.direction) < MAX_VX)
 				player->vx += game_state.direction;
 	} else {
@@ -10878,7 +10979,7 @@ void deal_with_joystick()
 	if (do_bomb)
 		drop_bomb();
 
-	if (do_droppresent)
+	if (do_droppresent && xmas_mode)
 		drop_present();
 
 	if (do_laser)
@@ -10893,10 +10994,7 @@ void deal_with_joystick()
 	if (do_reverse) {
 		if (timer > next_joystick_button_timer) {
 			game_state.direction = -game_state.direction;
-			if (game_state.direction < 0)
-				player->v = &left_player_vect;
-			else
-				player->v = &player_vect;
+			set_player_vect();
 			next_joystick_button_timer = timer + frame_rate_hz / 8;
 		}
 	}
@@ -11089,7 +11187,7 @@ void deal_with_keyboard()
 	if (game_state.key_bomb_pressed)
 		drop_bomb();
 
-	if (game_state.key_present_pressed)
+	if (game_state.key_present_pressed && xmas_mode)
 		drop_present();
 
 	if (game_state.key_gbomb_pressed)
@@ -12741,9 +12839,11 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 			continue;
 		}
 		rc = sscanf(s, "set %s\n", word);
+		/* printf("%s: rc = %d\n", line, rc); */
 		if (rc == 1) {
 			if (strcmp(word, "xmas") == 0) {
 				xmas_mode = !xmas_mode;
+				continue;
 			}
 			if (strcmp(word, "bw") == 0) {
 				*bw = 1;
@@ -12800,7 +12900,7 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 			if (remapkey(keyname, actionname) == 0)
 				continue;
 		}
-		fprintf(stderr, "~/.wordwarvi/.exrc: syntax error at line %d\n", lineno);
+		fprintf(stderr, "~/.wordwarvi/.exrc: syntax error at line %d:'%s'\n", lineno, line);
 	}
 	fclose(exrcfile);
 }
