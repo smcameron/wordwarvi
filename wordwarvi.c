@@ -60,7 +60,7 @@
 #define M_PI  (3.14159265)
 #endif
 #define TWOPI (M_PI * 2.0)
-#define NCLIPS (52)
+#define NCLIPS (56)
 #define MAX_CONCURRENT_SOUNDS (26)
 
 #define DEBUG_HITZONE 0
@@ -124,6 +124,9 @@ int add_sound(int which_sound, int which_slot);
 #define JETWASH_SOUND 49
 #define TIMPANI_BOING 50
 #define NICE_BANK_SHOT 51
+#define HOHOHO 52
+#define HOHOHO_MERRY_XMAS 53
+#define YAY_SANTA 54
 /* ...End of audio stuff */
 
 #define NHUMANOIDS 4 /* number of vi .swp files, initially */
@@ -4360,7 +4363,7 @@ void present_move(struct game_obj_t *o)
 				add_floater_message(t->x, t->y + 25, "All Houses visited! +1000000!");
 				game_state.score += 1000000;
 			}
-			/* FIXME, add some sound. */
+			add_sound(YAY_SANTA, ANY_SLOT);
 			goto out;
 		}
 	}
@@ -4385,7 +4388,7 @@ void present_move(struct game_obj_t *o)
 					add_floater_message(t->x, t->y + 25, "All Houses visited! +1000000!");
 					game_state.score += 1000000;
 				}
-				/* FIXME, add some sound. */
+				add_sound(YAY_SANTA, ANY_SLOT);
 				goto out;
 			}
 		}
@@ -4895,6 +4898,7 @@ void drop_bomb()
 void drop_present()
 {
 	int i, j;
+	static int hohoho_time = 0;
 	struct game_obj_t *o;
 
 	if (game_state.nextbombtime > timer)
@@ -4924,6 +4928,13 @@ void drop_present()
 		add_target(o);
 		o->color = GREEN;
 		o->alive = 20;
+	}
+	if (randomn(100) < 30 && hohoho_time < timer) {
+		add_sound(HOHOHO, ANY_SLOT);
+		hohoho_time = timer + 60;
+	} else if (randomn(100) < 30 && hohoho_time < timer) {
+		add_sound(HOHOHO_MERRY_XMAS, ANY_SLOT);
+		hohoho_time = timer + 60;
 	}
 	game_state.cmd_multiplier = 1;
 }
@@ -12042,6 +12053,11 @@ int init_clips()
 	read_ogg_clip(JETWASH_SOUND, "sounds/jetwash.ogg");
 	read_ogg_clip(TIMPANI_BOING, "sounds/timpani_boing.ogg");
 	read_ogg_clip(NICE_BANK_SHOT, "sounds/nice_bank_shot.ogg");
+	if (xmas_mode) {
+		read_ogg_clip(HOHOHO, "sounds/hohoho.ogg");
+		read_ogg_clip(HOHOHO_MERRY_XMAS, "sounds/hohoho_merry_xmas.ogg");
+		read_ogg_clip(YAY_SANTA, "sounds/yay_santa.ogg");
+	}
 	if (!nomusic) {
 		read_ogg_clip(DESTINY_FACEDOWN, "sounds/destiny_facedown.ogg");
 		read_ogg_clip(HIGH_SCORE_MUSIC, "sounds/highscoremusic.ogg");
