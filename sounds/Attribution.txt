@@ -89,3 +89,5 @@ license.  See: http://creativecommons.org/licenses/by-sa/3.0/
 	destiny_facedown.ogg
 	highscoremusic.ogg
 	jetwash.ogg
+	timpani_boing.ogg
+	nice_bank_shot.ogg
