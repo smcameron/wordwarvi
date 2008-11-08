@@ -91,3 +91,6 @@ license.  See: http://creativecommons.org/licenses/by-sa/3.0/
 	jetwash.ogg
 	timpani_boing.ogg
 	nice_bank_shot.ogg
+	hohoho.ogg
+	hohoho_merry_xmas.ogg
+	yay_santa.ogg
