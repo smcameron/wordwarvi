@@ -60,7 +60,7 @@
 #define M_PI  (3.14159265)
 #endif
 #define TWOPI (M_PI * 2.0)
-#define NCLIPS (50)
+#define NCLIPS (52)
 #define MAX_CONCURRENT_SOUNDS (26)
 
 #define DEBUG_HITZONE 0
@@ -122,6 +122,8 @@ int add_sound(int which_sound, int which_slot);
 #define DESTINY_FACEDOWN 47
 #define HIGH_SCORE_MUSIC 48
 #define JETWASH_SOUND 49
+#define TIMPANI_BOING 50
+#define NICE_BANK_SHOT 51
 /* ...End of audio stuff */
 
 #define NHUMANOIDS 4 /* number of vi .swp files, initially */
@@ -2169,6 +2171,7 @@ struct truss_data {
 };
 
 struct kgun_data {
+	int bank_shot_factor; /* has to match bomb. */
 	int invert;	/* 1 means hanging upside down, -1, means mounted on ground. */
 	int size;	/* between 0 and 31, 31 being the biggest. */
 	int velocity_factor; /* smaller guns shoot slower, unless corrected by velocity factor */
@@ -2177,6 +2180,10 @@ struct kgun_data {
 
 struct house_data {
 	int santa_came;
+};
+
+struct bomb_data {
+	int bank_shot_factor;
 };
 
 union type_specific_data {		/* union of all the typs specific data */
@@ -2197,6 +2204,7 @@ union type_specific_data {		/* union of all the typs specific data */
 	struct truss_data truss;
 	struct kgun_data kgun;
 	struct house_data house;
+	struct bomb_data bomb;
 };
 
 struct game_obj_t {
@@ -4391,6 +4399,30 @@ out:
 	}
 }
 
+void nice_bank_shot(struct game_obj_t *bomb)
+{
+	static int bank_shot_sound_time = 0;
+	if (bomb->tsd.bomb.bank_shot_factor == 1)
+		return;
+	add_floater_message(player_target->x, player_target->y - 20, "Nice Bank Shot!");
+	if (timer > bank_shot_sound_time) {
+		bank_shot_sound_time = timer + 30;
+		add_sound(NICE_BANK_SHOT, ANY_SLOT);
+	}
+}
+
+void timpani_boing(struct game_obj_t *bomb)
+{
+	static int timpani_time = 0;
+	if (bomb->vy > -6) 
+		return;
+	bomb->tsd.bomb.bank_shot_factor = 10;
+	if (timpani_time > timer)
+		return;
+	timpani_time = timer + 5;
+	add_sound(TIMPANI_BOING, ANY_SLOT);
+}
+
 void bomb_move(struct game_obj_t *o)
 {
 	struct game_obj_t *t, *next;
@@ -4430,6 +4462,7 @@ void bomb_move(struct game_obj_t *o)
 					o->y - t->y > -50*3) {
 					if (o->vy > 0) {
 						o->vy = -o->vy * 0.8;
+						timpani_boing(o);
 					}
 					o->vx = o->vx + randomn(6)-3;
 				}
@@ -4478,8 +4511,10 @@ void bomb_move(struct game_obj_t *o)
 						}
 					}
 					if (score_table[t->otype] != 0) {
-						game_state.score += score_table[t->otype];
-						add_score_floater(t->x, t->y, score_table[t->otype]);
+						game_state.score += score_table[t->otype] * o->tsd.bomb.bank_shot_factor;
+						add_score_floater(t->x, t->y, score_table[t->otype] * 
+							o->tsd.bomb.bank_shot_factor);
+						nice_bank_shot(o);
 					}
 					kill_tally[t->otype]++;
 					add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
@@ -4554,8 +4589,11 @@ void bomb_move(struct game_obj_t *o)
 						/* FIXME -- need to adjust kill counts. */
 
 						if (score_table[t->otype] != 0) {
-							game_state.score += score_table[t->otype];
-							add_score_floater(t->x, t->y, score_table[t->otype]);
+							game_state.score += score_table[t->otype] * 
+								o->tsd.bomb.bank_shot_factor;
+							add_score_floater(t->x, t->y, score_table[t->otype] * 
+								o->tsd.bomb.bank_shot_factor);
+							nice_bank_shot(o);
 						}
 						explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 						spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
@@ -4849,6 +4887,7 @@ void drop_bomb()
 		add_target(o);
 		o->color = ORANGE;
 		o->alive = 20;
+		o->tsd.bomb.bank_shot_factor = 1;
 	}
 	game_state.cmd_multiplier = 1;
 }
@@ -8233,6 +8272,7 @@ static void add_flak_guns(struct terrain_t *t, struct level_obj_descriptor_entry
 			o->tsd.kgun.size = 31;
 			o->tsd.kgun.velocity_factor = 1;
 			o->tsd.kgun.invert = -1;
+			o->tsd.kgun.bank_shot_factor = 1;
 			o->uses_health = 1;
 			o->health.maxhealth = level.kgun_health;
 			o->health.health = o->health.maxhealth;
@@ -8294,6 +8334,7 @@ static void add_kernel_guns(struct terrain_t *t, struct level_obj_descriptor_ent
 			o->tsd.kgun.size = 31;	/* biggest size */
 			o->tsd.kgun.invert = 1;	/* this means hanging upside down */
 			o->tsd.kgun.velocity_factor = 1;	/* normal laser speed */
+			o->tsd.kgun.bank_shot_factor = 1;
 			o->below_target_y = 3 * LASER_Y_PROXIMITY;
 		}
 		if (p != NULL)
@@ -11999,6 +12040,8 @@ int init_clips()
 	read_ogg_clip(ZZZT_SOUND, "sounds/zzzt.ogg");
 	read_ogg_clip(GRAVITYBOMB_SOUND, "sounds/gravity_bomb.ogg");
 	read_ogg_clip(JETWASH_SOUND, "sounds/jetwash.ogg");
+	read_ogg_clip(TIMPANI_BOING, "sounds/timpani_boing.ogg");
+	read_ogg_clip(NICE_BANK_SHOT, "sounds/nice_bank_shot.ogg");
 	if (!nomusic) {
 		read_ogg_clip(DESTINY_FACEDOWN, "sounds/destiny_facedown.ogg");
 		read_ogg_clip(HIGH_SCORE_MUSIC, "sounds/highscoremusic.ogg");
