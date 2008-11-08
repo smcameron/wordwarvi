@@ -4326,7 +4326,7 @@ void bridge_move(struct game_obj_t *o);
 void no_move(struct game_obj_t *o);
 static void add_score_floater(int x, int y, int score);
 static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t *victim, int metal);
-void truss_cut_loose_whats_below(struct game_obj_t *o);
+void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb);
 static void add_pilot(int pilotx, int piloty, int pilotvx, int pilotvy);
 
 void present_move(struct game_obj_t *o)
@@ -4405,6 +4405,8 @@ out:
 void nice_bank_shot(struct game_obj_t *bomb)
 {
 	static int bank_shot_sound_time = 0;
+	if (bomb == NULL)
+		return;
 	if (bomb->tsd.bomb.bank_shot_factor == 1)
 		return;
 	add_floater_message(player_target->x, player_target->y - 20, "Nice Bank Shot!");
@@ -4502,7 +4504,7 @@ void bomb_move(struct game_obj_t *o)
 							break;
 						}
 						if (t->otype == OBJ_TYPE_TRUSS)
-							truss_cut_loose_whats_below(t);
+							truss_cut_loose_whats_below(t, o);
 
 						/* if it's a gdb or a jet, then pilot ejects. */
 						if (t->otype == OBJ_TYPE_JET || t->otype == OBJ_TYPE_GDB) {
@@ -4587,7 +4589,7 @@ void bomb_move(struct game_obj_t *o)
 								break;
 							}
 							if (t->otype == OBJ_TYPE_TRUSS)
-								truss_cut_loose_whats_below(t);
+								truss_cut_loose_whats_below(t, o);
 						}
 						/* FIXME -- need to adjust kill counts. */
 
@@ -5635,7 +5637,7 @@ void laser_move(struct game_obj_t *o)
 							break;
 					}
 					if (t->otype == OBJ_TYPE_TRUSS)
-						truss_cut_loose_whats_below(t);
+						truss_cut_loose_whats_below(t, NULL);
 					if (t->otype == OBJ_TYPE_JET || t->otype == OBJ_TYPE_GDB) {
 						addpilot = 1;
 						pilotx = t->x;
@@ -7401,7 +7403,7 @@ void truss_move(struct game_obj_t *o)
 		o->health.health++;
 }
 
-void truss_cut_loose_whats_below(struct game_obj_t *o)
+void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 {
 	struct game_obj_t *i;
 
@@ -7418,6 +7420,7 @@ void truss_cut_loose_whats_below(struct game_obj_t *o)
 			i->move = bomb_move; 
 			i->vx = randomn(6)-3;
 			i->vy = randomn(6)-3;
+			nice_bank_shot(bomb);
 			break;
 		}
 		i->vx = randomn(6)-3;
@@ -12668,10 +12671,10 @@ void init_highscores()
 
 	/* put in a few funky scores for laughs. */
 	strcpy(highscore[0].name, "RMS"); /* as in RMS. */
-	highscore[0].score = 3010700;	  /* something to beat. */
-	strcpy(highscore[1].name, "JOY"); /* as in Bill, */
+	highscore[0].score = 3010700;	  
+	strcpy(highscore[1].name, "B_M"); /* As in Bram Moolenaar */
 	highscore[1].score = 2170300;
-	strcpy(highscore[2].name, "JOY");
+	strcpy(highscore[2].name, "JOY"); /* as in Bill */
 	highscore[2].score = 2051000;
 	strcpy(highscore[2].name, "RMS");
 	highscore[2].score = 2043000;
