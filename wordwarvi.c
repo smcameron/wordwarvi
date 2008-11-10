@@ -20,7 +20,14 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#if !defined(__APPLE__)
+/* Apple gets what it needs for malloc from stdlib.h, */
+/* or so the internets would have me believe.  I don't */
+/* have a mac to test this, so if this doesn't work, */
+/* trying including <malloc/malloc.h> outside the ifdef. */
+/* (and let me know.) */
 #include <malloc.h>
+#endif
 #include <gtk/gtk.h>
 #include <string.h>
 #include <sys/time.h>
@@ -10561,7 +10568,12 @@ void start_level()
 	srandom(level.random_seed);
 	generate_terrain(&terrain);
 
-	add_buildings(&terrain);
+	add_buildings(&terrain);/* Some FreeBSD users report that */
+				/*add_buildings() causes crashes. */
+				/* Commenting this out on FreeBSD */
+				/* may help, but, no buildings. */
+				/* I've looked at the code, but */
+				/* don't see anything wrong with it. */
 	add_humanoids(&terrain);
 	add_bridges(&terrain);
 	add_socket(&terrain);
