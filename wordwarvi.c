@@ -1248,6 +1248,58 @@ struct my_point_t player_ship_points[] = {
 };
 
 struct my_point_t sleigh_points[] = {
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, RED },
+	{ 2, -3 }, /* top of santa's thigh */
+	{ 5, -3 },
+	{ 6, 2 }, /* santa's shin */
+	{ 3, 2 },/* bottom of santa's pantleg */
+	{ LINE_BREAK, LINE_BREAK },
+	{ -5, -10 }, /* santa's back */
+	{ -3, -14 },
+	{ 0, -12 },
+	{ LINE_BREAK, LINE_BREAK }, /* santa's collar + beard */
+	{ COLOR_CHANGE, WHITE },
+	{ -3, -15 },
+	{ 0, -13 },
+	{ 4, -7 },
+	{ 2, -14 },
+	{ -3, -15 },
+	{ 1, -19 }, /* santa's hat brim */
+	{ LINE_BREAK, LINE_BREAK }, /* santa's face */
+	{ COLOR_CHANGE, ORANGE },
+	{ 1, -14 },
+	{ 1, -18 },
+	{ LINE_BREAK, LINE_BREAK }, /* santa's hat */
+	{ COLOR_CHANGE, RED },
+	{ -3, -16 },
+	{ 0, -20 },
+	{ -3, -21 },
+	{ -12, -18 },
+	{ -3, -16 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, WHITE }, /* santa's hat ball */
+	{ -12, -18 },
+	{ -12, -17 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, RED },
+	{ 0, -12 }, /* Santa's upper arm */
+	{ 3, -7 },
+	{ 6, -7 },
+	{ 6, -4 },
+	{ 0, -4 },
+	{ LINE_BREAK, LINE_BREAK }, /* santa's cuff */
+	{ COLOR_CHANGE, WHITE },
+	{ 7, -7 },
+	{ 7, -4 },
+	{ LINE_BREAK, LINE_BREAK }, /* santa's hand */
+	{ COLOR_CHANGE, GREEN },
+	{ 8, -7 },
+	{ 10, -7 },
+	{ 10, -5 },
+	{ 8, -5 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, WHITE }, /* sleigh's rails */
 	{ -20, 10 },
 	{ 20, 10 },
 	{ 23, 7 },
