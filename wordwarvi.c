@@ -2117,6 +2117,7 @@ struct reindeer_data {
 	int count2;
 	int direction;
 	int sleigh;
+	int rudolph;
 }; 
 
 struct harpoon_data {		
@@ -4046,10 +4047,14 @@ void humanoid_move(struct game_obj_t *o)
 	/* humans move around with their abductors. */
 	abductor = o->tsd.human.abductor;
 	if (o->tsd.human.picked_up && abductor != NULL) {
-		if (abductor->otype == OBJ_TYPE_PLAYER || abductor->otype == OBJ_TYPE_REINDEER) {
+		if (abductor->otype == OBJ_TYPE_PLAYER) {
 			o->x = 10 + abductor->x + (o->tsd.human.seat_number * 8) 
 				- (game_state.humanoids * 4);
 			o->y = o->tsd.human.abductor->y + 20;
+		} else if (abductor->otype == OBJ_TYPE_REINDEER) {
+			o->x = 10 + abductor->x + (o->tsd.human.seat_number * 8) 
+			- (game_state.humanoids * 4);
+			o->y = o->tsd.human.abductor->y + 3;
 		} else {
 			o->x = abductor->x;
 			o->y = o->tsd.human.abductor->y + 30;
@@ -5109,6 +5114,18 @@ void xmas_player_draw(struct game_obj_t *o, GtkWidget *w)
 				wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
 			}
 		}
+		if (o->tsd.reindeer.rudolph && (timer & 0x08)) { /* blink rudolph's nose. */
+			x1 = o->x - game_state.x + (game_state.direction * 15);
+			y1 = o->y - 4 -game_state.y +(SCREEN_HEIGHT/2);  
+			y2 = y1 - 2;  
+			x2 = x1 + game_state.direction;
+			gdk_gc_set_foreground(gc, &huex[WHITE]);
+			wwvi_draw_line(w->window, gc, x1, y1, x2, y1); 
+			wwvi_draw_line(w->window, gc, x1, y2, x2, y2); 
+			--y1;
+			gdk_gc_set_foreground(gc, &huex[RED]);
+			wwvi_draw_line(w->window, gc, x1, y1, x2, y1); 
+		}
 	} else {
 		/* this is the insanity that makes the player "zoom" into the game */
 		/* at the start of levels. */
@@ -5968,7 +5985,7 @@ void reindeer_move(struct game_obj_t *o)
 	}
 
 	/* Calculate desired position */
-	dx = o->bullseye->x -direction * 15;
+	dx = o->bullseye->x -direction * 20;
 	dy = o->bullseye->y;
 
 	dvx = dx - o->x;
@@ -9242,6 +9259,7 @@ static void add_reindeer()
 	}
 
 	previous = player;
+	player->tsd.reindeer.rudolph = 1;
 	for (i=0;i<4;i++) {
 		if (i != 3) {
 			o = add_generic_object(previous->x - 20, previous->y, 0, 0,
@@ -9254,6 +9272,7 @@ static void add_reindeer()
 		if (o == NULL)
 			return;
 		o->tsd.reindeer.sleigh = (i == 3);
+		o->tsd.reindeer.rudolph = 0;
 		o->bullseye = previous;
 		o->tsd.reindeer.count = previous->tsd.reindeer.count;
 		o->tsd.reindeer.count2 = previous->tsd.reindeer.count2;
