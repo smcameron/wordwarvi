@@ -593,6 +593,7 @@ stroke_t glyph_p[] = { 18, 6, 8, 14, 12, 99 };
 stroke_t glyph_q[] = { 14, 12, 6, 8, 20, 99 };
 stroke_t glyph_r[] = { 12, 6, 21, 9,7,8,99 };
 stroke_t glyph_apostrophe[] = { 7, 5, 99 };
+stroke_t glyph_doublequote[] = { 0, 3, 21, 1, 4, 99 };
 stroke_t glyph_asterisk[] = { 9, 5, 21, 3, 11, 21, 6, 8, 21, 4, 10, 99 };
 
 struct my_point_t {
@@ -7171,6 +7172,7 @@ int make_font(struct my_vect_obj ***font, int xscale, int yscale)
 	v[','] = prerender_glyph(glyph_comma, xscale, yscale);
 	v['.'] = prerender_glyph(glyph_period, xscale, yscale);
 	v['\''] = prerender_glyph(glyph_apostrophe, xscale, yscale);
+	v['\"'] = prerender_glyph(glyph_doublequote, xscale, yscale);
 	v['*'] = prerender_glyph(glyph_asterisk, xscale, yscale);
 	*font = v;
 	return 0;
