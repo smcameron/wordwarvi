@@ -90,9 +90,8 @@ int stop_all_rumble_effects()
 			exit(1);
 		}
 	}
-#else
-	return 0;
 #endif
+	return 0;
 }
 
 int play_rumble_effect(int effect)
