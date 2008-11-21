@@ -13005,6 +13005,8 @@ int main(int argc, char *argv[])
 	};
 
 #ifdef WITHAUDIOSUPPORT
+	if (nomusic)
+		wwviaudio_set_nomusic();
 	init_clips();
 	wwviaudio_set_sound_device(sound_device);
 	if (wwviaudio_initialize_portaudio() != 0)
