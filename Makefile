@@ -51,6 +51,12 @@ ogg_to_pcm.o:	ogg_to_pcm.c ogg_to_pcm.h Makefile
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `pkg-config --cflags vorbisfile` \
 		-pthread -Wall -c ogg_to_pcm.c
 
+wwviaudio.o:	wwviaudio.c wwviaudio.h ogg_to_pcm.h Makefile
+	gcc -Wall ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} \
+		${DEFINES} \
+		-pthread `pkg-config --cflags vorbisfile` \
+		-c wwviaudio.c
+
 rumble.o:	rumble.c rumble.h Makefile
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `pkg-config --cflags vorbisfile` \
 		-pthread -Wall -c rumble.c
@@ -58,12 +64,13 @@ rumble.o:	rumble.c rumble.h Makefile
 stamp:	stamp.c
 	gcc -o stamp stamp.c	
 
-wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} Makefile version.h stamp levels.h rumble.h
+wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} wwviaudio.o Makefile version.h stamp levels.h rumble.h
 	./stamp > stamp.h
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall  ${DEFINES} \
 		joystick.o \
 		rumble.o \
 		${OGGOBJ} \
+		wwviaudio.o \
 		wordwarvi.c -o wordwarvi -lm ${SNDLIBS} \
 		`pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0 gthread-2.0`
 	/bin/rm stamp.h
@@ -96,7 +103,7 @@ tarball:	CHECK_VERSION
 	mkdir -p d/wordwarvi-${VERSION}/sounds
 	cp Makefile version.h ogg_to_pcm.c ogg_to_pcm.h levels.h rumble.c rumble.h \
 		joystick.c joystick.h changelog.txt wordwarvi.c wordwarvi.6 \
-		stamp.c README AUTHORS COPYING \
+		wwviaudio.c wwviaudio.h stamp.c README AUTHORS COPYING \
 		AAA_HOW_TO_MAKE_NEW_LEVELS.txt \
 		changelog.txt \
 		d/wordwarvi-${VERSION}
@@ -110,4 +117,5 @@ tarball:	CHECK_VERSION
 
 clean:
 	rm -f ./wordwarvi ./wordwarvi-*.tar.gz wordwarvi.6.gz stamp.h stamp
+	rm -f ./joystick.o  ./ogg_to_pcm.o  ./rumble.o  ./wwviaudio.o
 	rm -fr ./d

@@ -46,12 +46,7 @@
 #define GNU_SOURCE
 #include <getopt.h>
 
-#ifdef WITHAUDIOSUPPORT
-/* For Audio stuff... */
-#include "portaudio.h"
-#include "ogg_to_pcm.h"
-#endif
-
+#include "wwviaudio.h"
 #include "joystick.h"
 #include "rumble.h"
 #include "version.h"
@@ -61,24 +56,16 @@
 #define DATADIR ""
 #endif
 
-#define SAMPLE_RATE   (44100)
-#define FRAMES_PER_BUFFER  (1024)
 #ifndef M_PI
 #define M_PI  (3.14159265)
 #endif
 #define TWOPI (M_PI * 2.0)
-#define NCLIPS (56)
-#define MAX_CONCURRENT_SOUNDS (26)
 
 #define DEBUG_HITZONE 0
 
 // #define DEBUG_TARGET_LIST 
 
-/* define sound clip constants, and dedicated sound queue slots. */
-int sound_device = -1; /* default sound device for port audio. */
-int add_sound(int which_sound, int which_slot);
-#define ANY_SLOT (-1)
-#define MUSIC_SLOT (0)
+/* define sound clip constants */
 #define PLAYER_LASER_SOUND 0
 #define BOMB_IMPACT_SOUND 1
 #define ROCKET_LAUNCH_SOUND 2
@@ -308,6 +295,7 @@ int timer = 0;			/* monotonically increases by 1 with every frame */
 int next_timer = 0;		/* when timer reaches this value, timer_expired() is called */
 int timer_event = 0;		/* timer_expired() switches on this value... */ 
 
+int sound_device = -1;
 /* timer_event values. */
 #define BLINK_EVENT 1
 #define READY_EVENT 2
@@ -2332,7 +2320,6 @@ struct game_state_t {
 		finish_time;
 	struct game_obj_t go[MAXOBJS];	/* all the objects in the game are in this array. */
 	int cmd_multiplier;		/* If you prefix keystrokes with a number... like editing in vi. */
-	int music_on;			/* Whether music is turned on or off */
 	int sound_effects_on;		/* Whether sound effects are turned on or off */
 	int sound_effects_manually_turned_off; /* whether sound effects were manually turned off */
 					/* rather than turned off by the goofy intro music. */
@@ -2710,7 +2697,7 @@ void move_laserbolt(struct game_obj_t *o)
 	}
 	if (abs(dy) < 9 && abs(player_target->x - o->x) < 15) { /* hit the player? */
 		explosion(o->x, o->y, o->vx, 1, 70, 20, 20);
-		add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
 		game_state.health -= LASER_BOLT_DAMAGE;
 		do_strong_rumble();
 		kill_object(o);
@@ -2831,7 +2818,7 @@ void kgun_move(struct game_obj_t *o)
 	if (xdist < SCREEN_WIDTH && ydist < SCREEN_HEIGHT-200 && 
 		randomn(chance) < level.laser_fire_chance) {
 		/* we're going to fire the laser... */
-		add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(FLAK_FIRE_SOUND);
 		o->tsd.kgun.recoil_amount = 7;
 
 		/* Find x,y dist to player... */
@@ -2928,7 +2915,7 @@ void move_rocket(struct game_obj_t *o)
 		ydist = o->y - player_target->y;
 		if (((xdist<<1) <= ydist && ydist > 0) || o->vy != 0) {
 			if (o->vy == 0) { /* only add the sound once. */
-				add_sound(ROCKET_LAUNCH_SOUND, ANY_SLOT);
+				wwviaudio_add_sound(ROCKET_LAUNCH_SOUND);
 				o->alive = 2; /* launched. */
 				o->vy = -6; /* give them a little boost. */
 			}
@@ -2950,7 +2937,7 @@ void move_rocket(struct game_obj_t *o)
 		/* into the ground. */
 		gl = find_ground_level(o, NULL);
 		if (o->y > gl) {
-			add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(ROCKET_EXPLOSION_SOUND);
 			explosion(o->x, o->y, o->vx, 1, 70, 150, 20);
 			remove_target(o);
 			kill_object(o);
@@ -2959,7 +2946,7 @@ void move_rocket(struct game_obj_t *o)
 
 		ydist = o->y - player_target->y;
 		if ((ydist*ydist + xdist*xdist) < 400) { /* hit the player? */
-			add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(ROCKET_EXPLOSION_SOUND);
 			do_strong_rumble();
 			explosion(o->x, o->y, o->vx, 1, 70, 150, 20);
 			game_state.health -= 20;
@@ -3004,11 +2991,11 @@ void move_jet(struct game_obj_t *o)
 			o->vx = -18;
 			o->vy = 0;
 			o->radar_image = 1;
-			add_sound(JETWASH_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(JETWASH_SOUND);
 		}
 
 		if (xdist < SCREEN_WIDTH && randomn(100) < 10 && o->missile_timer <= timer) {
-			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(SAM_LAUNCH_SOUND);
 			add_missile(o->x, o->y, o->vx, 0, 300, RED, player_target);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 		}
@@ -3048,7 +3035,7 @@ void sam_move(struct game_obj_t *o)
 		/* should we launch?  And not too many at once... */
 		if (ydist > 0 && randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
 			/* launching a missile... */
-			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(SAM_LAUNCH_SOUND);
 			add_missile(o->x+20, o->y-30, 0, -10, 300, GREEN, player_target);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 		}
@@ -3290,7 +3277,7 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 		/* keep thunder from going oof too much */
 		if ((next_thunder_time) < timer) {
 			next_thunder_time = timer + frame_rate_hz * 2;
-			add_sound(THUNDER_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(THUNDER_SOUND);
 		}
 	}
 }
@@ -3494,7 +3481,7 @@ void octopus_move(struct game_obj_t *o)
 		ydist = o->y - player_target->y;
 #if 1
 		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
-			// add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			// wwviaudio_add_sound(SAM_LAUNCH_SOUND);
 			//add_harpoon(o->x+10, o->y, 0, 0, 300, MAGENTA, player, o);
 			// o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 			if (!o->tsd.octopus.awake) {
@@ -3609,7 +3596,7 @@ void cron_move(struct game_obj_t *o)
 			o->tsd.cron.myhuman->tsd.human.on_ground = 0;   /* he's not on the ground. */
 			o->tsd.cron.myhuman = NULL;
 			o->tsd.cron.state = CRON_STATE_SEEKING_HUMAN; /* start looking for another one. */
-			add_sound(SCREAM_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(SCREAM_SOUND);
 		} else {
 		
 			/* Pick a new random destination... */	
@@ -3636,7 +3623,7 @@ void cron_move(struct game_obj_t *o)
 					o->tsd.cron.tx = volcano_obj->x;
 					o->tsd.cron.ty = volcano_obj->y - 150;
 					o->tsd.cron.myhuman->tsd.human.seat_number = 0;
-					add_sound(ABDUCTED_SOUND, ANY_SLOT);
+					wwviaudio_add_sound(ABDUCTED_SOUND);
 
 					/* Take him to the volcano. */
 					o->tsd.cron.state = CRON_STATE_CARRYING_HUMAN_TO_VOLCANO;
@@ -3705,7 +3692,7 @@ void cron_move(struct game_obj_t *o)
 			explode(o->x, o->y, o->vx, o->vy, 4, 8, 9);
 			add_bullet(o->x, o->y, vx, vy, 40, WHITE, player_target);
 			// add_floater_message(o->x, o->y, "Bang!");
-			add_sound(CRONSHOT, ANY_SLOT);
+			wwviaudio_add_sound(CRONSHOT);
 		}
 	}
 	
@@ -3763,7 +3750,7 @@ void cron_move(struct game_obj_t *o)
 	if (xdist < GDB_LAUNCH_DIST) {
 		ydist = o->y - player->y;
 		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
-			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(SAM_LAUNCH_SOUND);
 			add_harpoon(o->x+10, o->y, 0, 0, 300, MAGENTA, player, o);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 			if (!o->tsd.gdb.awake) {
@@ -3892,7 +3879,7 @@ void pilot_move(struct game_obj_t *o)
 		int vx, vy;
 		aim_vx_vy(player_target, o, 28, 10, &vx, &vy);
 		add_laserbolt(o->x, o->y, vx, vy, GREEN, 50);
-		add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(FLAK_FIRE_SOUND);
 	}
 
 
@@ -3902,7 +3889,7 @@ void pilot_move(struct game_obj_t *o)
 	if (xdist < GDB_LAUNCH_DIST) {
 		ydist = o->y - player->y;
 		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
-			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(SAM_LAUNCH_SOUND);
 			add_harpoon(o->x+10, o->y, 0, 0, 300, RED, player, o);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 			if (!o->tsd.gdb.awake) {
@@ -4012,7 +3999,7 @@ void gdb_move(struct game_obj_t *o)
 	if (xdist < GDB_LAUNCH_DIST) {
 		ydist = o->y - player_target->y;
 		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
-			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(SAM_LAUNCH_SOUND);
 			add_harpoon(o->x+10, o->y, 0, 0, 300, RED, player_target, o);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 			if (!o->tsd.gdb.awake) {
@@ -4074,11 +4061,11 @@ void humanoid_move(struct game_obj_t *o)
 		if (gy == GROUND_OOPS || o->y >= gy) {
 			o->y = gy;
 			o->tsd.human.on_ground = 1;
-			add_sound(BODYSLAM_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(BODYSLAM_SOUND);
 			if (abs(o->x - volcano_obj->x) > 20)
-				add_sound(OOF_SOUND, ANY_SLOT);
+				wwviaudio_add_sound(OOF_SOUND);
 			else {
-				add_sound(IT_BURNS, ANY_SLOT);
+				wwviaudio_add_sound(IT_BURNS);
 				remove_target(o);
 				kill_object(o);
 				game_state.score -= score_table[OBJ_TYPE_HUMAN];
@@ -4096,8 +4083,8 @@ void humanoid_move(struct game_obj_t *o)
 				add_floater_message(o->x, o->y + 25, "Nice Catch! +1000!");
 				game_state.score += 1000;
 			}
-			add_sound(CARDOOR_SOUND, ANY_SLOT);
-			add_sound(WOOHOO_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(CARDOOR_SOUND);
+			wwviaudio_add_sound(WOOHOO_SOUND);
 			add_floater_message(o->x, o->y, "Woohoo!");
 			o->x = -1000; /* take him off screen. */
 			o->y = -1000;
@@ -4116,9 +4103,9 @@ void humanoid_move(struct game_obj_t *o)
 				o->tsd.human.picked_up != 0)) {
 				add_floater_message(o->x, o->y, "Help!");
 				if (o->y > player_target->y)
-					add_sound(HELPDOWNHERE_SOUND, ANY_SLOT);
+					wwviaudio_add_sound(HELPDOWNHERE_SOUND);
 				else
-					add_sound(HELPUPHERE_SOUND, ANY_SLOT);
+					wwviaudio_add_sound(HELPUPHERE_SOUND);
 				o->counter = 1;
 			}
 		}
@@ -4140,7 +4127,7 @@ void socket_move(struct game_obj_t *o)
 	if (xdist < HUMANOID_DIST*3 && ydist < HUMANOID_DIST*2 
 		&& timer_event != START_INTERMISSION_EVENT) {
 		gettimeofday(&game_state.finish_time, NULL);
-		add_sound(WOOHOO_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(WOOHOO_SOUND);
 		player->tsd.epd.count = 50;
 		player->tsd.epd.count2 = 0;
 		player->vx = 0;
@@ -4230,7 +4217,7 @@ void player_fire_laser()
 			game_state.nextlasercolor = NCOLORS + NSPARKCOLORS;
 	}
 	game_state.cmd_multiplier = 1;
-	add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
+	wwviaudio_add_sound(PLAYER_LASER_SOUND);
 }
 
 int interpolate(int x, int x1, int y1, int x2, int y2)
@@ -4382,7 +4369,7 @@ void cron_destroy(struct game_obj_t *o)
 			o->tsd.cron.myhuman->alive); */
 		o->tsd.cron.myhuman->vx = o->vx; /* <-- this doesn't seem to be working... FIXME */
 		o->tsd.cron.myhuman = NULL;
-		add_sound(SCREAM_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(SCREAM_SOUND);
 	}
 	generic_destroy_func(o);
 }
@@ -4428,7 +4415,7 @@ void present_move(struct game_obj_t *o)
 				add_floater_message(t->x, t->y + 25, "All Houses visited! +1000000!");
 				game_state.score += 1000000;
 			}
-			add_sound(YAY_SANTA, ANY_SLOT);
+			wwviaudio_add_sound(YAY_SANTA);
 			goto out;
 		}
 	}
@@ -4453,7 +4440,7 @@ void present_move(struct game_obj_t *o)
 					add_floater_message(t->x, t->y + 25, "All Houses visited! +1000000!");
 					game_state.score += 1000000;
 				}
-				add_sound(YAY_SANTA, ANY_SLOT);
+				wwviaudio_add_sound(YAY_SANTA);
 				goto out;
 			}
 		}
@@ -4477,7 +4464,7 @@ void nice_bank_shot(struct game_obj_t *bomb)
 	add_floater_message(player_target->x, player_target->y - 20, "Nice Bank Shot!");
 	if (timer > bank_shot_sound_time) {
 		bank_shot_sound_time = timer + 30;
-		add_sound(NICE_BANK_SHOT, ANY_SLOT);
+		wwviaudio_add_sound(NICE_BANK_SHOT);
 	}
 }
 
@@ -4490,7 +4477,7 @@ void timpani_boing(struct game_obj_t *bomb)
 	if (timpani_time > timer)
 		return;
 	timpani_time = timer + 5;
-	add_sound(TIMPANI_BOING, ANY_SLOT);
+	wwviaudio_add_sound(TIMPANI_BOING);
 }
 
 void bomb_move(struct game_obj_t *o)
@@ -4562,7 +4549,7 @@ void bomb_move(struct game_obj_t *o)
 						t->health.health -= 1;
 						if (t->health.health > 0) {
 							do_remove_bomb = 1;
-							add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
+							wwviaudio_add_sound(BOMB_IMPACT_SOUND);
 							explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 							spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 							/* target object not dead yet. */
@@ -4587,7 +4574,7 @@ void bomb_move(struct game_obj_t *o)
 						nice_bank_shot(o);
 					}
 					kill_tally[t->otype]++;
-					add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
+					wwviaudio_add_sound(BOMB_IMPACT_SOUND);
 					explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 					spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 					// t->alive = 0;
@@ -4610,7 +4597,7 @@ void bomb_move(struct game_obj_t *o)
 	/* Detect smashing into the ground */
 	deepest = find_ground_level(o, NULL);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
-		add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(BOMB_IMPACT_SOUND);
 		explosion(o->x, o->y, o->vx, 1, 90, 150, 20);
 		do_remove_bomb = 1;
 		/* find nearby targets */
@@ -4647,7 +4634,7 @@ void bomb_move(struct game_obj_t *o)
 						if (t->uses_health) {
 							t->health.health -= 1;
 							if (t->health.health > 0) {
-								add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
+								wwviaudio_add_sound(BOMB_IMPACT_SOUND);
 								explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 								spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 								/* object not dead yet. */
@@ -4793,7 +4780,7 @@ void gravity_bomb_move(struct game_obj_t *o)
 						add_score_floater(t->x, t->y, score_table[t->otype]);
 					}
 					kill_tally[t->otype]++;
-					// add_sound(BOMB_IMPACT_SOUND, ANY_SLOT);
+					// wwviaudio_add_sound(BOMB_IMPACT_SOUND);
 					// explode(t->x, t->y, t->vx, 1, 70, 150, 20);
 					// spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 					remove_target(t);
@@ -4828,12 +4815,12 @@ void volcano_move(struct game_obj_t *o)
 			spray_debris(o->x, o->y, 0, -20, 20, o, 0);
 			spray_debris(o->x, o->y, 0, -10, 10, o, 0);
 			if (player_dist < 1500)
-				add_sound(VOLCANO_ERUPTION, ANY_SLOT);
+				wwviaudio_add_sound(VOLCANO_ERUPTION);
 		} else {
 			if (randomn(100) < 50) {
 				spray_debris(o->x, o->y, 0, -10, 10, o, 0);
 				if (player_dist < 1500)
-					add_sound(VOLCANO_ERUPTION, ANY_SLOT);
+					wwviaudio_add_sound(VOLCANO_ERUPTION);
 			}
 		}
 	}
@@ -4997,10 +4984,10 @@ void drop_present()
 		o->alive = 20;
 	}
 	if (randomn(100) < 30 && hohoho_time < timer) {
-		add_sound(HOHOHO, ANY_SLOT);
+		wwviaudio_add_sound(HOHOHO);
 		hohoho_time = timer + 60;
 	} else if (randomn(100) < 30 && hohoho_time < timer) {
-		add_sound(HOHOHO_MERRY_XMAS, ANY_SLOT);
+		wwviaudio_add_sound(HOHOHO_MERRY_XMAS);
 		hohoho_time = timer + 60;
 	}
 	game_state.cmd_multiplier = 1;
@@ -5039,7 +5026,7 @@ void drop_gravity_bomb()
 		add_target(o);
 		o->color = WHITE;
 		o->alive = 20;
-		add_sound(GRAVITYBOMB_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(GRAVITYBOMB_SOUND);
 	}
 	game_state.cmd_multiplier = 1;
 }
@@ -5172,13 +5159,12 @@ void xmas_player_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
-void add_sound_low_priority(int which_sound);
 static void add_stone_sound()
 {
 	int i;
 
 	i = randomn(8);
-	add_sound_low_priority(STONEBANG1 + i);
+	wwviaudio_add_sound_low_priority(STONEBANG1 + i);
 }
 
 static void add_metal_sound()
@@ -5186,7 +5172,7 @@ static void add_metal_sound()
 	int i;
 
 	i = randomn(16);
-	add_sound_low_priority(METALBANG1 + i);
+	wwviaudio_add_sound_low_priority(METALBANG1 + i);
 }
 
 #if 0
@@ -5197,7 +5183,7 @@ static void corrosive_atmosphere_sound()
 	/* Only allow this to enter the sound queue once per every 3 seconds */
 	if (timer > nexttime) {
 		nexttime = timer + frame_rate_hz*10;
-		add_sound(CORROSIVE_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(CORROSIVE_SOUND);
 	}
 }
 #endif
@@ -5209,8 +5195,8 @@ static void ground_smack_sound()
 	/* Only allow this to enter the sound queue once per every 3 seconds */
 	if (timer > nexttime) {
 		nexttime = timer + frame_rate_hz*3;
-		add_sound(GROUND_SMACK_SOUND, ANY_SLOT);
-		add_sound(OWMYSPINE_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(GROUND_SMACK_SOUND);
+		wwviaudio_add_sound(OWMYSPINE_SOUND);
 	}
 }
 
@@ -5272,7 +5258,6 @@ void set_player_vect()
 }
 
 int new_high_score(int newscore);
-void cancel_all_sounds();
 void no_draw(struct game_obj_t *o, GtkWidget *w);
 void move_player(struct game_obj_t *o)
 {
@@ -5308,7 +5293,7 @@ void move_player(struct game_obj_t *o)
 		explosion(player->x, player->y, player->vx, player->vy, 90, 350, 30); /* bunch of sparks. */
 		player->draw = no_draw;				/* Make player invisible. */
 		spray_debris(o->x, o->y, o->vx, o->vy, 70, o, 1);/* Throw hunks of metal around, */
-		add_sound(LARGE_EXPLOSION_SOUND, ANY_SLOT);	/* and make a lot of noise */
+		wwviaudio_add_sound(LARGE_EXPLOSION_SOUND);	/* and make a lot of noise */
 		// printf("decrementing lives %d.\n", game_state.lives);
 		game_state.lives--;				/* lost a life. */
 		strcpy(textline[CREDITS].string, "");
@@ -5491,17 +5476,20 @@ void move_player(struct game_obj_t *o)
 			timer_event != NEW_HIGH_SCORE_PRE_EVENT &&
 			timer_event != NEW_HIGH_SCORE_PRE2_EVENT ) {
 
-			cancel_all_sounds();
+			wwviaudio_cancel_all_sounds();
 			game_state.sound_effects_on = 0;
-			add_sound(DESTINY_FACEDOWN, MUSIC_SLOT);
+			wwviaudio_silence_sound_effects();
+			wwviaudio_play_music(DESTINY_FACEDOWN);
 			destiny_facedown = 1;
 			destiny_facedown_timer1 = timer + (frame_rate_hz * 46);
 			destiny_facedown_timer2 = timer + (frame_rate_hz * 3*30);
 		}
 		if (destiny_facedown && timer > destiny_facedown_timer1) {
 			destiny_facedown = 0;
-			if (!game_state.sound_effects_manually_turned_off)
+			if (!game_state.sound_effects_manually_turned_off) {
 				game_state.sound_effects_on = 1;
+				wwviaudio_resume_sound_effects();
+			}
 		}
 	}
 	set_player_vect();
@@ -5661,7 +5649,7 @@ void laser_move(struct game_obj_t *o)
 						t->destroy(t);
 						explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 						spray_debris(t->x, t->y, t->vx, t->vy, 30, t, 1);
-						add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
+						wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
 						t = next;
 						removed = 1;
 					}
@@ -5727,7 +5715,7 @@ void laser_move(struct game_obj_t *o)
 						/* half the time, jets will drop out */
 						/* of the sky like a bomb when hit, instead of */
 						/* exploding. */
-						add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
+						wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
 						explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 						t->move = bomb_move;
 						break;
@@ -5737,7 +5725,7 @@ void laser_move(struct game_obj_t *o)
 						add_score_floater(t->x, t->y, score_table[t->otype]);
 					}
 					kill_tally[t->otype]++;
-					add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
+					wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
 					explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 					spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 					next = remove_target(t);
@@ -5811,7 +5799,7 @@ void laser_move(struct game_obj_t *o)
 				}
 
 				/* blow away the segment we just hit. */
-				add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
+				wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
 
 				next = remove_target(t);
 				kill_object(t);
@@ -6046,7 +6034,7 @@ void move_missile(struct game_obj_t *o)
 	/* detect smashing into the ground. */	
 	deepest = find_ground_level(o, NULL);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
-		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(ROCKET_EXPLOSION_SOUND);
 		explosion(o->x, o->y, o->vx, o->vy, 70, 150, 20);
 		remove_target(o);
 		kill_object(o);
@@ -6057,7 +6045,7 @@ void move_missile(struct game_obj_t *o)
 	/* missiles don't last forever... when they run out of fuel, they explode. */
 	age_object(o);
 	if (o->alive <= 0) { 
-		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(ROCKET_EXPLOSION_SOUND);
 		explosion(o->x, o->y, o->vx, o->vy, 70, 150, 20);
 		remove_target(o);
 		kill_object(o);
@@ -6088,7 +6076,7 @@ void move_missile(struct game_obj_t *o)
 		/* target_obj->alive -= MISSILE_DAMAGE; */
 		if (target_obj->alive <= 0)
 			kill_object(target_obj);
-		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(ROCKET_EXPLOSION_SOUND);
 		explosion(o->x, o->y, o->vx, o->vy, 70, 150, 20);
 		o->destroy(o);
 		return;
@@ -6159,7 +6147,7 @@ void move_harpoon(struct game_obj_t *o)
 	/* detect smashing into the ground. */	
 	deepest = find_ground_level(o, NULL);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
-		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(ROCKET_EXPLOSION_SOUND);
 		explosion(o->x, o->y, o->vx, o->vy, 70, 150, 20);
 		remove_target(o);
 		kill_object(o);
@@ -6170,7 +6158,7 @@ void move_harpoon(struct game_obj_t *o)
 	/* missiles don't last forever... when they run out of fuel, they explode. */
 	age_object(o);
 	if (o->alive <= 0) { 
-		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(ROCKET_EXPLOSION_SOUND);
 		explosion(o->x, o->y, o->vx, o->vy, 70, 150, 20);
 		remove_target(o);
 		kill_object(o);
@@ -6200,7 +6188,7 @@ void move_harpoon(struct game_obj_t *o)
 		kill_object(o);
 		if (target_obj->alive <= 0)
 			kill_object(target_obj);
-		add_sound(ROCKET_EXPLOSION_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(ROCKET_EXPLOSION_SOUND);
 		explosion(o->x, o->y, o->vx, o->vy, 70, 150, 20);
 		o->destroy(o);
 		return;
@@ -6281,7 +6269,7 @@ void move_bullet(struct game_obj_t *o)
 		kill_object(o);
 		if (target_obj->alive <= 0)
 			kill_object(target_obj);
-		add_sound(CLANG_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(CLANG_SOUND);
 		explosion(o->x, o->y, o->vx, o->vy, 70, 10, 10);
 		o->destroy(o);
 		return;
@@ -6489,7 +6477,7 @@ static void flying_thing_shoot_missile(struct game_obj_t *o)
 			gambling = 0;
 		
 		if (randomn(2000) < (SAM_LAUNCH_CHANCE+gambling) && timer >= o->missile_timer) {
-			add_sound(SAM_LAUNCH_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(SAM_LAUNCH_SOUND);
 			add_missile(o->x, o->y, 0, 0, 300, RED, player_target);
 			o->missile_timer = timer + MISSILE_FIRE_PERIOD;
 		}
@@ -6498,7 +6486,7 @@ static void flying_thing_shoot_missile(struct game_obj_t *o)
 			int vx, vy;
 			aim_vx_vy(player_target, o, 28, 10, &vx, &vy);
 			add_laserbolt(o->x, o->y, vx, vy, RED, 50);
-			add_sound(FLAK_FIRE_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(FLAK_FIRE_SOUND);
 		}
 	}
 }
@@ -6781,7 +6769,7 @@ void worm_move(struct game_obj_t *o)
 
 				/* Touching player?  Zap him. */
 				if (pdx < 8 && pdy < 8) {
-					add_sound(ZZZT_SOUND, ANY_SLOT);
+					wwviaudio_add_sound(ZZZT_SOUND);
 					do_weak_rumble();
 					explode(player_target->x, player_target->y, player_target->vx*1.5, 1, 20, 20, 15);
 					game_state.health -= WORM_DAMAGE;
@@ -6881,7 +6869,7 @@ void worm_move(struct game_obj_t *o)
 
 		/* touching the player?  Zap him. */
 		if (pdx < 8 && pdy < 8) {
-			add_sound(ZZZT_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(ZZZT_SOUND);
 			do_weak_rumble();
 			explode(player_target->x, player_target->y, player_target->vx*1.5, 1, 20, 20, 15);
 			game_state.health -= WORM_DAMAGE;
@@ -9482,8 +9470,8 @@ static void do_newhighscore(GtkWidget *w, GdkEvent *event, gpointer p)
 		highscore_letter = 0;
 		finished = 0;
 		finish_timer = 0;
-		cancel_sound(MUSIC_SLOT);
-		add_sound(HIGH_SCORE_MUSIC, MUSIC_SLOT);
+		wwviaudio_cancel_music();
+		wwviaudio_play_music(HIGH_SCORE_MUSIC);
 	}
 
 	slot = new_high_score(game_state.score);
@@ -9568,7 +9556,7 @@ static void do_newhighscore(GtkWidget *w, GdkEvent *event, gpointer p)
 		timer_event = GAME_ENDED_EVENT; 
 		next_timer = timer + 1;
 		highscore_timer = 0;
-		cancel_sound(MUSIC_SLOT);
+		wwviaudio_cancel_music();
 
 		/* Prevent final button press from putting in a quarter. */
 		next_quarter_time = timer + (frame_rate_hz);
@@ -9600,11 +9588,11 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 	timer_event = START_INTERMISSION_EVENT; 
 	
 	if (intermission_timer == 0) {
-		add_sound(INTERMISSION_MUSIC_SOUND, MUSIC_SLOT);
+		wwviaudio_play_music(INTERMISSION_MUSIC_SOUND);
 	}
 
 	if (timer >= intermission_timer) {
-		add_sound(LASER_EXPLOSION_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
 		intermission_stage++;
 		if (intermission_stage == LAST_INTERMISSION_STAGE-1
 			&& !they_used_the_source())
@@ -10088,10 +10076,12 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 static void do_game_pause( GtkWidget *widget,
                    gpointer   data )
 {
-	if (game_pause)
+	if (game_pause) {
 		game_pause = 0;
-	else {
+		wwviaudio_resume_audio();
+	} else {
 		game_pause = 1;
+		wwviaudio_pause_audio();
 		/* Queue a redraw, otherwise, we won't necessarily get a */
 		/* redraw. Need this for the "Time warp activated."      */
 		/* message to appear in the radar screen. */
@@ -10105,9 +10095,11 @@ static void do_game_pause_help( GtkWidget *widget,
 	if (game_pause_help) {
 		game_pause_help = 0;
 		game_pause = 0;
+		wwviaudio_resume_audio();
 	} else {
 		game_pause_help = 1;
 		game_pause = 1;
+		wwviaudio_pause_audio();
 		/* Queue a redraw, otherwise, we won't necessarily get a */
 		/* redraw. Need this for the "Time warp activated."      */
 		/* message to appear in the radar screen. */
@@ -10332,7 +10324,7 @@ void timer_expired()
 	case READY_EVENT:
 		set_font(BIG_FONT);
 		start_level();
-		add_sound(MUSIC_SOUND, MUSIC_SLOT);
+		wwviaudio_play_music(MUSIC_SOUND);
 		strcpy(textline[CREDITS].string, "");
 		sprintf(textline[GAME_OVER].string, "Level %d...",  
 			level.level_number+1);
@@ -10514,7 +10506,7 @@ gint advance_game(gpointer data)
 		}
 		highest_object_number = temp_highest_obj;
 		if (game_state.missile_locked && timer % 10 == 0 && want_missile_alarm)
-			add_sound(MISSILE_LOCK_SIREN_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(MISSILE_LOCK_SIREN_SOUND);
 	}
 	gtk_widget_queue_draw(main_da);
 	nframes++;
@@ -10722,7 +10714,7 @@ void start_level()
 
 	if (credits == 0)
 		setup_text();
-	add_sound(USETHESOURCE_SOUND, ANY_SLOT);
+	wwviaudio_add_sound(USETHESOURCE_SOUND);
 	/* printf("use the force.\n"); */
 
 }
@@ -10788,10 +10780,11 @@ void insert_quarter()
 	credits++;
 	autopilot_mode = 0;
 	if (credits == 1) {
-		cancel_all_sounds();
+		wwviaudio_cancel_all_sounds();
 		destiny_facedown = 0;
 		game_state.sound_effects_on = 1;
-		add_sound(INSERT_COIN_SOUND, ANY_SLOT);
+		wwviaudio_resume_sound_effects();
+		wwviaudio_add_sound(INSERT_COIN_SOUND);
 		sleep(2);
 		ntextlines = 1;
 		game_ended();
@@ -10802,7 +10795,7 @@ void insert_quarter()
 		timer_event = READY_EVENT;
 		next_timer = timer+1;
 	} else
-		add_sound(INSERT_COIN_SOUND, ANY_SLOT);
+		wwviaudio_add_sound(INSERT_COIN_SOUND);
 	strcpy(textline[CREDITS].string, "");
 }
 
@@ -10913,6 +10906,7 @@ void deal_with_joystick()
 				final_quit_selection = current_quit_selection;
 				if (!final_quit_selection) {
 					in_the_process_of_quitting = 0;
+					wwviaudio_resume_audio();
 					/* prevent just selecting "don't quit" from */
 					/* putting in a quarter. */
 					next_quarter_time = timer + frame_rate_hz;
@@ -10969,12 +10963,17 @@ void deal_with_joystick()
 					}
 					moved = 1;
 				}
-				if (jse.button[i] && jsbuttonaction[i] == keyquit)
+				if (jse.button[i] && jsbuttonaction[i] == keyquit) {
 					in_the_process_of_quitting = !in_the_process_of_quitting;
+					if (in_the_process_of_quitting)
+						wwviaudio_pause_audio();
+					else
+						wwviaudio_resume_audio();
+				}
 			}
 		}
 		if (moved) 
-			add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(PLAYER_LASER_SOUND);
 		return;
 	}
 
@@ -11095,12 +11094,16 @@ void deal_with_joystick()
 				break;
 			case keyquit:
 				in_the_process_of_quitting = !in_the_process_of_quitting;
+				if (in_the_process_of_quitting)
+					wwviaudio_pause_audio();
+				else
+					wwviaudio_resume_audio();
 				break;
 			case keytogglemissilealarm:
 				want_missile_alarm = !want_missile_alarm;
 				break;
 			case keymusic:
-				game_state.music_on = !game_state.music_on;
+				wwviaudio_toggle_music();
 				break;
 			case keyreverse:
 				do_reverse = 1;
@@ -11108,6 +11111,7 @@ void deal_with_joystick()
 			case keysoundeffects:
 				game_state.sound_effects_on = !game_state.sound_effects_on;
 				game_state.sound_effects_manually_turned_off = (!game_state.sound_effects_on);
+				wwviaudio_toggle_sound_effects();
 				break;
 			default:
 				break;
@@ -11179,6 +11183,7 @@ no_credits:
 	for (i=0;i<10;i++) {
 		if (jse.button[i] && jsbuttonaction[i] == keyquit) {
 			in_the_process_of_quitting = 1;
+			wwviaudio_pause_audio();
 			return;
 		}
 	}
@@ -11208,8 +11213,10 @@ void deal_with_keyboard()
 			current_quit_selection = 0;
 		if (game_state.key_laser_pressed) {
 			final_quit_selection = current_quit_selection;
-			if (!final_quit_selection)
+			if (!final_quit_selection) {
 				in_the_process_of_quitting = 0;
+				wwviaudio_resume_audio();
+			}
 		}
 	}
 
@@ -11253,7 +11260,7 @@ void deal_with_keyboard()
 			}
 		}
 		if (moved) 
-			add_sound(PLAYER_LASER_SOUND, ANY_SLOT);
+			wwviaudio_add_sound(PLAYER_LASER_SOUND);
 		return;
 	}
 
@@ -11861,9 +11868,10 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 	case keysoundeffects:
 		game_state.sound_effects_on = !game_state.sound_effects_on;
 		game_state.sound_effects_manually_turned_off = (!game_state.sound_effects_on);
+		wwviaudio_toggle_sound_effects();
 		return TRUE;
 	case keymusic:
-		game_state.music_on = !game_state.music_on;
+		wwviaudio_toggle_music();
 		return TRUE;
 	case keytogglemissilealarm:
 		want_missile_alarm = !want_missile_alarm;
@@ -11871,8 +11879,13 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 	case keyquit:
 		if (game_pause_help)
 			do_game_pause_help(widget, NULL);
-		else
+		else {
 			in_the_process_of_quitting = !in_the_process_of_quitting;
+			if (in_the_process_of_quitting)
+				wwviaudio_pause_audio();
+			else
+				wwviaudio_resume_audio();
+		}
 		return TRUE;	
 	case keyquarter:
 		insert_quarter();
@@ -12019,416 +12032,74 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 /***********************************************************************/
 
 #ifdef WITHAUDIOSUPPORT
-struct sound_clip {
-	int active;
-	int nsamples;
-	int pos;
-	int16_t *sample;
-} clip[NCLIPS];
-
-struct sound_clip audio_queue[MAX_CONCURRENT_SOUNDS];
-
-int nclips = 0;
-#endif
-
-int read_ogg_clip(int clipnum, char *filename)
-{
-#ifdef WITHAUDIOSUPPORT
-	unsigned long long nframes;
-	char filebuf[PATH_MAX];
-	struct stat statbuf;
-	int samplesize, sample_rate;
-	int nchannels;
-	int rc;
-
-	strncpy(filebuf, filename, PATH_MAX);
-	rc = stat(filebuf, &statbuf);
-	if (rc != 0) {
-		snprintf(filebuf, PATH_MAX, DATADIR"%s", filename);
-		rc = stat(filebuf, &statbuf);
-		if (rc != 0) {
-			fprintf(stderr, "stat('%s') failed.\n", filebuf);
-			return -1;
-		}
-	}
-/*
-	printf("Reading sound file: '%s'\n", filebuf);
-	printf("frames = %lld\n", sfinfo.frames);
-	printf("samplerate = %d\n", sfinfo.samplerate);
-	printf("channels = %d\n", sfinfo.channels);
-	printf("format = %d\n", sfinfo.format);
-	printf("sections = %d\n", sfinfo.sections);
-	printf("seekable = %d\n", sfinfo.seekable);
-*/
-	rc = ogg_to_pcm(filebuf, &clip[clipnum].sample, &samplesize,
-		&sample_rate, &nchannels, &nframes);
-	if (clip[clipnum].sample == NULL) {
-		printf("Can't get memory for sound data for %llu frames in %s\n", 
-			nframes, filebuf);
-		goto error;
-	}
-
-	if (rc != 0) {
-		fprintf(stderr, "Error: ogg_to_pcm('%s') failed.\n", 
-			filebuf);
-		goto error;
-	}
-
-	clip[clipnum].nsamples = (int) nframes;
-	if (clip[clipnum].nsamples < 0)
-		clip[clipnum].nsamples = 0;
-
-	return 0;
-error:
-	return -1;
-#else
-	return 0;
-#endif
-}
-
-
-#ifdef WITHAUDIOSUPPORT
 int init_clips()
 {
-	memset(&audio_queue, 0, sizeof(audio_queue));
-
 	printf("Decoding audio data..."); fflush(stdout);
 
-	read_ogg_clip(PLAYER_LASER_SOUND, "sounds/synthetic_laser.ogg");
-	read_ogg_clip(BOMB_IMPACT_SOUND, "sounds/bombexplosion.ogg");
-	read_ogg_clip(ROCKET_LAUNCH_SOUND, "sounds/rocket_exhaust_1.ogg");
-	read_ogg_clip(FLAK_FIRE_SOUND, "sounds/flak_gun_sound.ogg");
-	read_ogg_clip(LARGE_EXPLOSION_SOUND, "sounds/big_explosion.ogg");
-	read_ogg_clip(ROCKET_EXPLOSION_SOUND, "sounds/missile_explosion.ogg");
-	read_ogg_clip(LASER_EXPLOSION_SOUND, "sounds/flak_hit.ogg");
-	read_ogg_clip(GROUND_SMACK_SOUND, "sounds/new_ground_smack.ogg");
-	read_ogg_clip(INSERT_COIN_SOUND, "sounds/us_quarter.ogg");
-	read_ogg_clip(SAM_LAUNCH_SOUND, "sounds/missile_launch_2.ogg");
-	read_ogg_clip(THUNDER_SOUND, "sounds/synthetic_thunder_short.ogg");
-	read_ogg_clip(INTERMISSION_MUSIC_SOUND, "sounds/dtox3monomix.ogg");
-	read_ogg_clip(MISSILE_LOCK_SIREN_SOUND, "sounds/missile_alarm_2.ogg");
-	read_ogg_clip(CARDOOR_SOUND, "sounds/toyota_celica_cardoor_sample.ogg");
-	read_ogg_clip(WOOHOO_SOUND, "sounds/woohoo.ogg");
-	read_ogg_clip(OWMYSPINE_SOUND, "sounds/ow_my_spine.ogg");
-	read_ogg_clip(HELPDOWNHERE_SOUND, "sounds/help_down_here.ogg");
-	read_ogg_clip(CRONSHOT, "sounds/synthetic_gunshot_2.ogg");
-	read_ogg_clip(HELPUPHERE_SOUND, "sounds/help_up_here.ogg");
-	read_ogg_clip(ABDUCTED_SOUND, "sounds/abducted.ogg");
-	read_ogg_clip(CLANG_SOUND, "sounds/clang.ogg");
-	read_ogg_clip(SCREAM_SOUND, "sounds/fallingscreamhi.ogg");
-	read_ogg_clip(BODYSLAM_SOUND, "sounds/bodyslam.ogg");
-	read_ogg_clip(USETHESOURCE_SOUND, "sounds/UseTheSource.ogg");
-	read_ogg_clip(OOF_SOUND, "sounds/ooooof.ogg");
-	read_ogg_clip(METALBANG1, "sounds/metalbang1.ogg");
-	read_ogg_clip(METALBANG2, "sounds/metalbang2.ogg");
-	read_ogg_clip(METALBANG3, "sounds/metalbang3.ogg");
-	read_ogg_clip(METALBANG4, "sounds/metalbang4.ogg");
-	read_ogg_clip(METALBANG5, "sounds/metalbang5.ogg");
-	read_ogg_clip(METALBANG6, "sounds/metalbang6.ogg");
-	read_ogg_clip(METALBANG7, "sounds/metalbang7.ogg");
-	read_ogg_clip(METALBANG1, "sounds/metalbang1.ogg");
-	read_ogg_clip(STONEBANG2, "sounds/stonebang2.ogg");
-	read_ogg_clip(STONEBANG3, "sounds/stonebang3.ogg");
-	read_ogg_clip(STONEBANG4, "sounds/stonebang4.ogg");
-	read_ogg_clip(STONEBANG5, "sounds/stonebang5.ogg");
-	read_ogg_clip(STONEBANG6, "sounds/stonebang6.ogg");
-	read_ogg_clip(STONEBANG7, "sounds/stonebang7.ogg");
-	read_ogg_clip(STONEBANG8, "sounds/stonebang8.ogg");
-	read_ogg_clip(VOLCANO_ERUPTION, "sounds/volcano_eruption.ogg");
-	read_ogg_clip(IT_BURNS, "sounds/aaaah_it_burns.ogg");
-	read_ogg_clip(ZZZT_SOUND, "sounds/zzzt.ogg");
-	read_ogg_clip(GRAVITYBOMB_SOUND, "sounds/gravity_bomb.ogg");
-	read_ogg_clip(JETWASH_SOUND, "sounds/jetwash.ogg");
-	read_ogg_clip(TIMPANI_BOING, "sounds/timpani_boing.ogg");
-	read_ogg_clip(NICE_BANK_SHOT, "sounds/nice_bank_shot.ogg");
+	wwviaudio_read_ogg_clip(PLAYER_LASER_SOUND, "sounds/synthetic_laser.ogg");
+	wwviaudio_read_ogg_clip(BOMB_IMPACT_SOUND, "sounds/bombexplosion.ogg");
+	wwviaudio_read_ogg_clip(ROCKET_LAUNCH_SOUND, "sounds/rocket_exhaust_1.ogg");
+	wwviaudio_read_ogg_clip(FLAK_FIRE_SOUND, "sounds/flak_gun_sound.ogg");
+	wwviaudio_read_ogg_clip(LARGE_EXPLOSION_SOUND, "sounds/big_explosion.ogg");
+	wwviaudio_read_ogg_clip(ROCKET_EXPLOSION_SOUND, "sounds/missile_explosion.ogg");
+	wwviaudio_read_ogg_clip(LASER_EXPLOSION_SOUND, "sounds/flak_hit.ogg");
+	wwviaudio_read_ogg_clip(GROUND_SMACK_SOUND, "sounds/new_ground_smack.ogg");
+	wwviaudio_read_ogg_clip(INSERT_COIN_SOUND, "sounds/us_quarter.ogg");
+	wwviaudio_read_ogg_clip(SAM_LAUNCH_SOUND, "sounds/missile_launch_2.ogg");
+	wwviaudio_read_ogg_clip(THUNDER_SOUND, "sounds/synthetic_thunder_short.ogg");
+	wwviaudio_read_ogg_clip(INTERMISSION_MUSIC_SOUND, "sounds/dtox3monomix.ogg");
+	wwviaudio_read_ogg_clip(MISSILE_LOCK_SIREN_SOUND, "sounds/missile_alarm_2.ogg");
+	wwviaudio_read_ogg_clip(CARDOOR_SOUND, "sounds/toyota_celica_cardoor_sample.ogg");
+	wwviaudio_read_ogg_clip(WOOHOO_SOUND, "sounds/woohoo.ogg");
+	wwviaudio_read_ogg_clip(OWMYSPINE_SOUND, "sounds/ow_my_spine.ogg");
+	wwviaudio_read_ogg_clip(HELPDOWNHERE_SOUND, "sounds/help_down_here.ogg");
+	wwviaudio_read_ogg_clip(CRONSHOT, "sounds/synthetic_gunshot_2.ogg");
+	wwviaudio_read_ogg_clip(HELPUPHERE_SOUND, "sounds/help_up_here.ogg");
+	wwviaudio_read_ogg_clip(ABDUCTED_SOUND, "sounds/abducted.ogg");
+	wwviaudio_read_ogg_clip(CLANG_SOUND, "sounds/clang.ogg");
+	wwviaudio_read_ogg_clip(SCREAM_SOUND, "sounds/fallingscreamhi.ogg");
+	wwviaudio_read_ogg_clip(BODYSLAM_SOUND, "sounds/bodyslam.ogg");
+	wwviaudio_read_ogg_clip(USETHESOURCE_SOUND, "sounds/UseTheSource.ogg");
+	wwviaudio_read_ogg_clip(OOF_SOUND, "sounds/ooooof.ogg");
+	wwviaudio_read_ogg_clip(METALBANG1, "sounds/metalbang1.ogg");
+	wwviaudio_read_ogg_clip(METALBANG2, "sounds/metalbang2.ogg");
+	wwviaudio_read_ogg_clip(METALBANG3, "sounds/metalbang3.ogg");
+	wwviaudio_read_ogg_clip(METALBANG4, "sounds/metalbang4.ogg");
+	wwviaudio_read_ogg_clip(METALBANG5, "sounds/metalbang5.ogg");
+	wwviaudio_read_ogg_clip(METALBANG6, "sounds/metalbang6.ogg");
+	wwviaudio_read_ogg_clip(METALBANG7, "sounds/metalbang7.ogg");
+	wwviaudio_read_ogg_clip(METALBANG1, "sounds/metalbang1.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG2, "sounds/stonebang2.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG3, "sounds/stonebang3.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG4, "sounds/stonebang4.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG5, "sounds/stonebang5.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG6, "sounds/stonebang6.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG7, "sounds/stonebang7.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG8, "sounds/stonebang8.ogg");
+	wwviaudio_read_ogg_clip(VOLCANO_ERUPTION, "sounds/volcano_eruption.ogg");
+	wwviaudio_read_ogg_clip(IT_BURNS, "sounds/aaaah_it_burns.ogg");
+	wwviaudio_read_ogg_clip(ZZZT_SOUND, "sounds/zzzt.ogg");
+	wwviaudio_read_ogg_clip(GRAVITYBOMB_SOUND, "sounds/gravity_bomb.ogg");
+	wwviaudio_read_ogg_clip(JETWASH_SOUND, "sounds/jetwash.ogg");
+	wwviaudio_read_ogg_clip(TIMPANI_BOING, "sounds/timpani_boing.ogg");
+	wwviaudio_read_ogg_clip(NICE_BANK_SHOT, "sounds/nice_bank_shot.ogg");
 	if (xmas_mode) {
-		read_ogg_clip(HOHOHO, "sounds/hohoho.ogg");
-		read_ogg_clip(HOHOHO_MERRY_XMAS, "sounds/hohoho_merry_xmas.ogg");
-		read_ogg_clip(YAY_SANTA, "sounds/yay_santa.ogg");
+		wwviaudio_read_ogg_clip(HOHOHO, "sounds/hohoho.ogg");
+		wwviaudio_read_ogg_clip(HOHOHO_MERRY_XMAS, "sounds/hohoho_merry_xmas.ogg");
+		wwviaudio_read_ogg_clip(YAY_SANTA, "sounds/yay_santa.ogg");
 	}
 	if (!nomusic) {
-		read_ogg_clip(DESTINY_FACEDOWN, "sounds/destiny_facedown.ogg");
-		read_ogg_clip(HIGH_SCORE_MUSIC, "sounds/highscoremusic.ogg");
+		wwviaudio_read_ogg_clip(DESTINY_FACEDOWN, "sounds/destiny_facedown.ogg");
+		wwviaudio_read_ogg_clip(HIGH_SCORE_MUSIC, "sounds/highscoremusic.ogg");
 		if (!xmas_mode)
-			read_ogg_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.ogg");
+			wwviaudio_read_ogg_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.ogg");
 		else
-			read_ogg_clip(MUSIC_SOUND, "sounds/lucky-holiday-cornbread-stuffing-mono.ogg");
+			wwviaudio_read_ogg_clip(MUSIC_SOUND, "sounds/lucky-holiday-cornbread-stuffing-mono.ogg");
 	}
 	printf("done.\n");
 	return 0;
 }
-
-/* This routine will be called by the PortAudio engine when audio is needed.
-** It may called at interrupt level on some machines so don't do anything
-** that could mess up the system like calling malloc() or free().
-*/
-static int patestCallback(const void *inputBuffer, void *outputBuffer,
-	unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo* timeInfo,
-	PaStreamCallbackFlags statusFlags, __attribute__ ((unused)) void *userData )
-{
-	// void *data = userData; /* Prevent unused variable warning. */
-	float *out = (float*)outputBuffer;
-	int i, j, sample, count = 0;
-	(void) inputBuffer; /* Prevent unused variable warning. */
-	float output = 0.0;
-
-	if (game_pause || in_the_process_of_quitting) {
-		/* output silence when paused and        */
-		/* don't advance any sound slot pointers */
-		for (i=0; i<framesPerBuffer; i++)
-			*out++ = (float) 0;
-		return 0;
-	}
-
-	for (i=0; i<framesPerBuffer; i++) {
-		output = 0.0;
-		count = 0;
-		for (j=0; j<MAX_CONCURRENT_SOUNDS; j++) {
-			if (!audio_queue[j].active || 
-				audio_queue[j].sample == NULL)
-				continue;
-			sample = i + audio_queue[j].pos;
-			count++;
-			if (sample >= audio_queue[j].nsamples) {
-				audio_queue[j].active = 0;
-				continue;
-			}
-			if (j != MUSIC_SLOT && game_state.sound_effects_on)
-				output += (float) audio_queue[j].sample[sample] * 0.5 / (float) (INT16_MAX) ;
-			else if (j == MUSIC_SLOT && game_state.music_on)
-				output += (float) audio_queue[j].sample[sample] / (float) (INT16_MAX);
-		}
-		*out++ = (float) output / 2.0; /* (output / count); */
-        }
-	for (i=0;i<MAX_CONCURRENT_SOUNDS;i++) {
-		if (!audio_queue[i].active)
-			continue;
-		audio_queue[i].pos += framesPerBuffer;
-		if (audio_queue[i].pos >= audio_queue[i].nsamples)
-			audio_queue[i].active = 0;
-	}
-	return 0; /* we're never finished */
-}
-
-static PaStream *stream = NULL;
-
-void decode_paerror(PaError rc)
-{
-	if (rc == paNoError)
-		return;
-	fprintf(stderr, "An error occured while using the portaudio stream\n");
-	fprintf(stderr, "Error number: %d\n", rc);
-	fprintf(stderr, "Error message: %s\n", Pa_GetErrorText(rc));
-}
 #endif
-
-#ifdef WITHAUDIOSUPPORT
-void terminate_portaudio(PaError rc)
-{
-	Pa_Terminate();
-	decode_paerror(rc);
-}
-#else
-#define terminate_portaudio()
-#endif
-
-int initialize_portaudio()
-{
-#ifdef WITHAUDIOSUPPORT
-	PaStreamParameters outparams;
-	PaError rc;
-	PaDeviceIndex device_count;
-
-	init_clips();
-
-	rc = Pa_Initialize();
-	if (rc != paNoError)
-		goto error;
-
-	device_count = Pa_GetDeviceCount();
-	printf("Portaudio reports %d sound devices.\n", device_count);
-
-	if (device_count == 0) {
-		printf("There will be no audio.\n");
-		goto error;
-		rc = 0;
-	}
-	sound_working = 1;
-    
-	outparams.device = Pa_GetDefaultOutputDevice();  /* default output device */
-
-	printf("Portaudio says the default device is: %d\n", outparams.device);
-
-	if (sound_device != -1) {
-		if (sound_device >= device_count)
-			fprintf(stderr, "wordwarvi:  Invalid sound device "
-				"%d specified, ignoring.\n", sound_device);
-		else
-			outparams.device = sound_device;
-		printf("Using sound device %d\n", outparams.device);
-	}
-
-	if (outparams.device < 0 && device_count > 0) {
-		printf("Hmm, that's strange, portaudio says the default device is %d,\n"
-			" but there are %d devices\n", 
-			outparams.device, device_count);
-		printf("I think we'll just skip sound for now.\n");
-		printf("You might try the '--sounddevice' option and see if that helps.\n");
-		sound_working = 0;
-		return -1;
-	}
-
-	outparams.channelCount = 1;                      /* mono output */
-	outparams.sampleFormat = paFloat32;              /* 32 bit floating point output */
-	outparams.suggestedLatency = 
-		Pa_GetDeviceInfo(outparams.device)->defaultLowOutputLatency;
-	outparams.hostApiSpecificStreamInfo = NULL;
-
-	rc = Pa_OpenStream(&stream,
-		NULL,         /* no input */
-		&outparams, SAMPLE_RATE, FRAMES_PER_BUFFER,
-		paNoFlag, /* paClipOff, */   /* we won't output out of range samples so don't bother clipping them */
-		patestCallback, NULL /* cookie */);    
-	if (rc != paNoError)
-		goto error;
-	if ((rc = Pa_StartStream(stream)) != paNoError);
-		goto error;
-#if 0
-	for (i=0;i<20;i++) {
-		for (j=0;j<NCLIPS;j++) {
-			// printf("clip[%d].pos = %d, active = %d\n", j, clip[j].pos, clip[j].active);
-			Pa_Sleep( 250 );
-			if (clip[j].active == 0) {
-				clip[j].nsamples = CLIPLEN;
-				clip[j].pos = 0;
-				clip[j].active = 1;
-			}
-		}
-		Pa_Sleep( 1500 );
-	}
-#endif
-	return rc;
-error:
-	terminate_portaudio(rc);
-	return rc;
-#else
-	return 0;
-#endif
-}
-
-
-void stop_portaudio()
-{
-	if (!sound_working) 
-		return;
-#ifdef WITHAUDIOSUPPORT
-	int rc;
-
-	if ((rc = Pa_StopStream(stream)) != paNoError)
-		goto error;
-	rc = Pa_CloseStream(stream);
-error:
-	terminate_portaudio(rc);
-#endif
-	return;
-}
-
-int add_sound(int which_sound, int which_slot)
-{
-#ifdef WITHAUDIOSUPPORT
-	int i;
-
-	if (!sound_working)
-		return 0;
-
-	if (nomusic && 
-		(which_sound == MUSIC_SOUND ||
-		 which_sound == DESTINY_FACEDOWN ||
-		 which_sound == HIGH_SCORE_MUSIC))
-		return 0;
-
-	if (which_slot != ANY_SLOT) {
-		if (audio_queue[which_slot].active)
-			audio_queue[which_slot].active = 0;
-		audio_queue[which_slot].pos = 0;
-		audio_queue[which_slot].nsamples = 0;
-		/* would like to put a memory barrier here. */
-		audio_queue[which_slot].sample = clip[which_sound].sample;
-		audio_queue[which_slot].nsamples = clip[which_sound].nsamples;
-		/* would like to put a memory barrier here. */
-		audio_queue[which_slot].active = 1;
-		return which_slot;
-	}
-	for (i=1;i<MAX_CONCURRENT_SOUNDS;i++) {
-		if (audio_queue[i].active == 0) {
-			audio_queue[i].nsamples = clip[which_sound].nsamples;
-			audio_queue[i].pos = 0;
-			audio_queue[i].sample = clip[which_sound].sample;
-			audio_queue[i].active = 1;
-			break;
-		}
-	}
-	return (i >= MAX_CONCURRENT_SOUNDS) ? -1 : i;
-#else
-	return 0;
-#endif
-}
-
-void add_sound_low_priority(int which_sound)
-{
-
-	/* adds a sound if there are at least 5 empty sound slots. */
-#ifdef WITHAUDIOSUPPORT
-	int i;
-	int empty_slots = 0;
-	int last_slot;
-
-	if (!sound_working)
-		return;
-	last_slot = -1;
-	for (i=1;i<MAX_CONCURRENT_SOUNDS;i++)
-		if (audio_queue[i].active == 0) {
-			last_slot = i;
-			empty_slots++;
-			if (empty_slots >= 5)
-				break;
-	}
-
-	if (empty_slots < 5)
-		return;
-	
-	i = last_slot;
-
-	if (audio_queue[i].active == 0) {
-		audio_queue[i].nsamples = clip[which_sound].nsamples;
-		audio_queue[i].pos = 0;
-		audio_queue[i].sample = clip[which_sound].sample;
-		audio_queue[i].active = 1;
-	}
-	return;
-#endif
-}
-
-
-void cancel_sound(int queue_entry)
-{
-#ifdef WITHAUDIOSUPPORT
-	if (!sound_working)
-		return;
-	audio_queue[queue_entry].active = 0;
-#endif
-}
-
-void cancel_all_sounds()
-{
-#ifdef WITHAUDIOSUPPORT
-	int i;
-	if (!sound_working)
-		return;
-	for (i=0;i<MAX_CONCURRENT_SOUNDS;i++)
-		audio_queue[i].active = 0;
-#endif
-}
 
 /***********************************************************************/
 /* End of AUDIO related code                                     */
@@ -12869,7 +12540,7 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 		}
 		rc = sscanf(s, "set sounddevice=%d\n", &sd);
 		if (rc == 1) {
-			sound_device = rs;
+			sound_device = sd;
 			continue;
 		}
 		rc = sscanf(s, "set rumbledevice=%s\n", filename);
@@ -13334,7 +13005,9 @@ int main(int argc, char *argv[])
 	};
 
 #ifdef WITHAUDIOSUPPORT
-	if (initialize_portaudio() != paNoError)
+	init_clips();
+	wwviaudio_set_sound_device(sound_device);
+	if (wwviaudio_initialize_portaudio() != 0)
 		printf("Guess sound's not working...\n");
 #endif
 	gtk_set_locale();
@@ -13450,8 +13123,8 @@ int main(int argc, char *argv[])
 	initialize_game_state_new_level();
 	init_radar_noise();
 	game_state.score = 0;
-	game_state.music_on = 1;
 	game_state.sound_effects_on = 1;
+	wwviaudio_resume_sound_effects();
 	start_level();
 
 	gtk_window_set_default_size(GTK_WINDOW(window), real_screen_width, real_screen_height);
@@ -13512,7 +13185,7 @@ int main(int argc, char *argv[])
      * mouse event). */
     gtk_main ();
 
-    stop_portaudio();
+    wwviaudio_stop_portaudio();
     free_debris_forms();
 	close_joystick();
 	close_rumble_fd();
