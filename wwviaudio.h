@@ -27,7 +27,6 @@
 #define GLOBAL extern
 #endif
 
-#define MAX_CONCURRENT_SOUNDS (26)
 #define NCLIPS 56
 #define WWVIAUDIO_MUSIC_SLOT (0)
 #define WWVIAUDIO_SAMPLE_RATE   (44100)
@@ -49,10 +48,13 @@ GLOBAL void wwviaudio_set_nomusic();
 GLOBAL int wwviaudio_set_sound_device(int device);
 
 /* Initialize portaudio and start the audio engine. */
+/* Space will be allocated to allow for the specified */
+/* number of concurrently playing sounds. */
 /* 0 is returned on success, -1 otherwise. */
-GLOBAL int wwviaudio_initialize_portaudio();
+GLOBAL int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds);
 
-/* Stop portaudio and the audio engine. */
+/* Stop portaudio and the audio engine. Space allocated */
+/* during initialization is freed. */
 GLOBAL void wwviaudio_stop_portaudio();
 
 /*

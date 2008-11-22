@@ -45,6 +45,7 @@ static int sound_working = 0;
 static int nomusic = 0;
 static int sound_effects_on = 1;
 static int sound_device = -1; /* default sound device for port audio. */
+static int max_concurrent_sounds = 0;
 
 /* Pause all audio output, output silence. */ 
 void wwviaudio_pause_audio()
@@ -104,7 +105,7 @@ struct sound_clip {
 	int16_t *sample;
 } clip[NCLIPS];
 
-static struct sound_clip audio_queue[MAX_CONCURRENT_SOUNDS];
+static struct sound_clip *audio_queue = NULL;
 
 int wwviaudio_read_ogg_clip(int clipnum, char *filename)
 {
@@ -182,7 +183,7 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 	for (i=0; i<framesPerBuffer; i++) {
 		output = 0.0;
 		count = 0;
-		for (j=0; j<MAX_CONCURRENT_SOUNDS; j++) {
+		for (j=0; j<max_concurrent_sounds; j++) {
 			if (!audio_queue[j].active || 
 				audio_queue[j].sample == NULL)
 				continue;
@@ -199,7 +200,7 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 		}
 		*out++ = (float) output / 2.0; /* (output / count); */
         }
-	for (i=0;i<MAX_CONCURRENT_SOUNDS;i++) {
+	for (i=0;i<max_concurrent_sounds;i++) {
 		if (!audio_queue[i].active)
 			continue;
 		audio_queue[i].pos += framesPerBuffer;
@@ -225,13 +226,19 @@ void wwviaudio_terminate_portaudio(PaError rc)
 	decode_paerror(rc);
 }
  
-int wwviaudio_initialize_portaudio()
+int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds)
 {
 	PaStreamParameters outparams;
 	PaError rc;
 	PaDeviceIndex device_count;
 
-	memset(&audio_queue, 0, sizeof(audio_queue));
+	max_concurrent_sounds = maximum_concurrent_sounds;
+
+	audio_queue = malloc(max_concurrent_sounds * sizeof(audio_queue[0]));
+	if (audio_queue == NULL)
+		return -1;
+
+	memset(audio_queue, 0, sizeof(audio_queue[0]) * max_concurrent_sounds);
 
 	rc = Pa_Initialize();
 	if (rc != paNoError)
@@ -303,6 +310,7 @@ void wwviaudio_stop_portaudio()
 	rc = Pa_CloseStream(stream);
 error:
 	wwviaudio_terminate_portaudio(rc);
+	free(audio_queue);
 	return;
 }
 
@@ -328,7 +336,7 @@ static int wwviaudio_add_sound_to_slot(int which_sound, int which_slot)
 		audio_queue[which_slot].active = 1;
 		return which_slot;
 	}
-	for (i=1;i<MAX_CONCURRENT_SOUNDS;i++) {
+	for (i=1;i<max_concurrent_sounds;i++) {
 		if (audio_queue[i].active == 0) {
 			audio_queue[i].nsamples = clip[which_sound].nsamples;
 			audio_queue[i].pos = 0;
@@ -337,7 +345,7 @@ static int wwviaudio_add_sound_to_slot(int which_sound, int which_slot)
 			break;
 		}
 	}
-	return (i >= MAX_CONCURRENT_SOUNDS) ? -1 : i;
+	return (i >= max_concurrent_sounds) ? -1 : i;
 }
 
 int wwviaudio_add_sound(int which_sound)
@@ -362,7 +370,7 @@ void wwviaudio_add_sound_low_priority(int which_sound)
 	if (!sound_working)
 		return;
 	last_slot = -1;
-	for (i=1;i<MAX_CONCURRENT_SOUNDS;i++)
+	for (i=1;i<max_concurrent_sounds;i++)
 		if (audio_queue[i].active == 0) {
 			last_slot = i;
 			empty_slots++;
@@ -402,7 +410,7 @@ void wwviaudio_cancel_all_sounds()
 	int i;
 	if (!sound_working)
 		return;
-	for (i=0;i<MAX_CONCURRENT_SOUNDS;i++)
+	for (i=0;i<max_concurrent_sounds;i++)
 		audio_queue[i].active = 0;
 }
 
