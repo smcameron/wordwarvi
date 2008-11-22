@@ -47,9 +47,11 @@ GLOBAL void wwviaudio_set_nomusic();
 /* used.  This function provides a way to use a */
 /* device other than the default */
 GLOBAL int wwviaudio_set_sound_device(int device);
+
 /* Initialize portaudio and start the audio engine. */
 /* 0 is returned on success, -1 otherwise. */
 GLOBAL int wwviaudio_initialize_portaudio();
+
 /* Stop portaudio and the audio engine. */
 GLOBAL void wwviaudio_stop_portaudio();
 
@@ -57,16 +59,18 @@ GLOBAL void wwviaudio_stop_portaudio();
  *             Audio data functions
  */
 /* Read and decode an ogg vorbis audio file into a numbered buffer */
-/* The clipnum parameter is used later with wwviaudio_play_music and */
+/* The sound_number parameter is used later with wwviaudio_play_music and */
 /* wwviaudio_add_sound.  0 is returned on success, -1 otherwise. */
-/* Audio files should be 44100Hz, MONO. */
-GLOBAL int wwviaudio_read_ogg_clip(int clipnum, char *filename);
+/* Audio files should be 44100Hz, MONO.  The sound number is one you */
+/* provide which will then be associated with that sound. */
+GLOBAL int wwviaudio_read_ogg_clip(int sound_number, char *filename);
 
 /*
  *             Global sound control functions.
  */
 /* Suspend all audio playback.  Silence is output. */
 GLOBAL void wwviaudio_pause_audio();
+
 /* Resume all previously playing audio from whence it was previusly paused. */
 GLOBAL void wwviaudio_resume_audio();
 
@@ -75,37 +79,77 @@ GLOBAL void wwviaudio_resume_audio();
  */
 /* Begin playing a numbered buffer into the mix on the music channel */
 /* The channel number of the music channel is returned. */
-GLOBAL int wwviaudio_play_music(int which_sound);
+GLOBAL int wwviaudio_play_music(int sound_number);
+
 /* Output silence on the music channel (pointer still advances though.) */
 GLOBAL void wwviaudio_silence_music();
+
 /* Unsilence the music channel */
 GLOBAL void wwviaudio_resume_music();
+
 /* Silence or unsilence the music channe. */ 
 GLOBAL void wwviaudio_toggle_music();
+
 /* Stop playing the playing buffer from the music channel */
 GLOBAL void wwviaudio_cancel_music();
 
 /*
  *             Sound effect (not music) related functions
  */
+
 /* Begin playing a sound on a non-music channel.  The channel is returned. */
-GLOBAL int wwviaudio_add_sound(int which_sound);
+/* sound_number refers to a sound previously associated with the number by */
+/* wwviaudio_read_ogg_clip() */
+GLOBAL /* channel */ int wwviaudio_add_sound(int sound_number);
+
 /* Begin playing a sound on a non-music channel.  The channel is returned. */
 /* If fewer than five channels are open, the sound is not played, and -1 */
 /* is returned. */
-GLOBAL void wwviaudio_add_sound_low_priority(int which_sound);
+GLOBAL void wwviaudio_add_sound_low_priority(int sound_number);
+
 /* Silence all channels but the music channel (pointers still advance though) */
 GLOBAL void wwviaudio_silence_sound_effects();
+
 /* Unsilence all channels but the music channel */
 GLOBAL void wwviaudio_resume_sound_effects();
+
 /* Either silence or unsilence all but the music channel */
 GLOBAL void wwviaudio_toggle_sound_effects();
+
 /* Stop playing the playing buffer from the given channel */
-GLOBAL void wwviaudio_cancel_sound(int queue_entry);
+GLOBAL void wwviaudio_cancel_sound(int channel);
 
 
 /* Stop playing the playing buffer from all channels */
 GLOBAL void wwviaudio_cancel_all_sounds();
 
+/*
+	Example usage, something along these lines:
+
+	if (wwviaudio_initialize_portaudio() != 0)
+		bail_out_and_die();
+
+	You would probably use #defines or enums rather than bare ints...
+	wwviaudio_read_ogg_clip(1, "mysound1.ogg");
+	wwviaudio_read_ogg_clip(2, "mysound2.ogg");
+	wwviaudio_read_ogg_clip(3, "mysound3.ogg");
+	wwviaudio_read_ogg_clip(4, "mymusic.ogg");
+
+	...
+
+	wwviaudio_play_music(4); <-- begins playing music in background, returns immediately 
+
+	while (program isn't done) {
+		do_stuff();
+		if (something happened)
+			wwviaudio_add_sound(1);
+		if (something else happened)
+			wwviaudio_add_sound(2);
+		time_passes();
+	}
+	
+	wwviaudio_cancel_all_sounds();
+	wwviaduio_stop_portaudio();
+*/
 
 #endif
