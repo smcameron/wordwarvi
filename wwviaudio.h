@@ -27,7 +27,6 @@
 #define GLOBAL extern
 #endif
 
-#define NCLIPS 56
 #define WWVIAUDIO_MUSIC_SLOT (0)
 #define WWVIAUDIO_SAMPLE_RATE   (44100)
 #define WWVIAUDIO_ANY_SLOT (-1)
@@ -49,9 +48,13 @@ GLOBAL int wwviaudio_set_sound_device(int device);
 
 /* Initialize portaudio and start the audio engine. */
 /* Space will be allocated to allow for the specified */
-/* number of concurrently playing sounds. */
+/* number of concurrently playing sounds.  The 2nd parameter */
+/* indicates how many different sound clips are to be held */
+/* in memory at once.  e.g. if your app has five different */
+/* sounds that it plays, then this would be 5. */
 /* 0 is returned on success, -1 otherwise. */
-GLOBAL int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds);
+GLOBAL int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds,
+	int maximum_sound_clips);
 
 /* Stop portaudio and the audio engine. Space allocated */
 /* during initialization is freed. */

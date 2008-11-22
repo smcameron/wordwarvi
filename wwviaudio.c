@@ -28,6 +28,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define WWVIAUDIO_DEFINE_GLOBALS
 #include "wwviaudio.h"
@@ -46,6 +47,7 @@ static int nomusic = 0;
 static int sound_effects_on = 1;
 static int sound_device = -1; /* default sound device for port audio. */
 static int max_concurrent_sounds = 0;
+static int max_sound_clips = 0;
 
 /* Pause all audio output, output silence. */ 
 void wwviaudio_pause_audio()
@@ -98,12 +100,12 @@ void wwviaudio_set_nomusic()
 	nomusic = 1;
 }
 
-struct sound_clip {
+static struct sound_clip {
 	int active;
 	int nsamples;
 	int pos;
 	int16_t *sample;
-} clip[NCLIPS];
+} *clip = NULL;
 
 static struct sound_clip *audio_queue = NULL;
 
@@ -115,6 +117,9 @@ int wwviaudio_read_ogg_clip(int clipnum, char *filename)
 	int samplesize, sample_rate;
 	int nchannels;
 	int rc;
+
+	if (clipnum >= max_sound_clips || clipnum < 0)
+		return -1;
 
 	strncpy(filebuf, filename, PATH_MAX);
 	rc = stat(filebuf, &statbuf);
@@ -135,6 +140,10 @@ int wwviaudio_read_ogg_clip(int clipnum, char *filename)
 	printf("sections = %d\n", sfinfo.sections);
 	printf("seekable = %d\n", sfinfo.seekable);
 */
+	if (clip[clipnum].sample != NULL)
+		/* overwriting a previously read clip... */
+		free(clip[clipnum].sample);
+
 	rc = ogg_to_pcm(filebuf, &clip[clipnum].sample, &samplesize,
 		&sample_rate, &nchannels, &nframes);
 	if (clip[clipnum].sample == NULL) {
@@ -226,19 +235,22 @@ void wwviaudio_terminate_portaudio(PaError rc)
 	decode_paerror(rc);
 }
  
-int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds)
+int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds, int maximum_sound_clips)
 {
 	PaStreamParameters outparams;
 	PaError rc;
 	PaDeviceIndex device_count;
 
 	max_concurrent_sounds = maximum_concurrent_sounds;
+	max_sound_clips = maximum_sound_clips;
 
 	audio_queue = malloc(max_concurrent_sounds * sizeof(audio_queue[0]));
-	if (audio_queue == NULL)
+	clip = malloc(max_sound_clips * sizeof(clip[0]));
+	if (audio_queue == NULL || clip == NULL)
 		return -1;
 
 	memset(audio_queue, 0, sizeof(audio_queue[0]) * max_concurrent_sounds);
+	memset(clip, 0, sizeof(clip[0]) * max_sound_clips);
 
 	rc = Pa_Initialize();
 	if (rc != paNoError)
@@ -301,16 +313,29 @@ error:
 
 void wwviaudio_stop_portaudio()
 {
+	int i, rc;
+	
 	if (!sound_working) 
 		return;
-	int rc;
-
 	if ((rc = Pa_StopStream(stream)) != paNoError)
 		goto error;
 	rc = Pa_CloseStream(stream);
 error:
 	wwviaudio_terminate_portaudio(rc);
-	free(audio_queue);
+	if (audio_queue) {
+		free(audio_queue);
+		audio_queue = NULL;
+		max_concurrent_sounds = 0;
+	}
+	if (clip) {
+		for (i = 0; i < max_sound_clips; i++) {
+			if (clip[i].sample)
+				free(clip[i].sample);
+		}
+		free(clip);
+		clip = NULL;
+		max_sound_clips = 0;
+	}
 	return;
 }
 

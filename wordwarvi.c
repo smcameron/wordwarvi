@@ -66,6 +66,7 @@
 // #define DEBUG_TARGET_LIST 
 
 #define MAX_CONCURRENT_SOUNDS (26)
+#define NCLIPS 56
 /* define sound clip constants */
 #define PLAYER_LASER_SOUND 0
 #define BOMB_IMPACT_SOUND 1
@@ -13008,10 +13009,10 @@ int main(int argc, char *argv[])
 #ifdef WITHAUDIOSUPPORT
 	if (nomusic)
 		wwviaudio_set_nomusic();
-	init_clips();
 	wwviaudio_set_sound_device(sound_device);
-	if (wwviaudio_initialize_portaudio(MAX_CONCURRENT_SOUNDS) != 0)
+	if (wwviaudio_initialize_portaudio(MAX_CONCURRENT_SOUNDS, NCLIPS) != 0)
 		printf("Guess sound's not working...\n");
+	init_clips();
 #endif
 	gtk_set_locale();
 	gtk_init (&argc, &argv);
