@@ -2684,7 +2684,7 @@ static inline void kill_object(struct game_obj_t *o);
 static inline void age_object(struct game_obj_t *o);
 
 
-void move_laserbolt(struct game_obj_t *o)
+void laserbolt_move(struct game_obj_t *o)
 {
 	int dy;
 	if (!o->alive)
@@ -2899,7 +2899,7 @@ static void add_harpoon(int x, int y, int vx, int vy,
 	struct game_obj_t *gdb);
 int find_ground_level(struct game_obj_t *o, int *slope);
 
-void move_rocket(struct game_obj_t *o)
+void rocket_move(struct game_obj_t *o)
 {
 	int xdist, ydist, gl;
 	if (!o->alive)
@@ -2975,7 +2975,7 @@ void move_rocket(struct game_obj_t *o)
 	}
 }
 
-void move_jet(struct game_obj_t *o)
+void jet_move(struct game_obj_t *o)
 {
 	int xdist, desired_y;
 	if (!o->alive)
@@ -3167,7 +3167,7 @@ void gdb_draw(struct game_obj_t *o, GtkWidget *w) /* draw a gdb. */
 }
 
 /* recursive routine to draw a fractal lightning bolt between x1,y1 and x2,y2 */
-void draw_lightning( GtkWidget *w, int x1, int y1, int x2, int y2) 
+void lightning_draw( GtkWidget *w, int x1, int y1, int x2, int y2) 
 {
 	int x3, y3, dx, dy;
 
@@ -3208,8 +3208,8 @@ void draw_lightning( GtkWidget *w, int x1, int y1, int x2, int y2)
 	y3 += (int) (0.2 * (randomn(2*dy) - dy)); 
 
 	/* draw lightning between x1,y1 and x3,y3, and between x3,y3, and x2,y2. */
-	draw_lightning(w, x1, y1, x3, y3);	
-	draw_lightning(w, x3, y3, x2, y2);	
+	lightning_draw(w, x1, y1, x3, y3);	
+	lightning_draw(w, x3, y3, x2, y2);	
 }
 
 
@@ -3269,7 +3269,7 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 		abs(o->x - player_target->x) < 200 && 
 		abs(o->y - player_target->y) < 500) {
 
-		draw_lightning(w, x2, y2, player_target->x - game_state.x, 
+		lightning_draw(w, x2, y2, player_target->x - game_state.x, 
 			player_target->y - game_state.y + (SCREEN_HEIGHT/2));
 		do_weak_rumble();
 		explode(player_target->x, player_target->y, player_target->vx*1.5, 1, 20, 20, 15);
@@ -5259,7 +5259,7 @@ void set_player_vect()
 
 int new_high_score(int newscore);
 void no_draw(struct game_obj_t *o, GtkWidget *w);
-void move_player(struct game_obj_t *o)
+void player_move(struct game_obj_t *o)
 {
 	int deepest, i;
 	static int was_healthy = 1; /* notice this is static. */
@@ -5828,7 +5828,7 @@ void move_obj(struct game_obj_t *o)
 	o->y += o->vy;
 }
 
-void draw_spark(struct game_obj_t *o, GtkWidget *w)
+void spark_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, y1, x2, y2;
 
@@ -5851,7 +5851,7 @@ void draw_spark(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
-void draw_pixie_dust(struct game_obj_t *o, GtkWidget *w)
+void pixie_dust_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, y1, x2, y2;
 
@@ -5867,7 +5867,7 @@ void draw_pixie_dust(struct game_obj_t *o, GtkWidget *w)
 	wwvi_draw_line(w->window, gc, x1, y1, x2, y2);
 }
 
-void draw_laserbolt(struct game_obj_t *o, GtkWidget *w)
+void laserbolt_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, y1, x2, y2, dx, dy;
 
@@ -5888,7 +5888,7 @@ void draw_laserbolt(struct game_obj_t *o, GtkWidget *w)
 	wwvi_bright_line(w->window, gc, x1, y1, x2, y2, o->color);
 }
 
-void draw_missile(struct game_obj_t *o, GtkWidget *w)
+void missile_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, y1;
 	int dx, dy;
@@ -5914,7 +5914,7 @@ void draw_missile(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
-void draw_harpoon(struct game_obj_t *o, GtkWidget *w)
+void harpoon_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, y1, x2, y2;
 	int dx, dy;
@@ -6021,7 +6021,7 @@ void reindeer_move(struct game_obj_t *o)
 	o->y += vy;
 }
 
-void move_missile(struct game_obj_t *o)
+void missile_move(struct game_obj_t *o)
 {
 	struct game_obj_t *target_obj;
 	int dx, dy, desired_vx, desired_vy;
@@ -6130,7 +6130,7 @@ void move_missile(struct game_obj_t *o)
 	explode(o->x, o->y, exvx, exvy, 4, 8, 9);
 }
 
-void move_harpoon(struct game_obj_t *o)
+void harpoon_move(struct game_obj_t *o)
 {
 	struct game_obj_t *target_obj;
 	int dx, dy, desired_vx, desired_vy;
@@ -6229,7 +6229,7 @@ void move_harpoon(struct game_obj_t *o)
 	explode(o->x, o->y, exvx, exvy, 4, 8, 9);
 }
 
-void move_bullet(struct game_obj_t *o)
+void bullet_move(struct game_obj_t *o)
 {
 	struct game_obj_t *target_obj;
 	int dx, dy;
@@ -6333,7 +6333,7 @@ static void add_bullet(int x, int y, int vx, int vy,
 	o->y = y;
 	o->vx = vx;
 	o->vy = vy;
-	o->move = move_bullet;
+	o->move = bullet_move;
 	o->draw = NULL;
 	o->v = &bullet_vect;
 	o->destroy = generic_destroy_func;
@@ -6360,8 +6360,8 @@ static void add_missile(int x, int y, int vx, int vy,
 	o->y = y;
 	o->vx = vx;
 	o->vy = vy;
-	o->move = move_missile;
-	o->draw = draw_missile;
+	o->move = missile_move;
+	o->draw = missile_draw;
 	o->destroy = generic_destroy_func;
 	o->bullseye = bullseye;
 	add_target(o);
@@ -6387,8 +6387,8 @@ static void add_harpoon(int x, int y, int vx, int vy,
 	o->y = y;
 	o->vx = vx;
 	o->vy = vy;
-	o->move = move_harpoon;
-	o->draw = draw_harpoon;
+	o->move = harpoon_move;
+	o->draw = harpoon_draw;
 	o->destroy = generic_destroy_func;
 	o->bullseye = bullseye;
 	add_target(o);
@@ -6900,7 +6900,7 @@ void ship_move(struct game_obj_t *o)
 }
 
 /* this is called VERY often.  Don't do anything slow in here. */
-void move_spark(struct game_obj_t *o)
+void spark_move(struct game_obj_t *o)
 {
 	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
 	o->x += o->vx;
@@ -6946,7 +6946,7 @@ void move_spark(struct game_obj_t *o)
 }
 
 /* this is called VERY often.  Don't do anything slow in here. */
-void move_pixie_dust(struct game_obj_t *o)
+void pixie_dust_move(struct game_obj_t *o)
 {
 	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
 	o->x += o->vx;
@@ -8050,19 +8050,19 @@ static void xy_draw_string(GtkWidget *w, char *s, int font, int x, int y)
 
 static void add_laserbolt(int x, int y, int vx, int vy, int color, int time)
 {
-	add_generic_object(x, y, vx, vy, move_laserbolt, draw_laserbolt,
+	add_generic_object(x, y, vx, vy, laserbolt_move, laserbolt_draw,
 		color, &spark_vect, 0, OBJ_TYPE_SPARK, time);
 }
 
 static void add_spark(int x, int y, int vx, int vy, int time)
 {
-	add_generic_object(x, y, vx, vy, move_spark, draw_spark,
+	add_generic_object(x, y, vx, vy, spark_move, spark_draw,
 		YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
 }
 
 static void add_pixie_dust(int x, int y, int vx, int vy, int time)
 {
-	add_generic_object(x, y, vx, vy, move_pixie_dust, draw_pixie_dust,
+	add_generic_object(x, y, vx, vy, pixie_dust_move, pixie_dust_draw,
 		WHITE, &spark_vect, 0, OBJ_TYPE_PIXIE_DUST, time);
 }
 
@@ -8428,7 +8428,7 @@ static void add_rockets(struct terrain_t *t, struct level_obj_descriptor_entry *
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
 		add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
-			move_rocket, NULL, WHITE, &rocket_vect, 1, OBJ_TYPE_ROCKET, 1);
+			rocket_move, NULL, WHITE, &rocket_vect, 1, OBJ_TYPE_ROCKET, 1);
 		level.nrockets++;
 	}
 }
@@ -8447,7 +8447,7 @@ static void add_jets(struct terrain_t *t, struct level_obj_descriptor_entry *ent
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
 		add_generic_object(t->x[xi], KERNEL_Y_BOUNDARY + 5, 0, 0, 
-			move_jet, NULL, WHITE, &jet_vect, 1, OBJ_TYPE_JET, 1);
+			jet_move, NULL, WHITE, &jet_vect, 1, OBJ_TYPE_JET, 1);
 		level.njets++;
 	}
 }
@@ -10600,7 +10600,7 @@ void start_level()
 		player->draw = xmas_player_draw;
 	else
 		player->draw = player_draw;
-	player->move = move_player;
+	player->move = player_move;
 	player->v = (game_state.direction == 1) ? &player_vect : &left_player_vect;
 	player->x = 200;
 	player->y = -100;
