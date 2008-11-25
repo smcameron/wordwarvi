@@ -10998,6 +10998,7 @@ void deal_with_joystick()
 	} else if (*xaxis > XJOYSTICK_THRESHOLD) {
 		if (game_state.direction != 1) {
 			player->vx = player->vx / 2;
+			game_state.direction = 1;
 			set_player_vect();
 		} else if (abs(player->vx + game_state.direction) < MAX_VX)
 				player->vx += game_state.direction;
