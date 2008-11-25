@@ -10629,6 +10629,7 @@ void start_level()
 	game_state.x = 0;
 	game_state.y = 0;
 	game_state.radar_state = RADAR_BOOTUP;
+	game_state.houses_gifted = 0;
 
 	add_reindeer();
 
