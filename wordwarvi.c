@@ -10840,7 +10840,7 @@ char *keyactionstring[] = {
 
 enum keyaction jsbuttonaction[11] = {
 		/* default joystick button assignments. */
-		keynone,	 /* button 0 */
+		key_droppresent, /* button 0 */
 		keybomb,	 /* button 1 */
 		keybomb,	 /* button 2 */
 		keylaser,	 /* button 3 */
