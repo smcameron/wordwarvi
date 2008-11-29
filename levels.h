@@ -129,7 +129,7 @@
 
 	   The format is:
 
-	   NEW_LEVEL(levelname, levelobjectlist, ssr, lsr, lfc, nbr, nbo, ngb);
+	   NEW_LEVEL(levelname, levelobjectlist, ssr, lsr, lfc, nbr, nbo, ngb, lspd);
 
 	   levelname is the name of your level. e.g., my_level.
 
@@ -165,6 +165,10 @@
 	   ngb is the number of gravity bombs the player starts out with.  Normally,
 	   this is 3, as they are kind of like the "smart bomb" in this game.  You
 	   can set it to what you like for your level.
+
+	   lspd is the laser speed, either SLOW_LASER, or FAST_LASER.  This is an
+	   integer factor which is multiplied into the velocity of the laserbolts
+	   coming from the laser guns. 
 
 	   Example:
 
@@ -292,14 +296,15 @@ struct level_descriptor_entry {
 	int nbombs;
 	int ngbombs;
 	int jetpilot_firechance;
+	int laser_velocity_factor;
 };
 
 
-#define NEW_LEVEL(levelname, theobjlist, ssr, lsr, lfc, nbr, nbo, ngb, jfc) \
+#define NEW_LEVEL(levelname, theobjlist, ssr, lsr, lfc, nbr, nbo, ngb, jfc, lspd) \
 struct level_descriptor_entry levelname = { \
 	theobjlist, \
 	sizeof(theobjlist) / sizeof(theobjlist[0]), \
-	ssr, lsr, lfc, nbr, nbo, ngb, jfc }
+	ssr, lsr, lfc, nbr, nbo, ngb, jfc, lspd }
 
 /* Below, the game's levels are defined. */
 
@@ -466,17 +471,19 @@ struct level_obj_descriptor_entry jet_level_obj[] = {
 #define AVERAGE_LASER    13 
 #define AGGRESSIVE_LASER 20
 #define KILLER_LASER     25 
+#define SLOW_LASER 1
+#define FAST_LASER 2
 
 #define NBRIDGES 2		/* max initial number of bridges in terrain (less, if no valleys) */
 
 /* ---------------------level descriptors begin here.---------------------- */
-NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, LAZY_LASER, NBRIDGES, NBOMBS, NGBOMBS, KILLER_LASER);
-NEW_LEVEL(jet_level, jet_level_obj, 0.11, 0.09, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
-NEW_LEVEL(level2, level_2_obj, 0.15, 0.09, LAZY_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
-NEW_LEVEL(level3, level_3_obj, 0.23, 0.23, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
-NEW_LEVEL(level4, level_4_obj, 0.29, 0.20, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
-NEW_LEVEL(level5, level_5_obj, 0.32, 0.32, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
-NEW_LEVEL(level6, level_6_obj, 0.14, 0.32, AGGRESSIVE_LASER, NBRIDGES + 3, NBOMBS, NGBOMBS, AGGRESSIVE_LASER);
+NEW_LEVEL(jet_level, jet_level_obj, 0.11, 0.09, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER);
+NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, LAZY_LASER, NBRIDGES, NBOMBS, NGBOMBS, KILLER_LASER, SLOW_LASER);
+NEW_LEVEL(level2, level_2_obj, 0.15, 0.09, LAZY_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER);
+NEW_LEVEL(level3, level_3_obj, 0.23, 0.23, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER);
+NEW_LEVEL(level4, level_4_obj, 0.29, 0.20, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER);
+NEW_LEVEL(level5, level_5_obj, 0.32, 0.32, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER);
+NEW_LEVEL(level6, level_6_obj, 0.14, 0.32, AGGRESSIVE_LASER, NBRIDGES + 3, NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER);
 /* ---------------------level descriptors end here.---------------------- */
 
 

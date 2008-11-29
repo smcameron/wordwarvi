@@ -8449,7 +8449,8 @@ static int initial_x_location(struct level_obj_descriptor_entry *entry, int i)
 	return x;
 }
 
-static void add_flak_guns(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
+static void add_flak_guns(struct terrain_t *t, 
+	struct level_obj_descriptor_entry *entry, int laser_speed)
 {
 	int i, xi;
 	struct game_obj_t *o;
@@ -8460,7 +8461,7 @@ static void add_flak_guns(struct terrain_t *t, struct level_obj_descriptor_entry
 			kgun_move, kgun_draw, RED, &inverted_kgun_vect, 1, OBJ_TYPE_KGUN, 1);
 		if (o) {
 			o->tsd.kgun.size = 31;
-			o->tsd.kgun.velocity_factor = 1;
+			o->tsd.kgun.velocity_factor = laser_speed;
 			o->tsd.kgun.invert = -1;
 			o->tsd.kgun.bank_shot_factor = 1;
 			o->uses_health = 1;
@@ -8473,7 +8474,8 @@ static void add_flak_guns(struct terrain_t *t, struct level_obj_descriptor_entry
 	}
 }
 
-static void add_kernel_guns(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
+static void add_kernel_guns(struct terrain_t *t, 
+	struct level_obj_descriptor_entry *entry, int laser_speed)
 {
 	int i, j, xi;
 	int ntrusses;
@@ -8523,7 +8525,7 @@ static void add_kernel_guns(struct terrain_t *t, struct level_obj_descriptor_ent
 			o->health.health = o->health.maxhealth;
 			o->tsd.kgun.size = 31;	/* biggest size */
 			o->tsd.kgun.invert = 1;	/* this means hanging upside down */
-			o->tsd.kgun.velocity_factor = 1;	/* normal laser speed */
+			o->tsd.kgun.velocity_factor = laser_speed;
 			o->tsd.kgun.bank_shot_factor = 1;
 			o->below_target_y = 3 * LASER_Y_PROXIMITY;
 		}
@@ -10816,10 +10818,12 @@ void start_level()
 			add_SAMs(&terrain, &objdesc[i]);
 			break;
 		case OBJ_TYPE_GUN:
-			add_flak_guns(&terrain, &objdesc[i]);
+			add_flak_guns(&terrain, &objdesc[i], 
+				leveld[level.level_number]->laser_velocity_factor);
 			break;
 		case OBJ_TYPE_KGUN:
-			add_kernel_guns(&terrain, &objdesc[i]);
+			add_kernel_guns(&terrain, &objdesc[i],
+				leveld[level.level_number]->laser_velocity_factor);
 			break;
 		case OBJ_TYPE_AIRSHIP:
 			add_airships(&terrain, &objdesc[i]);
