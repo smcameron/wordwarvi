@@ -1,5 +1,78 @@
 Changelog for wordwarvi:
 
+Sat Nov 29 09:19:15 CST 2008
+-------------------------------------------------------------------------------
+Changes between version 0.22 and 0.23
+
+* Added --roundexplosions option.
+* Added explosionfactor option
+* Added "xmas mode."
+* Add Skip Kavanaugh into the music credits.
+* Made the xmas mode sort of work.
+* Fixed bug that missiles fired by blimps targeted rudolph, rather
+  than the sleigh, and when they killed poor rudolph, they ended
+  the reindeer game.
+* Added a big green bag of toys to Santa's sleigh.
+* Added pixie dust coming off the back of Santa's sleigh.
+* Made volcano eruption a tad bigger.
+* Added houses in xmas mode.
+* Made the ground white (snow) for xmas mode.
+* Now you can drop presents on the houses.
+* Made presents landed at houses count towards score
+* Made 'drop gift' key show up in the help screen.
+* Made key to drop presents remappable.
+* Renamed 'drop gift' to 'gift' to make key remapping work.
+* Added 'gift' as valid action to man page section on key remapping
+* Added "floater messages" to indicate points scored for dropping gifts
+* Made delivering gifts to every house worth a million points
+* Added a red ribbon on the presents.
+* Made reindeer legs move.
+* Now you can't drop presents unless xmas mode is active.
+* Fixed problem that "set xmas" in .exrc file was reported as a syntax error.
+* Added timpani_boing.ogg, and nice_bank_shot.ogg
+* Now you get extra points for bombing stuff by making a bank shot off
+  a blimp.  And when you bounce a bomb off a blimp, you get a nice
+  timpani boing.
+* Added hohoho.ogg hohoho_merry_xmas.ogg yay_santa.ogg
+* Now santa says 'hohoho' or 'hohoho merry xmas' sometimes when
+  you drop presents.
+* When presents land on a house, now you hear, 'Yay! Santa!'
+* Make bomb/blimb bank shots be recognized when bombs hit trusses and
+  cut loose a kernel gun.
+* Added ifdef around include of <malloc.h> for apple, as apparently
+  apple doesn't need that (and it's not in the right place so it doesn't
+  find it) and it gets the prototype for malloc() from stdlib.h.
+* Added comments near add_buildings() call for FreeBSD users.
+* Finally put Santa in his sleigh.
+* Made Rudolph's nose blink.
+* Made men ride on the rails of the sleigh.
+* Fixed a long standing bug that caused a segfault whenever a Richard Stallman's
+  airship emitted a double-quote character while it was on screen.  The problem
+  was the font did not have a double quote character in it, and we ended up with
+  a bad pointer as a result.  Took a long time to find because a) not many blimps
+  and b) blimps don't emit very many double-quotes, and c) if they did emit one
+  usually they were off screen at the time.
+* Pulled all the audio code out into a separate module.
+* Fix a compiler warning.
+* Fix the --nomusic option which was subtly broken by recent change
+  that pulled audio code out of wordwarvi.c
+* Canonicalized all the object draw and move function names.
+* Documented the interfaces to the audio code.
+* Improved documentation of wwviaudio functions.
+* Moved the MAX_CONCURRENT_SOUNDS constant int wordwarvi and out of
+  wwviaudio code.  In wwviaudio code, this is now adjustable at
+  initialization.
+* Moved the NCLIPS constant out of the wwviaudio code and into wordwarvi.c
+  and for the wwviaudio code made the maximum number of sound clips be
+  adjustable at initialization.
+* Free the audio sample data when the audio engine is stopped.
+* Fixed a bug that the number of houses to which gifts had been
+  delivered was not reset to zero when you died.
+* Fixed regression that moving left with the joystick had quit working.
+* Mapped a joystick button to action of dropping presents.
+* Added new obstacle, "big" rockets that explode into shrapnel.
+* Made laser speed vary by level.
+
 Sat Aug  2 22:56:04 CDT 2008
 -------------------------------------------------------------------------------
 Changes between version 0.21 and 0.22
