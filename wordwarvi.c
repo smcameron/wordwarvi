@@ -165,6 +165,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define NROCKETS 20 			/* Number of rockets sprinkled into the terrain */ 
 #define NJETS 15 			/* Number of jets sprinkled into the terrain */ 
 #define LAUNCH_DIST 1200			/* How close player can get in x dimension before rocket launches */
+#define BIG_ROCKET_LAUNCH_DIST 200			/* How close player can get in x dimension before rocket launches */
 #define MAX_ROCKET_SPEED -32		/* max vertical speed of rocket */
 #define SAM_LAUNCH_DIST 400		/* How close player can get in x deminsion before SAM might launch */
 #define GDB_LAUNCH_DIST 700		/* How close player can get in x deminsion before GDB might launch */
@@ -381,6 +382,7 @@ void init_score_table()
 	score_table[OBJ_TYPE_MISSILE]		= 50;
 	score_table[OBJ_TYPE_HARPOON]		= 50;
 	score_table[OBJ_TYPE_ROCKET]		= 100;
+	score_table[OBJ_TYPE_BIG_ROCKET]	= 400;
 	score_table[OBJ_TYPE_SAM_STATION]	= 400;
 	score_table[OBJ_TYPE_BRIDGE]		= 10;
 	score_table[OBJ_TYPE_GDB]		= 400;
@@ -407,6 +409,7 @@ struct level_parameters_t {
 	int nbuildings;
 
 	int nrockets;
+	int nbigrockets;
 	int njets;
 	int nflak;
 	int nfueltanks;
@@ -1498,6 +1501,21 @@ struct my_point_t bomb_points[] = {
 	{ 0, -3 },
 };
 
+struct my_point_t big_rocket_points[] = {
+	{ 0, -35 },
+	{ -5, -25 },
+	{ -5, 5 },
+	{ 0, 15 },
+	{ 5, 5 },
+	{ 5, -25 },
+	{ 0, -35 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -5, 5 },
+	{ -10, 15 },
+	{ 10, 15 },
+	{ 5, 5 },
+};
+
 struct my_point_t rocket_points[] = {
 	{ -2, 3 },
 	{ LINE_BREAK, LINE_BREAK },
@@ -1758,6 +1776,7 @@ struct my_vect_obj left_reindeer2_vect;
 struct my_vect_obj sleigh_vect;
 struct my_vect_obj left_sleigh_vect;
 struct my_vect_obj rocket_vect;
+struct my_vect_obj big_rocket_vect;
 struct my_vect_obj jet_vect;
 struct my_vect_obj spark_vect;
 struct my_vect_obj right_laser_vect;
@@ -2977,6 +2996,91 @@ void rocket_move(struct game_obj_t *o)
 	}
 }
 
+static void add_bullet(int x, int y, int vx, int vy, 
+	int time, int color, struct game_obj_t *bullseye);
+void big_rocket_move(struct game_obj_t *o)
+{
+	int xdist, ydist, gl, i;
+	if (!o->alive)
+		return;
+
+	/* Should probably make a rocket-station, which launches rockets */
+	/* instead of just having bare rockets sitting on the ground which */
+	/* launch once, blow up, then that's the end of them. */
+
+	/* see if rocket should launch... */
+	xdist = abs(o->x - player_target->x);
+	if (xdist < BIG_ROCKET_LAUNCH_DIST && o->alive != 2 && randomn(100) < 20) {
+		ydist = o->y - player_target->y;
+		// if (((xdist<<2) <= ydist && ydist > 0)) {
+			if (o->vy == 0) { /* only add the sound once. */
+				wwviaudio_add_sound(ROCKET_LAUNCH_SOUND);
+				o->alive = 2; /* launched. */
+				o->vy = -6; /* give them a little boost. */
+			}
+		// }
+	}
+	if (o->alive == 2) {
+		if (o->vy > MAX_ROCKET_SPEED - (o->number % 5))
+			o->vy--;
+
+		/* let the rockets veer slightly left or right. */
+		if (player_target->x < o->x && player_target->vx < 0)
+			o->vx = -2;
+		else if (player_target->x > o->x && player_target->vx > 0)
+			o->vx = 2;
+		else 
+			o->vx = 0;
+
+		/* It's possible a gravity bomb smashes the rocket */
+		/* into the ground. */
+		gl = find_ground_level(o, NULL);
+		if (o->y > gl) {
+			wwviaudio_add_sound(ROCKET_EXPLOSION_SOUND);
+			explosion(o->x, o->y, o->vx, 1, 70, 150, 20);
+			remove_target(o);
+			kill_object(o);
+			return;
+		}
+
+		ydist = o->y - player_target->y;
+		if ((ydist*ydist + xdist*xdist) < 16000) { /* hit the player? */
+			wwviaudio_add_sound(ROCKET_EXPLOSION_SOUND);
+			do_strong_rumble();
+			explosion(o->x, o->y, o->vx, 1, 70, 150, 20);
+			// game_state.health -= 10;
+			remove_target(o);
+			kill_object(o);
+
+			for (i=0;i<15;i++) {
+				add_bullet(o->x, o->y, 
+					randomn(40)-20, randomn(40)-20, 
+					30, YELLOW, player_target);
+			}
+
+			return;
+		}
+	}
+
+
+	/* move the rocket... */
+	o->x += o->vx;
+	o->y += o->vy;
+	if (o->vy != 0) {
+		explode(o->x, o->y+15, 0, 9, 8, 7, 13); /* spray out some exhaust */
+		/* a gravity bomb might pick up the rocket... this prevents */
+		/* it from being left stranded in space, not moving. */
+		if (o->alive == 1)
+			o->alive = 2;
+	}
+	if (o->y - player->y < -1000 && o->vy != 0) {
+		/* if the rocket is way off the top of the screen, just forget about it. */
+		remove_target(o);
+		kill_object(o);
+		o->destroy(o);
+	}
+}
+
 void jet_move(struct game_obj_t *o)
 {
 	int xdist, desired_y;
@@ -3515,8 +3619,6 @@ void octopus_move(struct game_obj_t *o)
 }
 
 static void add_floater_message(int x, int y, char *msg);
-static void add_bullet(int x, int y, int vx, int vy, 
-	int time, int color, struct game_obj_t *bullseye);
 void cron_move(struct game_obj_t *o)
 {
 	int xdist, ydist;
@@ -4530,6 +4632,7 @@ void bomb_move(struct game_obj_t *o)
 			case OBJ_TYPE_KGUN:
 			case OBJ_TYPE_TRUSS:
 			case OBJ_TYPE_ROCKET:
+			case OBJ_TYPE_BIG_ROCKET:
 			case OBJ_TYPE_JET:
 			case OBJ_TYPE_MISSILE:
 			case OBJ_TYPE_HARPOON:
@@ -4617,6 +4720,7 @@ void bomb_move(struct game_obj_t *o)
 				case OBJ_TYPE_TRUSS: 
 				case OBJ_TYPE_TENTACLE: 
 				case OBJ_TYPE_ROCKET:
+				case OBJ_TYPE_BIG_ROCKET:
 				case OBJ_TYPE_HARPOON:
 				case OBJ_TYPE_MISSILE:
 				case OBJ_TYPE_GDB:
@@ -4758,6 +4862,7 @@ void gravity_bomb_move(struct game_obj_t *o)
 			case OBJ_TYPE_SPARK:
 			case OBJ_TYPE_PIXIE_DUST:
 			case OBJ_TYPE_ROCKET:
+			case OBJ_TYPE_BIG_ROCKET:
 			case OBJ_TYPE_MISSILE:
 			case OBJ_TYPE_HARPOON:
 			case OBJ_TYPE_CRON:
@@ -5658,6 +5763,7 @@ void laser_move(struct game_obj_t *o)
 				}
 				break;
 			case OBJ_TYPE_JET:
+			case OBJ_TYPE_BIG_ROCKET:
 			case OBJ_TYPE_ROCKET:
 			case OBJ_TYPE_HARPOON:
 			case OBJ_TYPE_GDB:
@@ -7254,6 +7360,8 @@ void init_vects()
 
 	rocket_vect.p = rocket_points;
 	rocket_vect.npoints = sizeof(rocket_points) / sizeof(rocket_points[0]);
+	big_rocket_vect.p = big_rocket_points;
+	big_rocket_vect.npoints = sizeof(big_rocket_points) / sizeof(big_rocket_points[0]);
 	jetpilot_vect_left.p = jetpilot_points_left;
 	jetpilot_vect_left.npoints = sizeof(jetpilot_points_left) / sizeof(jetpilot_points_left[0]);	
 	jetpilot_vect_right.p = jetpilot_points_right;
@@ -8432,6 +8540,22 @@ static void add_rockets(struct terrain_t *t, struct level_obj_descriptor_entry *
 		add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
 			rocket_move, NULL, WHITE, &rocket_vect, 1, OBJ_TYPE_ROCKET, 1);
 		level.nrockets++;
+	}
+}
+
+static void add_big_rockets(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
+{
+	int i, xi;
+	struct game_obj_t *o;
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
+		o = add_generic_object(t->x[xi], t->y[xi] - 15, 0, 0, 
+			big_rocket_move, NULL, WHITE, &big_rocket_vect, 1, OBJ_TYPE_BIG_ROCKET, 1);
+		if (o != NULL) {
+			o->above_target_y = -35;
+			o->below_target_y = 15;
+			level.nbigrockets++;
+		}
 	}
 }
 
@@ -10647,6 +10771,7 @@ void start_level()
 	add_socket(&terrain);
 
 	level.nrockets = 0;
+	level.nbigrockets = 0;
 	level.njets = 0;
 	level.nflak = 0;
 	level.nfueltanks = 0;
@@ -10668,6 +10793,9 @@ void start_level()
 		switch (objdesc[i].obj_type) {
 		case OBJ_TYPE_ROCKET: 
 			add_rockets(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_BIG_ROCKET: 
+			add_big_rockets(&terrain, &objdesc[i]);
 			break;
 		case OBJ_TYPE_JET:
 			add_jets(&terrain, &objdesc[i]);

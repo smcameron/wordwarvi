@@ -232,6 +232,7 @@
 #define OBJ_TYPE_SHIP 'w'		/* Bill Gates's state of the art warship. */
 #define OBJ_TYPE_GUN 'g'		/* ground based laser gun */
 #define OBJ_TYPE_ROCKET 'r'		/* ground based rockets */
+#define OBJ_TYPE_BIG_ROCKET 'I'		/* ground based rockets */
 #define OBJ_TYPE_SAM_STATION 'S'	/* ground based missile launching station */
 #define OBJ_TYPE_GDB 'd'		/* GDB enemy */
 #define OBJ_TYPE_OCTOPUS 'o'		/* a big ol' octopus */
@@ -337,11 +338,12 @@ struct level_obj_descriptor_entry level_2_obj[] = {
 	{ OBJ_TYPE_SAM_STATION, 5, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GUN,		11, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_KGUN,	30, DO_IT_RANDOMLY, 0 }, 
-	{ OBJ_TYPE_AIRSHIP,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_AIRSHIP,	2, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_WORM,	2, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_BALLOON,	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GDB,		4, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
+	{ OBJ_TYPE_BIG_ROCKET, 	3, DO_IT_RANDOMLY, 0 }, 
 	// { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, 
 };
 /* end of level 2 */
@@ -357,11 +359,12 @@ struct level_obj_descriptor_entry level_3_obj[] = {
 	{ OBJ_TYPE_SAM_STATION, 8, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GUN,		30, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_KGUN,	30, DO_IT_RANDOMLY, 0 }, 
-	{ OBJ_TYPE_AIRSHIP,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_AIRSHIP,	3, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_WORM,	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_BALLOON,	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GDB,		7, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
+	{ OBJ_TYPE_BIG_ROCKET, 	10, DO_IT_RANDOMLY, 0 }, 
 	// { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, 
 };
 /* end of level 3 */
@@ -377,12 +380,13 @@ struct level_obj_descriptor_entry level_4_obj[] = {
 	{ OBJ_TYPE_SAM_STATION, 5, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GUN,		15, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_KGUN,	20, DO_IT_RANDOMLY, 0 }, 
-	{ OBJ_TYPE_AIRSHIP,	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_AIRSHIP,	4, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_WORM,	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_BALLOON,	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GDB,		30, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 25, 1 }, 
+	{ OBJ_TYPE_BIG_ROCKET, 	15, DO_IT_RANDOMLY, 0 }, 
 	// { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, 
 };
 /* end of level 4 */
@@ -398,11 +402,12 @@ struct level_obj_descriptor_entry level_5_obj[] = {
 	{ OBJ_TYPE_SAM_STATION, 8, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GUN,		18, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_KGUN,	25, DO_IT_RANDOMLY, 0 }, 
-	{ OBJ_TYPE_AIRSHIP,	1, 90, 0 }, 
+	{ OBJ_TYPE_AIRSHIP,	4, 90, 0 }, 
 	{ OBJ_TYPE_WORM,	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_BALLOON,	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GDB,		9, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 75, 1 }, 
+	{ OBJ_TYPE_BIG_ROCKET, 	15, DO_IT_RANDOMLY, 0 }, 
 	// { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, 
 };
 /* end of level 5 */
@@ -418,12 +423,13 @@ struct level_obj_descriptor_entry level_6_obj[] = {
 	{ OBJ_TYPE_SAM_STATION, 9, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GUN,		28, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_KGUN,	28, DO_IT_RANDOMLY, 0 }, 
-	{ OBJ_TYPE_AIRSHIP,	1, 90, 0 }, 
+	{ OBJ_TYPE_AIRSHIP,	4, 90, 0 }, 
 	{ OBJ_TYPE_WORM,	3, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_BALLOON,	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GDB,		12, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 75, 1 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 15, 1 }, 
+	{ OBJ_TYPE_BIG_ROCKET, 	15, DO_IT_RANDOMLY, 0 }, 
 	// { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, 
 };
 /* end of level 6 */
