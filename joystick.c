@@ -76,7 +76,7 @@ int get_joystick_status(struct wwvi_js_event *wjse)
 	if (joystick_fd < 0)
 		return -1;
 
-	// memset(wjse, 0, sizeof(*wjse));
+	/* memset(wjse, 0, sizeof(*wjse)); */
 	while ((rc = read_joystick_event(&jse) == 1)) {
 		jse.type &= ~JS_EVENT_INIT; /* ignore synthetic events */
 		if (jse.type == JS_EVENT_AXIS) {
@@ -96,7 +96,7 @@ int get_joystick_status(struct wwvi_js_event *wjse)
 			}
 		}
 	}
-	// printf("%d\n", wjse->stick1_y);
+	/* printf("%d\n", wjse->stick1_y); */
 	return 0;
 }
 

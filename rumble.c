@@ -97,10 +97,10 @@ int stop_all_rumble_effects()
 int play_rumble_effect(int effect)
 {
 #ifdef HAS_LINUX_JOYSTICK_INTERFACE
+	struct input_event play;
+
 	if (effect < 0 || effect >= N_EFFECTS)
 		return -1;
-
-	struct input_event play;
 
 	play.type = EV_FF;
 	play.code = effects[effect].id;
@@ -203,7 +203,7 @@ int get_ready_to_rumble(char *filename)
 	effects[1].u.constant.envelope.fade_level = 0;
 	effects[1].trigger.button = 0;
 	effects[1].trigger.interval = 0;
-	// effects[1].replay.length = 20000;  /* 20 seconds */
+	/* effects[1].replay.length = 20000;*/  /* 20 seconds */
 	effects[1].replay.length = 1000;  /* 1 seconds */
 	effects[1].replay.delay = 0;
 
@@ -224,7 +224,7 @@ int get_ready_to_rumble(char *filename)
 	effects[2].u.condition[1] = effects[2].u.condition[0];
 	effects[2].trigger.button = 0;
 	effects[2].trigger.interval = 0;
-	// effects[2].replay.length = 20000;  /* 20 seconds */
+	/* effects[2].replay.length = 20000;*/  /* 20 seconds */
 	effects[2].replay.length = 1000;  /* 1 seconds */
 	effects[2].replay.delay = 0;
 

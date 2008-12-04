@@ -53,25 +53,25 @@ int we_are_big_endian()
 */
 int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	int *samplesize, int *sample_rate, int *nchannels, 
-	unsigned long long *nsamples)
+	uint64_t *nsamples)
 {
 	int endian;
 	OggVorbis_File vf;
 	int bs = 0;
 	char buf[8192];
-	// char outbuf[8192];
+	/* char outbuf[8192]; */
 	char *p_outbuf;
 	int buflen = 8192;
 	unsigned int written = 0;
 	int ret;
 	ogg_int64_t length = 0;
-	// ogg_int64_t done = 0;
+	/* ogg_int64_t done = 0; */
 	int size = 0;
 	int seekable = 0;
-	// int percent = 0;
+	/* int percent = 0; */
 	int channels;
 	int samplerate;
-	void *bufferptr;
+	unsigned char *bufferptr;
 	int sign = 1;
 	FILE *in;
 	int count=0;
@@ -94,7 +94,7 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	*sample_rate = samplerate;
 	*nchannels = channels;
 
-	// printf("channels = %d, samplerate=%d\n", channels, samplerate);
+	/* printf("channels = %d, samplerate=%d\n", channels, samplerate); */
 
 	if (ov_seekable(&vf)) {
 		int link;
@@ -115,7 +115,7 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	}
 
 	/* at this point, "length" should contain the number of samples, I think. */
-	// printf("%s: length = %llu samples.\n", infile, length);
+	/* printf("%s: length = %llu samples.\n", infile, length); */
 	*nsamples = length;
 
 	*pcmbuffer = (void *) malloc(sizeof(int16_t) * length * channels);
@@ -125,7 +125,7 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 		fclose(in);
 		return 1;
 	}
-	bufferptr = *pcmbuffer;
+	bufferptr = (unsigned char *) *pcmbuffer;
 
 	endian = we_are_big_endian();
 

@@ -27,6 +27,6 @@
 */
 extern int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	int *samplesize, int *sample_rate, int *nchannels, 
-	unsigned long long *nsamples);
+	uint64_t *nsamples);
 
 #endif

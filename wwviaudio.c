@@ -111,7 +111,7 @@ static struct sound_clip *audio_queue = NULL;
 
 int wwviaudio_read_ogg_clip(int clipnum, char *filename)
 {
-	unsigned long long nframes;
+	uint64_t nframes;
 	char filebuf[PATH_MAX];
 	struct stat statbuf;
 	int samplesize, sample_rate;
@@ -147,8 +147,13 @@ int wwviaudio_read_ogg_clip(int clipnum, char *filename)
 	rc = ogg_to_pcm(filebuf, &clip[clipnum].sample, &samplesize,
 		&sample_rate, &nchannels, &nframes);
 	if (clip[clipnum].sample == NULL) {
-		printf("Can't get memory for sound data for %llu frames in %s\n", 
-			nframes, filebuf);
+		/* printf("Can't get memory for sound data for %llu frames in %s\n",  */
+			/* (unsigned long) nframes, filebuf); */
+
+		/* ISO C90 doesn't have %llu, but I happen to know all our frame */
+		/* counts will fit into a long. */
+		printf("Can't get memory for sound data for %lu frames in %s\n",
+			(unsigned long) nframes, filebuf);
 		goto error;
 	}
 
@@ -175,11 +180,13 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 	unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo* timeInfo,
 	PaStreamCallbackFlags statusFlags, __attribute__ ((unused)) void *userData )
 {
-	// void *data = userData; /* Prevent unused variable warning. */
-	float *out = (float*)outputBuffer;
-	int i, j, sample, count = 0;
-	(void) inputBuffer; /* Prevent unused variable warning. */
-	float output = 0.0;
+	/*(void) inputBuffer;*/ /* Prevent unused variable warning. */
+	int i, j, sample, count;
+	float *out = NULL;
+	float output;
+	out = (float*)outputBuffer;
+	output = 0.0;
+	count = 0;
 
 	if (audio_paused) {
 		/* output silence when paused and        */

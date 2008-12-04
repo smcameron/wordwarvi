@@ -63,7 +63,7 @@
 
 #define DEBUG_HITZONE 0
 
-// #define DEBUG_TARGET_LIST 
+/* #define DEBUG_TARGET_LIST */
 
 #define MAX_CONCURRENT_SOUNDS (26)
 #define NCLIPS 56
@@ -205,7 +205,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define NFUELTANKS 20		/* Initial number of fuel tanks sprinkled around the terrain */
 /* How many hit points a fuel tank contains */
 #define FUELTANK_CAPACITY (game_state.max_player_health / 3)
-// #define REFUEL_RATE 1 		/* lower numbers = faster, used as modulo of timer */
+/* #define REFUEL_RATE 1 */		/* lower numbers = faster, used as modulo of timer */
 /* lower numbers = faster, used as modulo of timer */
 #define REFUEL_RATE (game_state.max_player_health >= 100 ? 1 : 100/game_state.max_player_health)	
 /* lower numbers == faster, used as modulo of timer */
@@ -286,8 +286,8 @@ int current_quit_selection = 0;
 int final_quit_selection = 0;
 int attract_mode = 0;		/* is game in attract mode */
 int credits = 0;		/* how many quarters have been put in, but not played? */
-// int toggle = 0;		
-//
+/* int toggle = 0;		
+*/
 int total_radar_noise;		/* count of how much radar noise has been drawn in a given frame */
 				/* This is to limit things, so if there are 10 radar jammers in */
 				/* close range, we don't draw 10x the amount of noise necessary */
@@ -421,8 +421,8 @@ struct level_parameters_t {
 	int ntentacles;
 	int nballoons;
 	int nsams;
-	// int nbombs;
-	// int ngbombs;
+	/* int nbombs; */
+	/* int ngbombs; */
 	int nairships;
 	int nworms;
 	int nkguns;
@@ -457,8 +457,8 @@ struct level_parameters_t {
 	NOCTOPI,
 	NTENTACLES,
 	NSAMS,
-	// NBOMBS,
-	// NGBOMBS,
+	/* NBOMBS, */
+	/* NGBOMBS, */
 	NAIRSHIPS,
 	NWORMS,
 	NKGUNS,
@@ -503,7 +503,7 @@ typedef unsigned char stroke_t;
                18  19  20      *   *   *
 The grid numbers can be decoded into (x,y) coords like:
 	x = ((n % 3) * xscale);
-	y = (x/3) * yscale;     // truncating division.
+	y = (x/3) * yscale;      truncating division. 
 
 	(not sure the above actually works)
 
@@ -816,8 +816,8 @@ struct my_point_t jetpilot_points_left[] = {
 	{ 2, 9 },
 	{ LINE_BREAK, LINE_BREAK },
 	{ COLOR_CHANGE, GREEN },
-	// { 0, 9 },
-	// { -2, 11 }, 
+	/* { 0, 9 }, */
+	/* { -2, 11 },  */
 	{ 2, 9 },
 	{ -1, 11 }, 
 	{ 0, 9 },
@@ -1418,15 +1418,15 @@ struct my_point_t socket_points[] = {
 	{ -12, -12 },
 	{ -18, -12 },
 	{ -15, -4 }, /* bottom of tail */
-	// { -3, -4 }, /* bottom of tail */
-	// { -15, -4 }, /* bottom of tail */
+	/* { -3, -4 }, */ /* bottom of tail */
+	/* { -15, -4 },*/ /* bottom of tail */
 	{ -15, 3 }, /* back top of wing */
-	//{ 0, 3 }, /* back top of wing */
-	//{ -15, 3 }, /* back top of wing */
+	/*{ 0, 3 },*/ /* back top of wing */
+	/*{ -15, 3 },*/ /* back top of wing */
 	{ -18, 9 }, /* back bottom of wing */
 	{ -12, 9 }, /* back front of wing */
-	// { LINE_BREAK, LINE_BREAK },
-	// { 0, 3 },
+	/* { LINE_BREAK, LINE_BREAK }, */
+	/* { 0, 3 }, */
 	{ -6, 6 },
 	{ 20, 4 },
 	{ 24, 2 }, /* tip of nose */
@@ -1437,7 +1437,7 @@ struct my_point_t socket_points[] = {
 	{ 30, 25 },
 	{ -30, 25 },
 	{ -30, -25 },
-	// { -3, -6 }, /* top of hatch */ 
+	/* { -3, -6 },*/ /* top of hatch */ 
 #if 0
 	{ LINE_BREAK, LINE_BREAK }, /* Just for testing */
 	{ -30, -20 },
@@ -1747,7 +1747,6 @@ struct my_vect_obj *debris_vect[NDEBRIS_FORMS] = { 0 };
 /* wish I could find some humorous lisp code, but, */
 /* who the hell would even recognize it? */
 char randomlisp[] = "(let ((arg (if (consp (car args)) (caar args) (car args)))"
-	"(fcs (if (consp (car args)) (cdr (car args)) nil)))"
 	"(cond ((= chr ?s)"
 	"(if addr (concat (car addr) \" <\" (cdr addr) \">\")"
 	"(or (and (boundp 'report-xemacs-bug-beta-address)"
@@ -1755,9 +1754,7 @@ char randomlisp[] = "(let ((arg (if (consp (car args)) (caar args) (car args)))"
 	"(if (eq (car-safe calc-last-kill) (car kill-ring-yank-pointer))"
 	"(cdr calc-last-kill)"
 	"(if (stringp (car kill-ring-yank-pointer))"
-	"(list 'extern"
 	"(semantic-bovinate-from-nonterminal-full" /* semantic-bovinate? */
-	" (car (nth 2 vals)) (cdr (nth 2 vals)) 'extern-c-contents)" ")))"
 	"   (if value (list (car value) (cdr value))))"
 	":value-to-external (lambda (widget value)"
 	"(if value (append (list (car value)) (cadr value)))))";
@@ -1895,8 +1892,8 @@ explosion_function *explosion = NULL;
 #define wwvi_draw_rectangle DEFAULT_RECTANGLE_STYLE
 #define wwvi_bright_line DEFAULT_BRIGHT_LINE_STYLE
 
-// #define wwvi_draw_line gdk_draw_line
-// #define wwvi_draw_rectangle gdk_draw_rectangle
+/* #define wwvi_draw_line gdk_draw_line */
+/* #define wwvi_draw_rectangle gdk_draw_rectangle */
 
 float xscale_screen;
 float yscale_screen;
@@ -2007,7 +2004,7 @@ void crazy_line(GdkDrawable *drawable,
 	y4 = ((y2 - (SCREEN_HEIGHT/2)) / size) + SCREEN_HEIGHT/2;
 	gdk_draw_line(drawable, gc, x3, y3, x4, y4);	
 #endif
-	// gdk_draw_line(drawable, gc, x1, y1, x2, y2);	
+	/* gdk_draw_line(drawable, gc, x1, y1, x2, y2);	 */
 
 }
 
@@ -2143,7 +2140,6 @@ struct octopus_data {
 struct gdb_data {
 	int awake;			/* is gdb awake? */
 	int tx, ty;			/* target x and y, game coords */
-	// struct game_obj_t *tentacle[8];
 };
 
 struct cron_data {
@@ -2321,7 +2317,6 @@ struct terrain_t {			/* x,y points of the ground, in game coords */
 struct game_state_t {
 	int x;				/* x position of left edge of screen, in game coords */
 	int y;				/* y position of top of screen, in game coords */
-	// int last_x1, last_x2;	/* not used... */
 	int vx;				/* x velocity of viewport.  Usually the same as player's vx */
 	int vy;				/* y velocity of viewport.  Usually the same as player's vy */
 	int lives;			/* How many lives the player has left in this game. */
@@ -2455,9 +2450,9 @@ int approximate_horizon(int x, int y, int *last_xi)
 	/* This means, the linear search of the terrain array is mostly eliminated */
 
 	int xi1, xi2, i;
+	int slope;
 	xi1 = *last_xi; /* try the terrain segment we used last time. */
 	xi2 = xi1 + 1;
-	int slope;
 
 	if (xi1 < 0 || xi2 >= TERRAIN_LENGTH) /* Do we have a hint of the last one? No? */
 		return ground_level(x, last_xi, &slope); /* do it the hard way. */
@@ -2880,8 +2875,8 @@ void kgun_move(struct game_obj_t *o)
 
 		xoffset = crossbeam_x2 - crossbeam_x1;
 
-		// guntipx = dx_from_vxy(xi, yi);
-		// guntipy = dy_from_vxy(xi, yi);
+		/* guntipx = dx_from_vxy(xi, yi); */
+		/* guntipy = dy_from_vxy(xi, yi); */
 
 		guntipx = vxy_2_dxy[xi][yi].x;
 		guntipy = vxy_2_dxy[xi][yi].y;
@@ -3012,13 +3007,13 @@ void big_rocket_move(struct game_obj_t *o)
 	xdist = abs(o->x - player_target->x);
 	if (xdist < BIG_ROCKET_LAUNCH_DIST && o->alive != 2 && randomn(100) < 20) {
 		ydist = o->y - player_target->y;
-		// if (((xdist<<2) <= ydist && ydist > 0)) {
+		/* if (((xdist<<2) <= ydist && ydist > 0)) { */
 			if (o->vy == 0) { /* only add the sound once. */
 				wwviaudio_add_sound(ROCKET_LAUNCH_SOUND);
 				o->alive = 2; /* launched. */
 				o->vy = -6; /* give them a little boost. */
 			}
-		// }
+		/* } */
 	}
 	if (o->alive == 2) {
 		if (o->vy > MAX_ROCKET_SPEED - (o->number % 5))
@@ -3048,7 +3043,7 @@ void big_rocket_move(struct game_obj_t *o)
 			wwviaudio_add_sound(ROCKET_EXPLOSION_SOUND);
 			do_strong_rumble();
 			explosion(o->x, o->y, o->vx, 1, 70, 150, 20);
-			// game_state.health -= 10;
+			/* game_state.health -= 10; */
 			remove_target(o);
 			kill_object(o);
 
@@ -3587,9 +3582,9 @@ void octopus_move(struct game_obj_t *o)
 		ydist = o->y - player_target->y;
 #if 1
 		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
-			// wwviaudio_add_sound(SAM_LAUNCH_SOUND);
-			//add_harpoon(o->x+10, o->y, 0, 0, 300, MAGENTA, player, o);
-			// o->missile_timer = timer + MISSILE_FIRE_PERIOD;
+			/* wwviaudio_add_sound(SAM_LAUNCH_SOUND);*/
+			/*add_harpoon(o->x+10, o->y, 0, 0, 300, MAGENTA, player, o);*/
+			/* o->missile_timer = timer + MISSILE_FIRE_PERIOD;*/
 			if (!o->tsd.octopus.awake) {
 				o->tsd.octopus.awake = 1;
 				o->tsd.octopus.tx = player_target->x + randomn(200)-100;
@@ -3791,11 +3786,9 @@ void cron_move(struct game_obj_t *o)
 				vy = ((dy < 0) ? -1 : 1) * BULLET_SPEED;
 				vx = (dx * BULLET_SPEED)/(abs(dy));
 			}
-			// vx += randomn(3)-1;
-			// vy += randomn(3)-1;
 			explode(o->x, o->y, o->vx, o->vy, 4, 8, 9);
 			add_bullet(o->x, o->y, vx, vy, 40, WHITE, player_target);
-			// add_floater_message(o->x, o->y, "Bang!");
+			/* add_floater_message(o->x, o->y, "Bang!"); */
 			wwviaudio_add_sound(CRONSHOT);
 		}
 	}
@@ -3848,7 +3841,7 @@ void cron_move(struct game_obj_t *o)
 	/* move the beam. */
 	o->tsd.cron.beam_pos += o->tsd.cron.beam_speed;
 		
-	// explode(o->x - dvx + randomn(4)-2, o->y - dvy + randomn(4)-2, -dvx, -dvy, 4, 8, 9);
+	/* explode(o->x - dvx + randomn(4)-2, o->y - dvy + randomn(4)-2, -dvx, -dvy, 4, 8, 9); */
 #if 0	
 	xdist = abs(o->x - player->x);
 	if (xdist < GDB_LAUNCH_DIST) {
@@ -4239,7 +4232,7 @@ void socket_move(struct game_obj_t *o)
 		player->x = 0; /* so we won't enter the socket again immediately */
 		timer_event = START_INTERMISSION_EVENT;
 		next_timer = timer + 1;
-		// advance_level();
+		/* advance_level(); */
 	}
 	if (xdist < SCREEN_WIDTH)
 		o->color = randomn(NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS);
@@ -4682,7 +4675,7 @@ void bomb_move(struct game_obj_t *o)
 					wwviaudio_add_sound(BOMB_IMPACT_SOUND);
 					explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 					spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
-					// t->alive = 0;
+					/* t->alive = 0; */
 					next = remove_target(t);
 					kill_object(t);
 					t->destroy(t);
@@ -4762,7 +4755,7 @@ void bomb_move(struct game_obj_t *o)
 						spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 						next = remove_target(t);
 						kill_object(t);
-						// t->alive = 0;
+						/* t->alive = 0; */
 						t->destroy(t);
 						/* if (t->otype == OBJ_TYPE_FUEL) {
 							game_state.health += 10;
@@ -4829,8 +4822,8 @@ void gravity_bomb_move(struct game_obj_t *o)
 
 	for (i=0;i<8;i++) {
 		int vx, vy, rx, ry;
-		// vx = randomn(10) - (10>>1) + o->vx;
-		// vy = randomn(10) - (10>>1) + o->vy;
+		/* vx = randomn(10) - (10>>1) + o->vx; */
+		/* vy = randomn(10) - (10>>1) + o->vy; */
 		rx = randomn(400) - (400>>1);
 		ry = randomn(400) - (400>>1);
 		vx = ry >> 3;
@@ -4887,9 +4880,9 @@ void gravity_bomb_move(struct game_obj_t *o)
 						add_score_floater(t->x, t->y, score_table[t->otype]);
 					}
 					kill_tally[t->otype]++;
-					// wwviaudio_add_sound(BOMB_IMPACT_SOUND);
-					// explode(t->x, t->y, t->vx, 1, 70, 150, 20);
-					// spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
+					/* wwviaudio_add_sound(BOMB_IMPACT_SOUND);*/
+					/* explode(t->x, t->y, t->vx, 1, 70, 150, 20);*/
+					/* spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);*/
 					remove_target(t);
 					t->destroy(t);
 					kill_object(t);
@@ -4909,7 +4902,7 @@ void gravity_bomb_move(struct game_obj_t *o)
 	}
 }
 
-// static void corrosive_atmosphere_sound();
+/* static void corrosive_atmosphere_sound(); */
 void volcano_move(struct game_obj_t *o)
 {
 	int player_dist;
@@ -4933,7 +4926,7 @@ void volcano_move(struct game_obj_t *o)
 	}
 	if (player_dist < 250) {
 		game_state.corrosive_atmosphere = 1;
-		// corrosive_atmosphere_sound();
+		/* corrosive_atmosphere_sound(); */
 		if ((timer & 0x03) == 3 && game_state.max_player_health >= 50) 
 			game_state.health--;
 	} else
@@ -5401,7 +5394,7 @@ void player_move(struct game_obj_t *o)
 		player->draw = no_draw;				/* Make player invisible. */
 		spray_debris(o->x, o->y, o->vx, o->vy, 70, o, 1);/* Throw hunks of metal around, */
 		wwviaudio_add_sound(LARGE_EXPLOSION_SOUND);	/* and make a lot of noise */
-		// printf("decrementing lives %d.\n", game_state.lives);
+		/* printf("decrementing lives %d.\n", game_state.lives); */
 		game_state.lives--;				/* lost a life. */
 		strcpy(textline[CREDITS].string, "");
 		if (game_state.lives <= 0 || credits <= 0) { /* last life? */
@@ -5802,7 +5795,6 @@ void laser_move(struct game_obj_t *o)
 							hit=1;
 					}
 				}
-				// printf("dist2 = %d\n", dist2);
 				if (hit) { /* a hit */
 					if (t->uses_health) {
 						t->health.health--;
@@ -6076,8 +6068,8 @@ void reindeer_move(struct game_obj_t *o)
 				right = &reindeer2_vect;
 				left = &left_reindeer2_vect;
 			}
-			// right = &player_vect;
-			// left = &left_player_vect;
+			/* right = &player_vect; */
+			/* left = &left_player_vect; */
 		}
 	}
 
@@ -6320,7 +6312,7 @@ void harpoon_move(struct game_obj_t *o)
 	/* Adjust velocity towards desired vx,vy, */
 	/* unlike missiles -- every clock tick. */
 	/* This might be a little too ferocious... */
-	// if ((timer % 2) == 0) {
+	/* if ((timer % 2) == 0) { */
 		if (o->vx < desired_vx)
 			o->vx++;
 		else if (o->vx > desired_vx)
@@ -6329,7 +6321,7 @@ void harpoon_move(struct game_obj_t *o)
 			o->vy++;
 		else if (o->vy > desired_vy)
 			o->vy--;
-	// }
+	/* } */
 
 	/* make some exhaust sparks. */
 	exvx = -dx_from_vxy(o->vx, o->vy) + randomn(2)-1;
@@ -6559,8 +6551,8 @@ void symbol_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 	}
 	if (o->alive>0) {
 		age_object(o);
-		// if (!o->alive)
-		//	remove_target(o);
+		/* if (!o->alive) 
+			remove_target(o); */
 	} else
 		o->destroy(o);
 }
@@ -6855,7 +6847,7 @@ void worm_move(struct game_obj_t *o)
                         o->tsd.worm.ltx = terrain.x[randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1)];
                         o->tsd.worm.lty = ground_level(o->tsd.worm.ltx, &xi, NULL) - 800 + randomn(700);
 
-			// printf("New long term dest %d,%d\n", o->tsd.worm.ltx, o->tsd.worm.lty);
+			/* printf("New long term dest %d,%d\n", o->tsd.worm.ltx, o->tsd.worm.lty); */
 
 			/* trigger short term destination reached code, below. */
 			o->tsd.worm.tx = o->x;
@@ -7010,7 +7002,7 @@ void ship_move(struct game_obj_t *o)
 /* this is called VERY often.  Don't do anything slow in here. */
 void spark_move(struct game_obj_t *o)
 {
-	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
+	/* printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive); */
 	o->x += o->vx;
 	o->y += o->vy;
 
@@ -7018,7 +7010,7 @@ void spark_move(struct game_obj_t *o)
         if (o->alive <= 0)
                 kill_object(o);
 
-	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
+	/* printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive); */
 
 	/* Fade the colors. */
 	if (o->alive >= NSPARKCOLORS)
@@ -7039,7 +7031,7 @@ void spark_move(struct game_obj_t *o)
 		o->vy++;
 
 	/* no gravity on the sparks, I've tried it, I like it better without it. */
-	//o->vy += (timer & 0x01);
+	/*o->vy += (timer & 0x01); */
 
 	/* If the sparks reach speed of zero due to air resistance, kill them. */
 	if (o->vx == 0 && o->vy == 0) {
@@ -7056,7 +7048,7 @@ void spark_move(struct game_obj_t *o)
 /* this is called VERY often.  Don't do anything slow in here. */
 void pixie_dust_move(struct game_obj_t *o)
 {
-	// printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive);
+	/* printf("x=%d,y=%d,vx=%d,vy=%d, alive=%d\n", o->x, o->y, o->vx, o->vy, o->alive); */
 	o->x += o->vx;
 	o->y += o->vy;
 
@@ -7086,8 +7078,8 @@ void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
 	int vx, vy, i;
 
 	for (i=0;i<nsparks;i++) {
-		// vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivx));
-		// vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivy));
+		/* vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivx));*/
+		/* vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivy));*/
 		vx = randomn(v) - (v>>1) + ivx;
 		vy = randomn(v) - (v>>1) + ivy;
 		add_spark(x, y, vx, vy, time); 
@@ -7121,10 +7113,10 @@ void round_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
 	int angle, tmpv; 
 
 	for (i=0;i<nsparks * explosion_factor;i++) {
-		// vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivx));
-		// vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivy));
-		// vx = randomn(v) - (v>>1) + ivx;
-		// vy = randomn(v) - (v>>1) + ivy;
+		/* vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivx));*/
+		/* vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivy));*/
+		/* vx = randomn(v) - (v>>1) + ivx;*/
+		/* vy = randomn(v) - (v>>1) + ivy;*/
 		angle = (randomn(360)+1) % 360;
 		/* multiply by square root of 2 so the "energy" of the explosion */
 		/* will be the same as that of the rectangular version. */
@@ -7157,8 +7149,8 @@ struct my_vect_obj *prerender_glyph(stroke_t g[], int xscale, int yscale)
 			x = LINE_BREAK;
 			y = LINE_BREAK;
 		} else {
-			// x = ((g[i] % 3) * xscale);
-			// y = ((g[i]/3)-4) * yscale ;     // truncating division.
+			/* x = ((g[i] % 3) * xscale);*/
+			/* y = ((g[i]/3)-4) * yscale ;     // truncating division.*/
 			x = decode_glyph[g[i]].x * xscale;
 			y = decode_glyph[g[i]].y * yscale;
 			/* printf("x=%d, y=%d\n", x,y); */
@@ -7318,7 +7310,7 @@ void init_vects()
 	for (i=0;i<=360;i++) {
 		sine[i] = sin((double)i * 3.1415927 * 2.0 / 360.0);
 		cosine[i] = cos((double)i * 3.1415927 * 2.0 / 360.0);
-		// printf("%d, %g, %g\n", i, cosine[i], sine[i]);
+		/* printf("%d, %g, %g\n", i, cosine[i], sine[i]);*/
 	}
 
 	/* memset(&game_state.go[0], 0, sizeof(game_state.go[0])*MAXOBJS); */
@@ -7330,8 +7322,8 @@ void init_vects()
 		player_vect.npoints = sizeof(reindeer_points) / sizeof(reindeer_points[0]);
 		reindeer2_vect.p = reindeer_points2;
 		reindeer2_vect.npoints = sizeof(reindeer_points2) / sizeof(reindeer_points2[0]);
-		// player_vect.p = sleigh_points;
-		// player_vect.npoints = sizeof(sleigh_points) / sizeof(sleigh_points[0]);
+		/* player_vect.p = sleigh_points;*/
+		/* player_vect.npoints = sizeof(sleigh_points) / sizeof(sleigh_points[0]);*/
 	}
 	/* The left player ship oints are a copy of the right player ship points. */
 	/* I just duplicated them in the source.  So we have to flip them */
@@ -7538,7 +7530,7 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 		x1 = o->x - game_state.x;
 		y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 		if (x1 > 0 && x1 < SCREEN_WIDTH && y1 < SCREEN_HEIGHT && y1 > 0) {
-			// wwvi_draw_line(w->window, gc, x1-10, y1, x1+10, y1); 
+			/* wwvi_draw_line(w->window, gc, x1-10, y1, x1+10, y1); */
 			wwvi_draw_line(w->window, gc, x1, y1-10, x1, y1+10); 
 			wwvi_draw_line(w->window, gc, x1-10, y1 + o->above_target_y, x1+10, y1 + o->above_target_y); 
 			wwvi_draw_line(w->window, gc, x1-10, y1 + o->below_target_y, x1+10, y1 + o->below_target_y); 
@@ -7959,7 +7951,7 @@ void draw_objs(GtkWidget *w)
 		x1 = o->x - game_state.x;
 		y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 		if (x1 > 0 && x1 < SCREEN_WIDTH && y1 < SCREEN_HEIGHT && y1 > 0) {
-			//wwvi_draw_line(w->window, gc, x1-10, y1, x1+10, y1); 
+			/*wwvi_draw_line(w->window, gc, x1-10, y1, x1+10, y1); */
 			wwvi_draw_line(w->window, gc, x1, y1-10, x1, y1+10); 
 			wwvi_draw_line(w->window, gc, x1-10, y1 + o->above_target_y, x1+10, y1 + o->above_target_y); 
 			wwvi_draw_line(w->window, gc, x1-10, y1 + o->below_target_y, x1+10, y1 + o->below_target_y); 
@@ -8036,7 +8028,7 @@ static void draw_letter(GtkWidget *w, struct my_vect_obj **font, unsigned char l
 		x2 = livecursorx + font[letter]->p[i+1].x;
 		y2 = livecursory + font[letter]->p[i+1].y;
 		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
-		//wwvi_draw_line(w->window, gc, x1-1, y1+1, x2-1, y2+1); 
+		/*wwvi_draw_line(w->window, gc, x1-1, y1+1, x2-1, y2+1); */
 		x1 = x2;
 		y1 = y2;
 	}
@@ -8058,7 +8050,7 @@ static void draw_strings(GtkWidget *w)
 {
 	int i;
 
-	gdk_gc_set_foreground(gc, &huex[WHITE]); //&huex[current_color]);
+	gdk_gc_set_foreground(gc, &huex[WHITE]); /*&huex[current_color]);*/
 	for (i=0;i<ntextlines;i++) {
 		/* printf("Drawing '%s' color=%d, x=%d, y=%d\n", 
 			textline[i].string, current_color, 
@@ -8142,7 +8134,7 @@ static void xy_draw_letter(GtkWidget *w, struct my_vect_obj **font,
 		y2 = y + font[letter]->p[i+1].y - game_state.y + (SCREEN_HEIGHT/2);
 		if (x1 > 0 && x2 > 0)
 			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
-		// wwvi_draw_line(w->window, gc, x1-1, y1+1, x2-1, y2+1); 
+		/* wwvi_draw_line(w->window, gc, x1-1, y1+1, x2-1, y2+1); */
 	}
 }
 
@@ -8292,7 +8284,7 @@ void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 
 	t->x[midxi] = x3;
 	t->y[midxi] = y3;
-	// printf("gst %d %d\n", x3, y3);
+	/* printf("gst %d %d\n", x3, y3);*/
 
 	/* recursively generate more terrain between x1,y1, x3,y3, */
 	/* and between x3,y3, and x2,y2 */
@@ -8313,7 +8305,7 @@ void generate_terrain(struct terrain_t *t)
 	t->x[t->npoints-1] = WORLDWIDTH;
 	t->y[t->npoints-1] = t->y[0];
 
-	// generate_sub_terrain(t, 0, t->npoints-1);
+	/* generate_sub_terrain(t, 0, t->npoints-1);*/
 	
 	/* put a volcano in... */
 	volcanox = WORLDWIDTH / VOLCANO_XFRACTION;
@@ -8421,9 +8413,9 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 		o->alive = 5*frame_rate_hz + randomn(frame_rate_hz);	
 		o->color = victim->color;
 		o->radar_image = 1;
-		// add_target(o);
-		// o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));
-		// o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));
+		/* add_target(o);*/
+		/* o->vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vx));*/
+		/* o->vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (r + 0.0) + (0.0 + vy));*/
 		o->vx = randomn(r) - (r >> 1) + vx;	
 		o->vy = randomn(r) - (r >> 1) + vy;	
 		o->tsd.debris.debris_type = metal;
@@ -9190,7 +9182,7 @@ static void add_houses(struct terrain_t *t, struct level_obj_descriptor_entry *e
 	if (!xmas_mode) 
 		return;
 
-	// for (i=0;i<entry->nobjs;i++) {
+	/* for (i=0;i<entry->nobjs;i++) {*/
 	for (i=0;i<NHOUSES;i++) {
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-25, 0, 0, 
@@ -9238,9 +9230,9 @@ static void add_ships(struct terrain_t *t, struct level_obj_descriptor_entry *en
 static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int xi, i, j, k, count;
+	struct game_obj_t *o;
 
 	count = 0;
-	struct game_obj_t *o;
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-50 - randomn(100), 0, 0, 
@@ -9292,9 +9284,9 @@ static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *e
 
 static void add_gdbs(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
-	int xi, i; //, j, k, count;
+	int xi, i; /*, j, k, count;*/
 
-	// count = 0;
+	/* count = 0;*/
 	struct game_obj_t *o;
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
@@ -9571,10 +9563,10 @@ int new_high_score(int newscore)
 	int i;
 	for (i=0;i<MAXHIGHSCORES;i++)
 		if (newscore > highscore[i].score) {
-			// printf("new_high_score returns new high score = %d\n", i);
+			/* printf("new_high_score returns new high score = %d\n", i);*/
 			return i;
 		}
-	// printf("new_high_score returns %d, bad score\n", MAXHIGHSCORES);
+	/* printf("new_high_score returns %d, bad score\n", MAXHIGHSCORES);*/
 	return MAXHIGHSCORES;
 }
 
@@ -9607,7 +9599,7 @@ static void do_newhighscore(GtkWidget *w, GdkEvent *event, gpointer p)
 		timer_event = GAME_ENDED_EVENT; 
 		next_timer = timer + 1;
 		printf("bug at %s:%d!\n", __FILE__, __LINE__);
-		// bug;
+		/* bug;*/
 	}
 
 	/* Draw the high score message */
@@ -10045,8 +10037,8 @@ static gint main_da_configure(GtkWidget *w, GdkEventConfigure *event)
 	if (gc == NULL)
 		return TRUE;
 
-	// gtk_widget_set_size_request(w, w->allocation.width, w->allocation.height);
-	// gtk_window_get_size(GTK_WINDOW (w), &real_screen_width, &real_screen_height);
+	/* gtk_widget_set_size_request(w, w->allocation.width, w->allocation.height);*/
+	/* gtk_window_get_size(GTK_WINDOW (w), &real_screen_width, &real_screen_height);*/
 	real_screen_width =  w->allocation.width;
 	real_screen_height =  w->allocation.height;
 	xscale_screen = (float) real_screen_width / (float) SCREEN_WIDTH;
@@ -10116,7 +10108,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	int i;
 	int sx1, sx2;
 	static int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
-	// int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
+	/* int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;*/
 
 	if (timer_event == START_INTERMISSION_EVENT) {
 		do_intermission(w, event, p);
@@ -10255,7 +10247,7 @@ static gboolean delete_event( GtkWidget *widget,
      * This is useful for popping up 'are you sure you want to quit?'
      * type dialogs. */
 
-    // g_print ("delete event occurred\n");
+    /* g_print ("delete event occurred\n");*/
 
     /* Change TRUE to FALSE and the main window will be destroyed with
      * a "delete_event". */
@@ -10384,7 +10376,7 @@ void timer_expired()
 		setup_text();
 		timer_event = BLINK_EVENT;
 		timer_event = BLANK_GAME_OVER_1_EVENT;
-		// timer_event = KEYS1_EVENT;
+		/* timer_event = KEYS1_EVENT;*/
 		next_timer = timer + 1;
 		break;
 		}
@@ -10416,7 +10408,7 @@ void timer_expired()
 		setup_text();
 		timer_event = BLINK_EVENT;
 		timer_event = BLANK_GAME_OVER_1_EVENT;
-		// timer_event = KEYS1_EVENT;
+		/* timer_event = KEYS1_EVENT;*/
 		next_timer = timer + 1;
 		break;
 		}
@@ -10616,7 +10608,7 @@ gint advance_game(gpointer data)
 		for (i=0;i<=highest_object_number;i++) {
 #if 0
 			if (game_state.go[i].alive) {
-				// printf("%d ", i);
+				/* printf("%d ", i);*/
 				nalive++;
 			} else {
 				ndead++;
@@ -10629,8 +10621,8 @@ gint advance_game(gpointer data)
 					game_state.go[i].move(&game_state.go[i]);
 				temp_highest_obj = i;	
 			}
-			// if (game_state.go[i].alive && game_state.go[i].move == NULL)
-				// printf("NULL MOVE!\n");
+			/* if (game_state.go[i].alive && game_state.go[i].move == NULL)*/
+				/* printf("NULL MOVE!\n");*/
 		}
 		highest_object_number = temp_highest_obj;
 		if (game_state.missile_locked && timer % 10 == 0 && want_missile_alarm)
@@ -10638,7 +10630,7 @@ gint advance_game(gpointer data)
 	}
 	gtk_widget_queue_draw(main_da);
 	nframes++;
-	// printf("ndead=%d, nalive=%d\n", ndead, nalive);
+	/* printf("ndead=%d, nalive=%d\n", ndead, nalive);*/
 	gdk_threads_leave();
 #if 0
 	if (WORLDWIDTH - game_state.x < 100)
@@ -10980,7 +10972,7 @@ enum keyaction jsbuttonaction[11] = {
 		keybomb,	 /* button 5 */
 		keylaser,	 /* button 6 */
 		keylaser,	 /* button 7 */
-		// keyquarter,	 /* button 8 */ <-- This is no good on xbox360 controller
+		/* keyquarter,*/ /* button 8 */ /* <-- This is no good on xbox360 controller */
 		keylaser,	 /* button 8 */
 		keygravitybomb,	 /* button 9 */
 		keylaser,	 /* button 10 */
@@ -11158,10 +11150,10 @@ void deal_with_joystick()
 				player->vy = player->vy + (diff >> 1);
 			else 
 				player->vy = player->vy + 2;
-			// player->vy = yjstable[index];	
-			// player->vy = MAX_VY * jse.stick1_y / 32767;
-			// player->vy += 2;
-			//player->vy += 4;
+			/* player->vy = yjstable[index];	*/
+			/* player->vy = MAX_VY * jse.stick1_y / 32767;*/
+			/* player->vy += 2;*/
+			/*player->vy += 4;*/
 	} else if (*yaxis < -JOYSTICK_SENSITIVITY) {
 		if (player->vy > -MAX_VY)
 			index = -nyjstable * *yaxis / 32767;
@@ -11175,10 +11167,10 @@ void deal_with_joystick()
 				player->vy = player->vy + (diff >> 1);
 			else 
 				player->vy = player->vy - 2;
-			// player->vy = -yjstable[index];	
-			// player->vy = MAX_VY * jse.stick1_y / 32767;
-			// player->vy -= 4;
-			//player->vy -= 4;
+			/* player->vy = -yjstable[index];	*/
+			/* player->vy = MAX_VY * jse.stick1_y / 32767;*/
+			/* player->vy -= 4;*/
+			/*player->vy -= 4;*/
 	} else {
 		if (player->vy > 0)
 			player->vy--;
@@ -11663,7 +11655,7 @@ static void draw_help_screen(GtkWidget *w)
 
 	gdk_gc_set_foreground(gc, &huex[GREEN]);
 	abs_xy_draw_string(w, "Things you may encounter:", SMALL_FONT, 80, 90);
-	// abs_xy_draw_string(w, "Help?", BIG_FONT, 300, 280);
+	/* abs_xy_draw_string(w, "Help?", BIG_FONT, 300, 280);*/
 	gdk_gc_set_foreground(gc, &huex[GREEN]);
 	draw_abs_scaled_generic(80, 130, &cron_vect, w, 0.5, 0.5);
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
@@ -11740,8 +11732,8 @@ static void draw_help_screen(GtkWidget *w)
 							column = 0;
 							row++;
 						}
-						// foundit = 1;
-						// break;
+						/* foundit = 1;*/
+						/* break;*/
 					}
 				}
 			} else if (ffkeymap[i] == k) {
@@ -11757,8 +11749,8 @@ static void draw_help_screen(GtkWidget *w)
 							column = 0;
 							row++;
 						}
-						// foundit = 1;
-						// break;
+						/* foundit = 1;*/
+						/* break;*/
 					}
 				}
 			}
@@ -12114,8 +12106,8 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		game_state.key_gbomb_pressed = 1;
 		return TRUE;
 	case keypause:
-		// if (game_state.health <= 0 || credits <= 0)
-		//	return TRUE;
+		/* if (game_state.health <= 0 || credits <= 0)*/
+		/*	return TRUE;*/
 		do_game_pause(widget, NULL);
 		return TRUE;
 
@@ -12887,6 +12879,7 @@ int main(int argc, char *argv[])
 	char joystick_device[PATH_MAX+1];
 
 	struct timeval tm;
+	char difficulty[256];
 
 	check_xmastime();
 
@@ -12897,9 +12890,8 @@ int main(int argc, char *argv[])
 	real_screen_width = SCREEN_WIDTH;
 	real_screen_height = SCREEN_HEIGHT;
 	frame_rate_hz = FRAME_RATE_HZ;
-	char difficulty[256];
-	// current_draw_line = crazy_line;
-	// current_draw_rectangle = crazy_rectangle;
+	/* current_draw_line = crazy_line;*/
+	/* current_draw_rectangle = crazy_rectangle;*/
 
 	init_keymap();
 	game_state.max_player_health = MEDIUM_MAXHEALTH;
@@ -13220,8 +13212,8 @@ int main(int argc, char *argv[])
 #if 0 
 	/* Sets the border width of the window. */
 	if (!fullscreen)
-		// this throws off gtk_window_get_size to see what size
-		// we ACTUALLY got, so, don't do it.
+		/* this throws off gtk_window_get_size to see what size*/
+		/* we ACTUALLY got, so, don't do it.*/
 		gtk_container_set_border_width (GTK_CONTAINER (window), 10);
 	else
 		gtk_container_set_border_width (GTK_CONTAINER (window), 0);
@@ -13231,7 +13223,7 @@ int main(int argc, char *argv[])
 	vbox = gtk_vbox_new(FALSE, 0); 
 	main_da = gtk_drawing_area_new();
 	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &huex[WHITE]);
-	// gtk_widget_set_size_request(main_da, real_screen_width, real_screen_height);
+	/* gtk_widget_set_size_request(main_da, real_screen_width, real_screen_height);*/
 
 	g_signal_connect(G_OBJECT (main_da), "expose_event", G_CALLBACK (main_da_expose), NULL);
 	g_signal_connect(G_OBJECT (main_da), "configure_event", G_CALLBACK (main_da_configure), NULL);
@@ -13250,7 +13242,7 @@ int main(int argc, char *argv[])
 		G_CALLBACK (key_release_cb), "window");
 
 
-	// print_target_list();
+	/* print_target_list();*/
 
 	for (i=0;i<NCOLORS+NSPARKCOLORS + NRAINBOWCOLORS;i++)
 		gdk_colormap_alloc_color(gtk_widget_get_colormap(main_da), &huex[i], FALSE, FALSE);
