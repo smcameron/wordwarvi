@@ -24,7 +24,14 @@
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
+#if !defined(__APPLE__)
+/* Apple gets what it needs for malloc from stdlib.h, */
+/* or so the internets would have me believe.  I don't */
+/* have a mac to test this, so if this doesn't work, */
+/* trying including <malloc/malloc.h> outside the ifdef. */
+/* (and let me know.) */
 #include <malloc.h>
+#endif
 
 #include <vorbis/vorbisfile.h>
 
