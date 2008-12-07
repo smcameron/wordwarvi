@@ -2106,6 +2106,8 @@ int current_font_scale = BIG_FONT_SCALE;
 /* every object in the game is a game_obj_t, defined below... */
 struct game_obj_t;
 
+typedef void (*get_coords_func)(struct game_obj_t *o, int *x, int *y);
+
 /* some function pointers which game_obj_t's may have */
 typedef void obj_move_func(struct game_obj_t *o);		/* moves and object, called once per frame */
 typedef void obj_draw_func(struct game_obj_t *o, GtkWidget *w); /* draws object, called 1/frame, if onscreen */
@@ -2245,6 +2247,7 @@ struct kgun_data {
 	int size;	/* between 0 and 31, 31 being the biggest. */
 	int velocity_factor; /* smaller guns shoot slower, unless corrected by velocity factor */
 	int recoil_amount; /* when shooting, set to 10, then decrement to 0 each frame. */
+	struct game_obj_t *attached_to; /* thing gun is attached to */
 };
 
 struct house_data {
@@ -2303,6 +2306,8 @@ struct game_obj_t {
 	struct game_obj_t *next;	/* These pointers, next, prev, are used to construct the */
 	struct game_obj_t *prev;	/* target list, the list of things which may be hit by other things */
 	int ontargetlist;		/* this list keeps of from having to scan the entire object list. */
+	get_coords_func gun_location;	/* for attaching guns to objects */
+	struct game_obj_t *attached_gun;/* For attaching guns to objects */
 };
 
 struct game_obj_t *target_head = NULL;
@@ -2711,7 +2716,7 @@ void laserbolt_move(struct game_obj_t *o)
 		o->destroy(o);
 		return;
 	}
-	if (abs(dy) < 9 && abs(player_target->x - o->x) < 15) { /* hit the player? */
+	if (abs(dy) < 14 && abs(player_target->x - o->x) < 20) { /* hit the player? */
 		explosion(o->x, o->y, o->vx, 1, 70, 20, 20);
 		wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
 		game_state.health -= LASER_BOLT_DAMAGE;
@@ -2814,7 +2819,12 @@ void kgun_move(struct game_obj_t *o)
 	int velocityfactor = o->tsd.kgun.velocity_factor;
 	int invert = o->tsd.kgun.invert;
 	int recoilx, recoily;
+	struct game_obj_t *holder;
 
+	/* if gun is attached to something, make it move with that something */
+	holder = o->tsd.kgun.attached_to;
+	if (holder != NULL)
+		holder->gun_location(holder, &o->x, &o->y);
 
 	if (o->health.prevhealth != o->health.health)
 		o->color = hot_metal_color(o->health.health, o->health.maxhealth);
@@ -3509,6 +3519,12 @@ void tentacle_move(struct game_obj_t *o)
 			break;
 		}
 	}
+}
+
+void octopus_gun_location(struct game_obj_t *o, int *x, int *y)
+{
+	*x = o->x;
+	*y = o->y-65;
 }
 
 void octopus_move(struct game_obj_t *o)
@@ -4567,6 +4583,23 @@ void timpani_boing(struct game_obj_t *bomb)
 	wwviaudio_add_sound(TIMPANI_BOING);
 }
 
+void bomb_move(struct game_obj_t *o);
+void disconnect_any_attached_gun(struct game_obj_t *t)
+{
+	/* Disconnect any attached gun */
+	if (t->attached_gun != NULL) {
+		t->attached_gun->move = bomb_move; 
+		t->attached_gun->tsd.kgun.attached_to = NULL; 
+		t->attached_gun = NULL;
+	}
+	/* if we hit a gun disconnect it */
+	if (t->otype == OBJ_TYPE_KGUN && t->tsd.kgun.attached_to != NULL) {
+		t->tsd.kgun.attached_to->attached_gun = NULL;
+		t->tsd.kgun.attached_to = NULL;
+	}
+
+}
+
 void bomb_move(struct game_obj_t *o)
 {
 	struct game_obj_t *t, *next;
@@ -4655,6 +4688,9 @@ void bomb_move(struct game_obj_t *o)
 							pilotvy = t->vy - 20;
 						}
 					}
+
+					disconnect_any_attached_gun(t);
+
 					if (score_table[t->otype] != 0) {
 						game_state.score += score_table[t->otype] * o->tsd.bomb.bank_shot_factor;
 						add_score_floater(t->x, t->y, score_table[t->otype] * 
@@ -4732,6 +4768,9 @@ void bomb_move(struct game_obj_t *o)
 							if (t->otype == OBJ_TYPE_TRUSS)
 								truss_cut_loose_whats_below(t, o);
 						}
+
+						disconnect_any_attached_gun(t);
+
 						/* FIXME -- need to adjust kill counts. */
 
 						if (score_table[t->otype] != 0) {
@@ -4865,6 +4904,9 @@ void gravity_bomb_move(struct game_obj_t *o)
 				/* find distance squared... don't take square root. */
 				dist2 = (xdist * xdist + ydist * ydist);
 				if (dist2 < GRAVITY_BOMB_HIT_DIST2) {
+
+					disconnect_any_attached_gun(t);
+
 					if (score_table[t->otype] != 0) {
 						game_state.score += score_table[t->otype];
 						add_score_floater(t->x, t->y, score_table[t->otype]);
@@ -5786,11 +5828,15 @@ void laser_move(struct game_obj_t *o)
 					}
 				}
 				if (hit) { /* a hit */
+
 					if (t->uses_health) {
 						t->health.health--;
 						if (t->health.health > 0)
 							break;
 					}
+
+					disconnect_any_attached_gun(t);
+
 					if (t->otype == OBJ_TYPE_TRUSS)
 						truss_cut_loose_whats_below(t, NULL);
 					if (t->otype == OBJ_TYPE_JET || t->otype == OBJ_TYPE_GDB) {
@@ -6406,6 +6452,7 @@ static struct game_obj_t *add_generic_object(int x, int y, int vx, int vy,
 	o->radar_image = 0;
 	o->above_target_y = - LASER_Y_PROXIMITY;
 	o->below_target_y = LASER_Y_PROXIMITY;
+	o->attached_gun = NULL;
 	return o;
 }
 
@@ -8431,6 +8478,27 @@ static int initial_x_location(struct level_obj_descriptor_entry *entry, int i)
 	return x;
 }
 
+static struct game_obj_t *add_flak_gun(int x, int y, int laser_speed, int color, struct game_obj_t *attached_to) 
+{
+	struct game_obj_t *o;
+	o = add_generic_object(x, y, 0, 0, kgun_move, kgun_draw, 
+		color, &inverted_kgun_vect, 1, OBJ_TYPE_KGUN, 1);
+	if (o) {
+		o->tsd.kgun.size = 31;
+		o->tsd.kgun.velocity_factor = laser_speed;
+		o->tsd.kgun.invert = -1;
+		o->tsd.kgun.bank_shot_factor = 1;
+		o->tsd.kgun.attached_to = attached_to;
+		o->uses_health = 1;
+		o->health.maxhealth = level.kgun_health;
+		o->health.health = o->health.maxhealth;
+		o->health.prevhealth = -1;
+		o->above_target_y = -3 * LASER_Y_PROXIMITY;
+		level.nflak++;
+	}
+	return o;
+}
+
 static void add_flak_guns(struct terrain_t *t, 
 	struct level_obj_descriptor_entry *entry, int laser_speed)
 {
@@ -8439,20 +8507,7 @@ static void add_flak_guns(struct terrain_t *t,
 
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
-		o = add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
-			kgun_move, kgun_draw, RED, &inverted_kgun_vect, 1, OBJ_TYPE_KGUN, 1);
-		if (o) {
-			o->tsd.kgun.size = 31;
-			o->tsd.kgun.velocity_factor = laser_speed;
-			o->tsd.kgun.invert = -1;
-			o->tsd.kgun.bank_shot_factor = 1;
-			o->uses_health = 1;
-			o->health.maxhealth = level.kgun_health;
-			o->health.health = o->health.maxhealth;
-			o->health.prevhealth = -1;
-			o->above_target_y = -3 * LASER_Y_PROXIMITY;
-			level.nflak++;
-		}
+		o = add_flak_gun(t->x[xi], t->y[xi] - 7, laser_speed, RED, NULL);
 	}
 }
 
@@ -8509,6 +8564,7 @@ static void add_kernel_guns(struct terrain_t *t,
 			o->tsd.kgun.invert = 1;	/* this means hanging upside down */
 			o->tsd.kgun.velocity_factor = laser_speed;
 			o->tsd.kgun.bank_shot_factor = 1;
+			o->tsd.kgun.attached_to = NULL;
 			o->below_target_y = 3 * LASER_Y_PROXIMITY;
 		}
 		if (p != NULL)
@@ -9235,6 +9291,8 @@ static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *e
 			o->radar_image = 1;
 			o->above_target_y = -25;
 			o->below_target_y = 5;
+			o->gun_location = octopus_gun_location;
+			o->attached_gun = add_flak_gun(o->x, o->y, FAST_LASER, YELLOW, o); 
 
 			/* Make the tentacles. */
 			for (j=0;j<8;j++) {
