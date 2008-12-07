@@ -13250,6 +13250,7 @@ int main(int argc, char *argv[])
 
 
 	make_debris_forms();
+	init_levels_to_beginning();
 	initialize_game_state_new_level();
 	init_radar_noise();
 	game_state.score = 0;
