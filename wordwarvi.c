@@ -3545,6 +3545,17 @@ void octopus_move(struct game_obj_t *o)
 		tx = o->tsd.octopus.tx;
 		ty = o->tsd.octopus.ty;
 
+		{
+			int angle = ((timer * 3 + o->number*47) % 360);
+			tx = player_target->x + sine[angle] * 250;  
+			ty = player_target->y + cosine[angle] * 250;
+	
+			if (ty > gy)
+				ty -= 100;
+
+			o->tsd.octopus.tx = tx;
+			o->tsd.octopus.ty = ty;
+		}
 		/* compute a "desired" vx, vy which is towards the player. */
 		if (o->x < tx && tx - o->x > GDB_DX_THRESHOLD)
 			dvx = GDB_MAX_VX;
@@ -3613,8 +3624,8 @@ void octopus_move(struct game_obj_t *o)
 	/* move the tentacles along with us. */
 	for (i=0;i<8;i++) {
 		if (o->tsd.octopus.tentacle[i]) {
-			o->tsd.octopus.tentacle[i]->x = o->x;
-			o->tsd.octopus.tentacle[i]->y = o->y;
+			o->tsd.octopus.tentacle[i]->x = o->x + ((i-3)*4);
+			o->tsd.octopus.tentacle[i]->y = o->y + 5;
 		}
 	}
 }
@@ -5831,8 +5842,11 @@ void laser_move(struct game_obj_t *o)
 
 					if (t->uses_health) {
 						t->health.health--;
-						if (t->health.health > 0)
+						if (t->health.health > 0) {
+							/* throw a few sparks... */
+							explode(t->x, t->y, t->vx, t->vy, 26, 10, 10);
 							break;
+						}
 					}
 
 					disconnect_any_attached_gun(t);
@@ -8491,6 +8505,12 @@ static struct game_obj_t *add_flak_gun(int x, int y, int laser_speed, int color,
 		o->tsd.kgun.attached_to = attached_to;
 		o->uses_health = 1;
 		o->health.maxhealth = level.kgun_health;
+		if (attached_to != NULL) {
+			/* make sure guns attached to octopi and airships are */
+			/* not trivially easy to kill. */
+			if (o->health.maxhealth < 4)
+				o->health.maxhealth = 4;
+		}
 		o->health.health = o->health.maxhealth;
 		o->health.prevhealth = -1;
 		o->above_target_y = -3 * LASER_Y_PROXIMITY;
@@ -9293,6 +9313,10 @@ static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *e
 			o->below_target_y = 5;
 			o->gun_location = octopus_gun_location;
 			o->attached_gun = add_flak_gun(o->x, o->y, FAST_LASER, YELLOW, o); 
+			o->uses_health = 1;
+			o->health.maxhealth = level.kgun_health;
+			o->health.health = o->health.maxhealth;
+			o->health.prevhealth = -1;
 
 			/* Make the tentacles. */
 			for (j=0;j<8;j++) {
@@ -10918,8 +10942,8 @@ void init_levels_to_beginning()
 	level.nbridges = NBRIDGES;
 	level.nbuildings = NBUILDINGS;
 	level.nhumanoids = NHUMANOIDS;
-	level.kgun_health = KGUN_INIT_HEALTH;
 
+	level.kgun_health = leveld[level.level_number]->max_kgun_health;
 	level.laser_fire_chance = leveld[level.level_number]->laser_fire_chance;
 	level.jetpilot_firechance = leveld[level.level_number]->jetpilot_firechance;
 	level.large_scale_roughness = leveld[level.level_number]->large_scale_roughness;

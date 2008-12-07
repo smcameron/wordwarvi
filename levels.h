@@ -129,7 +129,7 @@
 
 	   The format is:
 
-	   NEW_LEVEL(levelname, levelobjectlist, ssr, lsr, lfc, nbr, nbo, ngb, lspd);
+	   NEW_LEVEL(levelname, levelobjectlist, ssr, lsr, lfc, nbr, nbo, ngb, lspd, mkgh);
 
 	   levelname is the name of your level. e.g., my_level.
 
@@ -169,6 +169,10 @@
 	   lspd is the laser speed, either SLOW_LASER, or FAST_LASER.  This is an
 	   integer factor which is multiplied into the velocity of the laserbolts
 	   coming from the laser guns. 
+
+	   mkgh is the maximum kernel gun (laser) health, or in other words the number
+	   of laser hits it takes to kill.  Easy is 1, which means 1 shot will kill it.
+	   3 or 4 makes tham significantly harder.  (Also they heal over time.)
 
 	   Example:
 
@@ -297,14 +301,15 @@ struct level_descriptor_entry {
 	int ngbombs;
 	int jetpilot_firechance;
 	int laser_velocity_factor;
+	int max_kgun_health;
 };
 
 
-#define NEW_LEVEL(levelname, theobjlist, ssr, lsr, lfc, nbr, nbo, ngb, jfc, lspd) \
+#define NEW_LEVEL(levelname, theobjlist, ssr, lsr, lfc, nbr, nbo, ngb, jfc, lspd, mkgh) \
 struct level_descriptor_entry levelname = { \
 	theobjlist, \
 	sizeof(theobjlist) / sizeof(theobjlist[0]), \
-	ssr, lsr, lfc, nbr, nbo, ngb, jfc, lspd }
+	ssr, lsr, lfc, nbr, nbo, ngb, jfc, lspd, mkgh }
 
 /* Below, the game's levels are defined. */
 
@@ -324,7 +329,7 @@ struct level_obj_descriptor_entry level_1_obj[] = {
 	{ OBJ_TYPE_WORM, 	2, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_BALLOON, 	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GDB, 	3, DO_IT_RANDOMLY, 0 }, 
-	/* { OBJ_TYPE_OCTOPUS,	0, DO_IT_RANDOMLY, 0 },  */
+	{ OBJ_TYPE_OCTOPUS,	1, DO_IT_RANDOMLY, 0 },
 	/* { OBJ_TYPE_TENTACLE,	0, DO_IT_RANDOMLY, 0 },  */
 };
 /* level 1 ends here. ^^^ */
@@ -369,7 +374,7 @@ struct level_obj_descriptor_entry level_3_obj[] = {
 	{ OBJ_TYPE_BALLOON,	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GDB,		7, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
-	{ OBJ_TYPE_BIG_ROCKET, 	10, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_BIG_ROCKET, 	1, DO_IT_RANDOMLY, 0 }, 
 	/* { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, */
 };
 /* end of level 3 */
@@ -473,17 +478,27 @@ struct level_obj_descriptor_entry jet_level_obj[] = {
 #define KILLER_LASER     25 
 #define SLOW_LASER 1
 #define FAST_LASER 2
+#define EASY_KGUNS 1
+#define MEDIUM_KGUNS 2
+#define HARD_KGUNS 5 
 
 #define NBRIDGES 2		/* max initial number of bridges in terrain (less, if no valleys) */
 
 /* ---------------------level descriptors begin here.---------------------- */
-NEW_LEVEL(jet_level, jet_level_obj, 0.11, 0.09, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER);
-NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, LAZY_LASER, NBRIDGES, NBOMBS, NGBOMBS, KILLER_LASER, SLOW_LASER);
-NEW_LEVEL(level2, level_2_obj, 0.15, 0.09, LAZY_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER);
-NEW_LEVEL(level3, level_3_obj, 0.23, 0.23, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER);
-NEW_LEVEL(level4, level_4_obj, 0.29, 0.20, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER);
-NEW_LEVEL(level5, level_5_obj, 0.32, 0.32, AVERAGE_LASER, NBRIDGES + 1, NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER);
-NEW_LEVEL(level6, level_6_obj, 0.14, 0.32, AGGRESSIVE_LASER, NBRIDGES + 3, NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER);
+NEW_LEVEL(jet_level, jet_level_obj, 0.11, 0.09, AVERAGE_LASER, NBRIDGES + 1, 
+	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER, EASY_KGUNS);
+NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, LAZY_LASER, NBRIDGES, 
+	NBOMBS, NGBOMBS, KILLER_LASER, SLOW_LASER, EASY_KGUNS);
+NEW_LEVEL(level2, level_2_obj, 0.15, 0.09, LAZY_LASER, NBRIDGES + 1, 
+	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER, EASY_KGUNS);
+NEW_LEVEL(level3, level_3_obj, 0.23, 0.23, AVERAGE_LASER, NBRIDGES + 1, 
+	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER, EASY_KGUNS);
+NEW_LEVEL(level4, level_4_obj, 0.29, 0.20, AVERAGE_LASER, NBRIDGES + 1, 
+	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER, MEDIUM_KGUNS);
+NEW_LEVEL(level5, level_5_obj, 0.32, 0.32, AVERAGE_LASER, NBRIDGES + 1, 
+	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER, MEDIUM_KGUNS);
+NEW_LEVEL(level6, level_6_obj, 0.14, 0.32, AGGRESSIVE_LASER, NBRIDGES + 3, 
+	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER, HARD_KGUNS);
 /* ---------------------level descriptors end here.---------------------- */
 
 
