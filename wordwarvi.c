@@ -5766,7 +5766,7 @@ void laser_move(struct game_obj_t *o)
 			case OBJ_TYPE_SHIP:
 			case OBJ_TYPE_AIRSHIP:
 				if (abs(o->x - t->x) < 3*60 &&	/* hit a blimp or clipper ship? */
-					o->y - t->y <= 0 &&
+					o->y - t->y <= -30 &&
 					o->y - t->y > -50*3) {
 					if (t->tsd.airship.pressure < 40)
 						t->tsd.airship.pressure += 2;
