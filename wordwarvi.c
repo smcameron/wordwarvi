@@ -3418,7 +3418,7 @@ void tentacle_move(struct game_obj_t *o)
 		}
 	} else {
 		/* attached tentacles don't fall, but remain with whatever they're */
-		/* attached to, usually an octupus head. */
+		/* attached to, usually an octopus head. */
 		o->x = o->tsd.tentacle.attached_to->x;
 		o->y = o->tsd.tentacle.attached_to->y;
 	}
