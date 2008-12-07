@@ -9519,6 +9519,12 @@ static void add_worms(struct terrain_t *t, struct level_obj_descriptor_entry *en
 	}
 }
 
+void airship_gun_location(struct game_obj_t *o, int *x, int *y)
+{
+	*x = o->x-60;
+	*y = o->y-5;
+}
+
 static void add_airships(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
 	int xi, i;
@@ -9532,6 +9538,10 @@ static void add_airships(struct terrain_t *t, struct level_obj_descriptor_entry 
 			o->radar_image = 4;
 			o->tsd.airship.bannerline = 0;
 			o->tsd.airship.pressure = 0;
+			o->gun_location = airship_gun_location;
+			o->attached_gun = add_flak_gun(o->x, o->y, FAST_LASER, YELLOW, o); 
+			o->attached_gun->tsd.kgun.invert = 1;
+			o->attached_gun->v = &kgun_vect;
 			level.nairships++;
 		}
 	}
