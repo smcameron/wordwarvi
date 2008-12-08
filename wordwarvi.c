@@ -3990,18 +3990,14 @@ void pilot_move(struct game_obj_t *o)
 		explode(o->x + exhaust_dx, o->y, -o->vx, 7, 4, 8, 9);
 
 	/* See if we should take a shot at the player... */
-	if (abs(o->x - player_target->x) > 1000)
-		goto dont_shoot;
-	if (abs(o->y - player_target->y) > 800)
-		goto dont_shoot;
-	if (randomn(1000) < (level.jetpilot_firechance)) {
+	if (abs(o->x - player_target->x) < 1000 && 
+		abs(o->y - player_target->y) < 800 &&
+		randomn(1000) < (level.jetpilot_firechance)) {
 		int vx, vy;
 		aim_vx_vy(player_target, o, 28, 10, &vx, &vy);
 		add_laserbolt(o->x, o->y, vx, vy, GREEN, 50);
 		wwviaudio_add_sound(FLAK_FIRE_SOUND);
 	}
-
-dont_shoot:
 
 #if 0
 	/* launch a missile? */	
