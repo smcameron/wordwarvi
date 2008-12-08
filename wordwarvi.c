@@ -4600,6 +4600,7 @@ void disconnect_any_attached_gun(struct game_obj_t *t)
 	/* Disconnect any attached gun */
 	if (t->attached_gun != NULL) {
 		t->attached_gun->move = bomb_move; 
+		t->tsd.bomb.bank_shot_factor = 1;
 		t->attached_gun->tsd.kgun.attached_to = NULL; 
 		t->attached_gun = NULL;
 	}
@@ -5868,6 +5869,7 @@ void laser_move(struct game_obj_t *o)
 						wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
 						explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 						t->move = bomb_move;
+						t->tsd.bomb.bank_shot_factor = 1;
 						break;
 					}
 					if (score_table[t->otype] != 0) {
@@ -7639,6 +7641,7 @@ void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 			i->move = bomb_move; 
 			i->vx = randomn(6)-3;
 			i->vy = randomn(6)-3;
+			i->tsd.bomb.bank_shot_factor = 1;
 			nice_bank_shot(bomb);
 			break;
 		}
@@ -8629,12 +8632,17 @@ static void add_pilot(int pilotx, int piloty, int pilotvx, int pilotvy)
 
 static void add_jets(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
+	struct game_obj_t *o;
 	int i, xi;
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
-		add_generic_object(t->x[xi], KERNEL_Y_BOUNDARY + 5, 0, 0, 
+		o = add_generic_object(t->x[xi], KERNEL_Y_BOUNDARY + 5, 0, 0, 
 			jet_move, NULL, WHITE, &jet_vect, 1, OBJ_TYPE_JET, 1);
-		level.njets++;
+		if (o) {
+			/* in case jets get shot down, they turn into bombs, so need this... */
+			o->tsd.bomb.bank_shot_factor = 1;
+			level.njets++;
+		}
 	}
 }
 
