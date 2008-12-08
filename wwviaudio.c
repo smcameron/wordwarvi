@@ -309,7 +309,7 @@ int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds, int maximum_so
 		patestCallback, NULL /* cookie */);    
 	if (rc != paNoError)
 		goto error;
-	if ((rc = Pa_StartStream(stream)) != paNoError);
+	if ((rc = Pa_StartStream(stream)) != paNoError)
 		goto error;
 	return rc;
 error:
