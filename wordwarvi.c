@@ -11106,7 +11106,7 @@ void deal_with_joystick()
 	yaxis = &jse.stick_y;
 
 #define JOYSTICK_SENSITIVITY 5000
-#define XJOYSTICK_THRESHOLD 30000
+#define XJOYSTICK_THRESHOLD 20000
 
 	memset(&jse.button[0], 0, sizeof(jse.button[0]*10));
 	rc = get_joystick_status(&jse);
