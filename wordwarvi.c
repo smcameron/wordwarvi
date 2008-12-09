@@ -3287,16 +3287,21 @@ void lightning_draw( GtkWidget *w, int x1, int y1, int x2, int y2)
 
 	/* terminal case, x1, y1, and x2, y2 are very close, just draw a line. */
 	if (dx < 10 && dy < 10) {
-		gdk_gc_set_foreground(gc, &huex[BLUE]);
+		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
 		if (dx < dy) {
 			wwvi_draw_line(w->window, gc, x1-1, y1, x2-1, y2); 
 			wwvi_draw_line(w->window, gc, x1+1, y1, x2+1, y2); 
+			gdk_gc_set_foreground(gc, &huex[BLUE]);
+			wwvi_draw_line(w->window, gc, x1-2, y1, x2-2, y2); 
+			wwvi_draw_line(w->window, gc, x1+2, y1, x2+2, y2); 
 		} else {
 			wwvi_draw_line(w->window, gc, x1, y1-1, x2, y2-1); 
 			wwvi_draw_line(w->window, gc, x1, y1+1, x2, y2+1); 
+			gdk_gc_set_foreground(gc, &huex[BLUE]);
+			wwvi_draw_line(w->window, gc, x1, y1-2, x2, y2-1); 
+			wwvi_draw_line(w->window, gc, x1, y1+2, x2, y2+1); 
 		}
-		gdk_gc_set_foreground(gc, &huex[WHITE]);
-		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
 		return;
 	}
 
