@@ -9223,8 +9223,8 @@ static void add_cron(struct terrain_t *t, struct level_obj_descriptor_entry *ent
 			o->radar_image = 1;
 			o->tsd.cron.state = CRON_STATE_SEEKING_HUMAN;
 			o->tsd.cron.pissed_off_timer = 0;
-			o->above_target_y = -15;
-			o->below_target_y = 0;
+			o->above_target_y = -17;
+			o->below_target_y = 2;
 			level.ncron++;
 		}
 	}
