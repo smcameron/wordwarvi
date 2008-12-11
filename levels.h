@@ -277,6 +277,7 @@
 #define OBJ_TYPE_REINDEER 'R'
 #define OBJ_TYPE_HOUSE '^'
 #define OBJ_TYPE_PRESENT 'G'
+#define OBJ_TYPE_SCENERY '9'
 
 #define NHOUSES 10
 

@@ -911,6 +911,24 @@ struct my_point_t SAM_station_points[] = {
 
 };
 
+struct my_point_t SAM_station_debris_points[] = {
+	{ -5, 0 },   /* Bottom base */
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, RED },
+	{ -5, 0 },   /* Bottom base */
+	{ -5, -10 },
+	{ 5, 0 },
+	{ 5, -10 },
+	{ -5, 0 },
+	{ 5, 0 }, 	
+	{ LINE_BREAK, LINE_BREAK },
+	{ COLOR_CHANGE, WHITE },
+	{ 20, 0 }, /* Little building */
+	{ 20, -10 },
+	{ 30, -13 },
+	{ 30, 0 },
+};
+
 struct my_point_t airship_points[] = {
 	{ -70, -50 }, /* tip of nose */
 	{ -60, -60 },
@@ -1041,6 +1059,18 @@ struct my_point_t jammer_points[] = {
 	{ -3, -15 },
 	{ -5, -10 },
 	{ -10, -10 },
+	{ -10, 0 },
+};
+
+struct my_point_t jammer_debris_points[] = {
+	{ -10, 0 },
+	{ 10, 0 },
+	{ 10, -6 },
+	{ 5, -2 },
+	{ 3, -7 },
+	{ -3, -0 },
+	{ -7, -3 },
+	{ -10, -4 },
 	{ -10, 0 },
 };
 
@@ -1194,6 +1224,36 @@ struct my_point_t fuel_points[] = {
 	{ 18, -5 },
 	{ 18, 25 },
 	{ 25, 25 },
+};
+
+struct my_point_t fuel_debris_points[] = {
+	
+	{ 25, 30 },
+	{ 30, 25 },
+	{ 30, 30 },
+	
+	{ 25, 33 }, /* bottom curve */
+	{ 20, 34 },
+	{ -20, 34 },
+	{ -25, 33 },
+
+	{ -30, 30 },
+	{ -30, 23 },
+	{ -27, 30 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -25, 30 },
+	{ -20, 20 },
+	{ -18, 27 },
+	{ -10, 22 },
+	{ -4,  29 },
+	{  0,  23 },
+	{ 7, 30 },
+	{ 9, 24 },
+	{ 15, 28 },
+	{ 19, 16 },
+	{ 26, 27 },
+
+		 
 };
 
 struct my_point_t right_laser_beam_points[] = {
@@ -1778,10 +1838,12 @@ struct my_vect_obj jet_vect;
 struct my_vect_obj spark_vect;
 struct my_vect_obj right_laser_vect;
 struct my_vect_obj fuel_vect;
+struct my_vect_obj fuel_debris_vect;
 struct my_vect_obj house_vect;
 struct my_vect_obj present_vect;
 struct my_vect_obj house_green_vect;
 struct my_vect_obj jammer_vect;
+struct my_vect_obj jammer_debris_vect;
 struct my_vect_obj cron_vect;
 struct my_vect_obj ship_vect;
 struct my_vect_obj bomb_vect;
@@ -1791,6 +1853,7 @@ struct my_vect_obj inverted_kgun_vect;
 struct my_vect_obj airship_vect;
 struct my_vect_obj balloon_vect;
 struct my_vect_obj SAM_station_vect;
+struct my_vect_obj SAM_station_debris_vect;
 struct my_vect_obj humanoid_vect;
 struct my_vect_obj jetpilot_vect_right;
 struct my_vect_obj jetpilot_vect_left;
@@ -2313,6 +2376,7 @@ struct game_obj_t {
 	int ontargetlist;		/* this list keeps of from having to scan the entire object list. */
 	get_coords_func gun_location;	/* for attaching guns to objects */
 	struct game_obj_t *attached_gun;/* For attaching guns to objects */
+	struct my_vect_obj *debris_form;/* How to draw it when destroyed. */
 };
 
 struct game_obj_t *target_head = NULL;
@@ -4295,6 +4359,19 @@ static inline void kill_object(struct game_obj_t *o)
 	free_object(o->number);
 }
 
+static void kill_and_debris_object(struct game_obj_t *o)
+{
+	if (o->debris_form != NULL) {
+		o->v = o->debris_form;
+		o->alive = 1;
+		o->otype = OBJ_TYPE_SCENERY;
+		o->move = NULL;
+		o->draw = draw_generic;
+		return;
+	}
+	kill_object(o);
+}
+
 int find_free_obj();
 
 void laser_move(struct game_obj_t *o);
@@ -4728,7 +4805,7 @@ void bomb_move(struct game_obj_t *o)
 					spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 					/* t->alive = 0; */
 					next = remove_target(t);
-					kill_object(t);
+					kill_and_debris_object(t);
 					t->destroy(t);
 					t = next;
 					removed = 1;
@@ -4808,7 +4885,7 @@ void bomb_move(struct game_obj_t *o)
 						explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 						spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 						next = remove_target(t);
-						kill_object(t);
+						kill_and_debris_object(t);
 						/* t->alive = 0; */
 						t->destroy(t);
 						/* if (t->otype == OBJ_TYPE_FUEL) {
@@ -5891,7 +5968,7 @@ void laser_move(struct game_obj_t *o)
 				explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 				spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 				next = remove_target(t);
-				kill_object(t);
+				kill_and_debris_object(t);
 				/* if (t->otype == OBJ_TYPE_FUEL) {
 					game_state.health += 10;
 					if (game_state.health > game_state.max_player_health)
@@ -7416,6 +7493,8 @@ void init_vects()
 	right_laser_vect.npoints = sizeof(right_laser_beam_points) / sizeof(right_laser_beam_points[0]);
 	fuel_vect.p = fuel_points;
 	fuel_vect.npoints = sizeof(fuel_points) / sizeof(fuel_points[0]);
+	fuel_debris_vect.p = fuel_debris_points;
+	fuel_debris_vect.npoints = sizeof(fuel_debris_points) / sizeof(fuel_debris_points[0]);
 	house_vect.p = house_points;
 	house_vect.npoints = sizeof(house_points) / sizeof(house_points[0]);
 	house_green_vect.p = house_green_points;
@@ -7424,6 +7503,8 @@ void init_vects()
 	present_vect.npoints = sizeof(present_points) / sizeof(present_points[0]);
 	jammer_vect.p = jammer_points;
 	jammer_vect.npoints = sizeof(jammer_points) / sizeof(jammer_points[0]);
+	jammer_debris_vect.p = jammer_debris_points;
+	jammer_debris_vect.npoints = sizeof(jammer_debris_points) / sizeof(jammer_debris_points[0]);
 	cron_vect.p = cron_points;
 	cron_vect.npoints = sizeof(cron_points) / sizeof(cron_points[0]);
 	ship_vect.p = ships_hull_points;
@@ -7487,6 +7568,8 @@ void init_vects()
 	balloon_vect.npoints = sizeof(balloon_points) / sizeof(balloon_points[0]);
 	SAM_station_vect.p = SAM_station_points;
 	SAM_station_vect.npoints = sizeof(SAM_station_points) / sizeof(SAM_station_points[0]);
+	SAM_station_debris_vect.p = SAM_station_debris_points;
+	SAM_station_debris_vect.npoints = sizeof(SAM_station_debris_points) / sizeof(SAM_station_debris_points[0]);
 	humanoid_vect.p = humanoid_points;
 	humanoid_vect.npoints = sizeof(humanoid_points) / sizeof(humanoid_points[0]);
 	socket_vect.p = socket_points;
@@ -8529,6 +8612,8 @@ static void add_flak_guns(struct terrain_t *t,
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
 		o = add_flak_gun(t->x[xi], t->y[xi] - 7, laser_speed, RED, NULL);
+		if (o)
+			o->debris_form = o->v;  /* for the guns, just the base... */
 	}
 }
 
@@ -9241,6 +9326,7 @@ static void add_jammers(struct terrain_t *t, struct level_obj_descriptor_entry *
 			o->radar_image = 1;
 			o->above_target_y = -20;
 			o->below_target_y = 0;
+			o->debris_form = &jammer_debris_vect;
 			level.njammers++;
 		}
 		
@@ -9281,6 +9367,7 @@ static void add_fuel(struct terrain_t *t, struct level_obj_descriptor_entry *ent
 			level.nfueltanks++;
 			o->above_target_y = -2 * LASER_Y_PROXIMITY;
 			o->below_target_y = 3 * LASER_Y_PROXIMITY;
+			o->debris_form = &fuel_debris_vect;
 		}
 	}
 }
@@ -9432,6 +9519,7 @@ static void add_SAMs(struct terrain_t *t, struct level_obj_descriptor_entry *ent
 		if (o) {
 			o->above_target_y = -50;
 			o->below_target_y = 0;
+			o->debris_form = &SAM_station_debris_vect;
 			level.nsams++;
 		}
 	}
