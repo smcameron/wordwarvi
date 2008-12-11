@@ -224,7 +224,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define MIN_ALT 50		/* for "attract mode", min altitude above ground player flies. */
 
 #define EASY_MAXHEALTH 150		/* Max, and initial health value of player */
-#define MEDIUM_MAXHEALTH 100		/* Max, and initial health value of player */
+#define MEDIUM_MAXHEALTH 100000		/* Max, and initial health value of player */
 #define HARD_MAXHEALTH 32		/* Max, and initial health value of player */
 #define INSANE_MAXHEALTH 10		/* Max, and initial health value of player */
 #define BATSHIT_INSANE_MAXHEALTH 3	/* Max, and initial health value of player */
@@ -2258,6 +2258,10 @@ struct bomb_data {
 	int bank_shot_factor;
 };
 
+struct laser_data {
+	int tail_x;
+};
+
 union type_specific_data {		/* union of all the typs specific data */
 	struct harpoon_data harpoon;
 	struct gdb_data gdb;
@@ -2277,6 +2281,7 @@ union type_specific_data {		/* union of all the typs specific data */
 	struct kgun_data kgun;
 	struct house_data house;
 	struct bomb_data bomb;
+	struct laser_data laser;
 };
 
 struct game_obj_t {
@@ -4332,6 +4337,7 @@ void player_fire_laser()
 		o->alive = 20;
 		o->next = NULL;
 		o->prev = NULL;
+		o->tsd.laser.tail_x = o->x;
 	
 		game_state.nextlasercolor++;
 		if  (game_state.nextlasercolor >= NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS)
@@ -5746,24 +5752,39 @@ void laser_draw(struct game_obj_t *o,  GtkWidget *w)
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 
 	if (o->vx > 0)
-		x2 = x1 - (15) * (20 - o->alive);
+		x2 = x1 - (15) * (21 - o->alive);
 	else
-		x2 = x1 + (15) * (20 - o->alive);
+		x2 = x1 + (15) * (21 - o->alive);
 	wwvi_bright_line(w->window, gc, x1, y1, x2, y1, o->color);
 
 #if DEBUG_HITZONE
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	if (o->vx < 0) 
-		wwvi_draw_rectangle(w->window, gc, 0, x1 + o->vx, y1 - LASER_Y_PROXIMITY, -o->vx, LASER_Y_PROXIMITY*2);
-	else
-		wwvi_draw_rectangle(w->window, gc, 0, x1 - o->vx, y1 - LASER_Y_PROXIMITY, o->vx, LASER_Y_PROXIMITY*2);
+	wwvi_draw_line(w->window,gc, x1, y1 - LASER_Y_PROXIMITY, x1, y1 + LASER_Y_PROXIMITY);
+	wwvi_draw_line(w->window,gc, x2, y1 - LASER_Y_PROXIMITY, x2, y1 + LASER_Y_PROXIMITY);
 #endif
+}
+
+static inline int laser_hit_target(struct game_obj_t *laser, struct game_obj_t *target)
+{
+	if (laser->vx > 0) {
+		if (laser->x <= target->x || 
+			laser->tsd.laser.tail_x >= target->x)
+			return 0;
+	} else {
+		if (laser->x >= target->x || 
+			laser->tsd.laser.tail_x <= target->x)
+			return 0;
+	}
+
+	if (laser->y <= target->y + target->above_target_y || 
+		laser->y >= target->y + target->below_target_y) 
+		return 0;
+	return 1;
 }
 
 void laser_move(struct game_obj_t *o)
 {
 	struct game_obj_t *t, *next;
-	int hit;
 	int removed;
 	int addpilot = 0;
 	int pilotx, piloty, pilotvx, pilotvy;
@@ -5773,6 +5794,10 @@ void laser_move(struct game_obj_t *o)
 		return;
 	o->x += o->vx;
 	o->y += o->vy;
+	if (o->vx > 0)
+		o->tsd.laser.tail_x = o->x - (15) * (21 - o->alive);
+	else
+		o->tsd.laser.tail_x = o->x + (15) * (21 - o->alive);
 
 	/* search the list of potential targets and see if we've hit anything. */
 	for (t=target_head;t != NULL;) {
@@ -5823,100 +5848,65 @@ void laser_move(struct game_obj_t *o)
 			case OBJ_TYPE_JETPILOT:
 			case OBJ_TYPE_MISSILE:{
 
-				/* check y value first. */
-				hit = 0;
-#if 0
-				if (abs(o->y - t->y) <= LASER_Y_PROXIMITY) {
-					if (o->vx > 0) {
-						if (o->x > t->x && o->x - o->vx < t->x)
-							hit=1;
-					} else {
-						if (o->x < t->x && o->x - o->vx > t->x)
-							hit=1;
-					}
-				}
-#endif
+				if (!laser_hit_target(o,t))
+					break;
 
-				if (o->y > t->y + t->above_target_y && o->y < t->y + t->below_target_y) {
-					if (o->vx > 0) {
-						if (o->x > t->x && o->x - o->vx < t->x)
-							hit=1;
-					} else {
-						if (o->x < t->x && o->x - o->vx > t->x)
-							hit=1;
-					}
-				}
-				if (hit) { /* a hit */
-
-					if (t->uses_health) {
-						t->health.health--;
-						if (t->health.health > 0) {
-							/* throw a few sparks... */
-							explode(t->x, t->y, t->vx, t->vy, 26, 10, 10);
-							break;
-						}
-					}
-
-					disconnect_any_attached_gun(t);
-
-					if (t->otype == OBJ_TYPE_TRUSS)
-						truss_cut_loose_whats_below(t, NULL);
-					if (t->otype == OBJ_TYPE_JET || t->otype == OBJ_TYPE_GDB) {
-						addpilot = 1;
-						pilotx = t->x;
-						piloty = t->y;
-						pilotvx = t->vx;
-						pilotvy = t->vy - 20;
-					}
-					if (t->otype == OBJ_TYPE_JET &&
-						(randomn(100) < 50)) {
-						/* half the time, jets will drop out */
-						/* of the sky like a bomb when hit, instead of */
-						/* exploding. */
-						wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
-						explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
-						t->move = bomb_move;
-						t->tsd.bomb.bank_shot_factor = 1;
+				if (t->uses_health) {
+					t->health.health--;
+					if (t->health.health > 0) {
+						/* throw a few sparks... */
+						explode(t->x, t->y, t->vx, t->vy, 26, 10, 10);
 						break;
 					}
-					if (score_table[t->otype] != 0) {
-						game_state.score += (score_table[t->otype]);
-						add_score_floater(t->x, t->y, score_table[t->otype]);
-					}
-					kill_tally[t->otype]++;
+				}
+
+				disconnect_any_attached_gun(t);
+
+				if (t->otype == OBJ_TYPE_TRUSS)
+					truss_cut_loose_whats_below(t, NULL);
+				if (t->otype == OBJ_TYPE_JET || t->otype == OBJ_TYPE_GDB) {
+					addpilot = 1;
+					pilotx = t->x;
+					piloty = t->y;
+					pilotvx = t->vx;
+					pilotvy = t->vy - 20;
+				}
+				if (t->otype == OBJ_TYPE_JET &&
+					(randomn(100) < 50)) {
+					/* half the time, jets will drop out */
+					/* of the sky like a bomb when hit, instead of */
+					/* exploding. */
 					wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
 					explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
-					spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
-					next = remove_target(t);
-					kill_object(t);
-					/* if (t->otype == OBJ_TYPE_FUEL) {
-						game_state.health += 10;
-						if (game_state.health > game_state.max_player_health)
-							game_state.health = game_state.max_player_health;
-					} */
-					t->destroy(t);
-					t = next;
-					removed = 1;
-					kill_object(o);
-					o->destroy(o);
+					t->move = bomb_move;
+					t->tsd.bomb.bank_shot_factor = 1;
+					break;
 				}
+				if (score_table[t->otype] != 0) {
+					game_state.score += (score_table[t->otype]);
+					add_score_floater(t->x, t->y, score_table[t->otype]);
+				}
+				kill_tally[t->otype]++;
+				wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
+				explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
+				spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
+				next = remove_target(t);
+				kill_object(t);
+				/* if (t->otype == OBJ_TYPE_FUEL) {
+					game_state.health += 10;
+					if (game_state.health > game_state.max_player_health)
+						game_state.health = game_state.max_player_health;
+				} */
+				t->destroy(t);
+				t = next;
+				removed = 1;
+				kill_object(o);
+				o->destroy(o);
 			}
 			break;
 			case OBJ_TYPE_WORM:
-				/* check y value first. */
-				hit = 0;
-				if (abs(o->y - t->y) <= LASER_Y_PROXIMITY) {
-					if (o->vx > 0) {
-						if (o->x > t->x && o->x - o->vx < t->x)
-							hit=1;
-					} else {
-						if (o->x < t->x && o->x - o->vx > t->x)
-							hit=1;
-					}
-				}
-				if (!hit)
+				if (!laser_hit_target(o, t))
 					break;
-
 				explode(t->x, t->y, t->vx, 1, 70, 10, 20);
 				/* cut the worm in half where it's hit. */
 				/* Disconnect the top half: */
@@ -8523,7 +8513,8 @@ static struct game_obj_t *add_flak_gun(int x, int y, int laser_speed, int color,
 		}
 		o->health.health = o->health.maxhealth;
 		o->health.prevhealth = -1;
-		o->above_target_y = -3 * LASER_Y_PROXIMITY;
+		o->above_target_y = -27;
+		o->below_target_y = 20;
 		level.nflak++;
 	}
 	return o;
@@ -8595,7 +8586,8 @@ static void add_kernel_guns(struct terrain_t *t,
 			o->tsd.kgun.velocity_factor = laser_speed;
 			o->tsd.kgun.bank_shot_factor = 1;
 			o->tsd.kgun.attached_to = NULL;
-			o->below_target_y = 3 * LASER_Y_PROXIMITY;
+			o->below_target_y = 27;
+			o->above_target_y = -20;
 		}
 		if (p != NULL)
 			p->tsd.truss.below = o;
