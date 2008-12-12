@@ -1,5 +1,47 @@
 Changelog for wordwarvi:
 
+Thu Dec 11 20:22:27 CST 2008
+-------------------------------------------------------------------------------
+Changes between version 0.23 and 0.24
+
+* Fixed a bunch of compiler warnings with "-pedantic" turned on.
+* Cater to Apple's weird placement of malloc.h
+* Fix bug that terrian was always perfectly flat in the first attract mode
+  level due to incomplete initialization of level related variables
+* Improved (to my ear) the sound of the laser guns.
+* Fixed a typo
+* Make octopus so they don't die if they hit the ground.
+* Attached frickin' lasers onto the heads of the space octopi.
+* Attached fricken lasers to Stallman's airship.
+* Fixed a problem that the guns mounted on the airships were not shootable.
+* Made octopi fly around a bit better (more like gdbs).
+* Changed the attachment point of tentacles slightly.
+* Made laser turrets harder to kill in later levels, and when
+  attached to octopus head, or airship.
+* Fixed a bug that PA_terminate() was called unconditionally (how audio
+  continued to work despite this is quite mysterious.)  Hans de Goede found
+  this while integrating with pulseaudio on Fedora 10.  Thanks Hans!
+* Make sure that when anything gets the bomb_move movement method,
+  (e.g. falling turrets, shot down jets, etc.) they get the bank_shot_factor
+  properly initialized to avoid spurious "Nice Bank Shot!" sounds.
+* Fix problem that jet pilots would shoot at you even if they
+  were miles away.
+* thought better of using goto... old fashioned "no goto" way seemed better
+  in this instance.
+* Shrink the x-axis dead zone.  With the xbox 360 controller, it was too
+  easy to miss a reverse if the stick was a little off axis in y.  This
+  was, I think due to the round gates, while the logitech dual action
+  rumble has square gates, so being off axis in y doesn't affect the
+  maximum possible x value as it does on the xbox controller.
+* Draw lightning thicker
+* Made cron jobs slightly easier to shoot.
+* Tightened up the laser/target collision detection code.
+* Adjusted hitzones of some enemies to make some of them
+  very slightly easier to hit..
+* Knock health back down to sensible level (fix accidental commit).
+* Fuel tanks, ground mounted turret guns, and radar jammers now leave
+  behind permanent debris corpses when they are destroyed.
+
 Sat Nov 29 09:19:15 CST 2008
 -------------------------------------------------------------------------------
 Changes between version 0.22 and 0.23
