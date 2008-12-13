@@ -3518,9 +3518,9 @@ void tentacle_move(struct game_obj_t *o)
 		da = (t->dest_angle - t->angle);
 		if (abs(da) > 10) {
 			if (t->angle < t->dest_angle)
-				t->angular_v = 3;
+				t->angular_v = 2;
 			else if (t->angle > t->dest_angle)
-				t->angular_v = -3;
+				t->angular_v = -2;
 		} else {
 			if (t->angle < t->dest_angle)
 				t->angular_v = 1;
@@ -3553,13 +3553,7 @@ void tentacle_move(struct game_obj_t *o)
 
 			/* mostly, set tentacle segment desired angles  */
 			/* to random values, but in range... */
-		case 0:
-		case 1:
-		case 2:
-		case 3:
 		case 4:
-		case 7:
-		case 8:
 			for (i=1;i<o->tsd.tentacle.nsegs;i++) {
 				t = &o->tsd.tentacle.seg[i];
 				t->dest_angle = randomn(2 * MAX_SEG_ANGLE) - MAX_SEG_ANGLE;
@@ -3577,20 +3571,26 @@ void tentacle_move(struct game_obj_t *o)
 				o->vy = -sine[o->tsd.tentacle.angle] * 20;
 			}
 			break;
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+		case 7:
 		case 5:
-			/* sometimes, make tentacles curl up clockwise... */
-			for (i=0;i<o->tsd.tentacle.nsegs;i++) {
-				t = &o->tsd.tentacle.seg[i];
-				t->angular_v = -1;
-			}
-			break;
 		case 9:
-			/* sometimes, make tentacles curl up counterclockwise... */
-			for (i=0;i<o->tsd.tentacle.nsegs;i++) {
-				t = &o->tsd.tentacle.seg[i];
-				t->angular_v = 1;
+		case 8: {
+				float temper;
+				int curvedir = randomn(100) < 50 ? -1 : 1;
+				int delta = randomn(10);
+				temper = (randomn(40) + 60.0) / 100.0;
+				t = &o->tsd.tentacle.seg[o->tsd.tentacle.nsegs-1];
+				t->dest_angle = curvedir * MAX_SEG_ANGLE; 
+				for (i=o->tsd.tentacle.nsegs-1;i>0;i--) {
+					t = &o->tsd.tentacle.seg[i-1];
+					t[0].dest_angle = t[1].dest_angle * temper + -curvedir * delta; 
+				}
+				break;
 			}
-			break;
 		}
 	}
 }
