@@ -3319,19 +3319,20 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 	if (o->tsd.cron.eyepos > 10)
 		o->tsd.cron.eyepos = -10;
 	
-
 	/* draw the cron job's scanning beam... */
 	if (o->tsd.cron.beam_speed != 0) { /* beam on? */
-		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS+NRAINBOWCOLORS)]);
-		gy = ground_level(o->x + o->tsd.cron.beam_pos, &xi, NULL);
-		if (xi != -1) {
-			x1 = o->x - game_state.x;
-			y1 = o->y + 7 - game_state.y + (SCREEN_HEIGHT/2);  
-			x2 = o->x + o->tsd.cron.beam_pos - game_state.x; 
-			y2 = gy + (SCREEN_HEIGHT/2) - game_state.y;
-			if (x1 > 0 && x2 > 0) /* on screen? */
-				wwvi_draw_line(w->window, gc, x1, y1, x2, y2);  /* draw beam. */
-			explode(o->x + o->tsd.cron.beam_pos, gy, 0, 1, 20, 3, 10); /* make sparks. */
+		x1 = o->x - game_state.x;
+		x2 = o->x + o->tsd.cron.beam_pos - game_state.x; 
+		if ((x1 > 0 && x2 > 0) && 
+			(x1 < SCREEN_WIDTH && x2 < SCREEN_WIDTH)) { /* on screen? */
+			gy = ground_level(o->x + o->tsd.cron.beam_pos, &xi, NULL);
+			if (xi != -1) {
+				y1 = o->y + 7 - game_state.y + (SCREEN_HEIGHT/2);  
+				y2 = gy + (SCREEN_HEIGHT/2) - game_state.y;
+				wwvi_bright_line(w->window, gc, x1, y1, x2, y2,
+					randomn(NCOLORS+NSPARKCOLORS+NRAINBOWCOLORS));  /* draw beam. */
+				explode(o->x + o->tsd.cron.beam_pos, gy, 0, 1, 20, 3, 10); /* make sparks. */
+			}
 		}
 	}
 }
