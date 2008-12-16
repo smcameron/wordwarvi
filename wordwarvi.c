@@ -12745,7 +12745,7 @@ void init_highscores()
 	highscore[1].score = 2170300;
 	strcpy(highscore[2].name, "JOY"); /* as in Bill */
 	highscore[2].score = 2051000;
-	strcpy(highscore[2].name, "RMS");
+	strcpy(highscore[2].name, "JWZ"); /* xemacs... */
 	highscore[2].score = 2043000;
 }
 
@@ -13051,6 +13051,74 @@ void check_xmastime()
 	}
 }
 
+void check_for_screensaver()
+{
+	static char *cmd = "ps -efa | grep screensaver | grep -v grep >/dev/null 2>&1";
+	if (system(cmd) != 0)
+		return;
+
+	/* if there were a sane, universal means to inhibit screensavers, */
+	/* here is where it would go.  Instead, a message: */
+
+	fprintf(stderr, "\n\n\n");
+	fprintf(stderr, "  Screen saver and joystick detected.  Since joystick events\n");
+	fprintf(stderr, "  aren't going through X11, there is a good chance your screen saver\n");
+	fprintf(stderr, "  will unpleasantly interrupt your game.  There are several\n");
+	fprintf(stderr, "  popular screen savers (xscreensaver, gnome-screensaver and\n");
+	fprintf(stderr, "  kscreensaver being the three main ones).  Each of these\n");
+	fprintf(stderr, "  has its own methods by which an application may temporarily\n");
+	fprintf(stderr, "  inhibit it.  If the screen saver guys can come up with a sane\n");
+	fprintf(stderr, "  method for an application to inhibit a screen saver to which\n");
+	fprintf(stderr, "  they can all agree, then I might add such code to wordwarvi.\n");
+	fprintf(stderr, "  As things currently stand, you should probably disable your\n");
+	fprintf(stderr, "  screen saver manually, by whatever means they've given you,\n");
+	fprintf(stderr, "  or at least be prepared to have your game interrupted by the\n");
+	fprintf(stderr, "  screen saver from time to time.\n");
+	fprintf(stderr, "\n  -- steve\n");
+	fprintf(stderr, "\n\n\n");
+
+	/* Another possibility might be to get joystick events through X somehow. */
+	/* A quick google indicates there is such a thing as an Xorg X11 joystick */
+	/* input driver.  However, getting at this through gtk might not be possible */
+	/* and doing plain old X code is not something I want to mess with.  Also, */
+	/* strongly suspect that this joystick driver isn't in most distros, and in*/
+	/* none which I use.  So this is probably a dead end.  It would probably be */
+	/* the cleanest solution in the long run, however, as then the joystick events */
+	/* would inhibit the screen saver in precisely the same way that keyboard and */
+	/* mouse events do. */
+
+	/* Another possibility would be synthesizing events somehow.  There is a libXTst */
+	/* for testing X which could probably be used to synthesize events and thus */
+	/* possibly inhibit the screensaver, but I don't really know how to do it. */ 
+
+	/* Then there is crap like what's described here: */
+	/* http://www.jwz.org/xscreensaver/faq.html#dvd */
+	/* which advocates doing this, triggered by a timer,  while asserting */
+	/* that it's fast enough:
+ 
+		if (playing && !paused) {
+			system ("xscreensaver-command -deactivate >&- 2>&- &");
+		}  */
+
+	/* I should probably cut jwz some slack though, because he's jwz, and because */
+	/* he did a lot of work on xemacs.  And it may be fast enough, for all I know */
+	/* but I'm not interested in a screen saver specific solution.  This just papers */
+	/* over the current mess and makes it seem ok, when it isn't ok. */
+
+	/* Similarly for gnome-screensaver there is a "gnome-screensaver-command --poke"  */
+	/* command.  There's quite likely something similar (but different) for kscreensaver. */
+	/* which I can't be bothered to look up, on account of I hate KDE, because it */
+	/* seems designed by insane people who actually *like* the way the Windows UI works. */
+
+	/* All of that is of course bullshit up with which I will not put.  There needs to be */ 
+	/* a universal, screen saver agnostic, sane way that doesn't involve starting a new process. */
+	/* Nothing less is acceptable. */
+
+	/* Getting joystick events through X and gtk is probably the */
+	/* correct answer (and currently impossible, AFAICT, or at least very */
+	/* impractical) */
+}
+
 int main(int argc, char *argv[])
 {
 	/* GtkWidget is the storage type for widgets */
@@ -13315,7 +13383,8 @@ int main(int argc, char *argv[])
 	jsfd = open_joystick(joystick_device);
 	if (jsfd < 0) {
 		printf("No joystick...\n");
-	};
+	} else
+		check_for_screensaver();
 
 #ifdef WITHAUDIOSUPPORT
 	if (nomusic)
