@@ -66,7 +66,7 @@
 /* #define DEBUG_TARGET_LIST */
 
 #define MAX_CONCURRENT_SOUNDS (26)
-#define NCLIPS 56
+#define NCLIPS 58
 /* define sound clip constants */
 #define PLAYER_LASER_SOUND 0
 #define BOMB_IMPACT_SOUND 1
@@ -123,6 +123,8 @@
 #define HOHOHO 52
 #define HOHOHO_MERRY_XMAS 53
 #define YAY_SANTA 54
+#define RADAR_FAIL 55
+#define RADAR_READY 56
 /* ...End of audio stuff */
 
 #define NHUMANOIDS 4 /* number of vi .swp files, initially */
@@ -5700,6 +5702,7 @@ void player_move(struct game_obj_t *o)
 	} else if (game_state.health <= RADAR_FRITZ_HEALTH) {
 		if (game_state.radar_state != RADAR_FRITZED) {
 			game_state.radar_state = RADAR_FRITZED;
+			wwviaudio_add_sound(RADAR_FAIL);
 		}
 	}
 
@@ -10198,6 +10201,8 @@ void draw_radar(GtkWidget *w)
 		abs_xy_draw_string(w, radar_msg1, TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2-10);
 		abs_xy_draw_string(w, radar_msg2, TINY_FONT, x1 + 80, y1 + RADAR_HEIGHT/2+10);
 		game_state.radar_state --;
+		if (game_state.radar_state == RADAR_RUNNING)
+			wwviaudio_add_sound(RADAR_READY);
 	}
 }
 
@@ -12389,6 +12394,8 @@ int init_clips()
 	wwviaudio_read_ogg_clip(JETWASH_SOUND, "sounds/jetwash.ogg");
 	wwviaudio_read_ogg_clip(TIMPANI_BOING, "sounds/timpani_boing.ogg");
 	wwviaudio_read_ogg_clip(NICE_BANK_SHOT, "sounds/nice_bank_shot.ogg");
+	wwviaudio_read_ogg_clip(RADAR_READY, "sounds/radar_ready.ogg");
+	wwviaudio_read_ogg_clip(RADAR_FAIL, "sounds/radar_fail.ogg");
 	if (xmas_mode) {
 		wwviaudio_read_ogg_clip(HOHOHO, "sounds/hohoho.ogg");
 		wwviaudio_read_ogg_clip(HOHOHO_MERRY_XMAS, "sounds/hohoho_merry_xmas.ogg");
