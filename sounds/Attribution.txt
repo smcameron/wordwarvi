@@ -94,3 +94,5 @@ license.  See: http://creativecommons.org/licenses/by-sa/3.0/
 	hohoho.ogg
 	hohoho_merry_xmas.ogg
 	yay_santa.ogg
+	radar_fail.ogg
+	radar_ready.ogg
