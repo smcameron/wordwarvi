@@ -2905,7 +2905,7 @@ void kgun_move(struct game_obj_t *o)
 		o->health.health++;
 
 	xdist = abs(o->x - player_target->x); /* in range? */
-	ydist = abs(o->y - player_target->y);
+	ydist = abs((o->y + 20*invert) - player_target->y);
 
 	if (xdist < 600)
 		chance = 100 + xdist;
@@ -2920,7 +2920,7 @@ void kgun_move(struct game_obj_t *o)
 
 		/* Find x,y dist to player... */
 		dx = player_target->x+LASERLEADX*player_target->vx - o->x;
-		dy = player_target->y+LASERLEADY*player_target->vy - o->y;
+		dy = player_target->y+LASERLEADY*player_target->vy - (o->y + 20*invert);
 
 		adx = abs(dx);
 		ady = abs(dy);
@@ -7772,7 +7772,7 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 	draw_generic(o, w);
 	/* Find x and y dist to player.... */
 	dx = player_target->x+LASERLEADX*player_target->vx - o->x;
-	dy = player_target->y+LASERLEADY*player_target->vy - o->y;
+	dy = player_target->y+LASERLEADY*player_target->vy - (o->y + 20*invert);
 
 	x1 = o->x-5 - game_state.x;
 	y1 = o->y+(5*invert) - game_state.y + (SCREEN_HEIGHT/2);  
