@@ -2244,6 +2244,7 @@ struct tentacle_data {
 	int upper_angle, lower_angle;	/* limits on attachment angle (keeps tentacles mostly pointing down) */
 					/* array of tentacle segments */
 	int color_scheme;
+	int other_color;
 	struct tentacle_seg_data seg[MAX_TENTACLE_SEGS];	
 };
 
@@ -3438,15 +3439,16 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 		switch (o->tsd.tentacle.color_scheme) {
 		case 0: 
 			if ((i % 2) == 1)
-				gdk_gc_set_foreground(gc, &huex[BLUE]);
+				gdk_gc_set_foreground(gc, &huex[o->color]);
 			else
-				gdk_gc_set_foreground(gc, &huex[YELLOW]);
+				gdk_gc_set_foreground(gc, &huex[o->tsd.tentacle.other_color]);
 			break;
 		case 1:
-			gdk_gc_set_foreground(gc, &huex[hot_metal_color(i+1, o->tsd.tentacle.nsegs)]);
+			gdk_gc_set_foreground(gc, &huex[((1000-i+(timer >> 1)) % NSPARKCOLORS) + NCOLORS]);
 			break;
 		case 2:
-			gdk_gc_set_foreground(gc, &huex[NCOLORS + NSPARKCOLORS + (i * NRAINBOWCOLORS)/o->tsd.tentacle.nsegs]);
+			/* gdk_gc_set_foreground(gc, &huex[NCOLORS + NSPARKCOLORS + (i * NRAINBOWCOLORS)/o->tsd.tentacle.nsegs]); */
+			gdk_gc_set_foreground(gc, &huex[NCOLORS + NSPARKCOLORS + (((1000-i+(timer >> 2)) + ((i & 0x01)*4)) % NRAINBOWCOLORS)]);
 			break;
 		default: /* constant color */
 			break;
@@ -9410,17 +9412,18 @@ static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *e
 	int xi, i, j, k, count;
 	struct game_obj_t *o;
 	int color_scheme;
+	int other_color;
 	int color;
 
 	count = 0;
 	for (i=0;i<entry->nobjs;i++) {
 		color_scheme = randomn(100) % 4;
-		color = YELLOW;
-		if (color_scheme == 3) {
-			color = randomn(NCOLORS);
-			if (color == BLACK) /* exlude black */
-				color = YELLOW;
-		}
+		color = randomn(NCOLORS);
+		if (color == BLACK) /* exlude black */
+			color = YELLOW;
+		other_color = randomn(NCOLORS);
+		if (other_color == BLACK) /* exlude black */
+			other_color = YELLOW;
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-50 - randomn(100), 0, 0, 
 			octopus_move, NULL, color, &octopus_vect, 1, OBJ_TYPE_OCTOPUS, 1);
@@ -9453,6 +9456,7 @@ static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *e
 					t->tsd.tentacle.nsegs = MAX_TENTACLE_SEGS;
 					t->tsd.tentacle.angle = 0;
 					t->tsd.tentacle.color_scheme = color_scheme;
+					t->tsd.tentacle.other_color = other_color;
 					t->color = o->color;
 					for (k=0;k<MAX_TENTACLE_SEGS;k++) {
 						t->tsd.tentacle.seg[k].angle = 
