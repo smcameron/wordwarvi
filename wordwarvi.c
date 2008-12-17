@@ -2243,6 +2243,7 @@ struct tentacle_data {
 	int nsegs;			/* how many segments? */
 	int upper_angle, lower_angle;	/* limits on attachment angle (keeps tentacles mostly pointing down) */
 					/* array of tentacle segments */
+	int color_scheme;
 	struct tentacle_seg_data seg[MAX_TENTACLE_SEGS];	
 };
 
@@ -3433,10 +3434,24 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 			angle -= 360;
 		x2 = x1 + cosine[angle] * o->tsd.tentacle.seg[i].length; 
 		y2 = y1 -   sine[angle] * o->tsd.tentacle.seg[i].length; 
-		if ((i % 2) == 0)
-			gdk_gc_set_foreground(gc, &huex[BLUE]);
-		else
-			gdk_gc_set_foreground(gc, &huex[YELLOW]);
+	
+		switch (o->tsd.tentacle.color_scheme) {
+		case 0: 
+			if ((i % 2) == 1)
+				gdk_gc_set_foreground(gc, &huex[BLUE]);
+			else
+				gdk_gc_set_foreground(gc, &huex[YELLOW]);
+			break;
+		case 1:
+			gdk_gc_set_foreground(gc, &huex[hot_metal_color(i+1, o->tsd.tentacle.nsegs)]);
+			break;
+		case 2:
+			gdk_gc_set_foreground(gc, &huex[NCOLORS + NSPARKCOLORS + (i * NRAINBOWCOLORS)/o->tsd.tentacle.nsegs]);
+			break;
+		default: /* constant color */
+			break;
+		}
+	
 		if (thickness > 0) {
 			wwvi_draw_line(w->window, gc, x1-thickness, y1, x2-thickness, y2); 
 			wwvi_draw_line(w->window, gc, x1+thickness, y1, x2+thickness, y2); 
@@ -9394,12 +9409,21 @@ static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *e
 {
 	int xi, i, j, k, count;
 	struct game_obj_t *o;
+	int color_scheme;
+	int color;
 
 	count = 0;
 	for (i=0;i<entry->nobjs;i++) {
+		color_scheme = randomn(100) % 4;
+		color = YELLOW;
+		if (color_scheme == 3) {
+			color = randomn(NCOLORS);
+			if (color == BLACK) /* exlude black */
+				color = YELLOW;
+		}
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-50 - randomn(100), 0, 0, 
-			octopus_move, NULL, YELLOW, &octopus_vect, 1, OBJ_TYPE_OCTOPUS, 1);
+			octopus_move, NULL, color, &octopus_vect, 1, OBJ_TYPE_OCTOPUS, 1);
 		if (o != NULL) {
 			level.noctopi++;
 			count++;
@@ -9428,6 +9452,8 @@ static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *e
 					t->tsd.tentacle.lower_angle = 181;
 					t->tsd.tentacle.nsegs = MAX_TENTACLE_SEGS;
 					t->tsd.tentacle.angle = 0;
+					t->tsd.tentacle.color_scheme = color_scheme;
+					t->color = o->color;
 					for (k=0;k<MAX_TENTACLE_SEGS;k++) {
 						t->tsd.tentacle.seg[k].angle = 
 							TENTACLE_RANGE(t->tsd.tentacle);
@@ -9447,7 +9473,6 @@ static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *e
 				}
 			}
 		}
-	
 	}
 }
 
@@ -9488,6 +9513,7 @@ static void add_tentacles(struct terrain_t *t, struct level_obj_descriptor_entry
 			tentacle_move, tentacle_draw, CYAN, NULL, 1, OBJ_TYPE_TENTACLE, 1);
 		if (o != NULL) {
 			level.ntentacles++;
+			o->tsd.tentacle.color_scheme = randomn(100) % 3;
 			o->tsd.tentacle.upper_angle = 160;
 			o->tsd.tentacle.lower_angle = 20;
 			o->tsd.tentacle.nsegs = MAX_TENTACLE_SEGS;
