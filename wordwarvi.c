@@ -9418,7 +9418,7 @@ static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *e
 
 			/* Make the tentacles. */
 			for (j=0;j<8;j++) {
-				int length = randomn(30) + 9;
+				int length = randomn(5) + 25;
 				double length_factor = 0.90;
 				o->tsd.octopus.tentacle[j] = add_generic_object(o->x, o->y, 0, 0,
 					tentacle_move, tentacle_draw, CYAN, NULL, 1, OBJ_TYPE_TENTACLE, 1);
