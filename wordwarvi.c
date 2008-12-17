@@ -668,7 +668,6 @@ struct my_point_t inverted_kgun_points[] = {
 };
 
 struct my_point_t octopus_points[] = {
-	{ -7, 0 },
 	{ 7, 0 },
 	{ 10, -5 },
 	{ 15, -25 },
