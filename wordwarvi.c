@@ -2418,7 +2418,7 @@ struct game_state_t {
 	int radar_state;		/* Whether the radar is booting up, fritzed, or operational */
 #define     RADAR_RUNNING (0)
 #define     RADAR_FRITZED (-1)
-#define     RADAR_BOOTUP (5 * frame_rate_hz) /* How long it takes the radar to boot up. */
+#define     RADAR_BOOTUP (3 * frame_rate_hz) /* How long it takes the radar to boot up. */
 	int nextbombtime;
 	int nextgbombtime;
 	int nextlasertime;
