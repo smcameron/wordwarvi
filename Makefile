@@ -106,7 +106,7 @@ tarball:	CHECK_VERSION
 		joystick.c joystick.h changelog.txt wordwarvi.c wordwarvi.6 \
 		wwviaudio.c wwviaudio.h stamp.c README AUTHORS COPYING \
 		AAA_HOW_TO_MAKE_NEW_LEVELS.txt \
-		changelog.txt \
+		changelog.txt wordwarvi_hacking.html \
 		d/wordwarvi-${VERSION}
 	cp sounds/*.ogg d/wordwarvi-${VERSION}/sounds
 	cp sounds/Attribution.txt d/wordwarvi-${VERSION}/sounds
