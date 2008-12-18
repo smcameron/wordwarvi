@@ -10,4 +10,6 @@ See: http://www.portaudio.com/
 
 To build without any sound support, type "make WITHAUDIO=no" 
 
+If you want to hack on the code, read wordwarvi_hacking.html
+
 
