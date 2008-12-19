@@ -482,6 +482,9 @@ If the type of object you're trying to add to the game
 isn't shootable or bombable or destroyable, 
 (say, it's strictly scenery, like a rock,
 or a tree or something) then you can skip this step.
+<table>
+<tr>
+<td>
 <pre>
 <SPAN style="BACKGROUND-COLOR: #d0ffd0">+struct my_point_t big_rocket_points[] = {
 +       { 0, -35 },
@@ -499,6 +502,14 @@ or a tree or something) then you can skip this step.
 +};
 +</span>
 </pre>
+</td>
+<td>
+<img src="bigrocket.png"><br>
+<p align=center>Image represented by code to the left.
+<p align=center>Each square is 5 units
+</td>
+</tr>
+</table>
 
 The above change adds a list of instructions for drawing the big rockets.
 This consists of a list of point coordinates to be connected by lines by
