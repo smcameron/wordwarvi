@@ -420,7 +420,7 @@ game.
  #define OBJ_TYPE_SHIP 'w'              /* Bill Gates's state of the art warship. */
  #define OBJ_TYPE_GUN 'g'               /* ground based laser gun */
  #define OBJ_TYPE_ROCKET 'r'            /* ground based rockets */
-+#define OBJ_TYPE_BIG_ROCKET 'I'                /* ground based rockets */
+<SPAN style="BACKGROUND-COLOR: #d0ffd0">+#define OBJ_TYPE_BIG_ROCKET 'I'                /* ground based rockets */</span>
  #define OBJ_TYPE_SAM_STATION 'S'       /* ground based missile launching station */
  #define OBJ_TYPE_GDB 'd'               /* GDB enemy */
  #define OBJ_TYPE_OCTOPUS 'o'           /* a big ol' octopus */
@@ -440,27 +440,27 @@ but it works.)  So we add a new one for our new one in with the others.
         { OBJ_TYPE_SAM_STATION, 8, DO_IT_RANDOMLY, 0 },
         { OBJ_TYPE_GUN,         18, DO_IT_RANDOMLY, 0 },
         { OBJ_TYPE_KGUN,        25, DO_IT_RANDOMLY, 0 },
--       { OBJ_TYPE_AIRSHIP,     1, 90, 0 }, 
-+       { OBJ_TYPE_AIRSHIP,     4, 90, 0 }, 
+<SPAN style="BACKGROUND-COLOR: #ffd0d0">-       { OBJ_TYPE_AIRSHIP,     1, 90, 0 },</span>
+<SPAN style="BACKGROUND-COLOR: #d0ffd0">+       { OBJ_TYPE_AIRSHIP,     4, 90, 0 },</span>
         { OBJ_TYPE_WORM,        1, DO_IT_RANDOMLY, 0 },
         { OBJ_TYPE_BALLOON,     1, DO_IT_RANDOMLY, 0 },
         { OBJ_TYPE_GDB,         9, DO_IT_RANDOMLY, 0 },
         { OBJ_TYPE_OCTOPUS,     1, 75, 1 },
-+       { OBJ_TYPE_BIG_ROCKET,  15, DO_IT_RANDOMLY, 0 }, 
+<SPAN style="BACKGROUND-COLOR: #d0ffd0">+       { OBJ_TYPE_BIG_ROCKET,  15, DO_IT_RANDOMLY, 0 },</span>
         // { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 },
 </pre>
 (It seems I increased the number of airships as well, but this is unrelated.  Oops.)
 These are just adding a specified number of the new object type OBJ_TYPE_BIG_ROCKET
 into each level of the game.  There are extensive comments in levels.h which explain
 what those structures are.  
-<a href="http://wordwarvi.cvs.sourceforge.net/viewvc/wordwarvi/wordwarvi/levels.h?view=markup"Read them.</a>)
+<a href="http://wordwarvi.cvs.sourceforge.net/viewvc/wordwarvi/wordwarvi/levels.h?view=markup">Read them.</a>)
 <p>Then we get into the changes to wordwarvi.c
 
 <pre>
  #define NROCKETS 20                    /* Number of rockets sprinkled into the terrain */
  #define NJETS 15                       /* Number of jets sprinkled into the terrain */
  #define LAUNCH_DIST 1200                       /* How close player can get in x dimension before rocket launches */
-+#define BIG_ROCKET_LAUNCH_DIST 200                     /* How close player can get in x dimension before rocket launches */
+<SPAN style="BACKGROUND-COLOR: #d0ffd0">+#define BIG_ROCKET_LAUNCH_DIST 200                     /* How close player can get in x dimension before rocket launches */</span>
  #define MAX_ROCKET_SPEED -32           /* max vertical speed of rocket */
  #define SAM_LAUNCH_DIST 400            /* How close player can get in x deminsion before SAM might launch */
 </pre>
@@ -471,7 +471,7 @@ move function to know when to launch.
         score_table[OBJ_TYPE_MISSILE]           = 50;
         score_table[OBJ_TYPE_HARPOON]           = 50;
         score_table[OBJ_TYPE_ROCKET]            = 100;
-+       score_table[OBJ_TYPE_BIG_ROCKET]        = 400;
+<SPAN style="BACKGROUND-COLOR: #d0ffd0">+       score_table[OBJ_TYPE_BIG_ROCKET]        = 400;</span>
         score_table[OBJ_TYPE_SAM_STATION]       = 400;
         score_table[OBJ_TYPE_BRIDGE]            = 10;
         score_table[OBJ_TYPE_GDB]               = 400;
@@ -483,7 +483,7 @@ isn't shootable or bombable or destroyable,
 (say, it's strictly scenery, like a rock,
 or a tree or something) then you can skip this step.
 <pre>
-+struct my_point_t big_rocket_points[] = {
+<SPAN style="BACKGROUND-COLOR: #d0ffd0">+struct my_point_t big_rocket_points[] = {
 +       { 0, -35 },
 +       { -5, -25 },
 +       { -5, 5 },
@@ -497,7 +497,7 @@ or a tree or something) then you can skip this step.
 +       { 10, 15 },
 +       { 5, 5 },
 +};
-+
++</span>
 </pre>
 
 The above change adds a list of instructions for drawing the big rockets.
@@ -511,7 +511,7 @@ head (it gets easier with practice.)
  struct my_vect_obj sleigh_vect;
  struct my_vect_obj left_sleigh_vect;
  struct my_vect_obj rocket_vect;
-+struct my_vect_obj big_rocket_vect;
+<SPAN style="BACKGROUND-COLOR: #d0ffd0">+struct my_vect_obj big_rocket_vect;</span>
  struct my_vect_obj jet_vect;
  struct my_vect_obj spark_vect;
  struct my_vect_obj right_laser_vect;
@@ -522,7 +522,7 @@ It's got a pointer to the array, and a count of the number of
 elements.  It gets initialized elsewhere.
 <p>Now we get to some interesting code, the big rocket's move function:
 <pre>
-+static void add_bullet(int x, int y, int vx, int vy, 
+<SPAN style="BACKGROUND-COLOR: #d0ffd0">+static void add_bullet(int x, int y, int vx, int vy, 
 +       int time, int color, struct game_obj_t *bullseye);
 +void big_rocket_move(struct game_obj_t *o)
 +{
@@ -606,7 +606,7 @@ elements.  It gets initialized elsewhere.
 +               o-&gt;destroy(o);
 +       }
 +}
-+
++</span>
 </pre>
 Now, the above was largely copied from rocket_move, and modified for big_rocket_move.
 (arguably the common code should be factored out of rocket_move and big_rocket_move).
@@ -652,7 +652,7 @@ and eliminate the rocket if it gets too far offscreen.
                         case OBJ_TYPE_KGUN:
                         case OBJ_TYPE_TRUSS:
                         case OBJ_TYPE_ROCKET:
-+                       case OBJ_TYPE_BIG_ROCKET:
+<SPAN style="BACKGROUND-COLOR: #d0ffd0">+                       case OBJ_TYPE_BIG_ROCKET:</span>
                         case OBJ_TYPE_JET:
                         case OBJ_TYPE_MISSILE:
                         case OBJ_TYPE_HARPOON:
@@ -666,8 +666,8 @@ do with other shootable objects.
 
         rocket_vect.p = rocket_points;
         rocket_vect.npoints = sizeof(rocket_points) / sizeof(rocket_points[0]);
-+       big_rocket_vect.p = big_rocket_points;
-+       big_rocket_vect.npoints = sizeof(big_rocket_points) / sizeof(big_rocket_points[0]);
+<SPAN style="BACKGROUND-COLOR: #d0ffd0">+       big_rocket_vect.p = big_rocket_points;
++       big_rocket_vect.npoints = sizeof(big_rocket_points) / sizeof(big_rocket_points[0]);</span>
         jetpilot_vect_left.p = jetpilot_points_left;
         jetpilot_vect_left.npoints = sizeof(jetpilot_points_left) / sizeof(jetpilot_points_left[0]);
         jetpilot_vect_right.p = jetpilot_points_right;
@@ -679,14 +679,14 @@ points and a count of the number of elements in the array.
 of each level.  This is probably largely copied from add_rockets().
 
 <pre>
-+static void add_big_rockets(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
+<SPAN style="BACKGROUND-COLOR: #d0ffd0">+static void add_big_rockets(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 +{
 +       int i, xi;
 +       struct game_obj_t *o;
 +       for (i=0;i&lt;entry-&gt;nobjs;i++) {
 +               xi = initial_x_location(entry, i);
 +               o = add_generic_object(t-&gt;x[xi], t-&gt;y[xi] - 15, 0, 0, 
-+                       big_rocket_move, NULL, WHITE, &big_rocket_vect, 1, OBJ_TYPE_BIG_ROCKET, 1);
++                       big_rocket_move, NULL, WHITE, &amp;big_rocket_vect, 1, OBJ_TYPE_BIG_ROCKET, 1);
 +               if (o != NULL) {
 +                       o-&gt;above_target_y = -35;
 +                       o-&gt;below_target_y = 15;
@@ -694,7 +694,7 @@ of each level.  This is probably largely copied from add_rockets().
 +               }
 +       }
 +}
-+
++</span>
 </pre>
 
 The initial_x_location function chooses an x location based on the specification
@@ -705,22 +705,22 @@ below_target_y adjust the vertical "hit zone' for the laser for this object.
 to make it interpret the instructions in levels.h for the new object type:
 <pre>
 @@ -10647,6 +10771,7 @@
-        add_socket(&terrain);
+        add_socket(&amp;terrain);
 
         level.nrockets = 0;
-+       level.nbigrockets = 0;
+<SPAN style="BACKGROUND-COLOR: #d0ffd0">+       level.nbigrockets = 0;</span>
         level.njets = 0;
         level.nflak = 0;
         level.nfueltanks = 0;
 @@ -10669,6 +10794,9 @@
                 case OBJ_TYPE_ROCKET:
-                        add_rockets(&terrain, &objdesc[i]);
+                        add_rockets(&amp;terrain, &amp;objdesc[i]);
                         break;
-+               case OBJ_TYPE_BIG_ROCKET: 
-+                       add_big_rockets(&terrain, &objdesc[i]);
-+                       break;
+<SPAN style="BACKGROUND-COLOR: #d0ffd0">+               case OBJ_TYPE_BIG_ROCKET: 
++                       add_big_rockets(&amp;terrain, &amp;objdesc[i]);
++                       break;</span>
                 case OBJ_TYPE_JET:
-                        add_jets(&terrain, &objdesc[i]);
+                        add_jets(&amp;terrain, &amp;objdesc[i]);
                         break;
 </pre>
 <a name="sound">
@@ -757,7 +757,7 @@ me to be included in the game.  One can hope.
 and modified it to your liking, then to make a patch, all you've got to
 do is execute the following command:
 <pre>
-	cvs diff -u > mypatch.patch
+	cvs diff -u &gt; mypatch.patch
 </pre>
 <p>You can then send me the patch.  You can find my email address in
 the file called AUTHORS.
