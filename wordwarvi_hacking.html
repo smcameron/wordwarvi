@@ -3,7 +3,42 @@
 <body>
 <p align=center><font size=+3>Hacking on Word War vi</font>
 <hr>
-<h2>First a bit about how the code is organized.</h1>
+<h2>Contents</h2>
+<ul>
+<li><a href="#code">Getting the code</a></li>
+<li><a href="#organized">How the code is organized</a></li>
+<li><a href="#main">A first look at the code: main() in wordwarvi.c</a></li>
+<li><a href="#data">Some important data structures and variables</a></li>
+<li><a href="#advance_game">advance_game(), called once per frame.</a></li>
+<li><a href="#expose">main_da_expose(), called once per frame to redraw the screen.</a></li>
+<li><a href="#enemy">How to add a new kind of enemy</a></li>
+<li><a href="#sound">Adding new sounds</a></li>
+<li><a href="#patches">Making and submitting patches</a></li>
+</ul>
+
+<hr>
+<a name="code">
+<h2>Getting the code</h2></a>
+<p>The best way to get the code if you want to hack on it is to use cvs.
+<p>Do the following at the shell prompt:
+<pre>
+	$ mkdir wwvi
+	$ cd wwvi
+	$ export CVSROOT=:pserver:anonymous@wordwarvi.cvs.sourceforge.net:/cvsroot/wordwarvi
+	$ cvs login
+</pre>
+At this point, it will ask you for a password.  Just press return.
+<pre>
+	$ cvs -z3 co wordwarvi 
+</pre>
+<p>This will check the code out into a directory called wordwarvi 
+<p>Every day or so you should probably do "cvs update" to pick up
+any changes that might have been made in the repository (depending
+on how active things are.  Over the last year and a half, I averaged
+about 0.8 commits per day, but it fluctuates.)
+
+<a name="organized">
+<h2>First a bit about how the code is organized.</h2></a>
 <p>Mostly, the code is in one big file, wordwarvi.c, simply because this
 all evolved from something which began as a way for me to kill time while
 I was bored.  I didn't exactly set out to make a game so much as  a game 
@@ -77,7 +112,8 @@ the game uses, as a layer on top of portaudio.
 
 <p>Finally, wordwarvi.c contains the meat of the game.
 
-<h2>A first look at the code: main() in wordwarvi.c</h2>
+<a name="main">
+<h2>A first look at the code: main() in wordwarvi.c</h2></a>
 (You should open up wordwarvi.c in another window, and 
 search for 'main(' while reading what's below.  You
 can <a href="http://wordwarvi.cvs.sourceforge.net/wordwarvi/wordwarvi/">
@@ -114,7 +150,8 @@ return right away, but only when the program is exiting.
 Next, we'd want to look at advance_game().  But before we can understand
 that, we need to know about a few data structures in the game.
 
-<h2>Some important data structures and variables</h2>
+<a name="data">
+<h2>Some important data structures and variables</h2></a>
 
 <p>The most important data structure in the game is called
 "go" (for game object) and it is an array of struct game_obj_t's.
@@ -309,7 +346,8 @@ what type of object it is, whether it should be on the target list, whether
 <p>Now we're ready to look at the advance_game() function, which gets called
 by the timer we set up 30 times a second.
 
-<h2>advance_game(), called once per frame.</h2>
+<a name="advance_game">
+<h2>advance_game(), called once per frame.</h2></a>
 
 <p>Have a look at the code.
 
@@ -342,8 +380,9 @@ expose event by calling gtk_widget_queue_draw(main_da) in advance_game
 after moving all the objects.
 </ul>
 
-<h2>main_da_expose(), called once per frame to redraw the screen.</h2>
-<p>This function gets called whenver an "expose" event to the drawing
+<a name="expose">
+<h2>main_da_expose(), called once per frame to redraw the screen.</h2></a>
+<p>This function gets called whenever an "expose" event to the drawing
 area in the main window comes in.  That "expose" event gets triggered
 30 times a second, because it's triggered at the end of advance_game
 by an explicit call to gtk_widget_queue_draw().
@@ -361,7 +400,8 @@ type of thing that shows up on the radar, checks if it's on screen,
 and if so, either draws it directly if the objects draw function
 is NULL, or calls the object's draw function. 
 
-<h2>How to add a new kind of enemy</h2>
+<a name="enemy"
+<h2>How to add a new kind of enemy</h2></a>
 <p>Ok, that may be enough exposition about how the game works in general.
 Suppose you want to add a new type of enemy into the game, how would you
 do it?  What would be the steps?
@@ -572,8 +612,8 @@ Now, the above was largely copied from rocket_move, and modified for big_rocket_
 (arguably the common code should be factored out of rocket_move and big_rocket_move).
 
 <p>But, what's going on here?  The move functions all get passed the game_obj_t pointer
-of the object that's being moved.  So typically they adjust o-&amp;x and o-&amp;y by
-o-&amp;vx and o-&amp;vy in the trivial case.  But they also do other things, like try
+of the object that's being moved.  So typically they adjust o-&gt;x and o-&gt;y by
+o-&gt;vx and o-&gt;vy in the trivial case.  But they also do other things, like try
 to figure ot where the player is, and what action to take, if any, based on this 
 information.
 
@@ -683,8 +723,9 @@ to make it interpret the instructions in levels.h for the new object type:
                         add_jets(&terrain, &objdesc[i]);
                         break;
 </pre>
+<a name="sound">
 <h2>Adding new sounds</h2>
-In adding teh rocket, we used already existing sounds.  What if you need a new sound?
+In adding the rocket, we used already existing sounds.  What if you need a new sound?
 This is quite easy.  Consider <a href="http://wordwarvi.cvs.sourceforge.net/viewvc/wordwarvi/wordwarvi/wordwarvi.c?r1=1.346&r2=1.347">these diffs</a>, which add new radar state transition sounds.
 <p>For each sound you add, add 1 to the NCLIPS macro, and define a new number for your new sound.
 In this case, two sounds were added, so NCLIPS was changed from 56 to 58, and the new new numbers were:
@@ -706,6 +747,20 @@ add a line like:
 <p>That's it!  Well, of course, you've got to have the sound, which should be 44100 
 samples per second, mono, encoded as an ogg, via oggenc, for example.
 
+<a name="patches">
+<h2>Making and submitting patches</h2></a>
+<p>And here I'm being optimistic, and supposing someone will go to the
+trouble to modify my game, and make something worthwhile and send it to
+me to be included in the game.  One can hope.
+
+<p>If you've checked the code out as described at the top of this page,
+and modified it to your liking, then to make a patch, all you've got to
+do is execute the following command:
+<pre>
+	cvs diff -u > mypatch.patch
+</pre>
+<p>You can then send me the patch.  You can find my email address in
+the file called AUTHORS.
 
 </body>
 </html>
