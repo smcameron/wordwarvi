@@ -125,6 +125,7 @@
 #define YAY_SANTA 54
 #define RADAR_FAIL 55
 #define RADAR_READY 56
+#define GUNWHEEL 57
 /* ...End of audio stuff */
 
 #define NHUMANOIDS 4 /* number of vi .swp files, initially */
@@ -1604,6 +1605,62 @@ struct my_point_t rocket_points[] = {
 	{ 2, 3}, 
 };
 
+struct my_point_t gunwheel_points[] = {
+	{ -50, 250 },
+	{ -20, 0 },
+	{ 20, 0 },
+	{ 50, 250 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -35, 125 },
+	{ 35, 125 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -42, 188 },
+	{ 42, 188 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -28, 62 },
+	{ 28, 62 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -20, 0 },
+	{ 28, 62 },
+	{ -35, 125 },
+	{ 42, 188 },
+	{ -50, 250 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 20, 0 },
+	{ -28, 62 },
+	{ 35, 125 },
+	{ -42, 188 },
+	{ 50, 250 },
+};
+
+struct my_point_t inverted_gunwheel_points[] = {
+	{ -50, -250 },
+	{ -20, 0 },
+	{ 20, 0 },
+	{ 50, -250 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -35, -125 },
+	{ 35, -125 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -42, -188 },
+	{ 42, -188 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -28, -62 },
+	{ 28, -62 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -20, 0 },
+	{ 28, -62 },
+	{ -35, -125 },
+	{ 42, -188 },
+	{ -50, -250 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ 20, 0 },
+	{ -28, -62 },
+	{ 35, -125 },
+	{ -42, -188 },
+	{ 50, -250 },
+};
+
 struct my_point_t bridge_points[] = {  /* square with an x through it, 8x8 */
 	{ -4, -4 },
 	{ -4, 4 },
@@ -1864,6 +1921,8 @@ struct my_vect_obj gdb_vect_right;
 struct my_vect_obj gdb_vect_left;
 struct my_vect_obj octopus_vect;
 struct my_vect_obj ships_hull;
+struct my_vect_obj gunwheel_vect;
+struct my_vect_obj inverted_gunwheel_vect;
 
 /* There are 4 home-made "fonts" in the game, all the same "typeface", but 
  * different sizes */
@@ -2316,6 +2375,14 @@ struct kgun_data {
 	struct game_obj_t *attached_to; /* thing gun is attached to */
 };
 
+struct gunwheel_data {
+	int size;
+	struct game_obj_t *left;
+	struct game_obj_t *right;
+	struct game_obj_t *attached_to;
+	int inverted;
+};
+
 struct house_data {
 	int santa_came;
 };
@@ -2348,6 +2415,7 @@ union type_specific_data {		/* union of all the typs specific data */
 	struct house_data house;
 	struct bomb_data bomb;
 	struct laser_data laser;
+	struct gunwheel_data gunwheel;
 };
 
 struct game_obj_t {
@@ -7153,6 +7221,82 @@ void airship_move(struct game_obj_t *o)
 	
 }
 
+void gunwheel_move(struct game_obj_t *o)
+{
+	struct game_obj_t *holder;
+
+	/* if gunwheel is attached to something, make it move with that something */
+	holder = o->tsd.gunwheel.attached_to;
+	if (holder != NULL)
+		holder->gun_location(holder, o, &o->x, &o->y);
+	return;
+}
+
+void gunwheel_gun_location(struct game_obj_t *parent, 
+	__attribute__ ((unused)) struct game_obj_t *child, int *x, int *y)
+{
+	int angle, x1, y1;
+
+	if (parent->tsd.gunwheel.attached_to == NULL)
+		angle = (timer << 2) % 360;
+	else
+		angle = (timer << 3) % 360;
+
+	x1 = cosine[angle] * parent->tsd.gunwheel.size;
+	y1 = sine[angle] * parent->tsd.gunwheel.size;
+
+	if (child == parent->tsd.gunwheel.left) {
+		*x = parent->x + x1;
+		*y = parent->y + y1;
+	} else {
+		*x = parent->x - x1;
+		*y = parent->y - y1;
+	}
+}
+
+void make_gunwheel_sound()
+{
+	static int time_to_make_sound = 0;
+	if (timer > time_to_make_sound) {
+		time_to_make_sound = timer + FRAME_RATE_HZ;
+		wwviaudio_add_sound(GUNWHEEL);
+	}
+}
+
+void gunwheel_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	int angle, x1, y1, x2, y2, rx, ry;
+	if (o->tsd.gunwheel.attached_to == NULL)
+		angle = (timer << 2) % 360;
+	else
+		angle = (timer << 3) % 360;
+
+	x1 = cosine[angle] * o->tsd.gunwheel.size;
+	y1 = sine[angle] * o->tsd.gunwheel.size;
+	rx = y1 >> 4; 
+	ry = -x1 >> 4;
+	x2 = o->x - x1;
+	y2 = o->y - y1;
+	x1 += o->x;
+	y1 += o->y;
+	x1 -= game_state.x;
+	x2 -= game_state.x;
+	y1 = y1 - game_state.y + (SCREEN_HEIGHT/2);  
+	y2 = y2 - game_state.y + (SCREEN_HEIGHT/2);  
+
+	if (o->tsd.gunwheel.attached_to == NULL) 
+		draw_generic(o, w);
+	else
+		gdk_gc_set_foreground(gc, &huex[o->color]);
+
+	wwvi_draw_line(w->window, gc, x1-rx, y1-ry, x2-rx, y2-ry);
+	wwvi_draw_line(w->window, gc, x1+rx, y1+ry, x2+rx, y2+ry);
+	wwvi_draw_line(w->window, gc, x1-rx, y1-ry, x1+rx, y1+ry);
+	wwvi_draw_line(w->window, gc, x2-rx, y2-ry, x2+rx, y2+ry);
+
+	make_gunwheel_sound();
+}
+
 void ship_move(struct game_obj_t *o)
 {
 	if (!o->alive)
@@ -7517,6 +7661,10 @@ void init_vects()
 	rocket_vect.npoints = sizeof(rocket_points) / sizeof(rocket_points[0]);
 	big_rocket_vect.p = big_rocket_points;
 	big_rocket_vect.npoints = sizeof(big_rocket_points) / sizeof(big_rocket_points[0]);
+	gunwheel_vect.p = gunwheel_points;
+	gunwheel_vect.npoints = sizeof(gunwheel_points) / sizeof(gunwheel_points[0]);
+	inverted_gunwheel_vect.p = inverted_gunwheel_points;
+	inverted_gunwheel_vect.npoints = sizeof(inverted_gunwheel_points) / sizeof(inverted_gunwheel_points[0]);
 	jetpilot_vect_left.p = jetpilot_points_left;
 	jetpilot_vect_left.npoints = sizeof(jetpilot_points_left) / sizeof(jetpilot_points_left[0]);	
 	jetpilot_vect_right.p = jetpilot_points_right;
@@ -9716,6 +9864,66 @@ static void add_airships(struct terrain_t *t, struct level_obj_descriptor_entry 
 	}
 }
 
+static void add_gunwheels(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
+{
+	int xi, i, y;
+	int inverted;
+	struct my_vect_obj *vect;
+	struct game_obj_t *o, *left, *right;
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
+
+		inverted = randomn(100) & 0x01;
+		if (inverted) {
+			vect = &inverted_gunwheel_vect;
+			y = KERNEL_Y_BOUNDARY + 250;
+		} else {
+			vect = &gunwheel_vect;
+			y = t->y[xi]-250;
+		}
+
+		o = add_generic_object(t->x[xi], y, 0, 0, 
+			gunwheel_move, gunwheel_draw, RED, vect, 1, OBJ_TYPE_GUNWHEEL, 1);
+		if (o == NULL)
+			continue;
+
+		o->counter = 0;
+		o->radar_image = 4;
+		o->tsd.gunwheel.size = 180;
+		o->tsd.gunwheel.attached_to = NULL;
+		o->tsd.gunwheel.inverted = inverted;
+		o->gun_location = gunwheel_gun_location;
+
+		left = add_generic_object(t->x[xi], t->y[xi]-250, 0, 0, 
+			gunwheel_move, gunwheel_draw, RED, &gunwheel_vect, 1, OBJ_TYPE_GUNWHEEL, 1);
+		o->tsd.gunwheel.left = left;
+		if (left == NULL)
+			continue;
+
+		left->tsd.gunwheel.attached_to = o;
+		left->tsd.gunwheel.size = 100;
+		left->radar_image = 0;
+		left->tsd.gunwheel.left = add_flak_gun(0,0, FAST_LASER, RED, left);
+		left->tsd.gunwheel.right = add_flak_gun(0,0, FAST_LASER, RED, left);
+		left->gun_location = gunwheel_gun_location;
+		left->tsd.gunwheel.inverted = 0;
+
+		right = add_generic_object(t->x[xi], t->y[xi]-250, 0, 0, 
+			gunwheel_move, gunwheel_draw, RED, &gunwheel_vect, 1, OBJ_TYPE_GUNWHEEL, 1);
+		o->tsd.gunwheel.right = right;
+		if (right == NULL)
+			continue;
+
+		right->tsd.gunwheel.attached_to = o;
+		right->tsd.gunwheel.size = 100;
+		right->radar_image = 0;
+		right->tsd.gunwheel.left = add_flak_gun(0,0, FAST_LASER, RED, right);
+		right->tsd.gunwheel.right = add_flak_gun(0,0, FAST_LASER, RED, right);
+		right->gun_location = gunwheel_gun_location;
+		right->tsd.gunwheel.inverted = 0;
+	}
+}
+
 static void add_socket(struct terrain_t *t)
 {
 	add_generic_object(t->x[TERRAIN_LENGTH-1] - 250, t->y[TERRAIN_LENGTH-1] - 250, 
@@ -11063,6 +11271,9 @@ void start_level()
 			break;
 		case OBJ_TYPE_TENTACLE:
 			add_tentacles(&terrain, &objdesc[i]);
+			break;
+		case OBJ_TYPE_GUNWHEEL:
+			add_gunwheels(&terrain, &objdesc[i]);
 			break;
 		}
 	}
@@ -12442,6 +12653,7 @@ int init_clips()
 	wwviaudio_read_ogg_clip(NICE_BANK_SHOT, "sounds/nice_bank_shot.ogg");
 	wwviaudio_read_ogg_clip(RADAR_READY, "sounds/radar_ready.ogg");
 	wwviaudio_read_ogg_clip(RADAR_FAIL, "sounds/radar_fail.ogg");
+	wwviaudio_read_ogg_clip(GUNWHEEL, "sounds/gunwheel_sound.ogg");
 	if (xmas_mode) {
 		wwviaudio_read_ogg_clip(HOHOHO, "sounds/hohoho.ogg");
 		wwviaudio_read_ogg_clip(HOHOHO_MERRY_XMAS, "sounds/hohoho_merry_xmas.ogg");

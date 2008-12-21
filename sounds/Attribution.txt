@@ -96,3 +96,5 @@ license.  See: http://creativecommons.org/licenses/by-sa/3.0/
 	yay_santa.ogg
 	radar_fail.ogg
 	radar_ready.ogg
+	gunwheel_sound.ogg
+
