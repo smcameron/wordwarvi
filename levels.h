@@ -378,6 +378,7 @@ struct level_obj_descriptor_entry level_3_obj[] = {
 	{ OBJ_TYPE_GDB,		7, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
 	{ OBJ_TYPE_BIG_ROCKET, 	1, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_GUNWHEEL, 	1, 95, 0 }, 
 	/* { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, */
 };
 /* end of level 3 */
@@ -400,6 +401,8 @@ struct level_obj_descriptor_entry level_4_obj[] = {
 	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 25, 1 }, 
 	{ OBJ_TYPE_BIG_ROCKET, 	15, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_GUNWHEEL, 	1, 50, 0 }, 
+	{ OBJ_TYPE_GUNWHEEL, 	1, 75, 0 }, 
 	/* { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 },  */
 };
 /* end of level 4 */
@@ -421,6 +424,8 @@ struct level_obj_descriptor_entry level_5_obj[] = {
 	{ OBJ_TYPE_GDB,		9, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 75, 1 }, 
 	{ OBJ_TYPE_BIG_ROCKET, 	15, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_GUNWHEEL, 	1, 25, 0 }, 
+	{ OBJ_TYPE_GUNWHEEL, 	1, 75, 0 }, 
 	/* { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, */
 };
 /* end of level 5 */
@@ -443,6 +448,9 @@ struct level_obj_descriptor_entry level_6_obj[] = {
 	{ OBJ_TYPE_OCTOPUS,	1, 75, 1 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 15, 1 }, 
 	{ OBJ_TYPE_BIG_ROCKET, 	15, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_GUNWHEEL, 	1, 25, 0 }, 
+	{ OBJ_TYPE_GUNWHEEL, 	1, 50, 0 }, 
+	{ OBJ_TYPE_GUNWHEEL, 	1, 75, 0 }, 
 	/* { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 },  */
 };
 /* end of level 6 */
