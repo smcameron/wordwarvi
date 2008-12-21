@@ -3535,6 +3535,17 @@ void tentacle_move(struct game_obj_t *o)
 			t->dest_angle = o->tsd.tentacle.angle;
 
 		da = (t->dest_angle - t->angle);
+		if (da > 20)
+			t->angular_v = 2;
+		else if (da < -20)
+			t->angular_v = -2;
+		else if (da > 5)
+			t->angular_v = 1;
+		else if (da < 5)
+			t->angular_v = -1;
+		else
+			t->angular_v = 0;
+	#if 0	
 		if (abs(da) > 10) {
 			if (t->angle < t->dest_angle)
 				t->angular_v = 2;
@@ -3548,14 +3559,18 @@ void tentacle_move(struct game_obj_t *o)
 			else
 				t->angular_v = 0;
 		}
+	#endif
 
-		t->angle += t->angular_v; /* move segment towards desired angle... */
 
 		/* don't hyper-rotate segment... */
 		if (i != 0 && t->angle > MAX_SEG_ANGLE)
 			t->angle = MAX_SEG_ANGLE;
 		else if (i != 0 && t->angle < -MAX_SEG_ANGLE)
 			t->angle = -MAX_SEG_ANGLE;
+
+		if (i > 15 && (timer & 0x03) == 3)
+			continue;
+		t->angle += t->angular_v; /* move segment towards desired angle... */
 	}
 
 	if (randomn(1000) < 50) { /* every once in awhile... */
