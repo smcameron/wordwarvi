@@ -2170,7 +2170,7 @@ int current_font_scale = BIG_FONT_SCALE;
 /* every object in the game is a game_obj_t, defined below... */
 struct game_obj_t;
 
-typedef void (*get_coords_func)(struct game_obj_t *o, int *x, int *y);
+typedef void (*get_coords_func)(struct game_obj_t *parent, struct game_obj_t *child,  int *x, int *y);
 
 /* some function pointers which game_obj_t's may have */
 typedef void obj_move_func(struct game_obj_t *o);		/* moves and object, called once per frame */
@@ -2896,7 +2896,7 @@ void kgun_move(struct game_obj_t *o)
 	/* if gun is attached to something, make it move with that something */
 	holder = o->tsd.kgun.attached_to;
 	if (holder != NULL)
-		holder->gun_location(holder, &o->x, &o->y);
+		holder->gun_location(holder, o, &o->x, &o->y);
 
 	if (o->health.prevhealth != o->health.health)
 		o->color = hot_metal_color(o->health.health, o->health.maxhealth);
@@ -3629,10 +3629,11 @@ void tentacle_move(struct game_obj_t *o)
 	}
 }
 
-void octopus_gun_location(struct game_obj_t *o, int *x, int *y)
+void octopus_gun_location(struct game_obj_t *parent, 
+	__attribute__ ((unused)) struct game_obj_t *child, int *x, int *y)
 {
-	*x = o->x;
-	*y = o->y-65;
+	*x = parent->x;
+	*y = parent->y-65;
 }
 
 void octopus_move(struct game_obj_t *o)
@@ -9686,10 +9687,11 @@ static void add_worms(struct terrain_t *t, struct level_obj_descriptor_entry *en
 	}
 }
 
-void airship_gun_location(struct game_obj_t *o, int *x, int *y)
+void airship_gun_location(struct game_obj_t *parent, 
+	__attribute__ ((unused)) struct game_obj_t *child,  int *x, int *y)
 {
-	*x = o->x-60;
-	*y = o->y-5;
+	*x = parent->x-60;
+	*y = parent->y-5;
 }
 
 static void add_airships(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
