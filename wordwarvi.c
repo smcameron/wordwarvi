@@ -656,7 +656,6 @@ struct my_point_t kgun_points[] = {
 };
 
 struct my_point_t inverted_kgun_points[] = {
-
 	{ -10, 25 },
 	{ -10, 5 },
 	{ 10, 5 },
@@ -666,6 +665,27 @@ struct my_point_t inverted_kgun_points[] = {
 	{ 7, -5 },
 	{ 10, 5 },
 	{ -10, 25 },
+};
+
+struct my_point_t tesla_points[] = {
+	{ -10, -25 },
+	{ -10, -5 },
+	{ 10, -5 },
+	{ 10, -25 },
+	{ -10, -5 },
+	{ -7,  5 },
+	{ 7, 5 },
+	{ 10, -5 },
+	{ -10, -25 },
+	{ LINE_BREAK, LINE_BREAK },
+	{ -7, 5 },
+	{ -2, 40 },
+	{ -5, 42 },
+	{ -2, 44 },
+	{  2, 44 },
+	{  5, 42 },
+	{  2, 40 },
+	{  7, 5 },
 };
 
 struct my_point_t octopus_points[] = {
@@ -1865,6 +1885,7 @@ struct my_vect_obj gdb_vect_right;
 struct my_vect_obj gdb_vect_left;
 struct my_vect_obj octopus_vect;
 struct my_vect_obj ships_hull;
+struct my_vect_obj tesla_vect;
 
 /* There are 4 home-made "fonts" in the game, all the same "typeface", but 
  * different sizes */
@@ -2309,6 +2330,13 @@ struct truss_data {
 	int height, top_width, bottom_width; /*  to allow different shaped trusses */
 };
 
+struct tesla_data {
+	int bank_shot_factor; /* has to match bomb. */
+	int discharging;
+	int time_to_discharge;
+	int targetx, targety;
+};
+
 struct kgun_data {
 	int bank_shot_factor; /* has to match bomb. */
 	int invert;	/* 1 means hanging upside down, -1, means mounted on ground. */
@@ -2360,6 +2388,7 @@ union type_specific_data {		/* union of all the typs specific data */
 	struct bomb_data bomb;
 	struct laser_data laser;
 	struct gunwheel_data gunwheel;
+	struct tesla_data tesla;
 };
 
 struct game_obj_t {
@@ -3006,6 +3035,49 @@ void kgun_move(struct game_obj_t *o)
 	}
 }
 
+void tesla_tower_move(struct game_obj_t *o)
+{
+	int dx, dy;
+
+	o->lastx = o->x;
+	o->lasty = o->y;
+
+	/* If we've discharged recently, charge up... */
+	if (o->tsd.tesla.time_to_discharge > timer) {
+		o->tsd.tesla.discharging = 0;
+		return;
+	}
+
+	/* We're charged.  How close is the player? */
+	dx = player_target->x - o->x;
+	dy = player_target->y - o->y;
+	if (abs(dx) + abs(dy) > 650) 
+		return; /* not close enough. */
+
+	/* Close enough, begin discharging if we aren't already. */
+	if (o->tsd.tesla.discharging == 0)
+		o->tsd.tesla.discharging = frame_rate_hz / 4;
+
+	/* discharge some... */
+	if (o->tsd.tesla.discharging > 0) 
+		o->tsd.tesla.discharging--;
+
+	o->tsd.tesla.targetx = player_target->x + randomn(20)-10;
+	o->tsd.tesla.targety = player_target->y + randomn(20)-10;
+	if (abs(o->tsd.tesla.targetx - player_target->x) < 5 &&
+		abs(o->tsd.tesla.targety - player_target->y) < 5) {
+		wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
+		game_state.health -= LASER_BOLT_DAMAGE;
+		do_strong_rumble();
+	}
+
+	/* Fully discharged?  Begin recharging */
+	if (o->tsd.tesla.discharging == 0)
+		o->tsd.tesla.time_to_discharge = timer + frame_rate_hz;
+
+	return;
+}
+
 static void add_missile(int x, int y, int vx, int vy, 
 	int time, int color, struct game_obj_t *bullseye);
 static void add_harpoon(int x, int y, int vx, int vy, 
@@ -3409,8 +3481,8 @@ void lightning_draw( GtkWidget *w, int x1, int y1, int x2, int y2)
 		x3 = x1;
 
 	/* perturb the midpoint a bit */
-	x3 += (int) (0.2 * (randomn(2*dx) - dx)); 
-	y3 += (int) (0.2 * (randomn(2*dy) - dy)); 
+	x3 += (int) (0.4 * (randomn(2*dx) - dx)); 
+	y3 += (int) (0.4 * (randomn(2*dy) - dy)); 
 
 	/* draw lightning between x1,y1 and x3,y3, and between x3,y3, and x2,y2. */
 	lightning_draw(w, x1, y1, x3, y3);	
@@ -7641,6 +7713,8 @@ void init_vects()
 			ship_vect.p[i].y = (ship_vect.p[i].y+20) * 2;
 		}
 	} */
+	tesla_vect.p = tesla_points;
+	tesla_vect.npoints = sizeof(tesla_points) / sizeof(tesla_points[0]);
 
 	octopus_vect.p = octopus_points;
 	octopus_vect.npoints = sizeof(octopus_points) / sizeof(octopus_points[0]);
@@ -7928,6 +8002,34 @@ void truss_draw(struct game_obj_t *o, GtkWidget *w)
 	wwvi_draw_line(w->window, gc, x2, y2, x4, y4);
 	wwvi_draw_line(w->window, gc, x2, y2, x3, y3);
 	wwvi_draw_line(w->window, gc, x3, y3, x4, y4);
+}
+
+void tesla_tower_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	int i, x1, y1, x2, y2, x;
+
+	draw_generic(o, w);
+
+	x1 = o->x - game_state.x;
+	y1 = o->y + 40 - game_state.y + (SCREEN_HEIGHT/2);
+
+	x = (timer & 0x01) * randomn(4);
+
+	for (i = 0; i < x; i++) {
+		x2 = o->x + randomn(140)-70 - game_state.x;	
+		y2 = o->y + 40 + randomn(140)-70 - game_state.y + (SCREEN_HEIGHT/2);	
+		lightning_draw(w, x1, y1, x2, y2);
+	}
+
+	if (!o->tsd.tesla.discharging)
+		return;
+
+	for (i = 0; i < 5; i++) {
+
+		x2 = o->tsd.tesla.targetx + randomn(40)-20 - game_state.x;	
+		y2 = o->tsd.tesla.targety + randomn(40)-20 - game_state.y + (SCREEN_HEIGHT/2);	
+		lightning_draw(w, x1, y1, x2, y2);
+	}
 }
 
 void kgun_draw(struct game_obj_t *o, GtkWidget *w)
@@ -8896,6 +8998,43 @@ static void add_kernel_guns(struct terrain_t *t,
 			o->tsd.kgun.velocity_factor = laser_speed;
 			o->tsd.kgun.bank_shot_factor = 1;
 			o->tsd.kgun.attached_to = NULL;
+			o->below_target_y = 27;
+			o->above_target_y = -20;
+		}
+		if (p != NULL)
+			p->tsd.truss.below = o;
+	}
+}
+
+static void add_tesla_towers(struct terrain_t *t, 
+	struct level_obj_descriptor_entry *entry)
+{
+	int i, xi;
+	int ntrusses;
+	struct game_obj_t *o, *p;
+
+	o = NULL;
+	p = NULL;
+	for (i=0;i<entry->nobjs;i++) {
+		xi = initial_x_location(entry, i);
+		ntrusses = randomn(9)+3;
+
+		p = add_truss_tower(t->x[xi], KERNEL_Y_BOUNDARY, ntrusses, 0,
+			3, RED, 60, 20, 25);
+		if (p == NULL)
+			break;
+
+		o = add_generic_object(t->x[xi], p->y + 10 + 25, 0, 0, 
+			tesla_tower_move, tesla_tower_draw, WHITE, &tesla_vect, 1, OBJ_TYPE_TESLA, 1);
+		if (o != NULL) {
+			o->uses_health = 1;
+			o->health.prevhealth = -1;
+			o->health.maxhealth = level.kgun_health;
+			o->health.health = o->health.maxhealth;
+			o->tsd.tesla.targetx = o->x;
+			o->tsd.tesla.targety = o->y;
+			o->tsd.tesla.discharging = 0;
+			o->tsd.tesla.time_to_discharge = 0;
 			o->below_target_y = 27;
 			o->above_target_y = -20;
 		}
@@ -11303,6 +11442,9 @@ void start_level()
 		case OBJ_TYPE_KGUN:
 			add_kernel_guns(&terrain, &objdesc[i],
 				leveld[level.level_number]->laser_velocity_factor);
+			break;
+		case OBJ_TYPE_TESLA:
+			add_tesla_towers(&terrain, &objdesc[i]);
 			break;
 		case OBJ_TYPE_AIRSHIP:
 			add_airships(&terrain, &objdesc[i]);

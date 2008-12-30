@@ -279,6 +279,7 @@
 #define OBJ_TYPE_HOUSE '^'
 #define OBJ_TYPE_PRESENT 'G'
 #define OBJ_TYPE_SCENERY '9'
+#define OBJ_TYPE_TESLA 'V'
 
 #define NHOUSES 10
 
@@ -333,6 +334,7 @@ struct level_obj_descriptor_entry level_1_obj[] = {
 	{ OBJ_TYPE_GDB, 	3, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, DO_IT_RANDOMLY, 0 },
 	/* { OBJ_TYPE_GUNWHEEL,	10, DO_IT_RANDOMLY, 0 }, */
+	{ OBJ_TYPE_TESLA,	10, DO_IT_RANDOMLY, 0 },
 	/* { OBJ_TYPE_TENTACLE,	0, DO_IT_RANDOMLY, 0 },  */
 };
 /* level 1 ends here. ^^^ */
