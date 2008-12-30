@@ -1605,62 +1605,6 @@ struct my_point_t rocket_points[] = {
 	{ 2, 3}, 
 };
 
-struct my_point_t gunwheel_points[] = {
-	{ -50, 250 },
-	{ -20, 0 },
-	{ 20, 0 },
-	{ 50, 250 },
-	{ LINE_BREAK, LINE_BREAK },
-	{ -35, 125 },
-	{ 35, 125 },
-	{ LINE_BREAK, LINE_BREAK },
-	{ -42, 188 },
-	{ 42, 188 },
-	{ LINE_BREAK, LINE_BREAK },
-	{ -28, 62 },
-	{ 28, 62 },
-	{ LINE_BREAK, LINE_BREAK },
-	{ -20, 0 },
-	{ 28, 62 },
-	{ -35, 125 },
-	{ 42, 188 },
-	{ -50, 250 },
-	{ LINE_BREAK, LINE_BREAK },
-	{ 20, 0 },
-	{ -28, 62 },
-	{ 35, 125 },
-	{ -42, 188 },
-	{ 50, 250 },
-};
-
-struct my_point_t inverted_gunwheel_points[] = {
-	{ -50, -250 },
-	{ -20, 0 },
-	{ 20, 0 },
-	{ 50, -250 },
-	{ LINE_BREAK, LINE_BREAK },
-	{ -35, -125 },
-	{ 35, -125 },
-	{ LINE_BREAK, LINE_BREAK },
-	{ -42, -188 },
-	{ 42, -188 },
-	{ LINE_BREAK, LINE_BREAK },
-	{ -28, -62 },
-	{ 28, -62 },
-	{ LINE_BREAK, LINE_BREAK },
-	{ -20, 0 },
-	{ 28, -62 },
-	{ -35, -125 },
-	{ 42, -188 },
-	{ -50, -250 },
-	{ LINE_BREAK, LINE_BREAK },
-	{ 20, 0 },
-	{ -28, -62 },
-	{ 35, -125 },
-	{ -42, -188 },
-	{ 50, -250 },
-};
-
 struct my_point_t bridge_points[] = {  /* square with an x through it, 8x8 */
 	{ -4, -4 },
 	{ -4, 4 },
@@ -1921,8 +1865,6 @@ struct my_vect_obj gdb_vect_right;
 struct my_vect_obj gdb_vect_left;
 struct my_vect_obj octopus_vect;
 struct my_vect_obj ships_hull;
-struct my_vect_obj gunwheel_vect;
-struct my_vect_obj inverted_gunwheel_vect;
 
 /* There are 4 home-made "fonts" in the game, all the same "typeface", but 
  * different sizes */
@@ -2382,6 +2324,7 @@ struct gunwheel_data {
 	struct game_obj_t *right;
 	struct game_obj_t *attached_to;
 	int inverted;
+	int rotation_multiplier;
 };
 
 struct house_data {
@@ -7234,14 +7177,11 @@ void gunwheel_move(struct game_obj_t *o)
 }
 
 void gunwheel_gun_location(struct game_obj_t *parent, 
-	__attribute__ ((unused)) struct game_obj_t *child, int *x, int *y)
+	struct game_obj_t *child, int *x, int *y)
 {
 	int angle, x1, y1;
 
-	if (parent->tsd.gunwheel.attached_to == NULL)
-		angle = (timer << 2) % 360;
-	else
-		angle = (timer << 3) % 360;
+	angle = (timer * parent->tsd.gunwheel.rotation_multiplier) % 360;
 
 	x1 = cosine[angle] * parent->tsd.gunwheel.size;
 	y1 = sine[angle] * parent->tsd.gunwheel.size;
@@ -7267,10 +7207,8 @@ void make_gunwheel_sound()
 void gunwheel_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int angle, x1, y1, x2, y2, rx, ry;
-	if (o->tsd.gunwheel.attached_to == NULL)
-		angle = (timer << 2) % 360;
-	else
-		angle = (timer << 3) % 360;
+
+	angle = (timer * o->tsd.gunwheel.rotation_multiplier) % 360;
 
 	x1 = cosine[angle] * o->tsd.gunwheel.size;
 	y1 = sine[angle] * o->tsd.gunwheel.size;
@@ -7285,10 +7223,7 @@ void gunwheel_draw(struct game_obj_t *o, GtkWidget *w)
 	y1 = y1 - game_state.y + (SCREEN_HEIGHT/2);  
 	y2 = y2 - game_state.y + (SCREEN_HEIGHT/2);  
 
-	if (o->tsd.gunwheel.attached_to == NULL) 
-		draw_generic(o, w);
-	else
-		gdk_gc_set_foreground(gc, &huex[o->color]);
+	gdk_gc_set_foreground(gc, &huex[o->color]);
 
 	wwvi_draw_line(w->window, gc, x1-rx, y1-ry, x2-rx, y2-ry);
 	wwvi_draw_line(w->window, gc, x1+rx, y1+ry, x2+rx, y2+ry);
@@ -7662,10 +7597,6 @@ void init_vects()
 	rocket_vect.npoints = sizeof(rocket_points) / sizeof(rocket_points[0]);
 	big_rocket_vect.p = big_rocket_points;
 	big_rocket_vect.npoints = sizeof(big_rocket_points) / sizeof(big_rocket_points[0]);
-	gunwheel_vect.p = gunwheel_points;
-	gunwheel_vect.npoints = sizeof(gunwheel_points) / sizeof(gunwheel_points[0]);
-	inverted_gunwheel_vect.p = inverted_gunwheel_points;
-	inverted_gunwheel_vect.npoints = sizeof(inverted_gunwheel_points) / sizeof(inverted_gunwheel_points[0]);
 	jetpilot_vect_left.p = jetpilot_points_left;
 	jetpilot_vect_left.npoints = sizeof(jetpilot_points_left) / sizeof(jetpilot_points_left[0]);	
 	jetpilot_vect_right.p = jetpilot_points_right;
@@ -7877,6 +7808,13 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 		x1 = x2;
 		y1 = y2;
 	}
+}
+
+void truss_gun_location(struct game_obj_t *parent, 
+	__attribute__ ((unused)) struct game_obj_t *child, int *x, int *y)
+{
+	*x = parent->x;
+	*y = parent->y;
 }
 
 void truss_move(struct game_obj_t *o)
@@ -8822,6 +8760,7 @@ static struct game_obj_t *add_truss(int x, int y, int height,
 	o->tsd.truss.height = height;
 	o->above_target_y = -height/2;
 	o->below_target_y = height/2;
+	o->gun_location = truss_gun_location;
 	return o;
 } 
 
@@ -9919,36 +9858,38 @@ static void add_airships(struct terrain_t *t, struct level_obj_descriptor_entry 
 
 static void add_gunwheels(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
-	int xi, i, y;
+	int xi, i, y, towery;
 	int inverted;
-	struct my_vect_obj *vect;
-	struct game_obj_t *o, *left, *right;
+	struct game_obj_t *tower, *o, *left, *right;
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
 
 		inverted = randomn(100) & 0x01;
 		if (inverted) {
-			vect = &inverted_gunwheel_vect;
+			towery = KERNEL_Y_BOUNDARY;
 			y = KERNEL_Y_BOUNDARY + 250;
 		} else {
-			vect = &gunwheel_vect;
 			y = t->y[xi]-250;
+			towery = t->y[xi];
 		}
 
+		tower = add_truss_tower(t->x[xi], towery, 5, !inverted, 14, RED, 100, 62, 100);
+
 		o = add_generic_object(t->x[xi], y, 0, 0, 
-			gunwheel_move, gunwheel_draw, RED, vect, 1, OBJ_TYPE_GUNWHEEL, 1);
+			gunwheel_move, gunwheel_draw, RED, NULL, 1, OBJ_TYPE_GUNWHEEL, 1);
 		if (o == NULL)
 			continue;
 
 		o->counter = 0;
 		o->radar_image = 4;
 		o->tsd.gunwheel.size = 180;
-		o->tsd.gunwheel.attached_to = NULL;
+		o->tsd.gunwheel.attached_to = tower;
 		o->tsd.gunwheel.inverted = inverted;
+		o->tsd.gunwheel.rotation_multiplier = 4;
 		o->gun_location = gunwheel_gun_location;
 
 		left = add_generic_object(t->x[xi], t->y[xi]-250, 0, 0, 
-			gunwheel_move, gunwheel_draw, RED, &gunwheel_vect, 1, OBJ_TYPE_GUNWHEEL, 1);
+			gunwheel_move, gunwheel_draw, RED, NULL, 1, OBJ_TYPE_GUNWHEEL, 1);
 		o->tsd.gunwheel.left = left;
 		if (left == NULL)
 			continue;
@@ -9960,9 +9901,10 @@ static void add_gunwheels(struct terrain_t *t, struct level_obj_descriptor_entry
 		left->tsd.gunwheel.right = add_flak_gun(0,0, FAST_LASER, RED, left);
 		left->gun_location = gunwheel_gun_location;
 		left->tsd.gunwheel.inverted = 0;
+		left->tsd.gunwheel.rotation_multiplier = 8;
 
 		right = add_generic_object(t->x[xi], t->y[xi]-250, 0, 0, 
-			gunwheel_move, gunwheel_draw, RED, &gunwheel_vect, 1, OBJ_TYPE_GUNWHEEL, 1);
+			gunwheel_move, gunwheel_draw, RED, NULL, 1, OBJ_TYPE_GUNWHEEL, 1);
 		o->tsd.gunwheel.right = right;
 		if (right == NULL)
 			continue;
@@ -9974,6 +9916,7 @@ static void add_gunwheels(struct terrain_t *t, struct level_obj_descriptor_entry
 		right->tsd.gunwheel.right = add_flak_gun(0,0, FAST_LASER, RED, right);
 		right->gun_location = gunwheel_gun_location;
 		right->tsd.gunwheel.inverted = 0;
+		right->tsd.gunwheel.rotation_multiplier = 8;
 	}
 }
 
