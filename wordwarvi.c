@@ -8981,7 +8981,7 @@ static void add_kernel_guns(struct terrain_t *t,
 		ntrusses = randomn(9)+3;
 
 		p = add_truss_tower(t->x[xi], KERNEL_Y_BOUNDARY, ntrusses, 0,
-			2, RED, 40, 20, level.kgun_health);
+			0, RED, 20, 20, level.kgun_health);
 		if (p == NULL)
 			break;
 
