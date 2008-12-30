@@ -7854,9 +7854,6 @@ void gunwheel_cut_loose(struct game_obj_t *o, struct game_obj_t *child)
 		gunwheel_cut_loose(child, child->tsd.gunwheel.right);
 		child->tsd.gunwheel.right = NULL;
 	}
-	o->move = bomb_move;
-	o->vx = o->x - o->lastx;
-	o->vy = o->y - o->lasty;
 }
 
 void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
@@ -7878,6 +7875,14 @@ void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 			i->tsd.gunwheel.left = NULL;
 			gunwheel_cut_loose(i, i->tsd.gunwheel.right);
 			i->tsd.gunwheel.right = NULL;
+			i->tsd.gunwheel.attached_to->tsd.truss.below = NULL;
+			i->tsd.gunwheel.attached_to = NULL;
+			i->move = bomb_move;
+			i->vx = randomn(6)-3;
+			i->vy = randomn(6)-3;
+			i->vx += i->x - i->lastx;
+			i->vy += i->y - i->lasty;
+			i->y += 15;
 			break;
 		} else {
 			/* make the gun blow up when it lands */
@@ -7891,6 +7896,7 @@ void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 
 			i->tsd.bomb.bank_shot_factor = 1;
 			nice_bank_shot(bomb);
+			i->y += 5;
 			break;
 		}
 	}
@@ -9916,7 +9922,7 @@ static void add_gunwheels(struct terrain_t *t, struct level_obj_descriptor_entry
 			towery = t->y[xi];
 		}
 
-		tower = add_truss_tower(t->x[xi], towery, 5, !inverted, 14, RED, 100, 62, 15);
+		tower = add_truss_tower(t->x[xi], towery, 5, !inverted, 14, RED, 100, 62, 25);
 
 		if (tower == NULL)
 			continue;
