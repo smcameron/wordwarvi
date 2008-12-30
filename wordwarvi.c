@@ -8825,10 +8825,61 @@ static struct game_obj_t *add_truss(int x, int y, int height,
 	return o;
 } 
 
+struct game_obj_t *add_truss_tower(int x, int y, int ntrusses, int inverted, 
+	int taper, int color, int width, int height, int health)
+{
+	int i;
+	struct game_obj_t *o, *p;
+	int top_width, bottom_width;
+	int ty;
+
+
+	top_width = width;
+	bottom_width = width;
+	if (inverted) {
+		inverted = -1;
+		bottom_width -= taper;
+	} else {
+		inverted = 1;
+		top_width -= taper;
+	}
+
+	o = NULL;
+	p = NULL;
+	for (i = 0; i < ntrusses; i++) {
+		ty = y + (inverted * (height/2 + (height*i)));
+		o = add_truss(x, ty, bottom_width, top_width, height, color);
+		if (o == NULL) {
+			struct game_obj_t *x, *next;
+
+			for (x = p; x != NULL; x = next ) {
+				next = x->tsd.truss.above;
+				kill_object(x);
+			}
+			break;
+		}
+		o->uses_health = 1;
+		o->health.maxhealth = health;
+		o->health.health = o->health.maxhealth;
+		o->health.prevhealth = -1;
+		if (i != 0) {
+			o->tsd.truss.above = p;
+			p->tsd.truss.below = o;
+		} else 
+			o->tsd.truss.above = NULL;
+		p = o;
+		p->tsd.truss.below = NULL;
+
+		bottom_width -= taper;
+		top_width -= taper;
+	}
+	return p;
+}
+
 static void add_kernel_guns(struct terrain_t *t, 
 	struct level_obj_descriptor_entry *entry, int laser_speed)
 {
-	int i, j, xi;
+	int i, xi;
 	int ntrusses;
 	struct game_obj_t *o, *p;
 
@@ -8838,32 +8889,12 @@ static void add_kernel_guns(struct terrain_t *t,
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
 		ntrusses = randomn(9)+3;
-		for (j=0;j<ntrusses;j++) {
-			o = add_truss(t->x[xi], KERNEL_Y_BOUNDARY + 10 + (20*j),
-				20, 20, 20, RED);
-			if (o == NULL) {
-				struct game_obj_t *x, *next;
 
-				for (x = p; x != NULL; x = next ) {
-					next = x->tsd.truss.above;
-					kill_object(x);
-				}
-				break;
-			}
-			o->uses_health = 1;
-			o->health.maxhealth = level.kgun_health;
-			o->health.health = o->health.maxhealth;
-			o->health.prevhealth = -1;
-			if (j != 0) {
-				o->tsd.truss.above = p;
-				p->tsd.truss.below = o;
-			} else 
-				o->tsd.truss.above = NULL;
-			p = o;
-			p->tsd.truss.below = NULL;
-		}
-		if (o == NULL)
+		p = add_truss_tower(t->x[xi], KERNEL_Y_BOUNDARY, ntrusses, 0,
+			0, RED, 20, 20, level.kgun_health);
+		if (p == NULL)
 			break;
+
 		o = add_generic_object(t->x[xi], p->y + 10 + 25, 0, 0, 
 			kgun_move, kgun_draw, RED, &kgun_vect, 1, OBJ_TYPE_KGUN, 1);
 		if (o != NULL) {
