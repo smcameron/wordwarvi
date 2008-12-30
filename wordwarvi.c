@@ -2364,6 +2364,7 @@ struct health_data {
 
 struct truss_data {
 	struct game_obj_t *above, *below;
+	int height, top_width, bottom_width; /*  to allow different shaped trusses */
 };
 
 struct kgun_data {
@@ -7916,23 +7917,30 @@ void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 
 void truss_draw(struct game_obj_t *o, GtkWidget *w)
 {
-	int x, y, x1, y1, x2, y2;
+	int x, y, x1, y1, x2, y2, x3, y3, x4, y4;
 	gdk_gc_set_foreground(gc, &huex[o->color]);
 
 	x = o->x - game_state.x;
 	y = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 
-	x1 = x - 10;
-	x2 = x + 10;
-	y1 = y - 10;
-	y2 = y + 10;
+	x1 = x - o->tsd.truss.top_width / 2; /* top left corner */
+	y1 = y - o->tsd.truss.height / 2;
+
+	x2 = x + o->tsd.truss.top_width / 2; /* top right corner */
+	y2 = y - o->tsd.truss.height / 2;
+
+	x3 = x - o->tsd.truss.bottom_width / 2; /* bottom left corner */
+	y3 = y + o->tsd.truss.height / 2;
+
+	x4 = x + o->tsd.truss.bottom_width / 2; /* bottom right corner */
+	y4 = y + o->tsd.truss.height / 2;
 
 	wwvi_draw_line(w->window, gc, x1, y1, x2, y2);
-	wwvi_draw_line(w->window, gc, x1, y2, x2, y1);
-	wwvi_draw_line(w->window, gc, x1, y1, x2, y1);
-	wwvi_draw_line(w->window, gc, x1, y2, x2, y2);
-	wwvi_draw_line(w->window, gc, x1, y1, x1, y2);
-	wwvi_draw_line(w->window, gc, x2, y1, x2, y2);
+	wwvi_draw_line(w->window, gc, x1, y1, x3, y3);
+	wwvi_draw_line(w->window, gc, x1, y1, x4, y4);
+	wwvi_draw_line(w->window, gc, x2, y2, x4, y4);
+	wwvi_draw_line(w->window, gc, x2, y2, x3, y3);
+	wwvi_draw_line(w->window, gc, x3, y3, x4, y4);
 }
 
 void kgun_draw(struct game_obj_t *o, GtkWidget *w)
@@ -8801,6 +8809,22 @@ static void add_flak_guns(struct terrain_t *t,
 	}
 }
 
+static struct game_obj_t *add_truss(int x, int y, int height, 
+	int bottom_width, int top_width, int color)
+{
+	struct game_obj_t *o;
+	o = add_generic_object(x, y, 0, 0, truss_move, truss_draw, 
+		color, NULL, 1, OBJ_TYPE_TRUSS, 1);
+	if (o == NULL)
+		return o;
+	o->tsd.truss.top_width = top_width;
+	o->tsd.truss.bottom_width = bottom_width;
+	o->tsd.truss.height = height;
+	o->above_target_y = -height/2;
+	o->below_target_y = height/2;
+	return o;
+} 
+
 static void add_kernel_guns(struct terrain_t *t, 
 	struct level_obj_descriptor_entry *entry, int laser_speed)
 {
@@ -8815,8 +8839,8 @@ static void add_kernel_guns(struct terrain_t *t,
 		xi = initial_x_location(entry, i);
 		ntrusses = randomn(9)+3;
 		for (j=0;j<ntrusses;j++) {
-			o = add_generic_object(t->x[xi], KERNEL_Y_BOUNDARY + 10 + (20*j), 0, 0, 
-				truss_move, truss_draw, RED, NULL, 1, OBJ_TYPE_TRUSS, 1);
+			o = add_truss(t->x[xi], KERNEL_Y_BOUNDARY + 10 + (20*j),
+				20, 20, 20, RED);
 			if (o == NULL) {
 				struct game_obj_t *x, *next;
 
@@ -8830,8 +8854,6 @@ static void add_kernel_guns(struct terrain_t *t,
 			o->health.maxhealth = level.kgun_health;
 			o->health.health = o->health.maxhealth;
 			o->health.prevhealth = -1;
-			o->above_target_y = -10;
-			o->below_target_y = 10;
 			if (j != 0) {
 				o->tsd.truss.above = p;
 				p->tsd.truss.below = o;
