@@ -2392,6 +2392,7 @@ struct game_obj_t {
 	get_coords_func gun_location;	/* for attaching guns to objects */
 	struct game_obj_t *attached_gun;/* For attaching guns to objects */
 	struct my_vect_obj *debris_form;/* How to draw it when destroyed. */
+	int lastx, lasty;		/* in case we want to calc velocity by verlet integration */
 };
 
 struct game_obj_t *target_head = NULL;
@@ -2904,6 +2905,9 @@ void kgun_move(struct game_obj_t *o)
 	int invert = o->tsd.kgun.invert;
 	int recoilx, recoily;
 	struct game_obj_t *holder;
+
+	o->lastx = o->x;
+	o->lasty = o->y;
 
 	/* if gun is attached to something, make it move with that something */
 	holder = o->tsd.kgun.attached_to;
@@ -7169,6 +7173,9 @@ void gunwheel_move(struct game_obj_t *o)
 {
 	struct game_obj_t *holder;
 
+	o->lastx = o->x;
+	o->lasty = o->y;
+
 	/* if gunwheel is attached to something, make it move with that something */
 	holder = o->tsd.gunwheel.attached_to;
 	if (holder != NULL)
@@ -7827,6 +7834,31 @@ void truss_move(struct game_obj_t *o)
 		o->health.health++;
 }
 
+void gunwheel_cut_loose(struct game_obj_t *o, struct game_obj_t *child)
+{
+	if (child == NULL)
+		return;
+
+	if (child->otype == OBJ_TYPE_KGUN && child->tsd.kgun.attached_to == o) {
+		child->tsd.kgun.attached_to = NULL;
+		/* verlet integration to get velocity... */
+		child->vx = child->x - child->lastx;
+		child->vy = child->y - child->lasty;
+		child->move = bomb_move;
+	} else if (child->otype == OBJ_TYPE_GUNWHEEL) {
+		child->vx = child->x - child->lastx;
+		child->vy = child->y - child->lasty;
+		child->move = bomb_move;
+		gunwheel_cut_loose(child, child->tsd.gunwheel.left);
+		child->tsd.gunwheel.left = NULL;
+		gunwheel_cut_loose(child, child->tsd.gunwheel.right);
+		child->tsd.gunwheel.right = NULL;
+	}
+	o->move = bomb_move;
+	o->vx = o->x - o->lastx;
+	o->vy = o->y - o->lasty;
+}
+
 void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 {
 	struct game_obj_t *i;
@@ -7839,17 +7871,28 @@ void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 				i->tsd.truss.above = NULL;
 			}
 			i->move = bridge_move;
+			i->vx = randomn(6)-3;
+			i->vy = randomn(6)-3;
+		} else if (i->otype == OBJ_TYPE_GUNWHEEL) {
+			gunwheel_cut_loose(i, i->tsd.gunwheel.left);
+			i->tsd.gunwheel.left = NULL;
+			gunwheel_cut_loose(i, i->tsd.gunwheel.right);
+			i->tsd.gunwheel.right = NULL;
+			break;
 		} else {
 			/* make the gun blow up when it lands */
 			i->move = bomb_move; 
 			i->vx = randomn(6)-3;
 			i->vy = randomn(6)-3;
+
+			/* verlet integration to make the thing more or less continue on its path. */
+			i->vx += (i->x - i->lastx);
+			i->vy += (i->y - i->lasty);
+
 			i->tsd.bomb.bank_shot_factor = 1;
 			nice_bank_shot(bomb);
 			break;
 		}
-		i->vx = randomn(6)-3;
-		i->vy = randomn(6)-3;
 	}
 }
 
@@ -9873,12 +9916,17 @@ static void add_gunwheels(struct terrain_t *t, struct level_obj_descriptor_entry
 			towery = t->y[xi];
 		}
 
-		tower = add_truss_tower(t->x[xi], towery, 5, !inverted, 14, RED, 100, 62, 100);
+		tower = add_truss_tower(t->x[xi], towery, 5, !inverted, 14, RED, 100, 62, 15);
+
+		if (tower == NULL)
+			continue;
 
 		o = add_generic_object(t->x[xi], y, 0, 0, 
 			gunwheel_move, gunwheel_draw, RED, NULL, 1, OBJ_TYPE_GUNWHEEL, 1);
 		if (o == NULL)
 			continue;
+
+		tower->tsd.truss.below = o;
 
 		o->counter = 0;
 		o->radar_image = 4;
