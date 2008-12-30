@@ -8838,17 +8838,17 @@ struct game_obj_t *add_truss_tower(int x, int y, int ntrusses, int inverted,
 	bottom_width = width;
 	if (inverted) {
 		inverted = -1;
-		bottom_width -= taper;
+		top_width -= taper;
 	} else {
 		inverted = 1;
-		top_width -= taper;
+		bottom_width -= taper;
 	}
 
 	o = NULL;
 	p = NULL;
 	for (i = 0; i < ntrusses; i++) {
 		ty = y + (inverted * (height/2 + (height*i)));
-		o = add_truss(x, ty, bottom_width, top_width, height, color);
+		o = add_truss(x, ty, height, bottom_width, top_width, color);
 		if (o == NULL) {
 			struct game_obj_t *x, *next;
 
@@ -8891,7 +8891,7 @@ static void add_kernel_guns(struct terrain_t *t,
 		ntrusses = randomn(9)+3;
 
 		p = add_truss_tower(t->x[xi], KERNEL_Y_BOUNDARY, ntrusses, 0,
-			0, RED, 20, 20, level.kgun_health);
+			2, RED, 40, 20, level.kgun_health);
 		if (p == NULL)
 			break;
 
