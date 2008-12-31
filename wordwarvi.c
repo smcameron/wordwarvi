@@ -2332,10 +2332,12 @@ struct truss_data {
 
 struct tesla_data {
 	int bank_shot_factor; /* has to match bomb. */
+	int invert;
 	int discharging;
 	int close_enough;
 	int time_to_discharge;
 	int targetx, targety;
+	struct game_obj_t *attached_to;
 };
 
 struct kgun_data {
@@ -4825,11 +4827,22 @@ void disconnect_any_attached_gun(struct game_obj_t *t)
 		t->attached_gun = NULL;
 	}
 	/* if we hit a gun disconnect it */
-	if (t->otype == OBJ_TYPE_KGUN && t->tsd.kgun.attached_to != NULL) {
+	if (t->otype == OBJ_TYPE_KGUN && 
+		t->tsd.kgun.attached_to != NULL) {
 		t->tsd.kgun.attached_to->attached_gun = NULL;
+		if (t->tsd.kgun.attached_to->otype == OBJ_TYPE_TRUSS)
+			t->tsd.kgun.attached_to->tsd.truss.below = NULL;
 		t->tsd.kgun.attached_to = NULL;
 	}
-
+	/* actually, the below tesla code never executes because the */
+	/* laser and bomb currently cannot hit a tesla coil */
+	if (t->otype == OBJ_TYPE_TESLA && 
+		t->tsd.tesla.attached_to != NULL) {
+		t->tsd.tesla.attached_to->attached_gun = NULL;
+		if (t->tsd.tesla.attached_to->otype == OBJ_TYPE_TRUSS)
+			t->tsd.tesla.attached_to->tsd.truss.below = NULL;
+		t->tsd.tesla.attached_to = NULL;
+	}
 }
 
 void bomb_move(struct game_obj_t *o)
@@ -7902,7 +7915,7 @@ void truss_gun_location(struct game_obj_t *parent,
 	__attribute__ ((unused)) struct game_obj_t *child, int *x, int *y)
 {
 	*x = parent->x;
-	*y = parent->y;
+	*y = parent->y + 10 + 25;
 }
 
 void truss_move(struct game_obj_t *o)
@@ -7940,7 +7953,9 @@ void gunwheel_cut_loose(struct game_obj_t *o, struct game_obj_t *child)
 void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 {
 	struct game_obj_t *i;
+	struct game_obj_t *p;
 
+	p = NULL;
 	/* Cut loose everything below */
 	for (i=o; i != NULL; i = i->tsd.truss.below) {
 		if (i->otype == OBJ_TYPE_TRUSS) {
@@ -7965,7 +7980,7 @@ void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 			i->vy += i->y - i->lasty;
 			i->y += 15;
 			break;
-		} else {
+		} else if (i->otype == OBJ_TYPE_KGUN || i->otype == OBJ_TYPE_TESLA) {
 			/* make the gun blow up when it lands */
 			i->move = bomb_move; 
 			i->vx = randomn(6)-3;
@@ -7979,8 +7994,18 @@ void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 			nice_bank_shot(bomb);
 			i->y += 5;
 			break;
+		} else {
+			/* We should never get here. */
+			printf("%s:%d: unexpected object type '%c'.  Probably about to crash.\n", 
+				__FILE__, __LINE__, i->otype);
+			fflush(stdout);
 		}
+		if (p && p->otype == OBJ_TYPE_TRUSS)
+			p->tsd.truss.below = NULL;
+		p = i;
 	}
+	if (p && p->otype == OBJ_TYPE_TRUSS)
+		p->tsd.truss.below = NULL;
 }
 
 void truss_draw(struct game_obj_t *o, GtkWidget *w)
@@ -8953,6 +8978,7 @@ struct game_obj_t *add_truss_tower(int x, int y, int ntrusses, int inverted,
 				next = x->tsd.truss.above;
 				kill_object(x);
 			}
+			p = NULL;
 			break;
 		}
 		o->uses_health = 1;
@@ -9004,7 +9030,7 @@ static void add_kernel_guns(struct terrain_t *t,
 			o->tsd.kgun.invert = 1;	/* this means hanging upside down */
 			o->tsd.kgun.velocity_factor = laser_speed;
 			o->tsd.kgun.bank_shot_factor = 1;
-			o->tsd.kgun.attached_to = NULL;
+			o->tsd.kgun.attached_to = p;
 			o->below_target_y = 27;
 			o->above_target_y = -20;
 		}
@@ -9038,11 +9064,13 @@ static void add_tesla_towers(struct terrain_t *t,
 			o->health.prevhealth = -1;
 			o->health.maxhealth = level.kgun_health;
 			o->health.health = o->health.maxhealth;
+			o->tsd.tesla.invert = 0;
 			o->tsd.tesla.targetx = o->x;
 			o->tsd.tesla.targety = o->y;
 			o->tsd.tesla.discharging = 0;
 			o->tsd.tesla.close_enough = 0;
 			o->tsd.tesla.time_to_discharge = 0;
+			o->tsd.tesla.attached_to = p;
 			o->below_target_y = 27;
 			o->above_target_y = -20;
 		}
