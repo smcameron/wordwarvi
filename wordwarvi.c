@@ -2333,6 +2333,7 @@ struct truss_data {
 struct tesla_data {
 	int bank_shot_factor; /* has to match bomb. */
 	int discharging;
+	int close_enough;
 	int time_to_discharge;
 	int targetx, targety;
 };
@@ -3042,38 +3043,40 @@ void tesla_tower_move(struct game_obj_t *o)
 	o->lastx = o->x;
 	o->lasty = o->y;
 
+	/* discharge some... */
+	if (o->tsd.tesla.discharging > 0) 
+		o->tsd.tesla.discharging--;
+
 	/* If we've discharged recently, charge up... */
-	if (o->tsd.tesla.time_to_discharge > timer) {
-		o->tsd.tesla.discharging = 0;
-		return;
+	if (o->tsd.tesla.time_to_discharge <= timer) {
+		o->tsd.tesla.discharging = frame_rate_hz / 4;
+		o->tsd.tesla.time_to_discharge = timer + frame_rate_hz + randomn(7);
 	}
+
+	if (!(o->tsd.tesla.discharging > 0) && o->tsd.tesla.time_to_discharge > timer)
+		return;
 
 	/* We're charged.  How close is the player? */
 	dx = player_target->x - o->x;
 	dy = player_target->y - o->y;
-	if (abs(dx) + abs(dy) > 650) 
+	if (abs(dx) + abs(dy) > 650) {
+		o->tsd.tesla.close_enough = 0; 
 		return; /* not close enough. */
+	} else
+		o->tsd.tesla.close_enough = 1; 
 
-	/* Close enough, begin discharging if we aren't already. */
-	if (o->tsd.tesla.discharging == 0)
-		o->tsd.tesla.discharging = frame_rate_hz / 4;
-
-	/* discharge some... */
-	if (o->tsd.tesla.discharging > 0) 
-		o->tsd.tesla.discharging--;
+	if (!o->tsd.tesla.discharging)
+		return;
 
 	o->tsd.tesla.targetx = player_target->x + randomn(20)-10;
 	o->tsd.tesla.targety = player_target->y + randomn(20)-10;
 	if (abs(o->tsd.tesla.targetx - player_target->x) < 5 &&
 		abs(o->tsd.tesla.targety - player_target->y) < 5) {
+		explosion(player_target->x, player_target->y, player_target->vx, player_target->vy, 70, 20, 20);
 		wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
 		game_state.health -= LASER_BOLT_DAMAGE;
 		do_strong_rumble();
 	}
-
-	/* Fully discharged?  Begin recharging */
-	if (o->tsd.tesla.discharging == 0)
-		o->tsd.tesla.time_to_discharge = timer + frame_rate_hz;
 
 	return;
 }
@@ -3465,6 +3468,10 @@ void lightning_draw( GtkWidget *w, int x1, int y1, int x2, int y2)
 		}
 		return;
 	}
+	if (dy < 9)
+		dy = 9;
+	if (dx < 9)
+		dx = 9;
 
 	/* find the midpoint between x1,y1, x2, y2.  Call this midpoint x3,y3. */
 	if (y2 > y1)
@@ -8021,7 +8028,7 @@ void tesla_tower_draw(struct game_obj_t *o, GtkWidget *w)
 		lightning_draw(w, x1, y1, x2, y2);
 	}
 
-	if (!o->tsd.tesla.discharging)
+	if (!o->tsd.tesla.discharging || !o->tsd.tesla.close_enough)
 		return;
 
 	for (i = 0; i < 5; i++) {
@@ -9020,7 +9027,7 @@ static void add_tesla_towers(struct terrain_t *t,
 		ntrusses = randomn(9)+3;
 
 		p = add_truss_tower(t->x[xi], KERNEL_Y_BOUNDARY, ntrusses, 0,
-			3, RED, 60, 20, 25);
+			2, RED, 40, 20, 25);
 		if (p == NULL)
 			break;
 
@@ -9034,6 +9041,7 @@ static void add_tesla_towers(struct terrain_t *t,
 			o->tsd.tesla.targetx = o->x;
 			o->tsd.tesla.targety = o->y;
 			o->tsd.tesla.discharging = 0;
+			o->tsd.tesla.close_enough = 0;
 			o->tsd.tesla.time_to_discharge = 0;
 			o->below_target_y = 27;
 			o->above_target_y = -20;
