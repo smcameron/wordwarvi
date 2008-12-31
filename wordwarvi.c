@@ -227,7 +227,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define MIN_ALT 50		/* for "attract mode", min altitude above ground player flies. */
 
 #define EASY_MAXHEALTH 150		/* Max, and initial health value of player */
-#define MEDIUM_MAXHEALTH 100000		/* Max, and initial health value of player */
+#define MEDIUM_MAXHEALTH 100		/* Max, and initial health value of player */
 #define HARD_MAXHEALTH 32		/* Max, and initial health value of player */
 #define INSANE_MAXHEALTH 10		/* Max, and initial health value of player */
 #define BATSHIT_INSANE_MAXHEALTH 3	/* Max, and initial health value of player */
