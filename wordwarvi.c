@@ -227,7 +227,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define MIN_ALT 50		/* for "attract mode", min altitude above ground player flies. */
 
 #define EASY_MAXHEALTH 150		/* Max, and initial health value of player */
-#define MEDIUM_MAXHEALTH 100		/* Max, and initial health value of player */
+#define MEDIUM_MAXHEALTH 100000		/* Max, and initial health value of player */
 #define HARD_MAXHEALTH 32		/* Max, and initial health value of player */
 #define INSANE_MAXHEALTH 10		/* Max, and initial health value of player */
 #define BATSHIT_INSANE_MAXHEALTH 3	/* Max, and initial health value of player */
@@ -2846,6 +2846,24 @@ void laserbolt_move(struct game_obj_t *o)
 	age_object(o);
 }
 
+void make_bomb_sound()
+{
+	/* Prevent more than two BOMB_IMPACT_SOUNDS from firing off */
+	/* in the same frame because allowing more is too loud. */
+	static int lasttime = -1;
+	static int nbombs_this_frame = 0;
+
+	if (lasttime == timer) {
+		if (nbombs_this_frame > 2)
+			return;
+		nbombs_this_frame++;
+	} else {
+		lasttime = timer;
+		nbombs_this_frame = 1;
+	}
+	wwviaudio_add_sound(BOMB_IMPACT_SOUND);
+}
+
 void house_move(struct game_obj_t *o)
 {
 	return;
@@ -4915,7 +4933,7 @@ void bomb_move(struct game_obj_t *o)
 						t->health.health -= 1;
 						if (t->health.health > 0) {
 							do_remove_bomb = 1;
-							wwviaudio_add_sound(BOMB_IMPACT_SOUND);
+							make_bomb_sound();
 							explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 							spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 							/* target object not dead yet. */
@@ -4943,7 +4961,7 @@ void bomb_move(struct game_obj_t *o)
 						nice_bank_shot(o);
 					}
 					kill_tally[t->otype]++;
-					wwviaudio_add_sound(BOMB_IMPACT_SOUND);
+					make_bomb_sound();
 					explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 					spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 					/* t->alive = 0; */
@@ -4966,7 +4984,7 @@ void bomb_move(struct game_obj_t *o)
 	/* Detect smashing into the ground */
 	deepest = find_ground_level(o, NULL);
 	if (deepest != GROUND_OOPS && o->y > deepest) {
-		wwviaudio_add_sound(BOMB_IMPACT_SOUND);
+		make_bomb_sound();
 		explosion(o->x, o->y, o->vx, 1, 90, 150, 20);
 		do_remove_bomb = 1;
 		/* find nearby targets */
@@ -5004,7 +5022,7 @@ void bomb_move(struct game_obj_t *o)
 						if (t->uses_health) {
 							t->health.health -= 1;
 							if (t->health.health > 0) {
-								wwviaudio_add_sound(BOMB_IMPACT_SOUND);
+								make_bomb_sound();
 								explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
 								spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);
 								/* object not dead yet. */
@@ -5157,7 +5175,7 @@ void gravity_bomb_move(struct game_obj_t *o)
 						add_score_floater(t->x, t->y, score_table[t->otype]);
 					}
 					kill_tally[t->otype]++;
-					/* wwviaudio_add_sound(BOMB_IMPACT_SOUND);*/
+					/* make_bomb_sound();*/
 					/* explode(t->x, t->y, t->vx, 1, 70, 150, 20);*/
 					/* spray_debris(t->x, t->y, t->vx, t->vy, 70, t, 1);*/
 					remove_target(t);
