@@ -7957,10 +7957,12 @@ void gunwheel_cut_loose(struct game_obj_t *o, struct game_obj_t *child)
 		child->vx = child->x - child->lastx;
 		child->vy = child->y - child->lasty;
 		child->move = bomb_move;
+		child->tsd.bomb.bank_shot_factor = 1;
 	} else if (child->otype == OBJ_TYPE_GUNWHEEL) {
 		child->vx = child->x - child->lastx;
 		child->vy = child->y - child->lasty;
 		child->move = bomb_move;
+		child->tsd.bomb.bank_shot_factor = 1;
 		gunwheel_cut_loose(child, child->tsd.gunwheel.left);
 		child->tsd.gunwheel.left = NULL;
 		gunwheel_cut_loose(child, child->tsd.gunwheel.right);
@@ -7992,6 +7994,7 @@ void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 			i->tsd.gunwheel.attached_to->tsd.truss.below = NULL;
 			i->tsd.gunwheel.attached_to = NULL;
 			i->move = bomb_move;
+			i->tsd.bomb.bank_shot_factor = 1;
 			i->vx = randomn(6)-3;
 			i->vy = randomn(6)-3;
 			i->vx += i->x - i->lastx;
