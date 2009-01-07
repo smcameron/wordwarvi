@@ -66,7 +66,7 @@
 /* #define DEBUG_TARGET_LIST */
 
 #define MAX_CONCURRENT_SOUNDS (26)
-#define NCLIPS 58
+#define NCLIPS 59
 /* define sound clip constants */
 #define PLAYER_LASER_SOUND 0
 #define BOMB_IMPACT_SOUND 1
@@ -126,6 +126,7 @@
 #define RADAR_FAIL 55
 #define RADAR_READY 56
 #define GUNWHEEL 57
+#define TESLA_FIRE 58
 /* ...End of audio stuff */
 
 #define NHUMANOIDS 4 /* number of vi .swp files, initially */
@@ -3067,18 +3068,21 @@ void tesla_tower_move(struct game_obj_t *o)
 	if (o->tsd.tesla.discharging > 0) 
 		o->tsd.tesla.discharging--;
 
+	dx = player_target->x - o->x;
+	dy = player_target->y - o->y;
+
 	/* If we've discharged recently, charge up... */
 	if (o->tsd.tesla.time_to_discharge <= timer) {
 		o->tsd.tesla.discharging = frame_rate_hz / 4;
 		o->tsd.tesla.time_to_discharge = timer + frame_rate_hz + randomn(7);
+		if (abs(dx) + abs(dy) <= 650)
+			wwviaudio_add_sound(TESLA_FIRE);
 	}
 
 	if (!(o->tsd.tesla.discharging > 0) && o->tsd.tesla.time_to_discharge > timer)
 		return;
 
 	/* We're charged.  How close is the player? */
-	dx = player_target->x - o->x;
-	dy = player_target->y - o->y;
 	if (abs(dx) + abs(dy) > 650) {
 		o->tsd.tesla.close_enough = 0; 
 		return; /* not close enough. */
@@ -12903,6 +12907,7 @@ int init_clips()
 	wwviaudio_read_ogg_clip(RADAR_READY, "sounds/radar_ready.ogg");
 	wwviaudio_read_ogg_clip(RADAR_FAIL, "sounds/radar_fail.ogg");
 	wwviaudio_read_ogg_clip(GUNWHEEL, "sounds/gunwheel_sound.ogg");
+	wwviaudio_read_ogg_clip(TESLA_FIRE, "sounds/tesla_tower.ogg");
 	if (xmas_mode) {
 		wwviaudio_read_ogg_clip(HOHOHO, "sounds/hohoho.ogg");
 		wwviaudio_read_ogg_clip(HOHOHO_MERRY_XMAS, "sounds/hohoho_merry_xmas.ogg");
