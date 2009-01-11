@@ -8018,6 +8018,11 @@ void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 			i->tsd.bomb.bank_shot_factor = 1;
 			nice_bank_shot(bomb);
 			i->y += 5;
+
+			/* If the tesla tower is discharging... stop it. */
+			if (i->otype == OBJ_TYPE_TESLA)
+				i->tsd.tesla.discharging = 0;
+			
 			break;
 		} else {
 			/* We should never get here. */
