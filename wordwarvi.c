@@ -12338,6 +12338,7 @@ static void draw_help_screen(GtkWidget *w)
 	enum keyaction k;
 	int row, column;
 	int max_y;
+	int y;
 
 
 	gdk_gc_set_foreground(gc, &huex[BLACK]);
@@ -12351,66 +12352,107 @@ static void draw_help_screen(GtkWidget *w)
 	old_line_draw = current_draw_line; 
 	current_draw_line = draw_line_help; 
 
+
+
+	y = 90;
 	gdk_gc_set_foreground(gc, &huex[GREEN]);
-	abs_xy_draw_string(w, "Things you may encounter:", SMALL_FONT, 80, 90);
+	abs_xy_draw_string(w, "Object of the game:", SMALL_FONT, 80, y);
+	y += 50;
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Rescue your four lost .swp files and transport them to the end of", TINY_FONT, 80, y);
+	y += 20;
+	abs_xy_draw_string(w, "the level and take the socket to the next node in the cluster.  Avoid", TINY_FONT, 80, y);
+	y += 20;
+	abs_xy_draw_string(w, "OS defenses and watch out for cron jobs which will attempt to destroy", TINY_FONT, 80, y);
+	y += 20;
+	abs_xy_draw_string(w, "your .swp files.  Use laser fire and bombs to destroy enemy processes.", TINY_FONT, 80, y);
+	y += 50;
+
+	gdk_gc_set_foreground(gc, &huex[GREEN]);
+	abs_xy_draw_string(w, "Things you may encounter:", SMALL_FONT, 80, y);
 	/* abs_xy_draw_string(w, "Help?", BIG_FONT, 300, 280);*/
-	gdk_gc_set_foreground(gc, &huex[GREEN]);
-	draw_abs_scaled_generic(80, 130, &cron_vect, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	abs_xy_draw_string(w, "Cron Job", TINY_FONT, 110, 130);
-	gdk_gc_set_foreground(gc, &huex[CYAN]);
-	draw_abs_scaled_generic(80, 180, &gdb_vect_left, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	abs_xy_draw_string(w, "gdb", TINY_FONT, 110, 180);
-	gdk_gc_set_foreground(gc, &huex[CYAN]);
-	draw_abs_scaled_generic(80, 230, &rocket_vect, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	abs_xy_draw_string(w, "Rocket", TINY_FONT, 110, 230);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	draw_abs_scaled_generic(80, 280, &SAM_station_vect, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	abs_xy_draw_string(w, "SAM station", TINY_FONT, 110, 280);
 
+	y += 50;
+	gdk_gc_set_foreground(gc, &huex[GREEN]);
+	draw_abs_scaled_generic(80, y, &cron_vect, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Cron Job", TINY_FONT, 110, y);
 	gdk_gc_set_foreground(gc, &huex[CYAN]);
-	draw_abs_scaled_generic(260, 130, &airship_vect, w, 0.1, 0.1);
+
+	y += 50;
+	draw_abs_scaled_generic(80, y, &gdb_vect_left, w, 0.5, 0.5);
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	abs_xy_draw_string(w, "EMACS (Stallman's airship)", TINY_FONT, 310, 130);
+	abs_xy_draw_string(w, "gdb", TINY_FONT, 110, y);
+	gdk_gc_set_foreground(gc, &huex[CYAN]);
+
+	y += 50;
+	draw_abs_scaled_generic(80, y, &rocket_vect, w, 0.5, 0.5);
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	draw_abs_scaled_generic(260, 180, &jet_vect, w, 0.5, 0.5);
+	abs_xy_draw_string(w, "Rocket", TINY_FONT, 110, y);
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	abs_xy_draw_string(w, "Jet", TINY_FONT, 310, 180);
+
+	y += 50;
+	draw_abs_scaled_generic(80, y, &SAM_station_vect, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "SAM station", TINY_FONT, 110, y);
+
+	y -= 150;
+	gdk_gc_set_foreground(gc, &huex[CYAN]);
+	draw_abs_scaled_generic(260, y, &airship_vect, w, 0.1, 0.1);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "EMACS (Stallman's airship)", TINY_FONT, 310, y);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+
+	y += 50;
+	draw_abs_scaled_generic(260, y, &jet_vect, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Jet", TINY_FONT, 310, y);
 	gdk_gc_set_foreground(gc, &huex[RED]);
-	draw_abs_scaled_generic(260, 230, &kgun_vect, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	abs_xy_draw_string(w, "Laser turret", TINY_FONT, 310, 230);
-	gdk_gc_set_foreground(gc, &huex[CYAN]);
-	draw_abs_scaled_generic(260, 280, &balloon_vect, w, 0.2, 0.2);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	abs_xy_draw_string(w, "fetchmail", TINY_FONT, 310, 280);
-	abs_xy_draw_string(w, "(Raymond's Gasbag)", TINY_FONT, 310, 300);
-	
-	gdk_gc_set_foreground(gc, &huex[ORANGE]);
-	draw_abs_scaled_generic(570, 130, &fuel_vect, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	abs_xy_draw_string(w, "Fuel tank", TINY_FONT, 620, 130);
-	gdk_gc_set_foreground(gc, &huex[MAGENTA]);
-	draw_abs_scaled_generic(570, 180, &humanoid_vect, w, 1.0, 1.0);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	abs_xy_draw_string(w, ".swp file", TINY_FONT, 620, 180);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	draw_abs_scaled_generic(570, 230, &socket_vect, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	abs_xy_draw_string(w, "socket", TINY_FONT, 620, 230);
-	gdk_gc_set_foreground(gc, &huex[GREEN]);
-	draw_abs_scaled_generic(570, 280, &jetpilot_vect_right, w, 1.0, 1.0);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
-	abs_xy_draw_string(w, "Jet pilot", TINY_FONT, 620, 280);
 
+	y += 50;
+	draw_abs_scaled_generic(260, y, &kgun_vect, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Laser turret", TINY_FONT, 310, y);
+	gdk_gc_set_foreground(gc, &huex[CYAN]);
+
+	y += 50;
+	draw_abs_scaled_generic(260, y, &balloon_vect, w, 0.2, 0.2);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "fetchmail", TINY_FONT, 310, y);
+	abs_xy_draw_string(w, "(Raymond's Gasbag)", TINY_FONT, 310, 300);
+
+	y -= 150;	
+	gdk_gc_set_foreground(gc, &huex[ORANGE]);
+	draw_abs_scaled_generic(570, y, &fuel_vect, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Fuel tank", TINY_FONT, 620, y);
+	gdk_gc_set_foreground(gc, &huex[MAGENTA]);
+
+	y += 50;
+	draw_abs_scaled_generic(570, y, &humanoid_vect, w, 1.0, 1.0);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, ".swp file", TINY_FONT, 620, y);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+
+	y += 50;
+	draw_abs_scaled_generic(570, y, &socket_vect, w, 0.5, 0.5);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "socket", TINY_FONT, 620, y);
+	gdk_gc_set_foreground(gc, &huex[GREEN]);
+
+	y += 50;
+	draw_abs_scaled_generic(570, y, &jetpilot_vect_right, w, 1.0, 1.0);
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Jet pilot", TINY_FONT, 620, y);
+
+	y += 50;
 	row = 0;
 	column = 0;
 	gdk_gc_set_foreground(gc, &huex[GREEN]);
-	abs_xy_draw_string(w, "Controls:", SMALL_FONT, 80, 330);
+	abs_xy_draw_string(w, "Controls:", SMALL_FONT, 80, y);
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
+
+	y += 50;
 
 	for (k=keydown;k<=key_droppresent;k++) {
 		char str[50];
@@ -12424,7 +12466,7 @@ static void draw_help_screen(GtkWidget *w)
 						sprintf(str, "%15s %s", keyactionstring[k],
 							keyname_value_map[j].name);
 
-						abs_xy_draw_string(w, str, TINY_FONT, 80 + 200*column, 380 + row*20);
+						abs_xy_draw_string(w, str, TINY_FONT, 80 + 200*column, y + row*20);
 						column++;
 						if (column > 2) {
 							column = 0;
@@ -12441,7 +12483,7 @@ static void draw_help_screen(GtkWidget *w)
 						sprintf(str, "%15s %s", keyactionstring[k],
 							keyname_value_map[j].name);
 
-						abs_xy_draw_string(w, str, TINY_FONT, 80 + 200*column, 380 + row*20);
+						abs_xy_draw_string(w, str, TINY_FONT, 80 + 200*column, y + row*20);
 						column++;
 						if (column > 2) {
 							column = 0;
@@ -12456,21 +12498,37 @@ static void draw_help_screen(GtkWidget *w)
 				break;
 		}
 	}
-	max_y = 380 + row*20 + 30;
+	max_y = y + row*20 + 30;
+
+	y = max_y + 20;
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	abs_xy_draw_string(w, "Additionally, you may use a gamepad such as an Xbox 360", TINY_FONT, 80, y);
+	y += 20;
+	abs_xy_draw_string(w, "controller (recommended) or a Logitech Dual Action Rumble.", TINY_FONT, 80, y);
+
+	y += 40;
 
 	gdk_gc_set_foreground(gc, &huex[GREEN]);
-	abs_xy_draw_string(w, "About Word War vi:", SMALL_FONT, 80, max_y + 40);
+	abs_xy_draw_string(w, "About Word War vi:", SMALL_FONT, 80, y);
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
 
+	y += 40;
 	abs_xy_draw_string(w, "This is Word War vi version " WORDWARVI_VERSION, 
-		TINY_FONT, 80, max_y + 80); 
-	abs_xy_draw_string(w, "Be sure to read the wordwarvi man page as well.", 
-		TINY_FONT, 80, max_y + 100); 
-	abs_xy_draw_string(w, "(yes there is a man page.  Type 'man wordwarvi'.)", 
-		TINY_FONT, 80, max_y + 120); 
-	abs_xy_draw_string(w, "Check http://wordwarvi.sourceforge.net for updates.", 
-		TINY_FONT, 80, max_y + 160); 
+		TINY_FONT, 80, y); 
 
+	y += 20;
+	abs_xy_draw_string(w, "Be sure to read the wordwarvi man page as well.", 
+		TINY_FONT, 80, y); 
+
+	y += 20;
+	abs_xy_draw_string(w, "(yes there is a man page.  Type 'man wordwarvi'.)", 
+		TINY_FONT, 80, y); 
+
+	y += 20;
+	abs_xy_draw_string(w, "Check http://wordwarvi.sourceforge.net for updates.", 
+		TINY_FONT, 80, y); 
+
+	y += 20;
 	max_y += 180;
 
 	if (game_state.key_up_pressed  && helpscreen_pixel_row > -40) {
