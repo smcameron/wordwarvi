@@ -129,9 +129,9 @@
 
 	   The format is:
 
-	   NEW_LEVEL(levelname, levelobjectlist, ssr, lsr, lfc, nbr, nbo, ngb, lspd, mkgh);
+	   NEW_LEVEL(levelvar, levelobjectlist, ssr, lsr, lfc, nbr, nbo, ngb, lspd, mkgh, levelname);
 
-	   levelname is the name of your level. e.g., my_level.
+	   levelvar is the name of the variable holding your level description. e.g., my_level.
 
            levelobjectlist is the name of the structure you made in step 2b, 
            above, e.g. "my_level_objects".
@@ -174,11 +174,14 @@
 	   of laser hits it takes to kill.  Easy is 1, which means 1 shot will kill it.
 	   3 or 4 makes tham significantly harder.  (Also they heal over time.)
 
+	   levelname is the name of your level, e.g: "My Level".  This string will
+	   appear in the game at the beginning of the level.
+
 	   Example:
 
-	NEW_LEVEL(my_level, my_level_obj, 0.09, 0.04, 20, 5, 100, 3);
+	NEW_LEVEL(my_level, my_level_obj, 0.09, 0.04, 20, 5, 100, 3, "My Level");
 
-	This creates a new level named my_level using the objects specified in
+	This creates a new level named my_level ("My Level") using the objects specified in
 	my_level_obj list (not shown), with small scale roughness of 0.09,
 	large scale roughness of 0.04, laser fire chance of 20, up to 5 
 	bridges, the player has 100 bombs, and 3 gravity bombs. 
@@ -305,14 +308,15 @@ struct level_descriptor_entry {
 	int jetpilot_firechance;
 	int laser_velocity_factor;
 	int max_kgun_health;
+	char *level_name;
 };
 
 
-#define NEW_LEVEL(levelname, theobjlist, ssr, lsr, lfc, nbr, nbo, ngb, jfc, lspd, mkgh) \
-struct level_descriptor_entry levelname = { \
+#define NEW_LEVEL(levelvar, theobjlist, ssr, lsr, lfc, nbr, nbo, ngb, jfc, lspd, mkgh, levelname) \
+struct level_descriptor_entry levelvar = { \
 	theobjlist, \
 	sizeof(theobjlist) / sizeof(theobjlist[0]), \
-	ssr, lsr, lfc, nbr, nbo, ngb, jfc, lspd, mkgh }
+	ssr, lsr, lfc, nbr, nbo, ngb, jfc, lspd, mkgh, levelname }
 
 /* Below, the game's levels are defined. */
 
@@ -333,9 +337,6 @@ struct level_obj_descriptor_entry level_1_obj[] = {
 	{ OBJ_TYPE_BALLOON, 	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GDB, 	3, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, DO_IT_RANDOMLY, 0 },
-	/* { OBJ_TYPE_GUNWHEEL,	10, DO_IT_RANDOMLY, 0 }, */
-	{ OBJ_TYPE_TESLA,	10, DO_IT_RANDOMLY, 0 },
-	/* { OBJ_TYPE_TENTACLE,	0, DO_IT_RANDOMLY, 0 },  */
 };
 /* level 1 ends here. ^^^ */
 /***************************************************************************/
@@ -358,6 +359,7 @@ struct level_obj_descriptor_entry level_2_obj[] = {
 	{ OBJ_TYPE_BALLOON,	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GDB,		4, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
+	{ OBJ_TYPE_TESLA,	1, 30, 1 }, 
 	{ OBJ_TYPE_BIG_ROCKET, 	3, DO_IT_RANDOMLY, 0 }, 
 	/* { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 },  */
 };
@@ -379,8 +381,11 @@ struct level_obj_descriptor_entry level_3_obj[] = {
 	{ OBJ_TYPE_BALLOON,	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GDB,		7, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
+	{ OBJ_TYPE_OCTOPUS,	1, 45, 1 }, 
 	{ OBJ_TYPE_BIG_ROCKET, 	1, DO_IT_RANDOMLY, 0 }, 
-	{ OBJ_TYPE_GUNWHEEL, 	1, 95, 0 }, 
+	{ OBJ_TYPE_TESLA,       1, 60, 0 },
+	{ OBJ_TYPE_TESLA,       1, 40, 0 },
+	{ OBJ_TYPE_GUNWHEEL, 	1, 95, 0 },
 	/* { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, */
 };
 /* end of level 3 */
@@ -403,8 +408,7 @@ struct level_obj_descriptor_entry level_4_obj[] = {
 	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 25, 1 }, 
 	{ OBJ_TYPE_BIG_ROCKET, 	15, DO_IT_RANDOMLY, 0 }, 
-	{ OBJ_TYPE_GUNWHEEL, 	1, 50, 0 }, 
-	{ OBJ_TYPE_GUNWHEEL, 	1, 75, 0 }, 
+	{ OBJ_TYPE_GUNWHEEL, 	1, 75, 0 },
 	/* { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 },  */
 };
 /* end of level 4 */
@@ -420,14 +424,18 @@ struct level_obj_descriptor_entry level_5_obj[] = {
 	{ OBJ_TYPE_SAM_STATION, 8, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GUN,		18, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_KGUN,	25, DO_IT_RANDOMLY, 0 }, 
-	{ OBJ_TYPE_AIRSHIP,	4, 90, 0 }, 
+	{ OBJ_TYPE_AIRSHIP,	4, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_WORM,	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_BALLOON,	1, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_GDB,		9, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 75, 1 }, 
+	{ OBJ_TYPE_OCTOPUS,	1, 35, 1 }, 
+	{ OBJ_TYPE_OCTOPUS,	1, 85, 1 }, 
 	{ OBJ_TYPE_BIG_ROCKET, 	15, DO_IT_RANDOMLY, 0 }, 
-	{ OBJ_TYPE_GUNWHEEL, 	1, 25, 0 }, 
-	{ OBJ_TYPE_GUNWHEEL, 	1, 75, 0 }, 
+	{ OBJ_TYPE_TESLA, 	1, 40, 0 },
+	{ OBJ_TYPE_TESLA, 	1, 60, 0 },
+	{ OBJ_TYPE_GUNWHEEL, 	1, 25, 0 },
+	{ OBJ_TYPE_GUNWHEEL, 	1, 75, 0 },
 	/* { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 }, */
 };
 /* end of level 5 */
@@ -449,10 +457,17 @@ struct level_obj_descriptor_entry level_6_obj[] = {
 	{ OBJ_TYPE_GDB,		12, DO_IT_RANDOMLY, 0 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 75, 1 }, 
 	{ OBJ_TYPE_OCTOPUS,	1, 15, 1 }, 
+	{ OBJ_TYPE_OCTOPUS,	1, 65, 1 }, 
 	{ OBJ_TYPE_BIG_ROCKET, 	15, DO_IT_RANDOMLY, 0 }, 
+	{ OBJ_TYPE_TESLA, 	1, 40, 0 },
+	{ OBJ_TYPE_TESLA, 	1, 60, 0 },
+	{ OBJ_TYPE_TESLA, 	1, 80, 0 },
+	{ OBJ_TYPE_TESLA, 	1, 90, 0 },
+	{ OBJ_TYPE_TESLA, 	1, 10, 0 },
 	{ OBJ_TYPE_GUNWHEEL, 	1, 25, 0 }, 
 	{ OBJ_TYPE_GUNWHEEL, 	1, 50, 0 }, 
-	{ OBJ_TYPE_GUNWHEEL, 	1, 75, 0 }, 
+	{ OBJ_TYPE_GUNWHEEL, 	1, 75, 0 },
+	{ OBJ_TYPE_GUNWHEEL, 	1, 15, 0 },
 	/* { OBJ_TYPE_TENTACLE, 0, DO_IT_RANDOMLY, 0 },  */
 };
 /* end of level 6 */
@@ -499,19 +514,19 @@ struct level_obj_descriptor_entry jet_level_obj[] = {
 
 /* ---------------------level descriptors begin here.---------------------- */
 NEW_LEVEL(jet_level, jet_level_obj, 0.11, 0.09, AVERAGE_LASER, NBRIDGES + 1, 
-	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER, EASY_KGUNS);
-NEW_LEVEL(level1, level_1_obj, 0.09, 0.04, LAZY_LASER, NBRIDGES, 
-	NBOMBS, NGBOMBS, KILLER_LASER, SLOW_LASER, EASY_KGUNS);
-NEW_LEVEL(level2, level_2_obj, 0.15, 0.09, LAZY_LASER, NBRIDGES + 1, 
-	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER, EASY_KGUNS);
-NEW_LEVEL(level3, level_3_obj, 0.23, 0.23, AVERAGE_LASER, NBRIDGES + 1, 
-	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER, EASY_KGUNS);
-NEW_LEVEL(level4, level_4_obj, 0.29, 0.20, AVERAGE_LASER, NBRIDGES + 1, 
-	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER, MEDIUM_KGUNS);
-NEW_LEVEL(level5, level_5_obj, 0.32, 0.32, AVERAGE_LASER, NBRIDGES + 1, 
-	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER, MEDIUM_KGUNS);
-NEW_LEVEL(level6, level_6_obj, 0.14, 0.32, AGGRESSIVE_LASER, NBRIDGES + 3, 
-	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER, HARD_KGUNS);
+	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER, EASY_KGUNS, "Welcome, Noob!");
+NEW_LEVEL(level1, level_1_obj, 0.14, 0.04, LAZY_LASER, NBRIDGES, 
+	NBOMBS, NGBOMBS, KILLER_LASER, SLOW_LASER, EASY_KGUNS, "Rocket Alley");
+NEW_LEVEL(level2, level_2_obj, 0.17, 0.09, LAZY_LASER, NBRIDGES + 1, 
+	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER, EASY_KGUNS, "Vi! Vi! Vi!");
+NEW_LEVEL(level3, level_3_obj, 0.23, 0.15, AVERAGE_LASER, NBRIDGES + 1, 
+	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, SLOW_LASER, EASY_KGUNS, "Joy of VIctory");
+NEW_LEVEL(level4, level_4_obj, 0.29, 0.17, AVERAGE_LASER, NBRIDGES + 1, 
+	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER, MEDIUM_KGUNS, "Debugging Hell");
+NEW_LEVEL(level5, level_5_obj, 0.24, 0.22, AVERAGE_LASER, NBRIDGES + 1, 
+	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER, MEDIUM_KGUNS, "EMACSed Out");
+NEW_LEVEL(level6, level_6_obj, 0.14, 0.22, AGGRESSIVE_LASER, NBRIDGES + 3, 
+	NBOMBS, NGBOMBS, AGGRESSIVE_LASER, FAST_LASER, HARD_KGUNS, "Revenge of RMS");
 /* ---------------------level descriptors end here.---------------------- */
 
 

@@ -11135,12 +11135,16 @@ void timer_expired()
 		break;
 		}
 	case READY_EVENT:
+		/* This whole text thing needs major revamping... ugly as hell. */
 		set_font(BIG_FONT);
 		start_level();
 		wwviaudio_play_music(MUSIC_SOUND);
 		strcpy(textline[CREDITS].string, "");
-		sprintf(textline[GAME_OVER].string, "Level %d...",  
+		sprintf(textline[GAME_OVER].string, "Level %d...", 
 			level.level_number+1);
+		textline[GAME_OVER].font = BIG_FONT;
+		textline[GAME_OVER].x = (4+1) * font_scale[current_font]*3;
+		textline[GAME_OVER].y = (3+1) * font_scale[current_font]*7;
 		gettimeofday(&game_state.start_time, NULL);
 		next_timer += frame_rate_hz;
 		timer_event = SET_EVENT;
@@ -11151,7 +11155,10 @@ void timer_expired()
 		game_state.vx = 0;
 		break;
 	case SET_EVENT:
-		strcpy(textline[GAME_OVER].string, "Ready,Set...");
+		sprintf(textline[GAME_OVER].string, "%s", 
+			leveld[level.level_number]->level_name);
+		// strcpy(textline[GAME_OVER].string, "Ready,Set...");
+		ntextlines = 2;
 		next_timer += frame_rate_hz;
 		timer_event = GO_EVENT;
 		break;
