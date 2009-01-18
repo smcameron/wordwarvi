@@ -11157,7 +11157,7 @@ void timer_expired()
 	case SET_EVENT:
 		sprintf(textline[GAME_OVER].string, "%s", 
 			leveld[level.level_number]->level_name);
-		// strcpy(textline[GAME_OVER].string, "Ready,Set...");
+		/* strcpy(textline[GAME_OVER].string, "Ready,Set..."); */
 		ntextlines = 2;
 		next_timer += frame_rate_hz;
 		timer_event = GO_EVENT;
