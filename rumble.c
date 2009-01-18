@@ -260,7 +260,7 @@ int get_ready_to_rumble(char *filename)
 	effects[4].id = -1;
 	effects[4].u.rumble.strong_magnitude = 0x8000;
 	effects[4].u.rumble.weak_magnitude = 0;
-	effects[4].replay.length = 500;
+	effects[4].replay.length = 250;
 	effects[4].replay.delay = 0;
 
 	if (ioctl(event_fd, EVIOCSFF, &effects[4]) == -1) {
@@ -273,7 +273,7 @@ int get_ready_to_rumble(char *filename)
 	effects[5].id = -1;
 	effects[5].u.rumble.strong_magnitude = 0x8000;
 	effects[5].u.rumble.weak_magnitude = 0xc000;
-	effects[5].replay.length = 500;
+	effects[5].replay.length = 250;
 	effects[5].replay.delay = 0;
 
 	if (ioctl(event_fd, EVIOCSFF, &effects[5]) == -1) {
