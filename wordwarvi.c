@@ -10434,8 +10434,6 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 				bonus_points_this_round, game_state.score); */
 			cleartext();
 			gotoxy(0,0);
-			sprintf(s, "Credits: %d Lives: %d", credits, game_state.lives);
-			gameprint(s);
 			break;
 		case LAST_INTERMISSION_STAGE-1:
 			if (they_used_the_source()) {
