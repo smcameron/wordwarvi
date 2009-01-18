@@ -4549,6 +4549,8 @@ void player_fire_laser()
 	y = p->y - ((game_state.cmd_multiplier-1)/2) * 10;
 	for (j=0;j<game_state.cmd_multiplier;j++) {
 		i = find_free_obj();
+		if (i < 0)
+			return;
 		o = &game_state.go[i];
 
 		o->last_xi = -1;
