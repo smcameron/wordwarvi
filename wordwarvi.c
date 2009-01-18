@@ -5280,14 +5280,15 @@ void drop_chaff()
 	for (j=0;j<3;j++) {
 		i[j] = find_free_obj();
 		if (i[j] < 0)
-			continue;
+			return;
 		o = &game_state.go[i[j]];
 		o->last_xi = -1;
 		o->x = player->x;
 		o->y = player->y;
 		o->vx = player->vx + ((j-1) * 7); /* -7, 0, 7 are x velocities */
 		o->vy = player->vy + 7;
-		o->v = &spark_vect; /* used? */
+		o->v = &spark_vect;
+		o->draw = NULL;
 		o->move = chaff_move;
 		o->otype = OBJ_TYPE_CHAFF;
 		add_target(o);
