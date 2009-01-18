@@ -1,5 +1,91 @@
 Changelog for wordwarvi:
 
+Sun Jan 18 11:56:52 CST 2009
+-------------------------------------------------------------------------------
+Changes between version 0.24 and 0.25
+
+
+* Make octopus tentacles move in a more organic looking way.
+* Make the cron job's beams brighter.
+* Add sound effects for radar state transitions.
+* Add radar_fail.ogg, radar_ready.ogg
+* Fixed a bug in the aiming of the gun turrets.  The turrets were 20 units
+  off in the y axis for their own position when calculating aiming.
+* Add a little note that gets put out when a screen saver is running and
+  a joystick is detected, warning the user that the screen saver is apt to
+  interrupt their game.
+* Reduce radar bootup time from 5 to 3 seconds.
+* Make the legs of the space octopus more uniform in length.
+* Leave the bottom of the octopus head open
+* Permit octopi to have different color schemes.
+* Totally pimped out the octopus.
+* make the tips of octopus tentacles move relatively more slowly than
+  the part that attaches to the head.
+* Change prototype of get_coords_func function pointer type to permit
+  attaching multiple laser guns to objects.
+* Added code for big gunwheels (didn't activate yet though.).
+* Activated gunwheels
+* generalize the shape of the trusses so they don't always have to be squares
+  of a fixed size, but can be various sizes, and tapered.
+* Factored out the code for adding a stack of trusses into a separate function.
+* Allowed for such stacked towers to be tapered.
+* Made the truss tower tapering code actually work.
+* Activated the truss tower tapering code for the kernel guns.
+* Now the gunwheel tower is constructed from individual trusses instead of
+  one single-object tower, and is destructible.
+* Make gunwheels fully destructible.
+* Fixed a bug that the central beam of the gunwheels always disappeared
+  when the tower was destroyed, and the chans of trusses were getting
+  screwed up because I forgot to disconnect the gunwheel from the truss
+  it was attached to.
+* Added tesla towers.
+* Noticed at this point there is some nasty bug in the game.
+  I think it was intrudoced when I made the gunwheels fully
+  destructible, and I think it's in the area of truss_cut_loose_whats_below().
+* Make the trusses which hold the kernel guns back to squares.
+* Fixed up some problems with how the tesla towers fired lightning
+* Fixed a very hard bug.  There were some problems with shooting down the
+  trusses such that the ->tsd.truss.above and ->tsd.truss.below pointers were
+  not getting NULLed out in every case they needed to be.  This meant that if
+  you shot down a truss, then later came and shot it or bombed it again when
+  it was on the ground, the truss_cut_loose_whats_below would go cycling through
+  objects that it had no business cycling through, as what those pointers were
+  previously pointing at had now likely been reused (often, as a spark).
+
+  Possible that there are still issues with tesla towers and gun wheels, but
+  I think the kernel guns are fixed.
+* Prevent more than two bomb impact sounds from being added to the audio queue
+  in a single frame, as allowing that is too loud.
+* Revert accidentally committed "infinite" health.
+* Fixed bug that blown-apart gunwheels didn't initialize bank_shot_factor
+  for released guns, beams, etc. and so prevent spurious "nice bank shot"
+  sounds.
+* Added Tesla tower sound effect
+* Fixed bug that tesla towers would continue to discharge even while
+  falling after they were shot down.
+* Updated help screen to contain a brief summary of the object of the game.
+  Some people seem to react to the game in this way: "What am I supposed
+  to do?"  The help screen probably won't help such people, but, not sure
+  what else to do.
+* Fixed bug that player_fire_laser wasn't checking result of find_free_obj to
+  make sure it succeeded.  The result of this was that game_state.humaniods --
+  the count of how many humans had been rescued so far -- got corrupted.
+  This appears to be the only place in the program at this time which was not
+  checking the return value of find_free_obj.
+
+  This may indicate a need to have a "low_priority_find_free_obj" which will
+  reserve some space.  This low prioirty one would be used by sparks, say,
+  to keep from exhausting the supply of objects.
+* Fixed bug with chaff that draw method wasn't initialized.
+  One of these days I'm just going to remove chaff altogether.
+* Remove remnants of some old code that put "Credits:xxx Lives:xxx" up in the lop
+  left portion of the screen for a single frame at the beginning of a new level.
+* Tweaked levels to try to make difficulty gradually increase.
+* Now levels are named, rather than just numbered.
+* Update to version 0.25
+* Shorten duration of rumble effects to make them correspond more closely
+  with the events which caused them.
+
 Thu Dec 11 20:22:27 CST 2008
 -------------------------------------------------------------------------------
 Changes between version 0.23 and 0.24
