@@ -290,6 +290,7 @@ int current_quit_selection = 0;
 int final_quit_selection = 0;
 int attract_mode = 0;		/* is game in attract mode */
 int credits = 0;		/* how many quarters have been put in, but not played? */
+int no_colors_any_more = 0;
 /* int toggle = 0;		
 */
 int total_radar_noise;		/* count of how much radar noise has been drawn in a given frame */
@@ -2653,6 +2654,20 @@ void do_weak_rumble()
 {
 	if (credits > 0 && game_state.rumble_wanted)
 		play_rumble_effect(RUMBLE_WEAK_RUMBLE_EFFECT);
+}
+
+void draw_graphpaper(GtkWidget *w)
+{
+	int i;
+	static GdkColor absolute_cyan =
+		/* Not sure this 65535 pixel value is kosher, cribbed empirically... */
+		{/*pixel=*/65535, /*red=*/0, /*green=*/65535, /*blue=*/65535 };
+	gdk_gc_set_foreground(gc, &absolute_cyan);
+
+	for (i=10 - (game_state.x & 0x1f);i<SCREEN_WIDTH;i+=32)	
+		wwvi_draw_line(w->window, gc, i, 0, i, SCREEN_HEIGHT);
+	for (i=10 - (game_state.y & 0x1f);i<SCREEN_WIDTH;i+=32)	
+		wwvi_draw_line(w->window, gc, 0, i, SCREEN_WIDTH, i);
 }
 	
 void incorrect_draw_stars(GtkWidget *w)
@@ -10803,6 +10818,9 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	static int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
 	/* int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;*/
 
+	if (no_colors_any_more)
+		draw_graphpaper(w);
+
 	if (timer_event == START_INTERMISSION_EVENT) {
 		do_intermission(w, event, p);
 		return 0;
@@ -13108,10 +13126,12 @@ void paint_it_black()
 	for (i=0;i<NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS;i++) {
 		avg = huex[i].red + huex[i].green + huex[i].blue;
 		avg = avg / 3;
-		if (avg > 200)
-			avg = 0;
-		else
+		if (avg < 2000)
 			avg = 32767*2;
+		else if (avg < 20000)
+			avg = 32767;
+		else
+			avg = 15000;
 		huex[i].red = avg;
 		huex[i].green = avg;
 		huex[i].blue = avg;
@@ -13708,7 +13728,6 @@ int main(int argc, char *argv[])
 	GtkWidget *vbox;
 	GdkRectangle cliprect;
 	int i;
-	int no_colors_any_more = 0;
 	int blueprint = 0;
 	int retrogreen = 0;
 	int opt;
