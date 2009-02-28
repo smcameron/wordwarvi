@@ -14035,7 +14035,8 @@ int main(int argc, char *argv[])
 	wwviaudio_set_sound_device(sound_device);
 	if (wwviaudio_initialize_portaudio(MAX_CONCURRENT_SOUNDS, NCLIPS) != 0)
 		printf("Guess sound's not working...\n");
-	init_clips();
+	else
+		init_clips();
 #endif
 	gtk_set_locale();
 	gtk_init (&argc, &argv);
