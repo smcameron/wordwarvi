@@ -3,6 +3,9 @@ DATADIR=${PREFIX}/share/wordwarvi
 MANDIR?=${PREFIX}/share/man
 MANPAGEDIR=${MANDIR}/man6
 
+SCREENSAVERFLAG=
+#SCREENSAVERFLAG=-DDO_INHIBIT_SCREENSAVER
+
 # To compile withaudio, WITHAUDIO=yes, 
 # for no audio support, change to WITHAUDIO=no, 
 WITHAUDIO=yes
@@ -26,6 +29,7 @@ endif
 # OPTIMIZE_FLAG=-O3
 #OPTIMIZE_FLAG=-O3 -pedantic -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security
 OPTIMIZE_FLAG=-O3 -pedantic
+
 
 LDFLAGS=${PROFILE_FLAG}
 
@@ -67,7 +71,7 @@ stamp:	stamp.c
 
 wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} wwviaudio.o Makefile version.h stamp levels.h rumble.h
 	./stamp > stamp.h
-	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall  ${DEFINES} \
+	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} ${SCREENSAVERFLAG} -pthread -Wall  ${DEFINES} \
 		joystick.o \
 		rumble.o \
 		${OGGOBJ} \

@@ -40,6 +40,11 @@
 #include <arpa/inet.h> /* for htonl, etc. */
 
 #include <gdk/gdkkeysyms.h>
+
+#ifdef DO_INHIBIT_SCREENSAVER
+#include <gdk/gdkx.h> /* for GDK_WINDOW_XWINDOW, for inhibiting screensaver. */
+#endif
+
 #include <stdint.h>
 #include <math.h>
 
@@ -10938,6 +10943,41 @@ static void do_game_pause_help( GtkWidget *widget,
 	}
 }
 
+void inhibit_screensaver(GtkWidget *widget)
+{
+#ifdef DO_INHIBIT_SCREENSAVER
+	/* This appears not to work on e.g. Fedora Core 5. */
+	/* that is, it inhibits the screensaver, but, the screensaver */
+	/* is never reactivated as it's supposed to be, the xdg-screensaver */
+	/* script seems to be broken, at least on Fedora core 5. */
+	int xwindow_id, rc;
+	char cmd[1024];
+	return;
+
+	xwindow_id = GDK_WINDOW_XWINDOW (GTK_WIDGET (widget)->window);
+
+	sprintf(cmd, "xdg-screensaver suspend 0x%08x > /dev/null 2>&1 &", xwindow_id);
+	rc = system(cmd);
+	printf("%s returns %d\n", cmd, rc);
+#endif
+	return;
+}
+
+void resume_screensaver(GtkWidget *widget)
+{
+#if DO_INHIBIT_SCREENSAVER
+	int xwindow_id, rc;
+	char cmd[1024];
+	return;
+
+	xwindow_id = GDK_WINDOW_XWINDOW (GTK_WIDGET (widget)->window);
+
+	sprintf(cmd, "xdg-screensaver resume 0x%08x > /dev/null 2>&1 &", xwindow_id);
+	rc = system(cmd);
+	printf("%s returns %d\n", cmd, rc);
+#endif
+	return;
+}
 
 /* This is a callback function. The data arguments are ignored
  * in this example. More on callbacks below. */
@@ -10945,6 +10985,7 @@ static void destroy_event( GtkWidget *widget,
                    gpointer   data )
 {
     /* g_print ("Bye bye.\n"); */
+	resume_screensaver(window);
 	exit(1); /* bad form to call exit here... */
 }
 
@@ -14122,6 +14163,8 @@ int main(int argc, char *argv[])
 	/* and the window */
 	gtk_widget_show (window);
 	set_cursor(window);
+	
+	inhibit_screensaver(window);
 
 	gc = gdk_gc_new(GTK_WIDGET(main_da)->window);
 	gdk_gc_set_foreground(gc, &huex[BLUE]);
@@ -14176,6 +14219,6 @@ int main(int argc, char *argv[])
     free_debris_forms();
 	close_joystick();
 	close_rumble_fd();
-    
+
     return 0;
 }
