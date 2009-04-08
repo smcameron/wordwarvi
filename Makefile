@@ -17,7 +17,7 @@ SNDFLAGS=-DWITHAUDIOSUPPORT `pkg-config --cflags portaudio-2.0`
 OGGOBJ=ogg_to_pcm.o
 else
 SNDLIBS=
-SNDFLAGS=
+SNDFLAGS=-DWWVIAUDIO_STUBS_ONLY
 OGGOBJ=
 endif
 

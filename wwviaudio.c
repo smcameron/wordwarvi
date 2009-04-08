@@ -1,4 +1,4 @@
-/* 
+/*
     (C) Copyright 2007,2008, Stephen M. Cameron.
 
     This file is part of wordwarvi.
@@ -19,7 +19,7 @@
 
  */
 
-#ifdef WITHAUDIOSUPPORT
+#ifndef WWVIAUDIO_STUBS_ONLY
 
 #include <stdio.h>
 #include <stdint.h>
@@ -49,53 +49,53 @@ static int sound_device = -1; /* default sound device for port audio. */
 static int max_concurrent_sounds = 0;
 static int max_sound_clips = 0;
 
-/* Pause all audio output, output silence. */ 
-void wwviaudio_pause_audio()
+/* Pause all audio output, output silence. */
+void wwviaudio_pause_audio(void)
 {
 	audio_paused = 1;
 }
 
 /* Resume playing audio previously paused. */
-void wwviaudio_resume_audio()
+void wwviaudio_resume_audio(void)
 {
 	audio_paused = 0;
 }
 
 /* Silence the music channel */
-void wwviaudio_silence_music()
+void wwviaudio_silence_music(void)
 {
 	music_playing = 0;
 }
 
 /* Resume volume on the music channel. */
-void wwviaudio_resume_music()
+void wwviaudio_resume_music(void)
 {
 	music_playing = 1;
 }
 
-void wwviaudio_toggle_music()
+void wwviaudio_toggle_music(void)
 {
 	music_playing = !music_playing;
 }
 
 /* Silence the sound effects. */
-void wwviaudio_silence_sound_effects()
+void wwviaudio_silence_sound_effects(void)
 {
 	sound_effects_on = 0;
 }
 
 /* Resume volume on the sound effects. */
-void wwviaudio_resume_sound_effects()
+void wwviaudio_resume_sound_effects(void)
 {
 	sound_effects_on = 1;
 }
 
-void wwviaudio_toggle_sound_effects()
+void wwviaudio_toggle_sound_effects(void)
 {
 	sound_effects_on = !sound_effects_on;
 }
 
-void wwviaudio_set_nomusic()
+void wwviaudio_set_nomusic(void)
 {
 	nomusic = 1;
 }
@@ -124,7 +124,7 @@ int wwviaudio_read_ogg_clip(int clipnum, char *filename)
 	strncpy(filebuf, filename, PATH_MAX);
 	rc = stat(filebuf, &statbuf);
 	if (rc != 0) {
-		snprintf(filebuf, PATH_MAX, DATADIR"%s", filename);
+		snprintf(filebuf, PATH_MAX, "%s", filename);
 		rc = stat(filebuf, &statbuf);
 		if (rc != 0) {
 			fprintf(stderr, "stat('%s') failed.\n", filebuf);
@@ -147,18 +147,13 @@ int wwviaudio_read_ogg_clip(int clipnum, char *filename)
 	rc = ogg_to_pcm(filebuf, &clip[clipnum].sample, &samplesize,
 		&sample_rate, &nchannels, &nframes);
 	if (clip[clipnum].sample == NULL) {
-		/* printf("Can't get memory for sound data for %llu frames in %s\n",  */
-			/* (unsigned long) nframes, filebuf); */
-
-		/* ISO C90 doesn't have %llu, but I happen to know all our frame */
-		/* counts will fit into a long. */
-		printf("Can't get memory for sound data for %lu frames in %s\n",
-			(unsigned long) nframes, filebuf);
+		printf("Can't get memory for sound data for %llu frames in %s\n",
+			nframes, filebuf);
 		goto error;
 	}
 
 	if (rc != 0) {
-		fprintf(stderr, "Error: ogg_to_pcm('%s') failed.\n", 
+		fprintf(stderr, "Error: ogg_to_pcm('%s') failed.\n",
 			filebuf);
 		goto error;
 	}
@@ -180,27 +175,27 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 	unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo* timeInfo,
 	PaStreamCallbackFlags statusFlags, __attribute__ ((unused)) void *userData )
 {
-	/*(void) inputBuffer;*/ /* Prevent unused variable warning. */
 	int i, j, sample, count;
 	float *out = NULL;
 	float output;
-	out = (float*)outputBuffer;
+	out = (float*) outputBuffer;
 	output = 0.0;
 	count = 0;
 
 	if (audio_paused) {
-		/* output silence when paused and        */
-		/* don't advance any sound slot pointers */
-		for (i=0; i<framesPerBuffer; i++)
+		/* output silence when paused and
+		 * don't advance any sound slot pointers
+		 */
+		for (i = 0; i < framesPerBuffer; i++)
 			*out++ = (float) 0;
 		return 0;
 	}
 
-	for (i=0; i<framesPerBuffer; i++) {
+	for (i = 0; i < framesPerBuffer; i++) {
 		output = 0.0;
 		count = 0;
-		for (j=0; j<max_concurrent_sounds; j++) {
-			if (!audio_queue[j].active || 
+		for (j = 0; j < max_concurrent_sounds; j++) {
+			if (!audio_queue[j].active ||
 				audio_queue[j].sample == NULL)
 				continue;
 			sample = i + audio_queue[j].pos;
@@ -210,13 +205,13 @@ static int patestCallback(const void *inputBuffer, void *outputBuffer,
 				continue;
 			}
 			if (j != WWVIAUDIO_MUSIC_SLOT && sound_effects_on)
-				output += (float) audio_queue[j].sample[sample] * 0.5 / (float) (INT16_MAX) ;
+				output += (float) audio_queue[j].sample[sample] * 0.5 / (float) (INT16_MAX);
 			else if (j == WWVIAUDIO_MUSIC_SLOT && music_playing)
 				output += (float) audio_queue[j].sample[sample] / (float) (INT16_MAX);
 		}
-		*out++ = (float) output / 2.0; /* (output / count); */
+		*out++ = (float) output / 2.0;
         }
-	for (i=0;i<max_concurrent_sounds;i++) {
+	for (i = 0; i < max_concurrent_sounds; i++) {
 		if (!audio_queue[i].active)
 			continue;
 		audio_queue[i].pos += framesPerBuffer;
@@ -236,12 +231,12 @@ static void decode_paerror(PaError rc)
 	fprintf(stderr, "Error message: %s\n", Pa_GetErrorText(rc));
 }
 
-void wwviaudio_terminate_portaudio(PaError rc)
+static void wwviaudio_terminate_portaudio(PaError rc)
 {
 	Pa_Terminate();
 	decode_paerror(rc);
 }
- 
+
 int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds, int maximum_sound_clips)
 {
 	PaStreamParameters outparams;
@@ -272,7 +267,7 @@ int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds, int maximum_so
 		rc = 0;
 	}
 	sound_working = 1;
-    
+
 	outparams.device = Pa_GetDefaultOutputDevice();  /* default output device */
 
 	printf("Portaudio says the default device is: %d\n", outparams.device);
@@ -288,7 +283,7 @@ int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds, int maximum_so
 
 	if (outparams.device < 0 && device_count > 0) {
 		printf("Hmm, that's strange, portaudio says the default device is %d,\n"
-			" but there are %d devices\n", 
+			" but there are %d devices\n",
 			outparams.device, device_count);
 		printf("I think we'll just skip sound for now.\n");
 		printf("You might try the '--sounddevice' option and see if that helps.\n");
@@ -298,7 +293,7 @@ int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds, int maximum_so
 
 	outparams.channelCount = 1;                      /* mono output */
 	outparams.sampleFormat = paFloat32;              /* 32 bit floating point output */
-	outparams.suggestedLatency = 
+	outparams.suggestedLatency =
 		Pa_GetDeviceInfo(outparams.device)->defaultLowOutputLatency;
 	outparams.hostApiSpecificStreamInfo = NULL;
 
@@ -306,7 +301,7 @@ int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds, int maximum_so
 		NULL,         /* no input */
 		&outparams, WWVIAUDIO_SAMPLE_RATE, FRAMES_PER_BUFFER,
 		paNoFlag, /* paClipOff, */   /* we won't output out of range samples so don't bother clipping them */
-		patestCallback, NULL /* cookie */);    
+		patestCallback, NULL /* cookie */);
 	if (rc != paNoError)
 		goto error;
 	if ((rc = Pa_StartStream(stream)) != paNoError)
@@ -318,11 +313,11 @@ error:
 }
 
 
-void wwviaudio_stop_portaudio()
+void wwviaudio_stop_portaudio(void)
 {
 	int i, rc;
 	
-	if (!sound_working) 
+	if (!sound_working)
 		return;
 	if ((rc = Pa_StopStream(stream)) != paNoError)
 		goto error;
@@ -402,7 +397,7 @@ void wwviaudio_add_sound_low_priority(int which_sound)
 	if (!sound_working)
 		return;
 	last_slot = -1;
-	for (i=1;i<max_concurrent_sounds;i++)
+	for (i = 1; i < max_concurrent_sounds; i++)
 		if (audio_queue[i].active == 0) {
 			last_slot = i;
 			empty_slots++;
@@ -432,27 +427,27 @@ void wwviaudio_cancel_sound(int queue_entry)
 	audio_queue[queue_entry].active = 0;
 }
 
-void wwviaudio_cancel_music()
+void wwviaudio_cancel_music(void)
 {
 	wwviaudio_cancel_sound(WWVIAUDIO_MUSIC_SLOT);
 }
 
-void wwviaudio_cancel_all_sounds()
+void wwviaudio_cancel_all_sounds(void)
 {
 	int i;
 	if (!sound_working)
 		return;
-	for (i=0;i<max_concurrent_sounds;i++)
+	for (i = 0; i < max_concurrent_sounds; i++)
 		audio_queue[i].active = 0;
 }
 
-int wwviaudio_set_sound_device(int device) 
+int wwviaudio_set_sound_device(int device)
 {
 	sound_device = device;
 	return 0;
 }
 
-#else
+#else /* stubs only... */
 
 int wwviaudio_initialize_portaudio() { return 0; }
 void wwviaudio_stop_portaudio() { return; }
