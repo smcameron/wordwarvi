@@ -19,17 +19,12 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <getopt.h>
 #include <errno.h>
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
 #if !defined(__APPLE__)
-/* Apple gets what it needs for malloc from stdlib.h, */
-/* or so the internets would have me believe.  I don't */
-/* have a mac to test this, so if this doesn't work, */
-/* trying including <malloc/malloc.h> outside the ifdef. */
-/* (and let me know.) */
+/* Apple gets what it needs for malloc from stdlib.h */
 #include <malloc.h>
 #endif
 
@@ -37,20 +32,14 @@
 
 static int bits = 16;
 
-/* returns true on a big endian machine, false elsewhere. */
-int we_are_big_endian()
+/* returns true on a big endian machine, false elsewhere.
+ * compiler ought to be smart enough to optimize this to nothing.
+ */
+static inline int we_are_big_endian()
 {
-	uint32_t x, z;
-	unsigned char *y = (unsigned char *) &x;
-
-	z = 0x01020304;
-
-	y[0] = 0;
-	y[1] = 1;
-	y[2] = 2;
-	y[3] = 3;
-
-	return (x == z);
+	const uint32_t z = 0x01020304;
+	const unsigned char *y = (unsigned char *) &z;
+	return (y[0] == 0x01);
 }
 
 /* Reads an ogg vorbis file, infile, and dumps the data into
@@ -66,16 +55,13 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	OggVorbis_File vf;
 	int bs = 0;
 	char buf[8192];
-	/* char outbuf[8192]; */
 	char *p_outbuf;
 	int buflen = 8192;
 	unsigned int written = 0;
 	int ret;
 	ogg_int64_t length = 0;
-	/* ogg_int64_t done = 0; */
 	int size = 0;
 	int seekable = 0;
-	/* int percent = 0; */
 	int channels;
 	int samplerate;
 	unsigned char *bufferptr;
@@ -85,23 +71,22 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 
 	in = fopen(infile, "r");
 	if (in == NULL) {
-		fprintf(stderr, "ERROR: Failed to open '%s' for read: '%s'\n", 
-			infile, strerror(errno));
+		fprintf(stderr, "%s:%d ERROR: Failed to open '%s' for read: '%s'\n", 
+			__FILE__, __LINE__, infile, strerror(errno));
 		return -1;
 	}
 
 	if(ov_open(in, &vf, NULL, 0) < 0) {
-		fprintf(stderr, "ERROR: Failed to open '%s' as vorbis\n", infile);
+		fprintf(stderr, "%s:%d: ERROR: Failed to open '%s' as vorbis\n", 
+			__FILE__, __LINE__, infile);
 		fclose(in);
-		return 1;
+		return -1;
 	}
 
 	channels = ov_info(&vf,0)->channels;
 	samplerate = ov_info(&vf,0)->rate;
 	*sample_rate = samplerate;
 	*nchannels = channels;
-
-	/* printf("channels = %d, samplerate=%d\n", channels, samplerate); */
 
 	if (ov_seekable(&vf)) {
 		int link;
@@ -121,33 +106,34 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 		size = bits/8 * channels;
 	}
 
-	/* at this point, "length" should contain the number of samples, I think. */
-	/* printf("%s: length = %llu samples.\n", infile, length); */
 	*nsamples = length;
 
 	*pcmbuffer = (void *) malloc(sizeof(int16_t) * length * channels);
 	memset(*pcmbuffer, 0, sizeof(int16_t) * length * channels);
 	if (*pcmbuffer == NULL) {
-		fprintf(stderr, "Failed to allocate memory for '%s'\n", infile);
+		fprintf(stderr, "%s:%d: Failed to allocate memory for '%s'\n",
+			__FILE__, __LINE__, infile);
 		fclose(in);
-		return 1;
+		return -1;
 	}
 	bufferptr = (unsigned char *) *pcmbuffer;
 
 	endian = we_are_big_endian();
 
-	while((ret = ov_read(&vf, buf, buflen, endian, bits/8, sign, &bs)) != 0) {
+	while ((ret = ov_read(&vf, buf, buflen, endian, bits/8, sign, &bs)) != 0) {
 		if (bs != 0) {
 			vorbis_info *vi = ov_info(&vf, -1);
 			if (channels != vi->channels || samplerate != vi->rate) {
-				fprintf(stderr, "Logical bitstreams with changing "
-					"parameters are not supported\n");
+				fprintf(stderr, "%s:%d: Logical bitstreams with changing "
+					"parameters are not supported\n",
+					__FILE__, __LINE__);
 				break;
 			}
 		}
 
 		if(ret < 0 ) {
-			fprintf(stderr, "Warning: hole in data (%d)\n", ret);
+			fprintf(stderr, "%s:%d: Warning: hole in data (%d)\n",
+				__FILE__, __LINE__, ret);
 			continue;
 		}
 
@@ -159,10 +145,11 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 		count+=ret;
 		written += ret;
 	}
+
+	/* ov_clear closes the file, so don't fclose here, even though we fopen()ed.
+	 * libvorbis is weird that way.
+ 	 */
 	ov_clear(&vf);
-	/* ov_clear closes the file behind our back.
-	   So, don't fclose here.    */
-	/* fclose(in); */
 
 	return 0;
 }

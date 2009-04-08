@@ -20,11 +20,11 @@
  *
  */
 
-/* Reads an ogg vorbis file, infile, and dumps the data into
-   a big buffer, *pcmbuffer (which it allocates via malloc)
-   and returns the number of samples in *nsamples, and the
-   samplesize in *samplesize. and etc.
-*/
+/* ogg_to_pcm() reads an ogg vorbis audio file, infile, and
+ * dumps the data into a big buffer, *pcmbuffer (which it
+ * allocates via malloc) and returns the number of samples 
+ * in *nsamples, and the samplesize in *samplesize. and etc.
+ */
 extern int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	int *samplesize, int *sample_rate, int *nchannels, 
 	uint64_t *nsamples);
