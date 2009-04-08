@@ -7,11 +7,11 @@
  *
  */
 
-/* 
+/*
  *
  * This code was hacked off of the carcass of oggdec.c, from
- * the vorbistools-1.2.0 package, and is copyrighted as above, 
- * with the modifications made by me, 
+ * the vorbistools-1.2.0 package, and is copyrighted as above,
+ * with the modifications made by me,
  * (c) Copyright Stephen M. Cameron, 2008,
  * (and of course also released under the GNU General Public License, version 2.)
  *
@@ -30,6 +30,9 @@
 
 #include <vorbis/vorbisfile.h>
 
+#define DEFINE_OGG_TO_PCM_GLOBALS
+#include "ogg_to_pcm.h"
+
 static const int bits = 16;
 
 /* Reads an ogg vorbis file, infile, and dumps the data into
@@ -38,7 +41,7 @@ static const int bits = 16;
    samplesize in *samplesize. and etc.
 */
 int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
-	int *samplesize, int *sample_rate, int *nchannels, 
+	int *samplesize, int *sample_rate, int *nchannels,
 	uint64_t *nsamples)
 {
 	FILE *in;
@@ -53,12 +56,12 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 
 	in = fopen(infile, "r");
 	if (in == NULL) {
-		fprintf(stderr, "%s:%d ERROR: Failed to open '%s' for read: '%s'\n", 
+		fprintf(stderr, "%s:%d ERROR: Failed to open '%s' for read: '%s'\n",
 			__FILE__, __LINE__, infile, strerror(errno));
 		return -1;
 	}
 	if (ov_open(in, &vf, NULL, 0) < 0) {
-		fprintf(stderr, "%s:%d: ERROR: Failed to open '%s' as vorbis\n", 
+		fprintf(stderr, "%s:%d: ERROR: Failed to open '%s' as vorbis\n",
 			__FILE__, __LINE__, infile);
 		fclose(in);
 		return -1;
@@ -74,7 +77,7 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	*sample_rate = ov_info(&vf,0)->rate;
 
 	for (link = 0; link < ov_streams(&vf); link++) {
-		if (ov_info(&vf, link)->channels == *nchannels && 
+		if (ov_info(&vf, link)->channels == *nchannels &&
 		    ov_info(&vf, link)->rate == *sample_rate) {
 			chainsallowed = 1;
 		}
@@ -114,7 +117,7 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 
 		/* copy the data to the pcmbuffer. */
 		memcpy(bufferptr, buf, ret);
-		bufferptr += ret; 
+		bufferptr += ret;
 	}
 
 	/* ov_clear closes the file, so don't fclose here, even though we fopen()ed.
