@@ -30,17 +30,7 @@
 
 #include <vorbis/vorbisfile.h>
 
-static int bits = 16;
-
-/* returns true on a big endian machine, false elsewhere.
- * compiler ought to be smart enough to optimize this to nothing.
- */
-static inline int we_are_big_endian()
-{
-	const uint32_t z = 0x01020304;
-	const unsigned char *y = (unsigned char *) &z;
-	return (y[0] == 0x01);
-}
+static const int bits = 16;
 
 /* Reads an ogg vorbis file, infile, and dumps the data into
    a big buffer, *pcmbuffer (which it allocates via malloc)
@@ -51,23 +41,15 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	int *samplesize, int *sample_rate, int *nchannels, 
 	uint64_t *nsamples)
 {
-	int endian;
-	OggVorbis_File vf;
-	int bs = 0;
-	char buf[8192];
-	char *p_outbuf;
-	int buflen = 8192;
-	unsigned int written = 0;
-	int ret;
-	ogg_int64_t length = 0;
-	int size = 0;
-	int seekable = 0;
-	int channels;
-	int samplerate;
-	unsigned char *bufferptr;
-	int sign = 1;
 	FILE *in;
-	int count=0;
+	OggVorbis_File vf;
+	char buf[8192];
+	unsigned char *bufferptr;
+	int link, ret, chainsallowed = 0, bs = 0;
+
+	/* how to do this portably at compile time? */
+	const uint32_t dummy = 0x01020304;
+	const unsigned char *endian = (unsigned char *) &dummy;
 
 	in = fopen(infile, "r");
 	if (in == NULL) {
@@ -75,41 +57,36 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 			__FILE__, __LINE__, infile, strerror(errno));
 		return -1;
 	}
-
-	if(ov_open(in, &vf, NULL, 0) < 0) {
+	if (ov_open(in, &vf, NULL, 0) < 0) {
 		fprintf(stderr, "%s:%d: ERROR: Failed to open '%s' as vorbis\n", 
 			__FILE__, __LINE__, infile);
 		fclose(in);
 		return -1;
 	}
-
-	channels = ov_info(&vf,0)->channels;
-	samplerate = ov_info(&vf,0)->rate;
-	*sample_rate = samplerate;
-	*nchannels = channels;
-
-	if (ov_seekable(&vf)) {
-		int link;
-		int chainsallowed = 0;
-		for(link = 0; link < ov_streams(&vf); link++) {
-			if (ov_info(&vf, link)->channels == channels && 
-			    ov_info(&vf, link)->rate == samplerate) {
-				chainsallowed = 1;
-			}
-		}
-
-		seekable = 1;
-		if (chainsallowed)
-			length = ov_pcm_total(&vf, -1);
-		else
-			length = ov_pcm_total(&vf, 0);
-		size = bits/8 * channels;
+	if (!ov_seekable(&vf)) {
+		fprintf(stderr, "%s:%d: %s is not seekable.\n",
+			__FILE__, __LINE__, infile);
+		fclose(in);
+		return -1;
 	}
 
-	*nsamples = length;
+	*nchannels = ov_info(&vf,0)->channels;
+	*sample_rate = ov_info(&vf,0)->rate;
 
-	*pcmbuffer = (void *) malloc(sizeof(int16_t) * length * channels);
-	memset(*pcmbuffer, 0, sizeof(int16_t) * length * channels);
+	for (link = 0; link < ov_streams(&vf); link++) {
+		if (ov_info(&vf, link)->channels == *nchannels && 
+		    ov_info(&vf, link)->rate == *sample_rate) {
+			chainsallowed = 1;
+		}
+	}
+
+	if (chainsallowed)
+		*nsamples = ov_pcm_total(&vf, -1);
+	else
+		*nsamples = ov_pcm_total(&vf, 0);
+
+	*pcmbuffer = (void *) malloc(sizeof(int16_t) * *nsamples * *nchannels);
+	memset(*pcmbuffer, 0, sizeof(int16_t) * *nsamples * *nchannels);
 	if (*pcmbuffer == NULL) {
 		fprintf(stderr, "%s:%d: Failed to allocate memory for '%s'\n",
 			__FILE__, __LINE__, infile);
@@ -118,12 +95,10 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	}
 	bufferptr = (unsigned char *) *pcmbuffer;
 
-	endian = we_are_big_endian();
-
-	while ((ret = ov_read(&vf, buf, buflen, endian, bits/8, sign, &bs)) != 0) {
+	while ((ret = ov_read(&vf, buf, sizeof(buf), endian[0] == 0x01, bits/8, 1, &bs)) != 0) {
 		if (bs != 0) {
 			vorbis_info *vi = ov_info(&vf, -1);
-			if (channels != vi->channels || samplerate != vi->rate) {
+			if (*nchannels != vi->channels || *sample_rate != vi->rate) {
 				fprintf(stderr, "%s:%d: Logical bitstreams with changing "
 					"parameters are not supported\n",
 					__FILE__, __LINE__);
@@ -137,13 +112,9 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 			continue;
 		}
 
-		p_outbuf = buf;
-
 		/* copy the data to the pcmbuffer. */
-		memcpy(bufferptr, p_outbuf, ret);
+		memcpy(bufferptr, buf, ret);
 		bufferptr += ret; 
-		count+=ret;
-		written += ret;
 	}
 
 	/* ov_clear closes the file, so don't fclose here, even though we fopen()ed.
