@@ -74,7 +74,7 @@ static struct ff_effect effects[N_EFFECTS];
 
 #endif /* HAS_LINUX_JOYSTICK_INTERFACE */
 
-int stop_all_rumble_effects()
+int stop_all_rumble_effects(void)
 {
 #ifdef HAS_LINUX_JOYSTICK_INTERFACE
 	int i;
@@ -112,7 +112,7 @@ int play_rumble_effect(int effect)
 	return 0;
 }
 
-void close_rumble_fd()
+void close_rumble_fd(void)
 {
 #ifdef HAS_LINUX_JOYSTICK_INTERFACE
 	close(event_fd);

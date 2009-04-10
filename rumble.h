@@ -1,3 +1,5 @@
+#ifndef __RUMBLE_H__
+#define __RUMBLE_H__
 
 /*
  * Copyright 2008 Stephen M. Cameron <smcameron@yahoo.com> 
@@ -29,8 +31,9 @@
 #define RUMBLE_STRONG_RUMBLE_EFFECT 4
 #define RUMBLE_WEAK_RUMBLE_EFFECT 5
 
-extern int stop_all_rumble_effects();
+extern int stop_all_rumble_effects(void);
 extern int play_rumble_effect(int effect);
-extern void close_rumble_fd();
+extern void close_rumble_fd(void);
 extern int get_ready_to_rumble(char *filename);
 
+#endif
