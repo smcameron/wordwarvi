@@ -9819,53 +9819,53 @@ static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *e
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-50 - randomn(100), 0, 0, 
 			octopus_move, NULL, color, &octopus_vect, 1, OBJ_TYPE_OCTOPUS, 1);
-		if (o != NULL) {
-			level.noctopi++;
-			count++;
-			o->destroy = octopus_destroy;
-			o->tsd.octopus.awake = 0;
-			o->radar_image = 1;
-			o->above_target_y = -25;
-			o->below_target_y = 5;
-			o->gun_location = octopus_gun_location;
-			o->attached_gun = add_flak_gun(o->x, o->y, FAST_LASER, YELLOW, o); 
-			o->uses_health = 1;
-			o->health.maxhealth = level.kgun_health;
-			o->health.health = o->health.maxhealth;
-			o->health.prevhealth = -1;
-
-			/* Make the tentacles. */
-			for (j=0;j<8;j++) {
-				int length = randomn(5) + 25;
-				double length_factor = 0.90;
-				o->tsd.octopus.tentacle[j] = add_generic_object(o->x, o->y, 0, 0,
-					tentacle_move, tentacle_draw, CYAN, NULL, 1, OBJ_TYPE_TENTACLE, 1);
-				if (o->tsd.octopus.tentacle[j] != NULL) {
-					struct game_obj_t *t = o->tsd.octopus.tentacle[j];
-					t->tsd.tentacle.attached_to = o;
-					t->tsd.tentacle.upper_angle = 359;
-					t->tsd.tentacle.lower_angle = 181;
-					t->tsd.tentacle.nsegs = MAX_TENTACLE_SEGS;
-					t->tsd.tentacle.angle = 0;
-					t->tsd.tentacle.color_scheme = color_scheme;
-					t->tsd.tentacle.other_color = other_color;
-					t->color = o->color;
-					for (k=0;k<MAX_TENTACLE_SEGS;k++) {
-						t->tsd.tentacle.seg[k].angle = 
-							TENTACLE_RANGE(t->tsd.tentacle);
-						t->tsd.tentacle.seg[k].length = length;
-						t->tsd.tentacle.seg[k].angular_v = 0;
-						t->tsd.tentacle.seg[i].dest_angle = 
-							TENTACLE_RANGE(t->tsd.tentacle);
-						length = length * length_factor;
-						length_factor += 0.01;
-						if (length_factor > 0.97) 
-							length_factor = 0.97;
-						if (length == 1) {
-							t->tsd.tentacle.nsegs = k;
-							break;
-						}
-					}
+		if (o == NULL)
+			continue;
+		level.noctopi++;
+		count++;
+		o->destroy = octopus_destroy;
+		o->tsd.octopus.awake = 0;
+		o->radar_image = 1;
+		o->above_target_y = -25;
+		o->below_target_y = 5;
+		o->gun_location = octopus_gun_location;
+		o->attached_gun = add_flak_gun(o->x, o->y, FAST_LASER, YELLOW, o); 
+		o->uses_health = 1;
+		o->health.maxhealth = level.kgun_health;
+		o->health.health = o->health.maxhealth;
+		o->health.prevhealth = -1;
+		/* Make the tentacles. */
+		for (j=0;j<8;j++) {
+			struct game_obj_t *t;
+			int length = randomn(5) + 25;
+			double length_factor = 0.90;
+			o->tsd.octopus.tentacle[j] = add_generic_object(o->x, o->y, 0, 0,
+				tentacle_move, tentacle_draw, CYAN, NULL, 1, OBJ_TYPE_TENTACLE, 1);
+			if (o->tsd.octopus.tentacle[j] == NULL)
+				continue;
+			t = o->tsd.octopus.tentacle[j];
+			t->tsd.tentacle.attached_to = o;
+			t->tsd.tentacle.upper_angle = 359;
+			t->tsd.tentacle.lower_angle = 181;
+			t->tsd.tentacle.nsegs = MAX_TENTACLE_SEGS;
+			t->tsd.tentacle.angle = 0;
+			t->tsd.tentacle.color_scheme = color_scheme;
+			t->tsd.tentacle.other_color = other_color;
+			t->color = o->color;
+			for (k=0;k<MAX_TENTACLE_SEGS;k++) {
+				t->tsd.tentacle.seg[k].angle = 
+					TENTACLE_RANGE(t->tsd.tentacle);
+				t->tsd.tentacle.seg[k].length = length;
+				t->tsd.tentacle.seg[k].angular_v = 0;
+				t->tsd.tentacle.seg[i].dest_angle = 
+					TENTACLE_RANGE(t->tsd.tentacle);
+				length = length * length_factor;
+				length_factor += 0.01;
+				if (length_factor > 0.97) 
+					length_factor = 0.97;
+				if (length == 1) {
+					t->tsd.tentacle.nsegs = k;
+					break;
 				}
 			}
 		}
