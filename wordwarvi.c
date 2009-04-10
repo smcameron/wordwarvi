@@ -66,6 +66,8 @@
 #endif
 #define TWOPI (M_PI * 2.0)
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 #define DEBUG_HITZONE 0
 
 /* #define DEBUG_TARGET_LIST */
@@ -885,7 +887,7 @@ struct my_point_t jetpilot_points_left[] = {
 	{ -2, 0 }, 
 };
 
-struct my_point_t jetpilot_points_right[sizeof(jetpilot_points_left)/sizeof(jetpilot_points_left[0])];
+struct my_point_t jetpilot_points_right[ARRAY_SIZE(jetpilot_points_left)];
 
 struct my_point_t SAM_station_points[] = {
 	{ -5, 0 },   /* Bottom base */
@@ -1415,7 +1417,7 @@ struct my_point_t sleigh_points[] = {
 	{ -7, -10 },
 };
 
-struct my_point_t left_sleigh_points[sizeof(sleigh_points)/sizeof(sleigh_points[0])];
+struct my_point_t left_sleigh_points[ARRAY_SIZE(sleigh_points)];
 
 struct my_point_t reindeer_points[] = {
 	{ -5, 13 },
@@ -7687,6 +7689,9 @@ void mirror_points(struct my_vect_obj *points, struct my_vect_obj *mirror)
  * right size -- big enough or small enough, or long and skinny enough
  * or whatever.
  */
+
+#define setup_vect(v, a) { v.p = a; v.npoints = ARRAY_SIZE(a); } 
+
 void init_vects()
 {
 	int i;
@@ -7702,32 +7707,22 @@ void init_vects()
 
 	/* memset(&game_state.go[0], 0, sizeof(game_state.go[0])*MAXOBJS); */
 	if (!xmas_mode) {
-		player_vect.p = player_ship_points;
-		player_vect.npoints = sizeof(player_ship_points) / sizeof(player_ship_points[0]);
+		setup_vect(player_vect, player_ship_points);
 	} else {
-		player_vect.p = reindeer_points;
-		player_vect.npoints = sizeof(reindeer_points) / sizeof(reindeer_points[0]);
-		reindeer2_vect.p = reindeer_points2;
-		reindeer2_vect.npoints = sizeof(reindeer_points2) / sizeof(reindeer_points2[0]);
-		/* player_vect.p = sleigh_points;*/
-		/* player_vect.npoints = sizeof(sleigh_points) / sizeof(sleigh_points[0]);*/
+		setup_vect(player_vect, reindeer_points);
+		setup_vect(reindeer2_vect, reindeer_points2);
 	}
 	/* The left player ship oints are a copy of the right player ship points. */
 	/* I just duplicated them in the source.  So we have to flip them */
-	left_player_vect.p = left_player_ship_points;
-	left_player_vect.npoints = sizeof(left_player_ship_points) / sizeof(left_player_ship_points[0]);
+	setup_vect(left_player_vect, left_player_ship_points);
 	mirror_points(&player_vect, &left_player_vect);
 	if (xmas_mode) {
-		left_reindeer2_vect.p = left_reindeer_points2;
-		left_reindeer2_vect.npoints = 
-			sizeof(left_reindeer_points2) / (sizeof(left_reindeer_points2[0]));
+		setup_vect(left_reindeer2_vect, left_reindeer_points2);
 		mirror_points(&reindeer2_vect, &left_reindeer2_vect);
 	}
 
-	sleigh_vect.p = sleigh_points;
-	sleigh_vect.npoints = sizeof(sleigh_points) / sizeof(sleigh_points[0]);
-	left_sleigh_vect.p = left_sleigh_points;
-	left_sleigh_vect.npoints = sizeof(left_sleigh_points) / sizeof(left_sleigh_points[0]);
+	setup_vect(sleigh_vect, sleigh_points);
+	setup_vect(left_sleigh_vect, left_sleigh_points);
 	mirror_points(&sleigh_vect, &left_sleigh_vect);
 #if 0
 	for (i=0;i<left_player_vect.npoints;i++) {
@@ -7737,38 +7732,23 @@ void init_vects()
 	}
 #endif
 
-	rocket_vect.p = rocket_points;
-	rocket_vect.npoints = sizeof(rocket_points) / sizeof(rocket_points[0]);
-	big_rocket_vect.p = big_rocket_points;
-	big_rocket_vect.npoints = sizeof(big_rocket_points) / sizeof(big_rocket_points[0]);
-	jetpilot_vect_left.p = jetpilot_points_left;
-	jetpilot_vect_left.npoints = sizeof(jetpilot_points_left) / sizeof(jetpilot_points_left[0]);	
+	setup_vect(rocket_vect, rocket_points);
+	setup_vect(big_rocket_vect, big_rocket_points);
+	setup_vect(jetpilot_vect_left, jetpilot_points_left);
 	jetpilot_vect_right.p = jetpilot_points_right;
 	mirror_points(&jetpilot_vect_left, &jetpilot_vect_right);
-	jet_vect.p = jet_points;
-	jet_vect.npoints = sizeof(jet_points) / sizeof(jet_points[0]);
-	spark_vect.p = spark_points;
-	spark_vect.npoints = sizeof(spark_points) / sizeof(spark_points[0]);
-	right_laser_vect.p = right_laser_beam_points;
-	right_laser_vect.npoints = sizeof(right_laser_beam_points) / sizeof(right_laser_beam_points[0]);
-	fuel_vect.p = fuel_points;
-	fuel_vect.npoints = sizeof(fuel_points) / sizeof(fuel_points[0]);
-	fuel_debris_vect.p = fuel_debris_points;
-	fuel_debris_vect.npoints = sizeof(fuel_debris_points) / sizeof(fuel_debris_points[0]);
-	house_vect.p = house_points;
-	house_vect.npoints = sizeof(house_points) / sizeof(house_points[0]);
-	house_green_vect.p = house_green_points;
-	house_green_vect.npoints = sizeof(house_green_points) / sizeof(house_green_points[0]);
-	present_vect.p = present_points;
-	present_vect.npoints = sizeof(present_points) / sizeof(present_points[0]);
-	jammer_vect.p = jammer_points;
-	jammer_vect.npoints = sizeof(jammer_points) / sizeof(jammer_points[0]);
-	jammer_debris_vect.p = jammer_debris_points;
-	jammer_debris_vect.npoints = sizeof(jammer_debris_points) / sizeof(jammer_debris_points[0]);
-	cron_vect.p = cron_points;
-	cron_vect.npoints = sizeof(cron_points) / sizeof(cron_points[0]);
-	ship_vect.p = ships_hull_points;
-	ship_vect.npoints = sizeof(ships_hull_points) / sizeof(ships_hull_points[0]);
+	setup_vect(jet_vect, jet_points);
+	setup_vect(spark_vect, spark_points);
+	setup_vect(right_laser_vect, right_laser_beam_points);
+	setup_vect(fuel_vect, fuel_points);
+	setup_vect(fuel_debris_vect, fuel_debris_points);
+	setup_vect(house_vect, house_points);
+	setup_vect(house_green_vect, house_green_points);
+	setup_vect(present_vect, present_points);
+	setup_vect(jammer_vect, jammer_points);
+	setup_vect(jammer_debris_vect, jammer_debris_points);
+	setup_vect(cron_vect, cron_points);
+	setup_vect(ship_vect, ships_hull_points);
 
 	/* This scaling was here when I was typing in the ship point numbers just to */
 	/* make it easier to see where things were a little off. */
@@ -7778,11 +7758,10 @@ void init_vects()
 			ship_vect.p[i].y = (ship_vect.p[i].y+20) * 2;
 		}
 	} */
-	tesla_vect.p = tesla_points;
-	tesla_vect.npoints = sizeof(tesla_points) / sizeof(tesla_points[0]);
 
-	octopus_vect.p = octopus_points;
-	octopus_vect.npoints = sizeof(octopus_points) / sizeof(octopus_points[0]);
+	setup_vect(tesla_vect, tesla_points);
+
+	setup_vect(octopus_vect, octopus_points);
 	for (i=0;i<octopus_vect.npoints;i++) {
 		if (octopus_vect.p[i].x != LINE_BREAK && 
 			octopus_vect.p[i].x != COLOR_CHANGE) {
@@ -7790,35 +7769,21 @@ void init_vects()
 			octopus_vect.p[i].y *= 1.5;
 		}
 	}
-	bullet_vect.p = bullet_points;
-	bullet_vect.npoints = sizeof(bullet_points) / sizeof(bullet_points[0]);
-	gdb_vect_right.p = gdb_points_right;
-	gdb_vect_right.npoints = sizeof(gdb_points_right) / sizeof(gdb_points_right[0]);
 
-	/* left gdb points are mirror image of right points. */
-	gdb_vect_left.p = gdb_points_left;
-	gdb_vect_left.npoints = sizeof(gdb_points_left) / sizeof(gdb_points_left[0]);
-	gdb_vect_right.p = gdb_points_right;
+	setup_vect(bullet_vect, bullet_points);
+	setup_vect(gdb_vect_right, gdb_points_right);
+	setup_vect(gdb_vect_right, gdb_points_right);
+	setup_vect(gdb_vect_left, gdb_points_left);
 	mirror_points(&gdb_vect_left, &gdb_vect_right);
-#if 0
-	for (i=0;i<gdb_vect_right.npoints;i++)
-		if (gdb_vect_right.p[i].x != LINE_BREAK && gdb_vect_right.p[i].x != COLOR_CHANGE) 
-			gdb_vect_right.p[i].x = -gdb_vect_left.p[i].x;
-#endif
 
-	bomb_vect.p = bomb_points;
-	bomb_vect.npoints = sizeof(bomb_points) / sizeof(bomb_points[0]);
-	bridge_vect.p = bridge_points;
-	bridge_vect.npoints = sizeof(bridge_points) / sizeof(bridge_points[0]);
-	kgun_vect.p = kgun_points;
-	kgun_vect.npoints = sizeof(kgun_points) / sizeof(kgun_points[0]);
-	inverted_kgun_vect.p = inverted_kgun_points;
-	inverted_kgun_vect.npoints = sizeof(inverted_kgun_points) / sizeof(inverted_kgun_points[0]);
+	setup_vect(bomb_vect, bomb_points);
+	setup_vect(bridge_vect, bridge_points);
+	setup_vect(kgun_vect, kgun_points);
+	setup_vect(inverted_kgun_vect, inverted_kgun_points);
 
 	/* I had to scale and translate the airship points as I made it too small */
 	/* and picked a poor origin. */
-	airship_vect.p = airship_points;
-	airship_vect.npoints = sizeof(airship_points) / sizeof(airship_points[0]);
+	setup_vect(airship_vect, airship_points);
 	for (i=0;i<airship_vect.npoints;i++) {
 		if (airship_vect.p[i].x != LINE_BREAK && airship_vect.p[i].x != COLOR_CHANGE) {
 			airship_vect.p[i].x *= 3;
@@ -7826,16 +7791,11 @@ void init_vects()
 		}
 	}
 
-	balloon_vect.p = balloon_points;
-	balloon_vect.npoints = sizeof(balloon_points) / sizeof(balloon_points[0]);
-	SAM_station_vect.p = SAM_station_points;
-	SAM_station_vect.npoints = sizeof(SAM_station_points) / sizeof(SAM_station_points[0]);
-	SAM_station_debris_vect.p = SAM_station_debris_points;
-	SAM_station_debris_vect.npoints = sizeof(SAM_station_debris_points) / sizeof(SAM_station_debris_points[0]);
-	humanoid_vect.p = humanoid_points;
-	humanoid_vect.npoints = sizeof(humanoid_points) / sizeof(humanoid_points[0]);
-	socket_vect.p = socket_points;
-	socket_vect.npoints = sizeof(socket_points) / sizeof(socket_points[0]);
+	setup_vect(balloon_vect, balloon_points);
+	setup_vect(SAM_station_vect, SAM_station_points);
+	setup_vect(SAM_station_debris_vect, SAM_station_debris_points);
+	setup_vect(humanoid_vect, humanoid_points);
+	setup_vect(socket_vect, socket_points);
 
 	/* Make the line segment lists from the stroke_t structures. */
 	make_font(&gamefont[BIG_FONT], font_scale[BIG_FONT], font_scale[BIG_FONT]);
@@ -9235,12 +9195,11 @@ static void add_mosquey_roof(struct my_point_t *building, int *npoints, int left
 	width = building[right].x - building[left].x; 
 	factor = (0.0 + width) / 20.0;
 
-	for (i=0;i<sizeof(p)/sizeof(p[0]);i++) {
+	for (i=0;i<ARRAY_SIZE(p);i++) {
 		p[i].x = (p[i].x * factor) + building[left].x + (10 * factor);
 		p[i].y = (p[i].y * factor) + building[left].y;
 	}
-	insert_points(building, npoints, p, 
-		sizeof(mosquey_roof) / sizeof(mosquey_roof[0]), right);
+	insert_points(building, npoints, p, ARRAY_SIZE(mosquey_roof), right);
 	
 	return;
 }
@@ -11616,7 +11575,7 @@ void init_levels_to_beginning()
 	int i;
 	if (credits <= 0) {
 		level.random_seed = random();
-		level.level_number = randomn((sizeof(leveld) / sizeof(leveld[0]))-1);
+		level.level_number = randomn((ARRAY_SIZE(leveld))-1);
 	} else {
 		level.level_number = 0;
 		level.random_seed = initial_random_seed;
@@ -11656,8 +11615,8 @@ void advance_level()
 		level.level_number--;
 
 	if (!xmas_mode)
-		level.ground_color = (level.ground_color + 1) % 
-			(sizeof(planet_color) / sizeof(planet_color[0]));
+		level.ground_color = (level.ground_color + 1) %
+			ARRAY_SIZE(planet_color);
 	else
 		level.ground_color = 6;  /* white */
 
@@ -11709,7 +11668,7 @@ int yjstable[] = { 1,1,1,1,1,1,1,1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,  3, 3
 	4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10,
 	11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 
 	19, 20, 21, 22, 23, 24, 25 };
-int nyjstable = (sizeof(yjstable)/sizeof(yjstable[0]));
+int nyjstable = ARRAY_SIZE(yjstable);
 
 enum keyaction { keynone, keydown, keyup, keyleft, keyright, 
 		keylaser, keybomb, keychaff, keygravitybomb,
@@ -12526,9 +12485,9 @@ static void draw_help_screen(GtkWidget *w)
 		int i, j, foundit;
 
 		foundit = 0;
-		for (i=0;i<sizeof(keymap)/sizeof(keymap[0]);i++) {
+		for (i=0;i<ARRAY_SIZE(keymap);i++) {
 			if (keymap[i] == k) {
-				for (j=0;j<sizeof(keyname_value_map)/sizeof(keyname_value_map[0]);j++) {
+				for (j=0;j<ARRAY_SIZE(keyname_value_map);j++) {
 					if (keyname_value_map[j].value == i) {
 						sprintf(str, "%15s %s", keyactionstring[k],
 							keyname_value_map[j].name);
@@ -12544,7 +12503,7 @@ static void draw_help_screen(GtkWidget *w)
 					}
 				}
 			} else if (ffkeymap[i] == k) {
-				for (j=0;j<sizeof(keyname_value_map)/sizeof(keyname_value_map[0]);j++) {
+				for (j=0;j<ARRAY_SIZE(keyname_value_map);j++) {
 					if ((keyname_value_map[j].value & 0x00ff) == i &&
 						(keyname_value_map[j].value & 0xff00) != 0) {
 						sprintf(str, "%15s %s", keyactionstring[k],
@@ -12710,7 +12669,7 @@ int remapkey(char *keyname, char *actionname)
 
 	for (i=keynone;i<=key_droppresent;i++) {
 		if (strcmp(keyactionstring[i], actionname) == 0) {
-			for (j=0;j<sizeof(keyname_value_map) / sizeof(keyname_value_map[0]);j++) {
+			for (j=0;j<ARRAY_SIZE(keyname_value_map);j++) {
 				if (strcmp(keyname_value_map[j].name, keyname) == 0) {
 					if ((keyname_value_map[j].value & 0xff00) != 0) {
 						index = keyname_value_map[j].value & 0x00ff;
