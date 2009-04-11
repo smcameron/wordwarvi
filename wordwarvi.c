@@ -54,6 +54,7 @@
 #include "wwviaudio.h"
 #include "joystick.h"
 #include "rumble.h"
+#include "my_point.h"
 #include "version.h"
 #include "stamp.h"
 
@@ -600,10 +601,6 @@ stroke_t glyph_r[] = { 12, 6, 21, 9,7,8,99 };
 stroke_t glyph_apostrophe[] = { 7, 5, 99 };
 stroke_t glyph_doublequote[] = { 0, 3, 21, 1, 4, 99 };
 stroke_t glyph_asterisk[] = { 9, 5, 21, 3, 11, 21, 6, 8, 21, 4, 10, 99 };
-
-struct my_point_t {
-	short x,y;
-};
 
 /* x and y offsets for decoding stroke_t's, above */
 struct my_point_t decode_glyph[] = {
@@ -1849,12 +1846,6 @@ char randomlisp[] = "(let ((arg (if (consp (car args)) (caar args) (car args)))"
 	"   (if value (list (car value) (cdr value))))"
 	":value-to-external (lambda (widget value)"
 	"(if value (append (list (car value)) (cadr value)))))";
-
-/* Just a grouping of arrays of points with the number of points in the array */
-struct my_vect_obj {
-	int npoints;
-	struct my_point_t *p;	
-};
 
 /* contains instructions on how to draw all the objects */
 struct my_vect_obj player_vect;

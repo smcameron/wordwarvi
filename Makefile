@@ -56,7 +56,7 @@ ogg_to_pcm.o:	ogg_to_pcm.c ogg_to_pcm.h Makefile
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `pkg-config --cflags vorbisfile` \
 		-pthread -Wall -c ogg_to_pcm.c
 
-wwviaudio.o:	wwviaudio.c wwviaudio.h ogg_to_pcm.h Makefile
+wwviaudio.o:	wwviaudio.c wwviaudio.h ogg_to_pcm.h my_point.h Makefile
 	gcc -Wall ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} \
 		${DEFINES} \
 		-pthread `pkg-config --cflags vorbisfile` \
@@ -108,7 +108,7 @@ tarball:	CHECK_VERSION
 	mkdir -p d/wordwarvi-${VERSION}/sounds
 	cp Makefile version.h ogg_to_pcm.c ogg_to_pcm.h levels.h rumble.c rumble.h \
 		joystick.c joystick.h changelog.txt wordwarvi.c wordwarvi.6 \
-		wwviaudio.c wwviaudio.h stamp.c README AUTHORS COPYING \
+		wwviaudio.c wwviaudio.h my_point.h stamp.c README AUTHORS COPYING \
 		AAA_HOW_TO_MAKE_NEW_LEVELS.txt \
 		changelog.txt wordwarvi_hacking.html bigrocket.png \
 		d/wordwarvi-${VERSION}
