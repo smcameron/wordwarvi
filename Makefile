@@ -66,14 +66,19 @@ rumble.o:	rumble.c rumble.h Makefile
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `pkg-config --cflags vorbisfile` \
 		-pthread -Wall -c rumble.c
 
+wwvi_font.o:	wwvi_font.c wwvi_font.h my_point.h Makefile
+	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall -c wwvi_font.c
+
 stamp:	stamp.c
 	gcc -o stamp stamp.c	
 
-wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} wwviaudio.o Makefile version.h stamp levels.h rumble.h
+wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} wwviaudio.o wwvi_font.o \
+		Makefile version.h stamp levels.h rumble.h
 	./stamp > stamp.h
 	gcc ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} ${SCREENSAVERFLAG} -pthread -Wall  ${DEFINES} \
 		joystick.o \
 		rumble.o \
+		wwvi_font.o \
 		${OGGOBJ} \
 		wwviaudio.o \
 		wordwarvi.c -o wordwarvi -lm ${SNDLIBS} \
