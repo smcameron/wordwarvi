@@ -21,6 +21,10 @@
 
  */
 
+/* special values to do with drawing shapes. */
+#define LINE_BREAK (-9999)
+#define COLOR_CHANGE (-9998) /* note, color change can ONLY follow LINE_BREAK */
+
 struct my_point_t {
 	short x,y;
 };
