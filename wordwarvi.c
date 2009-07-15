@@ -2340,6 +2340,9 @@ struct game_state_t {
 
 } game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
 int highest_object_number = 1;
+int last_user_input_time = 0;
+int user_inaction_audio_pause = 0;
+
 
 char rumbledevicestring[PATH_MAX];
 char *rumbledevice = NULL;
@@ -5740,6 +5743,20 @@ void player_move(struct game_obj_t *o)
 	/* Autopilot, "attract mode", if credits <= 0 */
 	if (credits <= 0) {
 		autopilot();
+		/* If two minutes pass with no user intaraction, shut the hell up. */
+		if (timer > last_user_input_time + 30*120) {
+			if (!user_inaction_audio_pause) {
+				wwviaudio_silence_sound_effects();
+				wwviaudio_silence_music();
+				user_inaction_audio_pause = 1;
+			}
+		} else if (user_inaction_audio_pause) {
+			last_user_input_time = timer;
+			user_inaction_audio_pause = 0;
+			if (game_state.sound_effects_on)
+				wwviaudio_resume_sound_effects();
+			wwviaudio_resume_music();
+		}
 		if (!destiny_facedown && timer > destiny_facedown_timer2 &&
 			timer_event != NEW_HIGH_SCORE_EVENT &&
 			timer_event != NEW_HIGH_SCORE_PRE_EVENT &&
@@ -11453,9 +11470,11 @@ void deal_with_joystick()
 
 	if (in_the_process_of_quitting) {
 		if (*xaxis < -XJOYSTICK_THRESHOLD) {
+			last_user_input_time = timer;
 			current_quit_selection = 1;
 		} else
 			if (*xaxis > XJOYSTICK_THRESHOLD) {
+				last_user_input_time = timer;
 				current_quit_selection = 0;
 		}
 		for (i=0;i<10;i++)
@@ -11463,6 +11482,7 @@ void deal_with_joystick()
 				final_quit_selection = current_quit_selection;
 				if (!final_quit_selection) {
 					in_the_process_of_quitting = 0;
+					last_user_input_time = timer;
 					wwviaudio_resume_audio();
 					/* prevent just selecting "don't quit" from */
 					/* putting in a quarter. */
@@ -11529,8 +11549,10 @@ void deal_with_joystick()
 				}
 			}
 		}
-		if (moved) 
+		if (moved) {
+			last_user_input_time = timer; 
 			wwviaudio_add_sound(PLAYER_LASER_SOUND);
+		}
 		return;
 	}
 
@@ -11538,8 +11560,17 @@ void deal_with_joystick()
 		return;
 	}
 
-	if (credits <= 0)
+	if (credits <= 0) {
+		if (*xaxis < -XJOYSTICK_THRESHOLD ||
+			*xaxis > XJOYSTICK_THRESHOLD ||
+			*yaxis < -XJOYSTICK_THRESHOLD ||
+			*yaxis > XJOYSTICK_THRESHOLD)
+			last_user_input_time = timer; 
+		for (i=0;i<10;i++)
+			if (jse.button[i])
+				last_user_input_time = timer; 
 		goto no_credits;
+	}
 
 	/* xaxis, horizontal movement */	
 	if (*xaxis < -XJOYSTICK_THRESHOLD) {
@@ -11549,6 +11580,7 @@ void deal_with_joystick()
 			set_player_vect();
 		} else if (abs(player->vx + game_state.direction) < MAX_VX)
 				player->vx += game_state.direction;
+		last_user_input_time = timer; 
 	} else if (*xaxis > XJOYSTICK_THRESHOLD) {
 		if (game_state.direction != 1) {
 			player->vx = player->vx / 2;
@@ -11556,6 +11588,7 @@ void deal_with_joystick()
 			set_player_vect();
 		} else if (abs(player->vx + game_state.direction) < MAX_VX)
 				player->vx += game_state.direction;
+		last_user_input_time = timer; 
 	} else {
 		;
 #if 0
@@ -11570,37 +11603,39 @@ void deal_with_joystick()
 	if (*yaxis > JOYSTICK_SENSITIVITY) {
 		if (player->vy < MAX_VY)
 			index = nyjstable * *yaxis / 32767;
-			if (index < 0)
-				index = 0;
-			else if (index > nyjstable-1)
-				index = nyjstable-1;
-			newvy = yjstable[index];
-			diff = newvy - player->vy;
-			if (abs(diff) > 4)
-				player->vy = player->vy + (diff >> 1);
-			else 
-				player->vy = player->vy + 2;
-			/* player->vy = yjstable[index];	*/
-			/* player->vy = MAX_VY * jse.stick1_y / 32767;*/
-			/* player->vy += 2;*/
-			/*player->vy += 4;*/
+		if (index < 0)
+			index = 0;
+		else if (index > nyjstable-1)
+			index = nyjstable-1;
+		newvy = yjstable[index];
+		diff = newvy - player->vy;
+		if (abs(diff) > 4)
+			player->vy = player->vy + (diff >> 1);
+		else 
+			player->vy = player->vy + 2;
+		last_user_input_time = timer; 
+		/* player->vy = yjstable[index];	*/
+		/* player->vy = MAX_VY * jse.stick1_y / 32767;*/
+		/* player->vy += 2;*/
+		/*player->vy += 4;*/
 	} else if (*yaxis < -JOYSTICK_SENSITIVITY) {
 		if (player->vy > -MAX_VY)
 			index = -nyjstable * *yaxis / 32767;
-			if (index < 0)
-				index = 0;
-			else if (index > nyjstable-1)
-				index = nyjstable-1;
-			newvy = -yjstable[index];
-			diff = newvy - player->vy;
-			if (abs(diff) > 4)
-				player->vy = player->vy + (diff >> 1);
-			else 
-				player->vy = player->vy - 2;
-			/* player->vy = -yjstable[index];	*/
-			/* player->vy = MAX_VY * jse.stick1_y / 32767;*/
-			/* player->vy -= 4;*/
-			/*player->vy -= 4;*/
+		if (index < 0)
+			index = 0;
+		else if (index > nyjstable-1)
+			index = nyjstable-1;
+		newvy = -yjstable[index];
+		diff = newvy - player->vy;
+		if (abs(diff) > 4)
+			player->vy = player->vy + (diff >> 1);
+		else 
+			player->vy = player->vy - 2;
+		/* player->vy = -yjstable[index];	*/
+		/* player->vy = MAX_VY * jse.stick1_y / 32767;*/
+		/* player->vy -= 4;*/
+		/*player->vy -= 4;*/
+		last_user_input_time = timer; 
 	} else {
 		if (player->vy > 0)
 			player->vy--;
@@ -11610,6 +11645,7 @@ void deal_with_joystick()
 
 	for (i=0;i<11;i++) {
 		if (jse.button[i] == 1) {
+			last_user_input_time = timer; 
 			switch(jsbuttonaction[i]) {
 			case keysuicide:
 				do_suicide = 1;
@@ -12399,7 +12435,7 @@ static gint key_release_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		ka = keymap[event->keyval];
 	else
 		ka = ffkeymap[event->keyval & 0x00ff];
-
+	last_user_input_time = timer;
 	switch (ka) {
 	case keydown:
 		game_state.key_down_pressed = 0;
@@ -12453,6 +12489,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 	else
 		ka = ffkeymap[event->keyval & 0x00ff];
 
+	last_user_input_time = timer;
 	switch (ka) {
 	case key2:
 			game_state.cmd_multiplier = 2;
