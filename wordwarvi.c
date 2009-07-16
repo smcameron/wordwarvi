@@ -5774,7 +5774,8 @@ void player_move(struct game_obj_t *o)
 			destiny_facedown = 0;
 			if (!game_state.sound_effects_manually_turned_off) {
 				game_state.sound_effects_on = 1;
-				wwviaudio_resume_sound_effects();
+				if (!user_inaction_audio_pause)
+					wwviaudio_resume_sound_effects();
 			}
 		}
 	}
