@@ -264,7 +264,6 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define BULLET_PROXIMITY 10	/* x and y proximity for bullet to be considered a hit (pixels) */
 #define BULLET_LEAD_TIME 15	/* pixels per unit of velocity to lead player while aiming bullets */
 
-#define HUMANOID_PICKUP_SCORE 1000 /* score for picking up a .swp file */
 #define HUMANOID_DIST 15	   /* proximity to pick up a .swp file */
 
 #define MAX_TENTACLE_SEGS 40	   /* max number of segments of a tentacle */
@@ -274,15 +273,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 
 /* Scoring stuff */
 
-#define ROCKET_SCORE 200	/* score for killing a rocket */
-#define BRIDGE_SCORE 10 	/* score for moving a piece of a bridge (zillions of them, so should be small) */
-#define FLAK_SCORE 250		/* score for killing a flak gun (laser turret) */
-#define OCTOPUS_SCORE 800 	/* score for killing an octopus */
-#define SAM_SCORE 400		/* score for killing a SAM station. */
-#define GDB_SCORE 400		/* score for killing a GDB */
-#define CRON_SCORE 400		/* score for killing a cron job */
-#define TENTACLE_SCORE 100
-#define DELIVER_PRESENTS_SCORE 1000
+#define DELIVER_PRESENTS_SCORE 1000  /* score for delivering presents (xmas mode) */
 
 #define GROUND_OOPS 64000	/* There are some functions which, given an x value, */
 				/* return the corresponding y value for the terrain */
