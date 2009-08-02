@@ -396,6 +396,7 @@ void init_score_table()
 	score_table[OBJ_TYPE_JAMMER]		= 100;
 	score_table[OBJ_TYPE_WORM]		= 30;
 	score_table[OBJ_TYPE_KGUN]		= 400;
+	score_table[OBJ_TYPE_JETPILOT]		= 300;
 }
 
 void init_kill_tally()
