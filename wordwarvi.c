@@ -6099,6 +6099,24 @@ void move_obj(struct game_obj_t *o)
 	o->y += o->vy;
 }
 
+void bright_spark_draw(struct game_obj_t *o, GtkWidget *w)
+{
+	int x1, y1, x2, y2;
+
+	/* draw sparks using their velocities as offsets. */
+	x2 = o->x - game_state.x; 
+	if (x2 < 0 || x2 > SCREEN_WIDTH)
+		return;
+
+	x1 = x2 + o->vx;
+	if (x1 < 0 || x1 > SCREEN_WIDTH)
+		return;
+
+	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
+	y1 = y2 + o->vy;
+	wwvi_bright_line(w->window, gc, x1, y1, x2, y2, o->color);
+}
+
 void spark_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x1, y1, x2, y2;
@@ -6114,12 +6132,8 @@ void spark_draw(struct game_obj_t *o, GtkWidget *w)
 
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
 	y1 = y2 + o->vy;
-	if (brightsparks && o->alive) {
-		wwvi_bright_line(w->window, gc, x1, y1, x2, y2, o->color);
-	} else {
-		gdk_gc_set_foreground(gc, &huex[o->color]);
-		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
-	}
+	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
 }
 
 void pixie_dust_draw(struct game_obj_t *o, GtkWidget *w)
@@ -8334,8 +8348,12 @@ static void add_laserbolt(int x, int y, int vx, int vy, int color, int time)
 
 static void add_spark(int x, int y, int vx, int vy, int time)
 {
-	add_generic_object(x, y, vx, vy, spark_move, spark_draw,
-		YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
+	if (brightsparks)
+		add_generic_object(x, y, vx, vy, spark_move, bright_spark_draw,
+			YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
+	else
+		add_generic_object(x, y, vx, vy, spark_move, spark_draw,
+			YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
 }
 
 static void add_pixie_dust(int x, int y, int vx, int vy, int time)
