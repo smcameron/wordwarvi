@@ -1807,11 +1807,13 @@ typedef void rectangle_drawing_function(GdkDrawable *drawable,
 	GdkGC *gc, gboolean filled, gint x, gint y, gint width, gint height);
 
 typedef void explosion_function(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
+typedef void add_spark_function(int x, int y, int vx, int vy, int time);
 
 line_drawing_function *current_draw_line = gdk_draw_line;
 rectangle_drawing_function *current_draw_rectangle = gdk_draw_rectangle;
 bright_line_drawing_function *current_bright_line = NULL;
 explosion_function *explosion = NULL;
+explosion_function *bright_explosion = NULL;
 
 /* I can switch out the line drawing function with these macros */
 /* in case I come across something faster than gdk_draw_line */
@@ -4958,6 +4960,7 @@ void bomb_move(struct game_obj_t *o)
 }
 
 static void add_spark(int x, int y, int vx, int vy, int time);
+static void add_bright_spark(int x, int y, int vx, int vy, int time);
 static void add_pixie_dust(int x, int y, int vx, int vy, int time);
 
 #define GRAVITY_BOMB_X_INFLUENCE 400
@@ -5553,7 +5556,8 @@ void player_move(struct game_obj_t *o)
 		}
 
 		player->move = bridge_move; /* bridge move makes the player fall. */
-		explosion(player->x, player->y, player->vx, player->vy, 90, 350, 30); /* bunch of sparks. */
+		bright_explosion(player->x, player->y, player->vx, player->vy,
+			90, 350, 30); /* bunch of sparks. */
 		player->draw = no_draw;				/* Make player invisible. */
 		spray_debris(o->x, o->y, o->vx, o->vy, 70, o, 1);/* Throw hunks of metal around, */
 		wwviaudio_add_sound(LARGE_EXPLOSION_SOUND);	/* and make a lot of noise */
@@ -7323,6 +7327,26 @@ void pixie_dust_move(struct game_obj_t *o)
 	}
 }
 
+/* Make a bunch of sparks going in random directions. 
+ * x, and y are where, ivx,ivy are initial vx, vy, v is the
+ * radial velocity, think of it as the "power" of the explosion
+ * and nsparks is how many sparks to make.  time is how long
+ * the sparks are set to live. 
+ */
+void vexplode(int x, int y, int ivx, int ivy, int v, int nsparks, int time,
+	add_spark_function *sparky)
+{
+	int vx, vy, i;
+
+	for (i=0;i<nsparks;i++) {
+		/* vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivx));*/
+		/* vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivy));*/
+		vx = randomn(v) - (v>>1) + ivx;
+		vy = randomn(v) - (v>>1) + ivy;
+		sparky(x, y, vx, vy, time); 
+		/* printf("%d,%d, v=%d,%d, time=%d\n", x,y, vx, vy, time); */
+	}
+}
 
 /* Make a bunch of sparks going in random directions. 
  * x, and y are where, ivx,ivy are initial vx, vy, v is the
@@ -7332,17 +7356,15 @@ void pixie_dust_move(struct game_obj_t *o)
  */
 void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
 {
-	int vx, vy, i;
-
-	for (i=0;i<nsparks;i++) {
-		/* vx = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivx));*/
-		/* vy = (int) ((-0.5 + random() / (0.0 + RAND_MAX)) * (v + 0.0) + (0.0 + ivy));*/
-		vx = randomn(v) - (v>>1) + ivx;
-		vy = randomn(v) - (v>>1) + ivy;
-		add_spark(x, y, vx, vy, time); 
-		/* printf("%d,%d, v=%d,%d, time=%d\n", x,y, vx, vy, time); */
-	}
+	vexplode(x, y, ivx, ivy, v, nsparks, time, add_spark);
 }
+
+/* same as explode, but with bright sparks. */
+void bright_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
+{
+	vexplode(x, y, ivx, ivy, v, nsparks, time, add_bright_spark);
+}
+
 
 /* Make a bunch of pixie dust going in random directions. 
  * x, and y are where, ivx,ivy are initial vx, vy, v is the
@@ -7364,7 +7386,8 @@ void explode_pixie_dust(int x, int y, int ivx, int ivy, int v, int nsparks, int 
 /* round_explode is just like explode() above, except make the distribution 
  * of velocities result in a round, rather than square explosion. 
  */
-void round_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
+void vround_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time,
+	add_spark_function *sparky)
 {
 	int vx, vy, i;
 	int angle, tmpv; 
@@ -7380,9 +7403,19 @@ void round_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
 		tmpv = (randomn(v >> 1) * 1.4142135623);	
 		vx = cosine[angle] * tmpv + ivx;
 		vy = sine[angle] * tmpv + ivy;
-		add_spark(x, y, vx, vy, time); 
+		sparky(x, y, vx, vy, time); 
 		/* printf("%d,%d, v=%d,%d, time=%d\n", x,y, vx, vy, time); */
 	}
+}
+
+void round_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
+{
+	vround_explode(x, y, ivx, ivy, v, nsparks, time, add_spark);
+}
+
+void bright_round_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
+{
+	vround_explode(x, y, ivx, ivy, v, nsparks, time, add_bright_spark);
 }
 
 void init_object_numbers()
@@ -8344,6 +8377,12 @@ static void add_laserbolt(int x, int y, int vx, int vy, int color, int time)
 {
 	add_generic_object(x, y, vx, vy, laserbolt_move, laserbolt_draw,
 		color, &spark_vect, 0, OBJ_TYPE_SPARK, time);
+}
+
+static void add_bright_spark(int x, int y, int vx, int vy, int time)
+{
+	add_generic_object(x, y, vx, vy, spark_move, bright_spark_draw,
+		YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
 }
 
 static void add_spark(int x, int y, int vx, int vy, int time)
@@ -13909,8 +13948,11 @@ int main(int argc, char *argv[])
 		current_draw_line = thick_scaled_line;
 
 	explosion = explode;
-	if (round_explosions)
+	bright_explosion = bright_explode;
+	if (round_explosions) {
+		bright_explosion = bright_round_explode;
 		explosion = round_explode;
+	}
 
     timer_tag = g_timeout_add(1000 / frame_rate_hz, advance_game, NULL);
     
