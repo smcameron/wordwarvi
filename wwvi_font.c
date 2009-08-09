@@ -139,6 +139,7 @@ static stroke_t glyph_r[] = { 12, 6, 21, 9,7,8,99 };
 static stroke_t glyph_apostrophe[] = { 7, 5, 99 };
 static stroke_t glyph_doublequote[] = { 0, 3, 21, 1, 4, 99 };
 static stroke_t glyph_asterisk[] = { 9, 5, 21, 3, 11, 21, 6, 8, 21, 4, 10, 99 };
+static stroke_t glyph_underscore[] = { 18, 20, 99 };
 
 /* x and y offsets for decoding stroke_t's, above */
 static struct my_point_t decode_glyph[] = {
@@ -302,6 +303,7 @@ int wwvi_make_font(struct my_vect_obj ***font, int xscale, int yscale)
 	v['\''] = prerender_glyph(glyph_apostrophe, xscale, yscale);
 	v['\"'] = prerender_glyph(glyph_doublequote, xscale, yscale);
 	v['*'] = prerender_glyph(glyph_asterisk, xscale, yscale);
+	v['_'] = prerender_glyph(glyph_underscore, xscale, yscale);
 	*font = v;
 	return 0;
 }
