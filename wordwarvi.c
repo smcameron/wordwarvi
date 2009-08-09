@@ -9338,8 +9338,11 @@ static int find_dip(struct terrain_t *t, int n, int *px1, int *px2, int minlengt
 	/* printf("top of find_dip, n=%d\n", n); */
 
 	found=0;
-	x1 = 0;
-	x2 = 0; /* make the compiler quit bitching. */
+
+	/* make sure we don't put a bridge across the caldera of the volcano */
+	x1 = t->npoints / VOLCANO_XFRACTION + 5;
+	x2 = x1; /* make the compiler quit bitching. */
+
 	for (i=0;i<n;i++) {
 		for (;x1<TERRAIN_LENGTH-100;x1++) {
 			for (x2=x1+5; t->x[x2] - t->x[x1] < minlength; x2++)
