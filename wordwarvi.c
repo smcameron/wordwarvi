@@ -11456,6 +11456,7 @@ void insert_quarter()
 		destiny_facedown = 0;
 		game_state.sound_effects_on = 1;
 		wwviaudio_resume_sound_effects();
+		wwviaudio_resume_music();
 		wwviaudio_add_sound(INSERT_COIN_SOUND);
 		sleep(2);
 		ntextlines = 1;
