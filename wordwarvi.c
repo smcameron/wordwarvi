@@ -10141,7 +10141,7 @@ static void do_newhighscore(GtkWidget *w, GdkEvent *event, gpointer p)
 }
 
 struct intermission_star {
-	float x, y, vx, vy;
+	float x, y, lx, ly, vx, vy;
 };
 
 void init_intermission_star(struct intermission_star *star)
@@ -10165,6 +10165,8 @@ void init_intermission_star(struct intermission_star *star)
 		star->vx = dx/abs(dy);
 		star->vy = dy/abs(dy); 
 	}
+	star->lx = star->x;
+	star->ly = star->y;
 }
 
 void update_intermission_starfield(GtkWidget *w)
@@ -10172,7 +10174,7 @@ void update_intermission_starfield(GtkWidget *w)
 #define INTERMISSION_STARS 300
 	static int initialized = 0;
 	static struct intermission_star star[INTERMISSION_STARS];
-	int x, y, z, i;
+	int x, y, x2, y2, i;
 	if (!initialized) {
 		for (i = 0; i < INTERMISSION_STARS; i++) {
 			init_intermission_star(&star[i]);
@@ -10181,7 +10183,9 @@ void update_intermission_starfield(GtkWidget *w)
 	}
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
 	for (i = 0; i < INTERMISSION_STARS; i++) {
+		star[i].lx = star[i].x;
 		star[i].x += star[i].vx;
+		star[i].ly = star[i].y;
 		star[i].y += star[i].vy;
 		if (star[i].x < 0 || star[i].x > SCREEN_WIDTH ||
 			star[i].y < 0 || star[i].y > SCREEN_HEIGHT)
@@ -10190,8 +10194,9 @@ void update_intermission_starfield(GtkWidget *w)
 		star[i].vy *= 1.2;
 		x = (int) star[i].x;
 		y = (int) star[i].y;
-		z = randomn(2);
-		wwvi_draw_line(w->window, gc, x, y, x+z, y);
+		x2 = (int) star[i].lx;
+		y2 = (int) star[i].ly;
+		wwvi_draw_line(w->window, gc, x, y, x2, y2);
 	}
 }
 
