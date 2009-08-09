@@ -2365,7 +2365,7 @@ int initial_random_seed = 31415927;
 int want_missile_alarm = 1;
 #define LEVELWARP
 #ifdef LEVELWARP
-int levelwarp = 0;
+int levelwarp = 1;
 #endif
 GtkWidget *window = NULL; /* main window */
 
@@ -10980,7 +10980,7 @@ void timer_expired()
 		wwviaudio_play_music(MUSIC_SOUND);
 		strcpy(textline[CREDITS].string, "");
 		sprintf(textline[GAME_OVER].string, "Level %d...", 
-			level.level_number+1);
+			level.level_number);
 		textline[GAME_OVER].font = BIG_FONT;
 		textline[GAME_OVER].x = (4+1) * font_scale[current_font]*3;
 		textline[GAME_OVER].y = (3+1) * font_scale[current_font]*7;
