@@ -10181,7 +10181,7 @@ void update_intermission_starfield(GtkWidget *w)
 		}		
 		initialized = 1;
 	}
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	gdk_gc_set_foreground(gc, &huex[NCOLORS + NSPARKCOLORS + (((timer >> 2)) % NRAINBOWCOLORS)]);
 	for (i = 0; i < INTERMISSION_STARS; i++) {
 		star[i].lx = star[i].x;
 		star[i].x += star[i].vx;
