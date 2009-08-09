@@ -10140,6 +10140,61 @@ static void do_newhighscore(GtkWidget *w, GdkEvent *event, gpointer p)
 		draw_quit_screen(w);
 }
 
+struct intermission_star {
+	float x, y, vx, vy;
+};
+
+void init_intermission_star(struct intermission_star *star)
+{
+	float dx, dy;
+	star->x = (float) randomn(SCREEN_WIDTH);
+	star->y = (float) randomn(SCREEN_HEIGHT);
+
+	/* cheesy avoid divide by zero. */
+	if (abs(star->x) < 0.00001)
+		star->x += 0.003;
+	if (abs(star->y) < 0.00001)
+		star->y += 0.003;
+
+	dx = star->x - (SCREEN_WIDTH/2);
+	dy = star->y - (SCREEN_HEIGHT/2);
+	if (abs(dx) > abs(dy)) {
+		star->vx = dx/abs(dx);
+		star->vy = dy/abs(dx); 
+	} else {
+		star->vx = dx/abs(dy);
+		star->vy = dy/abs(dy); 
+	}
+}
+
+void update_intermission_starfield(GtkWidget *w)
+{
+#define INTERMISSION_STARS 300
+	static int initialized = 0;
+	static struct intermission_star star[INTERMISSION_STARS];
+	int x, y, z, i;
+	if (!initialized) {
+		for (i = 0; i < INTERMISSION_STARS; i++) {
+			init_intermission_star(&star[i]);
+		}		
+		initialized = 1;
+	}
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	for (i = 0; i < INTERMISSION_STARS; i++) {
+		star[i].x += star[i].vx;
+		star[i].y += star[i].vy;
+		if (star[i].x < 0 || star[i].x > SCREEN_WIDTH ||
+			star[i].y < 0 || star[i].y > SCREEN_HEIGHT)
+			init_intermission_star(&star[i]);
+		star[i].vx *= 1.2;
+		star[i].vy *= 1.2;
+		x = (int) star[i].x;
+		y = (int) star[i].y;
+		z = randomn(2);
+		wwvi_draw_line(w->window, gc, x, y, x+z, y);
+	}
+}
+
 int bonus_points_this_round;
 static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 {
@@ -10176,6 +10231,7 @@ static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
 	/* printf("timer=%d, timer_event=%d, intermission_timer=%d, stage=%d\n", 
 		timer, timer_event, intermission_timer, intermission_stage); */
 
+	update_intermission_starfield(w);
 	cleartext();
 	set_font(SMALL_FONT);
 	switch (intermission_stage) {
