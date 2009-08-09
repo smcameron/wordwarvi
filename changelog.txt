@@ -1,5 +1,57 @@
 Changelog for wordwarvi:
 
+Sun Aug  9 09:28:23 CDT 2009
+-------------------------------------------------------------------------------
+Changes between version 0.25 and 0.26
+
+* Now the --bw option renders the game in white plus 2 shades of gray, rather than just
+  strictly black and white (so you can read the "FUEL" sign on the fuel tanks now), and
+* Added code to try to inhibit the screensaver.  It is not currently
+  activated by default, as for example, on Fedora Core 5,
+  xdg-screensaver is broken.
+* Don't bother to decode the audio data unless portaudio started up ok.
+* Cleaned up ogg_to_pcm.c and ogg_to_pcm.h slightly.  No significant
+  functionality changes.
+* More clean up of ogg_to_pcm.c
+* a little more minor cleanup of ogg_to_pcm.[ch].  Cosmetic changes really.
+* Cleaned up wwviaudio.c wwviaudio.h a little bit
+* Cosmetic code changes... added ARRAY_SIZE macro and setup_vect macro
+  to eliminate some verbose and repetitive code.
+* Reduced level of nesting of braces a couple levels in the octopus
+  creating code by judicious use of "continue".
+* Added idempotent preserving ifdefs for rumble.h, changed some
+  functions that took () to take (void) insteadh.
+* Pulled definitions of struct my_point and struct my_vect_obj out of wordwarvi.c
+  and put them in my_point.h
+* Pulled font related code out into wwvi_font.[ch]
+* include wwvi_font.[ch] in the tarball
+* Add LINE_BREAK and COLOR_CHANGE to my_point.h
+* If two minutes elapse in attract mode with no user interaction, turn off sound.
+  At the first user interaction (e.g. keypress) turn sound back on.  (Basically,
+  cut down the annoyance factor of attract mode.)
+* Fixed a bug in the attract mode audio muting code.
+* Removed some unused #define's
+* Fixed bug that jet pilots weren't in the score_table[] array.
+  (so you didn't get the floating score thingy when you shot them.)
+* Made drawing sparks slightly more efficient by moving the test
+  for brightsparks into the add_spark function and out of the draw_spark
+  function, and adding a bright_spark_draw function.
+* Now, when you die, the explosion is rendered extra bright.
+* Make airships have better explosions
+* Added underscore glyph.
+* Added a starfield in the background of the intermission screen.
+* Made intermission starfield more "hyper-spacey"
+* made intermission starfield more tripped out and psychedelic.
+* Fixed problem that if audio was silenced due to user inaction during
+  "attract mode," putting in a quarter failed to resume the music.
+* Made the default "levelwarp" be 1, so as to skip the boring first level by default.
+  It is still accessible by putting "set levelwarp=0" in ~/.wordwarvi/.exrc, or,
+  by using the "--levelwarp 0" option.  In displaying level numbers, 1 is no
+  longer added, so that "Rocket Alley" is now level 1, rather than 2, and
+  "Welcome, Noob!" is now level 0, rather than level 1.
+* Don't put bridges across the top of the freakin' volcano.
+* Don't put buildings in the volcano.
+
 Sun Jan 18 11:56:52 CST 2009
 -------------------------------------------------------------------------------
 Changes between version 0.24 and 0.25
