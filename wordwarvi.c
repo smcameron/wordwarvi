@@ -2504,20 +2504,6 @@ void do_weak_rumble()
 		play_rumble_effect(RUMBLE_WEAK_RUMBLE_EFFECT);
 }
 
-void draw_graphpaper(GtkWidget *w)
-{
-	int i;
-	static GdkColor absolute_cyan =
-		/* Not sure this 65535 pixel value is kosher, cribbed empirically... */
-		{/*pixel=*/65535, /*red=*/0, /*green=*/65535, /*blue=*/65535 };
-	gdk_gc_set_foreground(gc, &absolute_cyan);
-
-	for (i=10 - (game_state.x & 0x1f);i<SCREEN_WIDTH;i+=32)	
-		wwvi_draw_line(w->window, gc, i, 0, i, SCREEN_HEIGHT);
-	for (i=10 - (game_state.y & 0x1f);i<SCREEN_WIDTH;i+=32)	
-		wwvi_draw_line(w->window, gc, 0, i, SCREEN_WIDTH, i);
-}
-	
 void incorrect_draw_stars(GtkWidget *w)
 {
 	short i;
@@ -10619,9 +10605,6 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	int sx1, sx2;
 	static int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
 	/* int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;*/
-
-	if (no_colors_any_more)
-		draw_graphpaper(w);
 
 	if (timer_event == START_INTERMISSION_EVENT) {
 		do_intermission(w, event, p);
