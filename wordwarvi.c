@@ -5949,7 +5949,11 @@ void laser_move(struct game_obj_t *o)
 						next = remove_target(t);
 						kill_object(t);
 						t->destroy(t);
-						explosion(t->x, t->y, t->vx, 1, 70, 150, 20);
+						bright_explosion(t->x, t->y, t->vx, 1, 70, 50, 20);
+						bright_explosion(t->x-50, t->y, t->vx, 1, 70, 25, 20);
+						bright_explosion(t->x+50, t->y, t->vx, 1, 70, 25, 20);
+						bright_explosion(t->x-100, t->y, t->vx, 1, 70, 25, 20);
+						bright_explosion(t->x+100, t->y, t->vx, 1, 70, 25, 20);
 						spray_debris(t->x, t->y, t->vx, t->vy, 30, t, 1);
 						wwviaudio_add_sound(LASER_EXPLOSION_SOUND);
 						t = next;
