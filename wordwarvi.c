@@ -9323,9 +9323,13 @@ void free_buildings()
 static void add_buildings(struct terrain_t *t)
 {
 	int xi, i;
+	int volcanoi;
+
+	volcanoi = t->npoints / VOLCANO_XFRACTION;
 
 	for (i=0;i<level.nbuildings;i++) {
-		xi = randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-1);
+		xi = volcanoi + 5 + 
+			randomn(TERRAIN_LENGTH-MAXBUILDING_WIDTH-volcanoi-6);
 		add_building(t, xi);
 	}
 }
