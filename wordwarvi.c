@@ -8022,10 +8022,16 @@ void init_radar_noise()
 	}
 }
 
-void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
+static void inline draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 {
 	int radarx, radary;
 	int x1, x2, y1, y2; 
+
+	if (!o->radar_image)
+		return;
+
+	if (game_state.radar_state != RADAR_RUNNING)
+		return;
 
 	/* project game coordinates onto the radar coordiantes. */
 	radary = SCREEN_HEIGHT - (RADAR_HEIGHT >> 1) - RADAR_YMARGIN + ((o->y * RADAR_HEIGHT) / 1500);
@@ -8182,9 +8188,7 @@ void draw_objs(GtkWidget *w)
 		if (!o->alive)
 			continue; /* skip dead things. */
 
-		/* Draw each radar imageable object on the radar screen. */
-		if (o->radar_image && game_state.radar_state == RADAR_RUNNING)
-			draw_on_radar(w, o, radary);
+		draw_on_radar(w, o, radary);
 
 		if (is_off_screen(o)) /* Don't draw offscreen things. */
 			continue;
