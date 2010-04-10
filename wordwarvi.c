@@ -8116,6 +8116,14 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 	}
 }
 
+static inline int is_off_screen(struct game_obj_t *o)
+{
+	return ((o->x < (game_state.x - (SCREEN_WIDTH/3))) ||
+		(o->x > (game_state.x + 4*(SCREEN_WIDTH/3))) ||
+		(o->y < (game_state.y - (SCREEN_HEIGHT))) ||
+		(o->y > (game_state.y + (SCREEN_HEIGHT))));
+}
+
 /* This gets called frame_rate_hz times every second (normally 30 times a sec) */
 /* by main_da_expose().  Don't do anything slow in here. */
 void draw_objs(GtkWidget *w)
@@ -8145,14 +8153,7 @@ void draw_objs(GtkWidget *w)
 		if (o->radar_image && game_state.radar_state == RADAR_RUNNING)
 			draw_on_radar(w, o, radary);
 
-		/* Don't draw offscreen things. */
-		if (o->x < (game_state.x - (SCREEN_WIDTH/3)))
-			continue;
-		if (o->x > (game_state.x + 4*(SCREEN_WIDTH/3)))
-			continue;
-		if (o->y < (game_state.y - (SCREEN_HEIGHT)))
-			continue;
-		if (o->y > (game_state.y + (SCREEN_HEIGHT)))
+		if (is_off_screen(o)) /* Don't draw offscreen things. */
 			continue;
 #ifdef DEBUG_TARGET_LIST
 		/* some code for debugging the target list */
