@@ -5138,7 +5138,7 @@ void drop_chaff()
 		o->vx = player->vx + ((j-1) * 7); /* -7, 0, 7 are x velocities */
 		o->vy = player->vy + 7;
 		o->v = &spark_vect;
-		o->draw = NULL;
+		o->draw = draw_generic;
 		o->move = chaff_move;
 		o->otype = OBJ_TYPE_CHAFF;
 		add_target(o);
@@ -5190,7 +5190,7 @@ void drop_bomb()
 		o->vy = player->vy;
 		o->v = &bomb_vect;
 		o->move = bomb_move;
-		o->draw = NULL;
+		o->draw = draw_generic;
 		o->destroy = generic_destroy_func;
 		o->otype = OBJ_TYPE_BOMB;
 		add_target(o);
@@ -5228,7 +5228,7 @@ void drop_present()
 		o->vy = player->vy;
 		o->v = &present_vect;
 		o->move = present_move;
-		o->draw = NULL;
+		o->draw = draw_generic;
 		o->destroy = generic_destroy_func;
 		o->otype = OBJ_TYPE_PRESENT;
 		add_target(o);
@@ -5272,7 +5272,7 @@ void drop_gravity_bomb()
 		o->vy = player->vy;
 		o->v = NULL;
 		o->move = gravity_bomb_move;
-		o->draw = NULL;
+		o->draw = draw_generic;
 		o->destroy = generic_destroy_func;
 		o->otype = OBJ_TYPE_BOMB;
 		add_target(o);
@@ -5546,6 +5546,9 @@ void player_move(struct game_obj_t *o)
 			90, 350, 30); /* bunch of sparks. */
 		player->draw = no_draw;				/* Make player invisible. */
 		spray_debris(o->x, o->y, o->vx, o->vy, 70, o, 1);/* Throw hunks of metal around, */
+		spray_debris(o->x, o->y, o->vx, o->vy, 50, o, 1);
+		spray_debris(o->x, o->y, o->vx, o->vy, 30, o, 1);
+		spray_debris(o->x, o->y, o->vx, o->vy, 15, o, 1);
 		wwviaudio_add_sound(LARGE_EXPLOSION_SOUND);	/* and make a lot of noise */
 		/* printf("decrementing lives %d.\n", game_state.lives); */
 		game_state.lives--;				/* lost a life. */
@@ -6614,7 +6617,7 @@ static void add_bullet(int x, int y, int vx, int vy,
 	o->vx = vx;
 	o->vy = vy;
 	o->move = bullet_move;
-	o->draw = NULL;
+	o->draw = draw_generic;
 	o->v = &bullet_vect;
 	o->destroy = generic_destroy_func;
 	o->bullseye = bullseye;
@@ -7287,12 +7290,12 @@ void spark_move(struct game_obj_t *o)
 	/* If the sparks reach speed of zero due to air resistance, kill them. */
 	if (o->vx == 0 && o->vy == 0) {
 		kill_object(o);
-		o->draw = NULL;
+		o->draw = draw_generic;
 	}
 	/* If the sparks are too far away, kill them so we won't have to process them. */
 	if (abs(o->y - player->y) > 2000 || o->x > 2000+WORLDWIDTH || o->x < -2000) {
 		kill_object(o);
-		o->draw = NULL;
+		o->draw = draw_generic;
 	}
 }
 
@@ -7313,7 +7316,7 @@ void pixie_dust_move(struct game_obj_t *o)
 	/* If the pixie dust is too far away, kill them so we won't have to process them. */
 	if (abs(o->y - player->y) > 2000 || o->x > 2000+WORLDWIDTH || o->x < -2000) {
 		kill_object(o);
-		o->draw = NULL;
+		o->draw = draw_generic;
 	}
 }
 
@@ -7632,6 +7635,10 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 {
 	int j;
 	int x1, y1, x2, y2;
+
+	if (o->v == NULL)
+		return;
+
 #if DEBUG_HITZONE
 	if (o->ontargetlist) {
 		gdk_gc_set_foreground(gc, &huex[WHITE]);
@@ -8113,7 +8120,7 @@ void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 /* by main_da_expose().  Don't do anything slow in here. */
 void draw_objs(GtkWidget *w)
 {
-	int i, j, x1, y1, x2, y2, radary;
+	int i, radary;
 #ifdef DEBUG_TARGET_LIST
 	int nitems_on_targetlist = 0;
 #endif
@@ -8124,7 +8131,6 @@ void draw_objs(GtkWidget *w)
 
 	total_radar_noise = 0; /* Each frame gets it's own allotment of noise. */
 	for (i=0;i<=highest_object_number;i++) {
-		struct my_vect_obj *v = game_state.go[i].v;
 		struct game_obj_t *o = &game_state.go[i];
 
 #ifdef DEBUG_TARGET_LIST
@@ -8158,47 +8164,7 @@ void draw_objs(GtkWidget *w)
 			wwvi_draw_line(w->window, gc, x1, y1-5, x1, y1+5);
 		}
 #endif
-#if DEBUG_HITZONE
-	if (o->ontargetlist) {
-		gdk_gc_set_foreground(gc, &huex[WHITE]);
-		x1 = o->x - game_state.x;
-		y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
-		if (x1 > 0 && x1 < SCREEN_WIDTH && y1 < SCREEN_HEIGHT && y1 > 0) {
-			/*wwvi_draw_line(w->window, gc, x1-10, y1, x1+10, y1); */
-			wwvi_draw_line(w->window, gc, x1, y1-10, x1, y1+10); 
-			wwvi_draw_line(w->window, gc, x1-10, y1 + o->above_target_y, x1+10, y1 + o->above_target_y); 
-			wwvi_draw_line(w->window, gc, x1-10, y1 + o->below_target_y, x1+10, y1 + o->below_target_y); 
-		}
-	}
-#endif
-		/* If there's no special drawing function, and the object has */
-		/* a list of line segments to draw, draw them.  This is an */
-		/* inline version of the draw_generic function. */
-		if (o->draw == NULL && o->v != NULL) {
-			gdk_gc_set_foreground(gc, &huex[o->color]);
-			x1 = o->x + v->p[0].x - game_state.x;
-			y1 = o->y + v->p[0].y - game_state.y + (SCREEN_HEIGHT/2);  
-			for (j=0;j<v->npoints-1;j++) {
-				if (v->p[j+1].x == LINE_BREAK) { /* Break in the line segments. */
-					j+=2;
-					x1 = o->x + v->p[j].x - game_state.x;
-					y1 = o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
-				}
-				if (o->v->p[j].x == COLOR_CHANGE) {
-					gdk_gc_set_foreground(gc, &huex[o->v->p[j].y]);
-					j+=1;
-					x1 = o->x + v->p[j].x - game_state.x;
-					y1 = o->y + v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
-				}
-				x2 = o->x + v->p[j+1].x - game_state.x; 
-				y2 = o->y + v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y;
-				if (x1 > 0 && x2 > 0 && (x1 < SCREEN_WIDTH || x2 < SCREEN_WIDTH))
-					wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
-				x1 = x2;
-				y1 = y2;
-			}
-		} else if (o->draw != NULL)
-			o->draw(o, w); /* Call object's specialized drawing function. */
+		o->draw(o, w); /* Call object's specialized drawing function. */
 	}
 #ifdef DEBUG_TARGET_LIST 
 	{
@@ -8408,7 +8374,7 @@ static void add_symbol(int c, int myfont, int x, int y, int vx, int vy, int time
 {	
 	struct my_vect_obj **font = gamefont[myfont];
 	if (font[c] != NULL)
-		add_generic_object(x, y, vx, vy, symbol_move, NULL,
+		add_generic_object(x, y, vx, vy, symbol_move, draw_generic,
 			WHITE, font[c], 0, OBJ_TYPE_SYMBOL, time);
 }
 
@@ -8861,7 +8827,7 @@ static void add_rockets(struct terrain_t *t, struct level_obj_descriptor_entry *
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
 		add_generic_object(t->x[xi], t->y[xi] - 7, 0, 0, 
-			rocket_move, NULL, WHITE, &rocket_vect, 1, OBJ_TYPE_ROCKET, 1);
+			rocket_move, draw_generic, WHITE, &rocket_vect, 1, OBJ_TYPE_ROCKET, 1);
 		level.nrockets++;
 	}
 }
@@ -8873,7 +8839,7 @@ static void add_big_rockets(struct terrain_t *t, struct level_obj_descriptor_ent
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi] - 15, 0, 0, 
-			big_rocket_move, NULL, WHITE, &big_rocket_vect, 1, OBJ_TYPE_BIG_ROCKET, 1);
+			big_rocket_move, draw_generic, WHITE, &big_rocket_vect, 1, OBJ_TYPE_BIG_ROCKET, 1);
 		if (o != NULL) {
 			o->above_target_y = -35;
 			o->below_target_y = 15;
@@ -8886,7 +8852,7 @@ static void add_pilot(int pilotx, int piloty, int pilotvx, int pilotvy)
 {
 	struct game_obj_t *pilot;
 	pilot = add_generic_object(pilotx, piloty, pilotvx, pilotvy, 
-		pilot_move, NULL, WHITE, 
+		pilot_move, draw_generic, WHITE, 
 		&jetpilot_vect_left, 1, OBJ_TYPE_JETPILOT, 1);
 }
 
@@ -8897,7 +8863,7 @@ static void add_jets(struct terrain_t *t, struct level_obj_descriptor_entry *ent
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], KERNEL_Y_BOUNDARY + 5, 0, 0, 
-			jet_move, NULL, WHITE, &jet_vect, 1, OBJ_TYPE_JET, 1);
+			jet_move, draw_generic, WHITE, &jet_vect, 1, OBJ_TYPE_JET, 1);
 		if (o) {
 			/* in case jets get shot down, they turn into bombs, so need this... */
 			o->tsd.bomb.bank_shot_factor = 1;
@@ -9302,7 +9268,7 @@ static void add_building(struct terrain_t *t, int xi)
 	add_target(o);
 	o->color = BLUE;
 	o->alive = 1;
-	o->draw = NULL;
+	o->draw = draw_generic;
 	o->move = NULL;
 	o->destroy = generic_destroy_func;
 	/* printf("b, x=%d, y=%d\n", x, y); */
@@ -9391,7 +9357,7 @@ static int find_dip(struct terrain_t *t, int n, int *px1, int *px2, int minlengt
 
 static void add_bridge_piece(int x, int y)
 {
-	add_generic_object(x, y, 0, 0, no_move, NULL, RED, &bridge_vect, 1, OBJ_TYPE_BRIDGE, 1);
+	add_generic_object(x, y, 0, 0, no_move, draw_generic, RED, &bridge_vect, 1, OBJ_TYPE_BRIDGE, 1);
 }
 
 static void add_bridge_column(struct terrain_t *t, 
@@ -9527,7 +9493,7 @@ static void add_houses(struct terrain_t *t, struct level_obj_descriptor_entry *e
 	for (i=0;i<NHOUSES;i++) {
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-25, 0, 0, 
-			house_move, NULL, WHITE, &house_vect, 1, OBJ_TYPE_HOUSE, 1);
+			house_move, draw_generic, WHITE, &house_vect, 1, OBJ_TYPE_HOUSE, 1);
 		if (o) {
 			o->above_target_y = -2 * LASER_Y_PROXIMITY;
 			o->below_target_y = 3 * LASER_Y_PROXIMITY;
@@ -9561,7 +9527,7 @@ static void add_ships(struct terrain_t *t, struct level_obj_descriptor_entry *en
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-30, 0, 0, 
-			ship_move, NULL, ORANGE, &ship_vect, 1, OBJ_TYPE_SHIP, 50*PLAYER_LASER_DAMAGE);
+			ship_move, draw_generic, ORANGE, &ship_vect, 1, OBJ_TYPE_SHIP, 50*PLAYER_LASER_DAMAGE);
 		if (o) {
 			o->radar_image = 1;
 			level.nships++;
@@ -9588,7 +9554,7 @@ static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *e
 			other_color = YELLOW;
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-50 - randomn(100), 0, 0, 
-			octopus_move, NULL, color, &octopus_vect, 1, OBJ_TYPE_OCTOPUS, 1);
+			octopus_move, draw_generic, color, &octopus_vect, 1, OBJ_TYPE_OCTOPUS, 1);
 		if (o == NULL)
 			continue;
 		level.noctopi++;
@@ -9710,7 +9676,7 @@ static void add_SAMs(struct terrain_t *t, struct level_obj_descriptor_entry *ent
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi], 0, 0, 
-			sam_move, NULL, WHITE, &SAM_station_vect, 1, OBJ_TYPE_SAM_STATION, 1);
+			sam_move, draw_generic, WHITE, &SAM_station_vect, 1, OBJ_TYPE_SAM_STATION, 1);
 		if (o) {
 			o->above_target_y = -50;
 			o->below_target_y = 0;
@@ -9762,7 +9728,7 @@ static void add_humanoids(struct terrain_t *t)
 	for (i=0;i<level.nhumanoids;i++) {
 		xi = initial_x_location(NULL, 0);
 		o = add_generic_object(t->x[xi], t->y[xi], 0, 0, 
-			humanoid_move, NULL, MAGENTA, &humanoid_vect, 1, OBJ_TYPE_HUMAN, 1);
+			humanoid_move, draw_generic, MAGENTA, &humanoid_vect, 1, OBJ_TYPE_HUMAN, 1);
 		human[i] = o;
 		if (o != NULL) {
 			o->tsd.human.abductor = NULL;
@@ -9934,7 +9900,7 @@ static void add_gunwheels(struct terrain_t *t, struct level_obj_descriptor_entry
 static void add_socket(struct terrain_t *t)
 {
 	add_generic_object(t->x[TERRAIN_LENGTH-1] - 250, t->y[TERRAIN_LENGTH-1] - 250, 
-		0, 0, socket_move, NULL, CYAN, &socket_vect, 0, OBJ_TYPE_SOCKET, 1);
+		0, 0, socket_move, draw_generic, CYAN, &socket_vect, 0, OBJ_TYPE_SOCKET, 1);
 }
 
 static void add_balloons(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
@@ -9944,7 +9910,7 @@ static void add_balloons(struct terrain_t *t, struct level_obj_descriptor_entry 
 	for (i=0;i<entry->nobjs;i++) {
 		xi = initial_x_location(entry, i);
 		o = add_generic_object(t->x[xi], t->y[xi]-50, 0, 0, 
-			balloon_move, NULL, CYAN, &balloon_vect, 1, OBJ_TYPE_BALLOON, 1);
+			balloon_move, draw_generic, CYAN, &balloon_vect, 1, OBJ_TYPE_BALLOON, 1);
 		if (o) {
 			o->radar_image = 1;
 			level.nballoons++;
