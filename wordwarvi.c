@@ -8124,6 +8124,42 @@ static inline int is_off_screen(struct game_obj_t *o)
 		(o->y > (game_state.y + (SCREEN_HEIGHT))));
 }
 
+#ifdef DEBUG_TARGET_LIST
+static inline void debug_adjust_target_list_count(struct game_obj_t *o, int *nitems_on_targetlist)
+{
+		/* some code for debugging the target list */
+		if (o->ontargetlist)
+			(*nitems_on_targetlist)++;
+}
+
+static inline void debug_draw_target_guidelines(GtkWidget *w, struct game_obj_t *o)
+{
+	int x1, y1;
+
+	/* some code for debugging the target list */
+	if (!o->ontargetlist)
+		return;
+	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	x1 = o->x - game_state.x;
+	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
+	wwvi_draw_line(w->window, gc, x1-5, y1, x1+5, y1);
+	wwvi_draw_line(w->window, gc, x1, y1-5, x1, y1+5);
+} 
+
+static inline void debug_display_target_list_count(GtkWidget *w, int total)
+{
+	char count[15];
+	sprintf(count, "TL:%d", total);
+	gdk_gc_set_foreground(gc, &huex[RED]);
+	abs_xy_draw_string(w, count, TINY_FONT, 20, 20);
+} 
+#else
+#define debug_adjust_target_list_count(x, y)
+#define debug_draw_target_guidelines(x, y)
+#define debug_display_target_list_count(x, y)
+#endif
+
+
 /* This gets called frame_rate_hz times every second (normally 30 times a sec) */
 /* by main_da_expose().  Don't do anything slow in here. */
 void draw_objs(GtkWidget *w)
@@ -8138,14 +8174,11 @@ void draw_objs(GtkWidget *w)
 	radary = (SCREEN_HEIGHT - (RADAR_HEIGHT >> 1)) - radary;
 
 	total_radar_noise = 0; /* Each frame gets it's own allotment of noise. */
-	for (i=0;i<=highest_object_number;i++) {
+	for (i = 0; i <= highest_object_number; i++) {
 		struct game_obj_t *o = &game_state.go[i];
 
-#ifdef DEBUG_TARGET_LIST
-		/* some code for debugging the target list */
-		if (o->ontargetlist)
-			nitems_on_targetlist++;
-#endif
+		debug_adjust_target_list_count(o, &nitems_on_targetlist);
+
 		if (!o->alive)
 			continue; /* skip dead things. */
 
@@ -8155,26 +8188,11 @@ void draw_objs(GtkWidget *w)
 
 		if (is_off_screen(o)) /* Don't draw offscreen things. */
 			continue;
-#ifdef DEBUG_TARGET_LIST
-		/* some code for debugging the target list */
-		if (o->ontargetlist) {
-			gdk_gc_set_foreground(gc, &huex[WHITE]);
-			x1 = o->x - game_state.x;
-			y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
-			wwvi_draw_line(w->window, gc, x1-5, y1, x1+5, y1);
-			wwvi_draw_line(w->window, gc, x1, y1-5, x1, y1+5);
-		}
-#endif
+
+		debug_draw_target_guidelines(w, o);
 		o->draw(o, w); /* Call object's specialized drawing function. */
 	}
-#ifdef DEBUG_TARGET_LIST 
-	{
-		char count[15];
-		sprintf(count, "TL:%d", nitems_on_targetlist);
-		gdk_gc_set_foreground(gc, &huex[RED]);
-		abs_xy_draw_string(w, count, TINY_FONT, 20, 20);
-	}
-#endif
+	debug_display_target_list_count(w, nitems_on_targetlist);
 }
 
 /* This is used by the "attract mode" screen for drawing the letters */
