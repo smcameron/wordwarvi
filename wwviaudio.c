@@ -121,7 +121,8 @@ int wwviaudio_read_ogg_clip(int clipnum, char *filename)
 	if (clipnum >= max_sound_clips || clipnum < 0)
 		return -1;
 
-	strncpy(filebuf, filename, PATH_MAX);
+	strncpy(filebuf, DATADIR, PATH_MAX);
+	strncat(filebuf, filename, PATH_MAX);
 	rc = stat(filebuf, &statbuf);
 	if (rc != 0) {
 		snprintf(filebuf, PATH_MAX, "%s", filename);
