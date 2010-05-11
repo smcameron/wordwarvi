@@ -12784,69 +12784,127 @@ int init_clips()
 {
 	printf("Decoding audio data..."); fflush(stdout);
 
-	wwviaudio_read_ogg_clip(PLAYER_LASER_SOUND, "sounds/synthetic_laser.ogg");
-	wwviaudio_read_ogg_clip(BOMB_IMPACT_SOUND, "sounds/bombexplosion.ogg");
-	wwviaudio_read_ogg_clip(ROCKET_LAUNCH_SOUND, "sounds/rocket_exhaust_1.ogg");
-	wwviaudio_read_ogg_clip(FLAK_FIRE_SOUND, "sounds/flak_gun_sound.ogg");
-	wwviaudio_read_ogg_clip(LARGE_EXPLOSION_SOUND, "sounds/big_explosion.ogg");
-	wwviaudio_read_ogg_clip(ROCKET_EXPLOSION_SOUND, "sounds/missile_explosion.ogg");
-	wwviaudio_read_ogg_clip(LASER_EXPLOSION_SOUND, "sounds/flak_hit.ogg");
-	wwviaudio_read_ogg_clip(GROUND_SMACK_SOUND, "sounds/new_ground_smack.ogg");
-	wwviaudio_read_ogg_clip(INSERT_COIN_SOUND, "sounds/us_quarter.ogg");
-	wwviaudio_read_ogg_clip(SAM_LAUNCH_SOUND, "sounds/missile_launch_2.ogg");
-	wwviaudio_read_ogg_clip(THUNDER_SOUND, "sounds/synthetic_thunder_short.ogg");
-	wwviaudio_read_ogg_clip(INTERMISSION_MUSIC_SOUND, "sounds/dtox3monomix.ogg");
-	wwviaudio_read_ogg_clip(MISSILE_LOCK_SIREN_SOUND, "sounds/missile_alarm_2.ogg");
-	wwviaudio_read_ogg_clip(CARDOOR_SOUND, "sounds/toyota_celica_cardoor_sample.ogg");
-	wwviaudio_read_ogg_clip(WOOHOO_SOUND, "sounds/woohoo.ogg");
-	wwviaudio_read_ogg_clip(OWMYSPINE_SOUND, "sounds/ow_my_spine.ogg");
-	wwviaudio_read_ogg_clip(HELPDOWNHERE_SOUND, "sounds/help_down_here.ogg");
-	wwviaudio_read_ogg_clip(CRONSHOT, "sounds/synthetic_gunshot_2.ogg");
-	wwviaudio_read_ogg_clip(HELPUPHERE_SOUND, "sounds/help_up_here.ogg");
-	wwviaudio_read_ogg_clip(ABDUCTED_SOUND, "sounds/abducted.ogg");
-	wwviaudio_read_ogg_clip(CLANG_SOUND, "sounds/clang.ogg");
-	wwviaudio_read_ogg_clip(SCREAM_SOUND, "sounds/fallingscreamhi.ogg");
-	wwviaudio_read_ogg_clip(BODYSLAM_SOUND, "sounds/bodyslam.ogg");
-	wwviaudio_read_ogg_clip(USETHESOURCE_SOUND, "sounds/UseTheSource.ogg");
-	wwviaudio_read_ogg_clip(OOF_SOUND, "sounds/ooooof.ogg");
-	wwviaudio_read_ogg_clip(METALBANG1, "sounds/metalbang1.ogg");
-	wwviaudio_read_ogg_clip(METALBANG2, "sounds/metalbang2.ogg");
-	wwviaudio_read_ogg_clip(METALBANG3, "sounds/metalbang3.ogg");
-	wwviaudio_read_ogg_clip(METALBANG4, "sounds/metalbang4.ogg");
-	wwviaudio_read_ogg_clip(METALBANG5, "sounds/metalbang5.ogg");
-	wwviaudio_read_ogg_clip(METALBANG6, "sounds/metalbang6.ogg");
-	wwviaudio_read_ogg_clip(METALBANG7, "sounds/metalbang7.ogg");
-	wwviaudio_read_ogg_clip(METALBANG1, "sounds/metalbang1.ogg");
-	wwviaudio_read_ogg_clip(STONEBANG2, "sounds/stonebang2.ogg");
-	wwviaudio_read_ogg_clip(STONEBANG3, "sounds/stonebang3.ogg");
-	wwviaudio_read_ogg_clip(STONEBANG4, "sounds/stonebang4.ogg");
-	wwviaudio_read_ogg_clip(STONEBANG5, "sounds/stonebang5.ogg");
-	wwviaudio_read_ogg_clip(STONEBANG6, "sounds/stonebang6.ogg");
-	wwviaudio_read_ogg_clip(STONEBANG7, "sounds/stonebang7.ogg");
-	wwviaudio_read_ogg_clip(STONEBANG8, "sounds/stonebang8.ogg");
-	wwviaudio_read_ogg_clip(VOLCANO_ERUPTION, "sounds/volcano_eruption.ogg");
-	wwviaudio_read_ogg_clip(IT_BURNS, "sounds/aaaah_it_burns.ogg");
-	wwviaudio_read_ogg_clip(ZZZT_SOUND, "sounds/zzzt.ogg");
-	wwviaudio_read_ogg_clip(GRAVITYBOMB_SOUND, "sounds/gravity_bomb.ogg");
-	wwviaudio_read_ogg_clip(JETWASH_SOUND, "sounds/jetwash.ogg");
-	wwviaudio_read_ogg_clip(TIMPANI_BOING, "sounds/timpani_boing.ogg");
-	wwviaudio_read_ogg_clip(NICE_BANK_SHOT, "sounds/nice_bank_shot.ogg");
-	wwviaudio_read_ogg_clip(RADAR_READY, "sounds/radar_ready.ogg");
-	wwviaudio_read_ogg_clip(RADAR_FAIL, "sounds/radar_fail.ogg");
-	wwviaudio_read_ogg_clip(GUNWHEEL, "sounds/gunwheel_sound.ogg");
-	wwviaudio_read_ogg_clip(TESLA_FIRE, "sounds/tesla_tower.ogg");
+	wwviaudio_read_ogg_clip(PLAYER_LASER_SOUND,
+		DATADIR "sounds/synthetic_laser.ogg");
+	wwviaudio_read_ogg_clip(BOMB_IMPACT_SOUND,
+		DATADIR "sounds/bombexplosion.ogg");
+	wwviaudio_read_ogg_clip(ROCKET_LAUNCH_SOUND,
+		DATADIR "sounds/rocket_exhaust_1.ogg");
+	wwviaudio_read_ogg_clip(FLAK_FIRE_SOUND,
+			DATADIR "sounds/flak_gun_sound.ogg");
+	wwviaudio_read_ogg_clip(LARGE_EXPLOSION_SOUND,
+			DATADIR "sounds/big_explosion.ogg");
+	wwviaudio_read_ogg_clip(ROCKET_EXPLOSION_SOUND,
+			DATADIR "sounds/missile_explosion.ogg");
+	wwviaudio_read_ogg_clip(LASER_EXPLOSION_SOUND,
+			DATADIR "sounds/flak_hit.ogg");
+	wwviaudio_read_ogg_clip(GROUND_SMACK_SOUND,
+			DATADIR "sounds/new_ground_smack.ogg");
+	wwviaudio_read_ogg_clip(INSERT_COIN_SOUND,
+			DATADIR "sounds/us_quarter.ogg");
+	wwviaudio_read_ogg_clip(SAM_LAUNCH_SOUND,
+			DATADIR "sounds/missile_launch_2.ogg");
+	wwviaudio_read_ogg_clip(THUNDER_SOUND,
+			DATADIR "sounds/synthetic_thunder_short.ogg");
+	wwviaudio_read_ogg_clip(INTERMISSION_MUSIC_SOUND,
+			DATADIR "sounds/dtox3monomix.ogg");
+	wwviaudio_read_ogg_clip(MISSILE_LOCK_SIREN_SOUND,
+			DATADIR "sounds/missile_alarm_2.ogg");
+	wwviaudio_read_ogg_clip(CARDOOR_SOUND,
+			DATADIR "sounds/toyota_celica_cardoor_sample.ogg");
+	wwviaudio_read_ogg_clip(WOOHOO_SOUND,
+			DATADIR "sounds/woohoo.ogg");
+	wwviaudio_read_ogg_clip(OWMYSPINE_SOUND,
+			DATADIR "sounds/ow_my_spine.ogg");
+	wwviaudio_read_ogg_clip(HELPDOWNHERE_SOUND,
+			DATADIR "sounds/help_down_here.ogg");
+	wwviaudio_read_ogg_clip(CRONSHOT,
+			DATADIR "sounds/synthetic_gunshot_2.ogg");
+	wwviaudio_read_ogg_clip(HELPUPHERE_SOUND,
+			DATADIR "sounds/help_up_here.ogg");
+	wwviaudio_read_ogg_clip(ABDUCTED_SOUND,
+			DATADIR "sounds/abducted.ogg");
+	wwviaudio_read_ogg_clip(CLANG_SOUND,
+			DATADIR "sounds/clang.ogg");
+	wwviaudio_read_ogg_clip(SCREAM_SOUND,
+			DATADIR "sounds/fallingscreamhi.ogg");
+	wwviaudio_read_ogg_clip(BODYSLAM_SOUND,
+			DATADIR "sounds/bodyslam.ogg");
+	wwviaudio_read_ogg_clip(USETHESOURCE_SOUND,
+			DATADIR "sounds/UseTheSource.ogg");
+	wwviaudio_read_ogg_clip(OOF_SOUND,
+			DATADIR "sounds/ooooof.ogg");
+	wwviaudio_read_ogg_clip(METALBANG1,
+			DATADIR "sounds/metalbang1.ogg");
+	wwviaudio_read_ogg_clip(METALBANG2,
+			DATADIR "sounds/metalbang2.ogg");
+	wwviaudio_read_ogg_clip(METALBANG3,
+			DATADIR "sounds/metalbang3.ogg");
+	wwviaudio_read_ogg_clip(METALBANG4,
+			DATADIR "sounds/metalbang4.ogg");
+	wwviaudio_read_ogg_clip(METALBANG5,
+			DATADIR "sounds/metalbang5.ogg");
+	wwviaudio_read_ogg_clip(METALBANG6,
+			DATADIR "sounds/metalbang6.ogg");
+	wwviaudio_read_ogg_clip(METALBANG7,
+			DATADIR "sounds/metalbang7.ogg");
+	wwviaudio_read_ogg_clip(METALBANG1,
+			DATADIR "sounds/metalbang1.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG2,
+			DATADIR "sounds/stonebang2.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG3,
+			DATADIR "sounds/stonebang3.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG4,
+			DATADIR "sounds/stonebang4.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG5,
+			DATADIR "sounds/stonebang5.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG6,
+			DATADIR "sounds/stonebang6.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG7,
+			DATADIR "sounds/stonebang7.ogg");
+	wwviaudio_read_ogg_clip(STONEBANG8,
+			DATADIR "sounds/stonebang8.ogg");
+	wwviaudio_read_ogg_clip(VOLCANO_ERUPTION,
+			DATADIR "sounds/volcano_eruption.ogg");
+	wwviaudio_read_ogg_clip(IT_BURNS,
+			DATADIR "sounds/aaaah_it_burns.ogg");
+	wwviaudio_read_ogg_clip(ZZZT_SOUND,
+			DATADIR "sounds/zzzt.ogg");
+	wwviaudio_read_ogg_clip(GRAVITYBOMB_SOUND,
+			DATADIR "sounds/gravity_bomb.ogg");
+	wwviaudio_read_ogg_clip(JETWASH_SOUND,
+			DATADIR "sounds/jetwash.ogg");
+	wwviaudio_read_ogg_clip(TIMPANI_BOING,
+			DATADIR "sounds/timpani_boing.ogg");
+	wwviaudio_read_ogg_clip(NICE_BANK_SHOT,
+			DATADIR "sounds/nice_bank_shot.ogg");
+	wwviaudio_read_ogg_clip(RADAR_READY,
+			DATADIR "sounds/radar_ready.ogg");
+	wwviaudio_read_ogg_clip(RADAR_FAIL,
+			DATADIR "sounds/radar_fail.ogg");
+	wwviaudio_read_ogg_clip(GUNWHEEL,
+			DATADIR "sounds/gunwheel_sound.ogg");
+	wwviaudio_read_ogg_clip(TESLA_FIRE,
+			DATADIR "sounds/tesla_tower.ogg");
 	if (xmas_mode) {
-		wwviaudio_read_ogg_clip(HOHOHO, "sounds/hohoho.ogg");
-		wwviaudio_read_ogg_clip(HOHOHO_MERRY_XMAS, "sounds/hohoho_merry_xmas.ogg");
-		wwviaudio_read_ogg_clip(YAY_SANTA, "sounds/yay_santa.ogg");
+		wwviaudio_read_ogg_clip(HOHOHO,
+			DATADIR "sounds/hohoho.ogg");
+		wwviaudio_read_ogg_clip(HOHOHO_MERRY_XMAS,
+			DATADIR "sounds/hohoho_merry_xmas.ogg");
+		wwviaudio_read_ogg_clip(YAY_SANTA,
+			DATADIR "sounds/yay_santa.ogg");
 	}
 	if (!nomusic) {
-		wwviaudio_read_ogg_clip(DESTINY_FACEDOWN, "sounds/destiny_facedown.ogg");
-		wwviaudio_read_ogg_clip(HIGH_SCORE_MUSIC, "sounds/highscoremusic.ogg");
+		wwviaudio_read_ogg_clip(DESTINY_FACEDOWN,
+			DATADIR "sounds/destiny_facedown.ogg");
+		wwviaudio_read_ogg_clip(HIGH_SCORE_MUSIC,
+			DATADIR "sounds/highscoremusic.ogg");
 		if (!xmas_mode)
-			wwviaudio_read_ogg_clip(MUSIC_SOUND, "sounds/lucky13-steve-mono-mix.ogg");
+			wwviaudio_read_ogg_clip(MUSIC_SOUND,
+				DATADIR "sounds/lucky13-steve-mono-mix.ogg");
 		else
-			wwviaudio_read_ogg_clip(MUSIC_SOUND, "sounds/lucky-holiday-cornbread-stuffing-mono.ogg");
+			wwviaudio_read_ogg_clip(MUSIC_SOUND,
+				DATADIR "sounds/lucky-holiday-cornbread-stuffing-mono.ogg");
 	}
 	printf("done.\n");
 	return 0;
