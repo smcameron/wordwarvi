@@ -128,5 +128,5 @@ tarball:	CHECK_VERSION
 
 clean:
 	rm -f ./wordwarvi ./wordwarvi-*.tar.gz wordwarvi.6.gz stamp.h stamp
-	rm -f ./joystick.o  ./ogg_to_pcm.o  ./rumble.o  ./wwviaudio.o
+	rm -f ./joystick.o  ./ogg_to_pcm.o  ./rumble.o  ./wwviaudio.o ./wwvi_font.o
 	rm -fr ./d
