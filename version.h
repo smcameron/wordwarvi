@@ -21,6 +21,6 @@
 #include <stdio.h>
 #ifndef __WORDWARVI_VERSION_H__
 #define __WORDWARVI_VERSION_H__
-#define WORDWARVI_VERSION "0.27"
+#define WORDWARVI_VERSION "1.00"
 #endif
 

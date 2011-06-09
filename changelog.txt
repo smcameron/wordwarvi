@@ -2,7 +2,7 @@ Changelog for wordwarvi:
 
 Wed Jun  8 22:44:00 CDT 2011
 -------------------------------------------------------------------------------
-Changes between version 0.26 and 0.27
+Changes between version 0.26 and 1.00
 
 * Simplified draw_objs function in a variety of ways
 * Made audio file reading code honor the DATADIR setting.  Three people
