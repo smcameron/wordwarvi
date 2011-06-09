@@ -332,7 +332,7 @@ int sound_device = -1;
 
 int nomusic = 0;
 int sound_working = 0;
-int round_explosions = 0;
+int round_explosions = 1;
 int explosion_factor = 1;
 int brightsparks = 0;		/* controls preference for how to draw sparks */
 int xmas_mode = 0;
@@ -13103,7 +13103,7 @@ static struct option wordwarvi_options[] = {
 	{ "starmotion", 1, NULL, 20 },
 	{ "nstars", 1, NULL, 21 },
 	{ "thicklines", 0, NULL, 22 },
-	{ "roundexplosions", 0, NULL, 23 },
+	{ "squareexplosions", 0, NULL, 23 },
 	{ "explosionfactor", 1, NULL, 24 },
 	{ "xmas", 0, NULL, 25 },
 #ifdef LEVELWARP
@@ -13137,7 +13137,7 @@ void usage()
 	fprintf(stderr, "--retrogreen      Render in the manner of a vector display from the '70's.\n");
 	fprintf(stderr, "--randomize       Use a clock generated random seed to initialize levels.\n");
 	fprintf(stderr, "--randomseed n    Use the specified random seed to initialize levels.\n");
-	fprintf(stderr, "--roundexplosions Make explosions round rather than rectangular.\n");
+	fprintf(stderr, "--squareexplosions Make explosions square rather than round.\n");
 	fprintf(stderr, "--rumbledevice d  Use the device file d for rumble effects. (default is /dev/input/event5)\n");
 	fprintf(stderr, "--sounddevice n   Use the nth sound device for audio output.\n");
 	fprintf(stderr, "--starmotion x    Set how starfield should move.  Possile values are:\n");
@@ -13483,8 +13483,8 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 				brightsparks = 1;
 				continue;
 			}
-			if (strcmp(word, "roundexplosions") == 0) {
-				round_explosions = 1;
+			if (strcmp(word, "squareexplosions") == 0) {
+				round_explosions = 0;
 				continue;
 			}
 			if (strcmp(word, "thicklines") == 0) {
@@ -13849,8 +13849,8 @@ int main(int argc, char *argv[])
 			case 22: /* thicklines */
 				thicklines = 1;
 				break;
-			case 23: /* roundexplosions */
-				round_explosions = 1;
+			case 23: /* squareexplosions */
+				round_explosions = 0;
 				break;
 			case 24:/* explosionfactor */ {
 					int x;

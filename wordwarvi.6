@@ -7,7 +7,7 @@ wordwarvi \- Old school '80's style side scrolling space shoot'em up game.
 [ --explosionfactor n ]
 [ --fullscreen ] [ --joystick device ] [ --nomusic ]
 [ --nomissilealarm ] [ --norumble ] [ --nostarfield ]
-[ --nstars n ] [ --randomize ] [ --randomseed n ] [ --roundexplosions ]
+[ --nstars n ] [ --randomize ] [ --randomseed n ] [ --squareexplosions ]
 [ --rumbledevice device ] [ --sounddevice n ] [ --thicklines ]
 [ --width w ] [ --height h ] [ --framerate f ]
 [ --retrogreen ] [ --version ] [ --xmas ]
@@ -45,8 +45,8 @@ Produce explosions with the number of sparks
 mulitplied by n.  Default is 1, integers up
 to 5 are permitted.  Performance may suffer
 with large values of n.  This option only has
-an effect when used in conjunction with the
-roundexplosions option.
+an effect when the squareexplosions option is
+not in effect.
 .TP
 \fB\--framerate f\fR
 Sets the target frame rate to f frames per second.
@@ -113,18 +113,22 @@ specifying the same random seed value.  The default
 random seed value the game uses if none is specified
 is 31415927.
 .TP
-\fB\--roundexplosions\fR
-Makes explosions round rather than rectangular.  By default
-spark velocities are chosen by simply assiging independent 
-uniformly distributed random x and y velocities.  This results 
-in an explosion which is rectangular in shape.  If there aren't
-too many sparks, you don't really notice.  With larger numbers
-of sparks, this rectangular shape can become apparent.  The
-roundexplosions options causes a uniformly distributed random 
-angle and velocity to be chosen for each spark, and then x and
-y velocities are computed from those values.  In this way, x
-and y velocities are no longer independent, and  the explosion 
-takes on a more natural looking round shape.
+\fB\--squareexplosions\fR
+Makes explosions square rather than round.  By default
+spark velocities are chosen by simply assigning independent 
+uniformly distributed random angle and velocity (polar
+coordinates). This results in an explosion which is round
+in shape.  If there aren't too many sparks, you don't really
+notice.  With larger numbers of sparks, this round shape
+can become apparent.  The squareexplosions options causes
+a uniformly distributed random x and y and velocity to be
+chosen for each spark.  This saves the computation of
+converting polar coordinates to cartesian.  The default
+used to be square explosions, with round explosions available
+only through the old --roundexplosions option.  Now round
+explosions are the default, and the --roundexplosions option
+was inverted and renamed --squareexplosions.
+
 .TP
 \fB\--rumbledevice d\fR
 Use the specified device for rumble effects (XBox 360 wired
@@ -256,8 +260,8 @@ Produce explosions with the number of sparks
 mulitplied by n.  Default is 1, integers up
 to 5 are permitted.  Performance may suffer
 with large values of n.  This option only has
-an effect when used in conjunction with the
-roundexplosions option.
+an effect when the squareexplosions option is
+not in effect. 
 .TP
 set framerate=n
 Attempt to render the game at n frames per second.
@@ -312,18 +316,10 @@ is probably a way to get udev to do this for you automatically
 every time, but I don't know what it is offhand, and it may 
 differ from distro to distro.
 .TP
-set roundexplosions
-Makes explosions round rather than rectangular.  By default
-spark velocities are chosen by simply assiging independent 
-uniformly distributed random x and y velocities.  This results 
-in an explosion which is rectangular in shape.  If there aren't
-too many sparks, you don't really notice.  With larger numbers
-of sparks, this rectangular shape can become apparent.  The
-roundexplosions options causes a uniformly distributed random 
-angle and velocity to be chosen for each spark, and then x and
-y velocities are computed from those values.  In this way, x
-and y velocities are no longer independent, and  the explosion 
-takes on a more natural looking round shape.
+set squareexplosions
+Makes explosions rectangular rather than round.  See the
+description of the --squareexplosions option for some
+explanation of why this even exists.
 .TP
 set sounddevice=n
 Use the nth sound device for audio output.

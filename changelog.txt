@@ -10,6 +10,8 @@ Changes between version 0.26 and 1.00
   "Denis 'GNUtoo' Carikli" in May of 2011.
 * Changed Makefile to allow for cross compiling.  This patch is from
   "Denis 'GNUtoo' Carikli" who ported Word War vi to the OpenPandora.
+* Made round explosions the default and changed the --roundexplosions
+  option and .exrc command to be "squareexplosions"
 
 Sun Aug  9 09:28:23 CDT 2009
 -------------------------------------------------------------------------------
