@@ -1,5 +1,16 @@
 Changelog for wordwarvi:
 
+Wed Jun  8 22:44:00 CDT 2011
+-------------------------------------------------------------------------------
+Changes between version 0.26 and 0.27
+
+* Simplified draw_objs function in a variety of ways
+* Made audio file reading code honor the DATADIR setting.  Three people
+  involved in this patch, myself, Ingo Ruhnke back in May of 2010, and
+  "Denis 'GNUtoo' Carikli" in May of 2011.
+* Changed Makefile to allow for cross compiling.  This patch is from
+  "Denis 'GNUtoo' Carikli" who ported Word War vi to the OpenPandora.
+
 Sun Aug  9 09:28:23 CDT 2009
 -------------------------------------------------------------------------------
 Changes between version 0.25 and 0.26
