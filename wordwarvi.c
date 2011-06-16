@@ -176,6 +176,7 @@ int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define KGUN_INIT_HEALTH 1		/* number of hits it takes to kill kgun. */
 #define MAX_KGUN_HEALTH  1		/* An interesting idea, but >1 makes the game too hard. */
 #define NROCKETS 20 			/* Number of rockets sprinkled into the terrain */ 
+#define NBIGROCKETS 15
 #define NJETS 15 			/* Number of jets sprinkled into the terrain */ 
 #define LAUNCH_DIST 1200			/* How close player can get in x dimension before rocket launches */
 #define BIG_ROCKET_LAUNCH_DIST 200			/* How close player can get in x dimension before rocket launches */
@@ -445,14 +446,14 @@ struct level_parameters_t {
 	int jetpilot_firechance;
 } level = {
 	/* initial values */
-	31415927, /* This value is not used, so changing it here has no effect.*/
-		  /* instead change initial_random_seed, below. */
+	31415927, /* This value is not used */
 	0,
 	NHUMANOIDS,
 	NBRIDGES,
 	NBUILDINGS,
 
 	NROCKETS,
+	NBIGROCKETS,
 	NJETS,
 	NFLAK,
 	NFUELTANKS,
@@ -462,18 +463,19 @@ struct level_parameters_t {
 	NGDBS,
 	NOCTOPI,
 	NTENTACLES,
+	NBALLOONS,
 	NSAMS,
 	/* NBOMBS, */
 	/* NGBOMBS, */
 	NAIRSHIPS,
 	NWORMS,
 	NKGUNS,
-
 	KGUN_INIT_HEALTH,
-	AVERAGE_LASER,
+	AVERAGE_LASER, 
 	LARGE_SCALE_ROUGHNESS,
 	SMALL_SCALE_ROUGHNESS,
 	0,
+	AGGRESSIVE_LASER,
 };
 
 /* vxy_2_dxy is a 2d array which translates a vx and vy velocity vextor
@@ -1942,7 +1944,8 @@ void crazy_line(GdkDrawable *drawable,
 }
 
 void crazy_rectangle(GdkDrawable *drawable,
-	GdkGC *gc, gboolean filled, gint x, gint y, gint width, gint height)
+	GdkGC *gc, __attribute__((unused)) gboolean filled,
+	gint x, gint y, gint width, gint height)
 {
 	int x3, y3, x4, y4;
 
@@ -2332,7 +2335,7 @@ struct game_state_t {
 	int rumble_wanted;
 	int houses_gifted;
 
-} game_state = { 0, 0, 0, 0, PLAYER_SPEED, 0, 0 };
+} game_state;
 int highest_object_number = 1;
 int last_user_input_time = 0;
 int user_inaction_audio_pause = 0;
@@ -2714,7 +2717,7 @@ void make_bomb_sound()
 	wwviaudio_add_sound(BOMB_IMPACT_SOUND);
 }
 
-void house_move(struct game_obj_t *o)
+void house_move(__attribute__ ((unused)) struct game_obj_t *o)
 {
 	return;
 }
@@ -4539,7 +4542,7 @@ int find_ground_level(struct game_obj_t *o, int *slope)
 	
 }
 
-void generic_destroy_func(struct game_obj_t *o)
+void generic_destroy_func(__attribute__((unused)) struct game_obj_t *o)
 {
 	/* so far, nothing needs to be done in this. */
 	return;
@@ -5102,7 +5105,7 @@ void chaff_move(struct game_obj_t *o)
 	/* air resistance reduces horizontal velocity with time. */
 	if (o->vx > 0)
 		o->vx--;
-	else if (o->vx < 0);
+	else if (o->vx < 0)
 		o->vx++;
 
 	explode(o->x, o->y, 0, 0, 10, 7, 19);	/* throw some sparks.*/
@@ -5854,7 +5857,7 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 	}
 }
 
-void no_move(struct game_obj_t *o)
+void no_move(__attribute__((unused)) struct game_obj_t *o)
 {
 	return;
 }
@@ -7561,7 +7564,8 @@ void init_vects()
 	set_font(BIG_FONT);
 }
 
-void no_draw(struct game_obj_t *o, GtkWidget *w)
+void no_draw(__attribute__((unused)) struct game_obj_t *o,
+	__attribute__((unused)) GtkWidget *w)
 {
 	return;
 }
@@ -8022,7 +8026,7 @@ void init_radar_noise()
 	}
 }
 
-static void inline draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
+static inline void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
 {
 	int radarx, radary;
 	int x1, x2, y1, y2; 
@@ -8504,7 +8508,7 @@ void generate_sub_terrain(struct terrain_t *t, int xi1, int xi2)
 	generate_sub_terrain(t, midxi, xi2);
 }
 
-static struct game_obj_t *add_volcano(struct terrain_t *t, int x, int y);
+static struct game_obj_t *add_volcano(int x, int y);
 void generate_terrain(struct terrain_t *t)
 {
 	int volcanox, volcanoi;
@@ -8550,7 +8554,7 @@ void generate_terrain(struct terrain_t *t)
 	generate_sub_terrain(t, vi5, t->npoints-1);
 
 	/* Put the volcano where he needs to be. */
-	volcano_obj = add_volcano(t, volcanox, t->y[vi3]);
+	volcano_obj = add_volcano(volcanox, t->y[vi3]);
 
 	/* calculate slopes */
 	for (i=0;i<t->npoints-2;i++)
@@ -8931,7 +8935,7 @@ static struct my_point_t mosquey_roof[] = {
 static void add_mosquey_roof(struct my_point_t *building, int *npoints, int left, int right)
 {
 	struct my_point_t p[ sizeof(mosquey_roof)/  sizeof(mosquey_roof[0])];
-	int i;
+	unsigned int i;
 	int width;
 	double factor;
 
@@ -9049,13 +9053,19 @@ static void indent_roof(struct my_point_t *building, int *npoints, int left, int
 	return;
 }
 
-static void addtower_roof(struct my_point_t *building, int *npoints, int left, int right)
+static void addtower_roof(__attribute__((unused)) struct my_point_t *building,
+	__attribute__((unused)) int *npoints,
+	__attribute__((unused)) int left,
+	__attribute__((unused)) int right)
 {
 
 	return;
 }
 
-static void crenellate_roof(struct my_point_t *building, int *npoints, int left, int right)
+static void crenellate_roof(__attribute__((unused)) struct my_point_t *building,
+	__attribute__((unused)) int *npoints,
+	__attribute__((unused)) int left,
+	__attribute__((unused)) int right)
 {
 	return;
 }
@@ -9478,7 +9488,7 @@ static void add_cron(struct terrain_t *t, struct level_obj_descriptor_entry *ent
 	}
 }
 
-static struct game_obj_t *add_volcano(struct terrain_t *t, int x, int y)
+static struct game_obj_t *add_volcano(int x, int y)
 {
 	return add_generic_object(x, y, 0, 0, volcano_move, no_draw, RED, NULL, 0, OBJ_TYPE_VOLCANO, 1);
 }
@@ -10004,7 +10014,9 @@ int new_high_score(int newscore)
 void write_out_high_score_file();
 void cancel_sound(int queue_entry);
 static void draw_quit_screen(GtkWidget *w);
-static void do_newhighscore(GtkWidget *w, GdkEvent *event, gpointer p)
+static void do_newhighscore(GtkWidget *w,
+	__attribute__((unused)) GdkEvent *event,
+	__attribute__((unused)) gpointer p)
 {
 	int slot;
 	static int highscore_timer = 0;
@@ -10183,7 +10195,9 @@ void update_intermission_starfield(GtkWidget *w)
 }
 
 int bonus_points_this_round;
-static int do_intermission(GtkWidget *w, GdkEvent *event, gpointer p)
+static int do_intermission(GtkWidget *w,
+	__attribute__((unused)) GdkEvent *event,
+	__attribute__((unused)) gpointer p)
 {
 #define LAST_INTERMISSION_STAGE 12
 	static int intermission_stage = 0;
@@ -10516,7 +10530,8 @@ void draw_radar(GtkWidget *w)
 }
 
 /* call back for configure_event (for window resize) */
-static gint main_da_configure(GtkWidget *w, GdkEventConfigure *event)
+static gint main_da_configure(GtkWidget *w,
+	__attribute__((unused)) GdkEventConfigure *event)
 {
 	GdkRectangle cliprect;
 
@@ -10685,8 +10700,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 
 	return 0;
 }
-static void do_game_pause( GtkWidget *widget,
-                   gpointer   data )
+static void do_game_pause(void)
 {
 	if (game_pause) {
 		game_pause = 0;
@@ -10701,8 +10715,7 @@ static void do_game_pause( GtkWidget *widget,
 	}
 }
 
-static void do_game_pause_help( GtkWidget *widget,
-                   gpointer   data )
+static void do_game_pause_help(void)
 {
 	if (game_pause_help) {
 		game_pause_help = 0;
@@ -10719,7 +10732,11 @@ static void do_game_pause_help( GtkWidget *widget,
 	}
 }
 
-void inhibit_screensaver(GtkWidget *widget)
+void inhibit_screensaver(
+#ifndef DO_INHIBIT_SCREENSAVER
+	__attribute__((unused))
+#endif
+	GtkWidget *widget)
 {
 #ifdef DO_INHIBIT_SCREENSAVER
 	/* This appears not to work on e.g. Fedora Core 5. */
@@ -10739,7 +10756,11 @@ void inhibit_screensaver(GtkWidget *widget)
 	return;
 }
 
-void resume_screensaver(GtkWidget *widget)
+void resume_screensaver(
+#ifndef DO_INHIBIT_SCREENSAVER
+	__attribute__((unused))
+#endif
+	GtkWidget *widget)
 {
 #if DO_INHIBIT_SCREENSAVER
 	int xwindow_id, rc;
@@ -10757,17 +10778,17 @@ void resume_screensaver(GtkWidget *widget)
 
 /* This is a callback function. The data arguments are ignored
  * in this example. More on callbacks below. */
-static void destroy_event( GtkWidget *widget,
-                   gpointer   data )
+static void destroy_event(void) 
 {
     /* g_print ("Bye bye.\n"); */
 	resume_screensaver(window);
 	exit(1); /* bad form to call exit here... */
 }
 
-static gboolean delete_event( GtkWidget *widget,
-                              GdkEvent  *event,
-                              gpointer   data )
+static gboolean delete_event(
+	__attribute__((unused)) GtkWidget *widget,
+	__attribute__((unused)) GdkEvent *event,
+	__attribute__((unused)) gpointer data)
 {
     /* If you return FALSE in the "delete_event" signal handler,
      * GTK will emit the "destroy" signal. Returning TRUE means
@@ -10787,8 +10808,8 @@ static gboolean delete_event( GtkWidget *widget,
 }
 
 /* Another callback */
-static void destroy( GtkWidget *widget,
-                     gpointer   data )
+static void destroy(__attribute__((unused)) GtkWidget *widget,
+		__attribute__((unused)) gpointer data)
 {
     gtk_main_quit ();
 }
@@ -11085,13 +11106,13 @@ void really_quit()
 	printf("%d frames / %d seconds, %g frames/sec\n", 
 		nframes, (int) (end_time.tv_sec - start_time.tv_sec),
 		(0.0 + nframes) / (0.0 + end_time.tv_sec - start_time.tv_sec));
-	destroy_event(window, NULL);
+	destroy_event();
 }
 
 void deal_with_joystick();
 void deal_with_keyboard();
 
-gint advance_game(gpointer data)
+gint advance_game(__attribute__((unused)) gpointer data)
 {
 	int i, ndead, nalive;
 
@@ -12319,7 +12340,7 @@ static void draw_help_screen(GtkWidget *w)
 
 	for (k=keydown;k<=key_droppresent;k++) {
 		char str[50];
-		int i, j, foundit;
+		unsigned int i, j, foundit;
 
 		foundit = 0;
 		for (i=0;i<ARRAY_SIZE(keymap);i++) {
@@ -12501,7 +12522,7 @@ int remap_joystick_button(int button, char *actionname)
 int remapkey(char *keyname, char *actionname)
 {
 	enum keyaction i;
-	int j;
+	unsigned int j;
 	int index;
 
 	for (i=keynone;i<=key_droppresent;i++) {
@@ -12521,7 +12542,9 @@ int remapkey(char *keyname, char *actionname)
 	return 1;
 }
 
-static gint key_release_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
+static gint key_release_cb(__attribute__((unused)) GtkWidget* widget,
+	GdkEventKey* event,
+	__attribute__((unused)) gpointer data)
 {
 
 	enum keyaction ka;
@@ -12567,7 +12590,9 @@ static gint key_release_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 
 
 
-static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
+static gint key_press_cb(__attribute__((unused)) GtkWidget* widget,
+	GdkEventKey* event,
+	__attribute__((unused)) gpointer data)
 {
 	enum keyaction ka;
 	/* char *x = (char *) data; */
@@ -12626,7 +12651,7 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 		return TRUE;
 	case keyquit:
 		if (game_pause_help)
-			do_game_pause_help(widget, NULL);
+			do_game_pause_help();
 		else {
 			in_the_process_of_quitting = !in_the_process_of_quitting;
 			if (in_the_process_of_quitting)
@@ -12728,11 +12753,11 @@ static gint key_press_cb(GtkWidget* widget, GdkEventKey* event, gpointer data)
 	case keypause:
 		/* if (game_state.health <= 0 || credits <= 0)*/
 		/*	return TRUE;*/
-		do_game_pause(widget, NULL);
+		do_game_pause();
 		return TRUE;
 
 	case keypausehelp:
-		do_game_pause_help(widget, NULL);
+		do_game_pause_help();
 		return TRUE;
 #if 0
 	/* just for debugging. */
@@ -13294,7 +13319,8 @@ int set_difficulty(char *difficulty)
 
 void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 	int *framerate, int *levelwarp, int *randomseed, 
-	int *sounddevice, char *joystickdevice)
+	__attribute__((unused)) int *sounddevice,
+	char *joystickdevice)
 {
 	char line[256];
 	char word[256];
@@ -13522,7 +13548,7 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 		}
 		rc = sscanf(s, "map button %d %s", &button, actionname);
 		if (rc == 2) {
-			if (remap_joystick_button(button, actionname) == 0);
+			if (remap_joystick_button(button, actionname) == 0)
 				continue;
 		}
 		rc = sscanf(s, "map %s %s", keyname, actionname);

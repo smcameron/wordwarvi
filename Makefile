@@ -31,7 +31,8 @@ BUILD_CC ?= gcc
 #OPTIMIZE_FLAG=
 # OPTIMIZE_FLAG=-O3
 #OPTIMIZE_FLAG=-O3 -pedantic -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security
-OPTIMIZE_FLAG=-O3 -pedantic
+OPTIMIZE_FLAG=-O3
+WARNFLAG=-pedantic -W -Wall
 
 
 LDFLAGS=${PROFILE_FLAG}
@@ -53,24 +54,24 @@ else
 endif
 
 joystick.o:	joystick.c joystick.h Makefile
-	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall -c joystick.c
+	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread ${WARNFLAG} -c joystick.c
 
 ogg_to_pcm.o:	ogg_to_pcm.c ogg_to_pcm.h Makefile
 	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `pkg-config --cflags vorbisfile` \
-		-pthread -Wall -c ogg_to_pcm.c
+		-pthread ${WARNFLAG} -c ogg_to_pcm.c
 
 wwviaudio.o:	wwviaudio.c wwviaudio.h ogg_to_pcm.h my_point.h Makefile
-	$(CC) -Wall ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} \
+	$(CC) ${WARNFLAG} ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} \
 		${DEFINES} \
 		-pthread `pkg-config --cflags vorbisfile` \
 		-c wwviaudio.c
 
 rumble.o:	rumble.c rumble.h Makefile
 	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `pkg-config --cflags vorbisfile` \
-		-pthread -Wall -c rumble.c
+		-pthread ${WARNFLAG} -c rumble.c
 
 wwvi_font.o:	wwvi_font.c wwvi_font.h my_point.h Makefile
-	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread -Wall -c wwvi_font.c
+	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread ${WARNFLAG} -c wwvi_font.c
 
 stamp:	stamp.c
 	$(BUILD_CC) -o stamp stamp.c
@@ -78,7 +79,7 @@ stamp:	stamp.c
 wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} wwviaudio.o wwvi_font.o \
 		Makefile version.h stamp levels.h rumble.h
 	./stamp > stamp.h
-	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} ${SCREENSAVERFLAG} -pthread -Wall  ${DEFINES} \
+	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} ${SCREENSAVERFLAG} -pthread ${WARNFLAG}  ${DEFINES} \
 		joystick.o \
 		rumble.o \
 		wwvi_font.o \

@@ -46,7 +46,7 @@ static int sound_working = 0;
 static int nomusic = 0;
 static int sound_effects_on = 1;
 static int sound_device = -1; /* default sound device for port audio. */
-static int max_concurrent_sounds = 0;
+static unsigned int max_concurrent_sounds = 0;
 static int max_sound_clips = 0;
 
 /* Pause all audio output, output silence. */
@@ -171,11 +171,15 @@ error:
 ** It may called at interrupt level on some machines so don't do anything
 ** that could mess up the system like calling malloc() or free().
 */
-static int patestCallback(const void *inputBuffer, void *outputBuffer,
-	unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo* timeInfo,
-	PaStreamCallbackFlags statusFlags, __attribute__ ((unused)) void *userData )
+static int patestCallback(__attribute__ ((unused)) const void *inputBuffer,
+	void *outputBuffer,
+	unsigned long framesPerBuffer,
+	__attribute__ ((unused)) const PaStreamCallbackTimeInfo* timeInfo,
+	__attribute__ ((unused)) PaStreamCallbackFlags statusFlags,
+	__attribute__ ((unused)) void *userData )
 {
-	int i, j, sample, count;
+	unsigned int i, j;
+	int sample, count;
 	float *out = NULL;
 	float output;
 	out = (float*) outputBuffer;
@@ -243,7 +247,10 @@ int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds, int maximum_so
 	PaError rc;
 	PaDeviceIndex device_count;
 
-	max_concurrent_sounds = maximum_concurrent_sounds;
+	if (maximum_concurrent_sounds < 0)
+		return -1;
+
+	max_concurrent_sounds = (unsigned int) maximum_concurrent_sounds;
 	max_sound_clips = maximum_sound_clips;
 
 	audio_queue = malloc(max_concurrent_sounds * sizeof(audio_queue[0]));
@@ -343,7 +350,7 @@ error:
 
 static int wwviaudio_add_sound_to_slot(int which_sound, int which_slot)
 {
-	int i;
+	unsigned int i;
 
 	if (!sound_working)
 		return 0;
@@ -372,7 +379,7 @@ static int wwviaudio_add_sound_to_slot(int which_sound, int which_slot)
 			break;
 		}
 	}
-	return (i >= max_concurrent_sounds) ? -1 : i;
+	return (i >= max_concurrent_sounds) ? -1 : (int) i;
 }
 
 int wwviaudio_add_sound(int which_sound)
@@ -390,7 +397,7 @@ void wwviaudio_add_sound_low_priority(int which_sound)
 {
 
 	/* adds a sound if there are at least 5 empty sound slots. */
-	int i;
+	unsigned int i;
 	int empty_slots = 0;
 	int last_slot;
 
@@ -408,7 +415,7 @@ void wwviaudio_add_sound_low_priority(int which_sound)
 	if (empty_slots < 5)
 		return;
 	
-	i = last_slot;
+	i = (unsigned int) last_slot;
 
 	if (audio_queue[i].active == 0) {
 		audio_queue[i].nsamples = clip[which_sound].nsamples;
@@ -434,7 +441,7 @@ void wwviaudio_cancel_music(void)
 
 void wwviaudio_cancel_all_sounds(void)
 {
-	int i;
+	unsigned int i;
 	if (!sound_working)
 		return;
 	for (i = 0; i < max_concurrent_sounds; i++)
