@@ -12409,7 +12409,7 @@ static void draw_help_screen(GtkWidget *w)
 		TINY_FONT, 80, y); 
 
 	y += 20;
-	abs_xy_draw_string(w, "Check http://wordwarvi.sourceforge.net for updates.", 
+	abs_xy_draw_string(w, "Check http://smcameron.github.com/wordwarvi for updates.", 
 		TINY_FONT, 80, y); 
 
 	y += 20;
@@ -13698,7 +13698,7 @@ int main(int argc, char *argv[])
 				printf("Released under the GNU GPL v. 2.0 or later.  See the file\n");
 				printf("COPYING, which should have accompanied this program, for\n");
 				printf("information about redistributing this program.\n");
-				printf("See http://wordwarvi.sourceforge.net for more information\n");
+				printf("See http://smcameron.github.com/wordwarvi for more information\n");
 				printf("about this program.\n");
 				exit(0);
 			case 3: /* brightsparks */

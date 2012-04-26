@@ -222,7 +222,7 @@
  *
  *
  *  If you make any particularly cool levels, feel free to send them to
- *  me at smcameron@users.sourceforge.net.  Maybe I'll put them in 
+ *  me at stephenmcameron@gmail.com.  Maybe I'll put them in 
  *  the game.
  *
  */

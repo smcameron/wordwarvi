@@ -19,23 +19,14 @@
 <hr>
 <a name="code">
 <h2>Getting the code</h2></a>
-<p>The best way to get the code if you want to hack on it is to use cvs.
+<p>The best way to get the code if you want to hack on it is to use git.
 <p>Do the following at the shell prompt:
 <pre>
 	$ mkdir wwvi
 	$ cd wwvi
-	$ export CVSROOT=:pserver:anonymous@wordwarvi.cvs.sourceforge.net:/cvsroot/wordwarvi
-	$ cvs login
-</pre>
-At this point, it will ask you for a password.  Just press return.
-<pre>
-	$ cvs -z3 co wordwarvi 
+	$ git clone git@github.com:smcameron/wordwarvi.git  
 </pre>
 <p>This will check the code out into a directory called wordwarvi 
-<p>Every day or so you should probably do "cvs update" to pick up
-any changes that might have been made in the repository (depending
-on how active things are.  Over the last year and a half, I averaged
-about 0.8 commits per day, but it fluctuates.)
 
 <a name="organized">
 <h2>First a bit about how the code is organized.</h2></a>
@@ -116,7 +107,7 @@ the game uses, as a layer on top of portaudio.
 <h2>A first look at the code: main() in wordwarvi.c</h2></a>
 (You should open up wordwarvi.c in another window, and 
 search for 'main(' while reading what's below.  You
-can <a href="http://wordwarvi.cvs.sourceforge.net/wordwarvi/wordwarvi/">
+can <a href="https://github.com/smcameron/wordwarvi">
 browse the word war vi source code via your
 browser as well.</a>).
 
@@ -411,8 +402,7 @@ and because I know the change went in as a single commit.  Here is the diff
 which represnets all the changes needed to add this new enemy type to the
 game. 
 <ul>
-<li><a href="http://wordwarvi.cvs.sourceforge.net/viewvc/wordwarvi/wordwarvi/levels.h?r1=1.11&r2=1.12">levels.h changes</a>
-<li><a href="http://wordwarvi.cvs.sourceforge.net/viewvc/wordwarvi/wordwarvi/wordwarvi.c?r1=1.325&r2=1.326">wordwarvi.c changes</a>
+<li><a href="https://github.com/smcameron/wordwarvi/commit/af21432c47b5c968584493e95ff1a80ab3d0fb44">levels.h and wordwarvi.c changes</a>
 </ul>
 
 <p>First let's have a look at the changes in levels.h, and see what's going on there.
@@ -453,7 +443,7 @@ but it works.)  So we add a new one for our new one in with the others.
 These are just adding a specified number of the new object type OBJ_TYPE_BIG_ROCKET
 into each level of the game.  There are extensive comments in levels.h which explain
 what those structures are.  
-<a href="http://wordwarvi.cvs.sourceforge.net/viewvc/wordwarvi/wordwarvi/levels.h?view=markup">Read them.</a>)
+<a href="https://github.com/smcameron/wordwarvi/blob/master/levels.h">Read them.</a>)
 <p>Then we get into the changes to wordwarvi.c
 
 <pre>
@@ -737,7 +727,7 @@ to make it interpret the instructions in levels.h for the new object type:
 <a name="sound">
 <h2>Adding new sounds</h2>
 In adding the rocket, we used already existing sounds.  What if you need a new sound?
-This is quite easy.  Consider <a href="http://wordwarvi.cvs.sourceforge.net/viewvc/wordwarvi/wordwarvi/wordwarvi.c?r1=1.346&r2=1.347">these diffs</a>, which add new radar state transition sounds.
+This is quite easy.  Consider <a href="https://github.com/smcameron/wordwarvi/commit/ecf301db2ea21338c18067f11e9af2b9d8f47251">these diffs</a>, which add new radar state transition sounds.
 <p>For each sound you add, add 1 to the NCLIPS macro, and define a new number for your new sound.
 In this case, two sounds were added, so NCLIPS was changed from 56 to 58, and the new new numbers were:
 <pre>
@@ -768,7 +758,7 @@ me to be included in the game.  One can hope.
 and modified it to your liking, then to make a patch, all you've got to
 do is execute the following command:
 <pre>
-	cvs diff -u &gt; mypatch.patch
+	git diff &gt; mypatch.patch
 </pre>
 <p>You can then send me the patch.  You can find my email address in
 the file called AUTHORS.
