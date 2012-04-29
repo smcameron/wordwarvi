@@ -333,7 +333,8 @@ int sound_device = -1;
 
 int nomusic = 0;
 int sound_working = 0;
-int round_explosions = 1;
+int round_explosions = 0;
+int spherical_explosions = 1;
 int explosion_factor = 1;
 int brightsparks = 0;		/* controls preference for how to draw sparks */
 int xmas_mode = 0;
@@ -7404,6 +7405,45 @@ void vround_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time
 	}
 }
 
+/* sphere_explode is just like explode() above, except make the distribution
+ * of velocities result in a round, symmetrical and spherical
+ * rather than square explosion.
+ */
+void vsphere_explode(int x, int y, int ivx, int ivy, int v,
+	__attribute__((unused)) int nsparks, int time,
+	add_spark_function *sparky)
+{
+	int vx, vy;
+	int angle;
+	int shell;
+	int velocity;
+	int delta_angle;
+	float point_dist;
+
+	point_dist = v * 2 * M_PI / 36;
+	delta_angle = (int) ((point_dist / (2.0 * M_PI * v)) * 360.0);
+
+	for (shell = 0; shell < 90; shell += 7) {
+		for (angle = 0; angle < 360; angle += delta_angle) {
+			velocity = (int) (cosine[shell] * (double) v);
+			vx = cosine[angle] * velocity + ivx;
+			vy = sine[angle] * velocity + ivy;
+			sparky(x, y, vx, vy, time);
+		}
+		delta_angle = (int) ((point_dist / (2.0 * velocity * M_PI)) * 360.0);
+	}
+}
+
+void sphere_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
+{
+	vsphere_explode(x, y, ivx, ivy, v, nsparks, time, add_spark);
+}
+
+void bright_sphere_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
+{
+	vsphere_explode(x, y, ivx, ivy, v, nsparks, time, add_bright_spark);
+}
+
 void round_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time)
 {
 	vround_explode(x, y, ivx, ivy, v, nsparks, time, add_spark);
@@ -13131,6 +13171,7 @@ static struct option wordwarvi_options[] = {
 	{ "squareexplosions", 0, NULL, 23 },
 	{ "explosionfactor", 1, NULL, 24 },
 	{ "xmas", 0, NULL, 25 },
+	{ "sphericalexplosions", 0, NULL, 26 },
 #ifdef LEVELWARP
 	{ "levelwarp", 1, NULL, 15 },
 #endif
@@ -13163,6 +13204,7 @@ void usage()
 	fprintf(stderr, "--randomize       Use a clock generated random seed to initialize levels.\n");
 	fprintf(stderr, "--randomseed n    Use the specified random seed to initialize levels.\n");
 	fprintf(stderr, "--squareexplosions Make explosions square rather than round.\n");
+	fprintf(stderr, "--sphericaleexplosions Make explosions spherical rather than round.\n");
 	fprintf(stderr, "--rumbledevice d  Use the device file d for rumble effects. (default is /dev/input/event5)\n");
 	fprintf(stderr, "--sounddevice n   Use the nth sound device for audio output.\n");
 	fprintf(stderr, "--starmotion x    Set how starfield should move.  Possile values are:\n");
@@ -13511,6 +13553,12 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 			}
 			if (strcmp(word, "squareexplosions") == 0) {
 				round_explosions = 0;
+				spherical_explosions = 0;
+				continue;
+			}
+			if (strcmp(word, "sphericalexplosions") == 0) {
+				round_explosions = 0;
+				spherical_explosions =1;
 				continue;
 			}
 			if (strcmp(word, "thicklines") == 0) {
@@ -13877,6 +13925,7 @@ int main(int argc, char *argv[])
 				break;
 			case 23: /* squareexplosions */
 				round_explosions = 0;
+				spherical_explosions = 0;
 				break;
 			case 24:/* explosionfactor */ {
 					int x;
@@ -13892,6 +13941,10 @@ int main(int argc, char *argv[])
 					break;
 				}
 			case 25: /* --xmas */ xmas_mode = !xmas_mode;
+				break;
+			case 26: /* sphericalexplosions */
+				round_explosions = 0;
+				spherical_explosions = 1;
 				break;
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
@@ -14081,6 +14134,10 @@ int main(int argc, char *argv[])
 	if (round_explosions) {
 		bright_explosion = bright_round_explode;
 		explosion = round_explode;
+	}
+	if (spherical_explosions) {
+		bright_explosion = bright_sphere_explode;
+		explosion = sphere_explode;
 	}
 
     timer_tag = g_timeout_add(1000 / frame_rate_hz, advance_game, NULL);
