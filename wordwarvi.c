@@ -7410,7 +7410,7 @@ void vround_explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time
  * rather than square explosion.
  */
 void vsphere_explode(int x, int y, int ivx, int ivy, int v,
-	__attribute__((unused)) int nsparks, int time,
+	int nsparks, int time,
 	add_spark_function *sparky)
 {
 	int vx, vy;
@@ -7419,15 +7419,21 @@ void vsphere_explode(int x, int y, int ivx, int ivy, int v,
 	int velocity;
 	int delta_angle;
 	float point_dist;
+	int angle_offset;
 
-	point_dist = v * 2 * M_PI / 36;
+	angle_offset = randomn(360);
+
+	if (nsparks < 30)
+		nsparks = 40;
+	point_dist = v * 2 * M_PI / (nsparks / 4);
 	delta_angle = (int) ((point_dist / (2.0 * M_PI * v)) * 360.0);
 
+	v = v / (1.0 + randomn(100) / 100.0);
 	for (shell = 0; shell < 90; shell += 7) {
 		for (angle = 0; angle < 360; angle += delta_angle) {
 			velocity = (int) (cosine[shell] * (double) v);
-			vx = cosine[angle] * velocity + ivx;
-			vy = sine[angle] * velocity + ivy;
+			vx = cosine[(angle + angle_offset) % 360] * velocity + ivx;
+			vy = sine[(angle + angle_offset) % 360] * velocity + ivy;
 			sparky(x, y, vx, vy, time);
 		}
 		delta_angle = (int) ((point_dist / (2.0 * velocity * M_PI)) * 360.0);
