@@ -13061,11 +13061,11 @@ void setup_spark_colors()
 
 	r = 32766*2;
 	g = 32766*2;
-	b = 32766;
+	b = 32766 * 1.5;
 
 	dr = 0;
 	dg = (-(2500) / NSPARKCOLORS);
-	db = 2 * dg;
+	db = 3 * dg;
 	
 	for (i=NSPARKCOLORS-1; i>=0; i--) {
 		sparkcolor[i].red = (unsigned short) r;
