@@ -31,9 +31,9 @@ BUILD_CC ?= gcc
 #OPTIMIZE_FLAG=
 # OPTIMIZE_FLAG=-O3
 #OPTIMIZE_FLAG=-O3 -pedantic -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security
-OPTIMIZE_FLAG=-O3
+CFLAGS ?= -O3 -pedantic
+OPTIMIZE_FLAG = ${CFLAGS} ${CPPFLAGS}
 WARNFLAG=-pedantic -W -Wall
-
 
 LDFLAGS=${PROFILE_FLAG}
 
