@@ -93,15 +93,15 @@ wordwarvi.6.gz:	wordwarvi.6
 	gzip -c wordwarvi.6 > wordwarvi.6.gz
 
 install: wordwarvi wordwarvi.6.gz
-	mkdir -p $(DESTDIR)$(PREFIX)/bin
+	mkdir -p $(DESTDIR)$(PREFIX)/games
 	mkdir -p $(DESTDIR)$(DATADIR)/sounds
 	mkdir -p $(DESTDIR)$(MANPAGEDIR)
-	install -p -m 755 wordwarvi $(DESTDIR)$(PREFIX)/bin
+	install -p -m 755 wordwarvi $(DESTDIR)$(PREFIX)/games
 	install -p -m 644 sounds/*.ogg $(DESTDIR)$(DATADIR)/sounds
 	install -p -m 644 wordwarvi.6.gz $(DESTDIR)$(MANPAGEDIR)
 
 uninstall:
-	/bin/rm -f $(DESTDIR)${PREFIX}/bin/wordwarvi
+	/bin/rm -f $(DESTDIR)${PREFIX}/games/wordwarvi
 	/bin/rm -fr $(DESTDIR)${DATADIR}
 	/bin/rm -f $(DESTDIR)${MANPAGEDIR}/wordwarvi.6.gz
 
