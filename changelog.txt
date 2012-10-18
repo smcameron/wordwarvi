@@ -1,5 +1,20 @@
 Changelog for wordwarvi:
 
+Fri Oct 12 17:58:05 CDT 2012
+-------------------------------------------------------------------------------
+Changes between version 1.00 and 1.01
+
+*   Changed license of lucky-holiday-cornbread-stuffing-mono.ogg and
+    lucky13-steve-mono-mix.ogg from CC BY-SA 2.0 from CC BY-SA 3.0
+    with permission of all copyright holders (Marty Keil, Skip Kavanaugh,
+    and Stephen Cameron.)
+*   Tweak the colors of explosions a bit (make them brighter)
+*   Make explosions spherical
+*   added .gitignore
+*   Replaced references to sourceforge with corresponding references to github.
+*   Added -W flag to warnings, and fixed all the warnings that it found
+*   Made spherical explosions be the default
+
 Wed Jun  8 22:44:00 CDT 2011
 -------------------------------------------------------------------------------
 Changes between version 0.26 and 1.00
