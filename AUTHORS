@@ -2,6 +2,8 @@
 wordwarvi was written by 
 Stephen M. Cameron - <stephenmcameron@gmail.com>
 
+Sergej Forat made it compile and run on Windows.
+
 Some of the audio code was modelled very loosely on
 some test programs that come with portaudio (e.g. 
 callback prototype.).
