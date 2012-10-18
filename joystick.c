@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "compat.h"
 #include "joystick.h"
 
 static int joystick_fd = -1;
@@ -38,7 +39,7 @@ int open_joystick(char *joystick_device)
 {
 	if (joystick_device == NULL)
 		joystick_device = JOYSTICK_DEVNAME;
-	joystick_fd = open(joystick_device, O_RDONLY | O_NONBLOCK); /* read write for force feedback? */
+	joystick_fd = open(joystick_device, JOYSTICK_DEV_OPEN_FLAGS);
 	if (joystick_fd < 0)
 		return joystick_fd;
 

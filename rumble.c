@@ -35,11 +35,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/ioctl.h>
 #include <errno.h>
 
-#ifdef __linux__
-#define HAS_LINUX_JOYSTICK_INTERFACE 1
+#include "compat.h"
+
+#ifndef __WIN32__
+#include <sys/ioctl.h>
 #endif
 
 #ifdef HAS_LINUX_JOYSTICK_INTERFACE

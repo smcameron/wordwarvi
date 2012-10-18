@@ -121,6 +121,7 @@ int wwviaudio_read_ogg_clip(int clipnum, char *filename)
 	if (clipnum >= max_sound_clips || clipnum < 0)
 		return -1;
 
+#ifndef __WIN32__
 	snprintf(filebuf, PATH_MAX, "%s/%s", DATADIR, filename);
 	rc = stat(filebuf, &statbuf);
 	if (rc != 0) {
@@ -131,6 +132,10 @@ int wwviaudio_read_ogg_clip(int clipnum, char *filename)
 			return -1;
 		}
 	}
+#else
+	/* use relative path on win32 */
+	snprintf(filebuf, PATH_MAX, "%s", filename);
+#endif
 /*
 	printf("Reading sound file: '%s'\n", filebuf);
 	printf("frames = %lld\n", sfinfo.frames);

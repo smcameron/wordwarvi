@@ -1,4 +1,4 @@
-/* 
+/*
     (C) Copyright 2007,2008, Stephen M. Cameron.
 
     This file is part of wordwarvi.
@@ -37,7 +37,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+#ifndef __WIN32__
 #include <arpa/inet.h> /* for htonl, etc. */
+#else
+#include <winsock2.h> /* htonl */
+#endif /* __WIN32__ */
 
 #include <gdk/gdkkeysyms.h>
 
@@ -51,6 +56,7 @@
 #define GNU_SOURCE
 #include <getopt.h>
 
+#include "compat.h"
 #include "wwviaudio.h"
 #include "joystick.h"
 #include "rumble.h"
@@ -2645,9 +2651,7 @@ do_it_anyway:
 /* get a random number between 0 and n-1... fast and loose algorithm.  */
 static inline int randomn(int n)
 {
-	/* return (int) (((random() + 0.0) / (RAND_MAX + 0.0)) * (n + 0.0)); */
-	/* floating point divide?  No. */
-	return ((random() & 0x0000ffff) * n) >> 16;
+	return random() % n;
 }
 
 #define min(a,b) ((a) > (b) ? (b) : (a))
@@ -2655,18 +2659,7 @@ static inline int randomn(int n)
 /* get a random number between a and b. */
 static inline int randomab(int a, int b)
 {
-	/* int x, y;
-	if (a > b) {
-		x = b;
-		y = a;
-	} else {
-		x = a;
-		y = b;
-	}
-	return (int) (((random() + 0.0) / (RAND_MAX + 0.0)) * (y - x + 0.0)) + x; */
-	int n;
-	n = abs(a - b);
-	return (((random() & 0x0000ffff) * n) >> 16) + min(a,b);
+	return randomn(abs(a - b)) + min(a,b);
 }
 
 void explode(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
@@ -10002,7 +9995,7 @@ void setup_text();
 
 int they_used_the_source()
 {
-
+#ifndef __WIN32__
 	/*
 	 * A little joke for the programmers.  If *you* built it
 	 * from source less than 1 hour ago you get....
@@ -10023,6 +10016,10 @@ int they_used_the_source()
 	return (uid == builder && 
 		now.tv_sec - builtat > 0 && 
 		now.tv_sec - builtat < 60*60);
+#else
+	/* FIXME: make this work on windows too. */
+	return 0;
+#endif
 }
 
 void sort_high_scores()
@@ -13279,7 +13276,7 @@ int open_high_score_file_and_lose_permissions()
 		return -1;
 
 	sprintf(filename, "%s/.wordwarvi/.highscores", homedir);
-	fd = open(filename, O_CREAT | O_RDWR, 0644);
+	fd = open(filename, O_CREAT | O_RDWR | O_BINARY, 0644);
 	if (fd < 0)
 		return -1;
 

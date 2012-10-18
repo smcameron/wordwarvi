@@ -44,7 +44,6 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	int *samplesize, int *sample_rate, int *nchannels,
 	uint64_t *nsamples)
 {
-	FILE *in;
 	OggVorbis_File vf;
 	char buf[8192];
 	unsigned char *bufferptr;
@@ -54,22 +53,17 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	const uint32_t dummy = 0x01020304;
 	const unsigned char *endian = (unsigned char *) &dummy;
 
-	in = fopen(infile, "r");
-	if (in == NULL) {
-		fprintf(stderr, "%s:%d ERROR: Failed to open '%s' for read: '%s'\n",
-			__FILE__, __LINE__, infile, strerror(errno));
-		return -1;
-	}
-	if (ov_open(in, &vf, NULL, 0) < 0) {
+	/* use ov_fopen to avoid runtime conflicts on win32 */
+	if (ov_fopen(infile, &vf) < 0) {
 		fprintf(stderr, "%s:%d: ERROR: Failed to open '%s' as vorbis\n",
 			__FILE__, __LINE__, infile);
-		fclose(in);
+		ov_clear(&vf);
 		return -1;
 	}
 	if (!ov_seekable(&vf)) {
 		fprintf(stderr, "%s:%d: %s is not seekable.\n",
 			__FILE__, __LINE__, infile);
-		fclose(in);
+		ov_clear(&vf);
 		return -1;
 	}
 
@@ -93,7 +87,7 @@ int ogg_to_pcm(char *infile, int16_t **pcmbuffer,
 	if (*pcmbuffer == NULL) {
 		fprintf(stderr, "%s:%d: Failed to allocate memory for '%s'\n",
 			__FILE__, __LINE__, infile);
-		fclose(in);
+		ov_clear(&vf);
 		return -1;
 	}
 	bufferptr = (unsigned char *) *pcmbuffer;
