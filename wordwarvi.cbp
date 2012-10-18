@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="wordwarvi" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="wordwarvi_d" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="wordwarvi" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-DWITHAUDIOSUPPORT" />
+			<Add directory="win32/include/gtk-2.0" />
+			<Add directory="win32/include/glib-2.0" />
+			<Add directory="win32/include/cairo" />
+			<Add directory="win32/include/pango-1.0" />
+			<Add directory="win32/include/gdk-pixbuf-2.0" />
+			<Add directory="win32/include/atk-1.0" />
+			<Add directory="win32/lib/glib-2.0/include" />
+			<Add directory="win32/lib/gtk-2.0/include" />
+			<Add directory="win32/include" />
+		</Compiler>
+		<Linker>
+			<Add library="mingw32" />
+			<Add library="libgdk-win32-2.0-0" />
+			<Add library="libgtk-win32-2.0-0" />
+			<Add library="libgobject-2.0-0" />
+			<Add library="libgthread-2.0-0" />
+			<Add library="libglib-2.0-0" />
+			<Add library="portaudio_x86" />
+			<Add library="libvorbisfile-3" />
+			<Add library="ws2_32" />
+			<Add directory="win32/bin" />
+		</Linker>
+		<ExtraCommands>
+			<Add before="cmd /c echo static int builder = 0; &gt; stamp.h &amp;&amp; echo static uint64_t builtat = 0; &gt;&gt; stamp.h" />
+			<Add after="xcopy /d /y /f .\win32\bin\*.dll .\" />
+		</ExtraCommands>
+		<Unit filename="joystick.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="joystick.h" />
+		<Unit filename="levels.h" />
+		<Unit filename="my_point.h" />
+		<Unit filename="ogg_to_pcm.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ogg_to_pcm.h" />
+		<Unit filename="rumble.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="rumble.h" />
+		<Unit filename="version.h" />
+		<Unit filename="wordwarvi.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="wwvi_font.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="wwvi_font.h" />
+		<Unit filename="wwviaudio.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="wwviaudio.h" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

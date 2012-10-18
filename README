@@ -1,15 +1,29 @@
 
-To build, just type "make"
+To build on linux, FreeBSD, or Mac OSX, just type "make"
 
-You'll need portaudio (v 19, not 18)
-(portaudio-devel rpm packages)
-and libvorbisfile (vorbis-devel rpm package) to decode the 
-included ogg files for sound to work.
+  You'll need portaudio (v 19, not 18)
+  (portaudio-devel rpm packages)
+  and libvorbisfile (vorbis-devel rpm package) to decode the 
+  included ogg files for sound to work.
+  
+  See: http://www.portaudio.com/
+  
+  To build without any sound support, type "make WITHAUDIO=no" 
+  
+To build on windows:
 
-See: http://www.portaudio.com/
-
-To build without any sound support, type "make WITHAUDIO=no" 
+  1. Download install mingw
+  2. Download codeblocks ide (nightly build recommended)
+  3. Download/clone wordwarvi source
+  4. Create win32 folder in wordwarvi source directory.
+  5. Download precompiled gtk (all-in-one bundle) libs,
+     copy include and bin folders into wordwarvi/win32
+  6. Download precompiled vorbis/ogg libs, copy include
+     content into wordwarvi/win32/include and the dlls into
+     wordwarvi/win32/bin.
+  7. Download precompiled portaudio lib, copy include content into
+     wordwarvi/win32/include and the dlls into wordwarvi/win32/bin.
+  8. Open wordwarvi.cbp in codeblocks and build.
 
 If you want to hack on the code, read wordwarvi_hacking.html
-
 
