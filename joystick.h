@@ -1,4 +1,4 @@
-/* 
+/*
     (C) Copyright 2007,2008, Stephen M. Cameron.
 
     This file is part of wordwarvi.
@@ -18,9 +18,13 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
  */
-#include <stdio.h>
 #ifndef __JOYSTICK_H__
 #define __JOYSTICK_H__
+
+#include <stdio.h>
+#ifdef __WIN32__
+#include <gdk/gdktypes.h>
+#endif
 
 #define JOYSTICK_DEVNAME "/dev/input/js0"
 
@@ -42,7 +46,11 @@ struct wwvi_js_event {
 	int stick_y;
 };
 
-extern int open_joystick(char *joystick_device);
+#ifdef __WIN32__
+extern int open_joystick(char *joystick_device, GdkWindow *window);
+#else
+extern int open_joystick(char *joystick_device, void *window);
+#endif
 extern int read_joystick_event(struct js_event *jse);
 extern void set_joystick_y_axis(int axis);
 extern void set_joystick_x_axis(int axis);

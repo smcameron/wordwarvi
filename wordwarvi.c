@@ -13960,12 +13960,6 @@ int main(int argc, char *argv[])
 	set_joystick_x_axis(game_state.x_joystick_axis);
 	set_joystick_y_axis(game_state.y_joystick_axis);
 
-	jsfd = open_joystick(joystick_device);
-	if (jsfd < 0) {
-		printf("No joystick...\n");
-	} else
-		check_for_screensaver();
-
 #ifdef WITHAUDIOSUPPORT
 	if (nomusic)
 		wwviaudio_set_nomusic();
@@ -14103,6 +14097,12 @@ int main(int argc, char *argv[])
 	set_cursor(window);
 	
 	inhibit_screensaver(window);
+
+	jsfd = open_joystick(joystick_device, window->window);
+	if (jsfd < 0) {
+		printf("No joystick...\n");
+	} else
+		check_for_screensaver();
 
 	gc = gdk_gc_new(GTK_WIDGET(main_da)->window);
 	gdk_gc_set_foreground(gc, &huex[BLUE]);

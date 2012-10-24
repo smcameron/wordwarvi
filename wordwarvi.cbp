@@ -8,7 +8,6 @@
 		<Build>
 			<Target title="Debug">
 				<Option output="wordwarvi_d" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="" />
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
@@ -18,7 +17,6 @@
 			</Target>
 			<Target title="Release">
 				<Option output="wordwarvi" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="" />
 				<Option object_output="obj/Release/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
@@ -53,6 +51,8 @@
 			<Add library="portaudio_x86" />
 			<Add library="libvorbisfile-3" />
 			<Add library="ws2_32" />
+			<Add library="dinput8" />
+			<Add library="dxguid" />
 			<Add directory="win32/bin" />
 		</Linker>
 		<ExtraCommands>
