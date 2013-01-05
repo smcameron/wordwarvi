@@ -2391,7 +2391,8 @@ GtkWidget *window = NULL; /* main window */
 
 #define STAR_SHIFT 3
 #define NSTARS 600 
-int number_of_stars = 150;
+// int number_of_stars = 150;
+int number_of_stars = 20;
 int starshift = STAR_SHIFT; 
 struct star_t {
 	short x; 
@@ -8414,22 +8415,19 @@ static void add_laserbolt(int x, int y, int vx, int vy, int color, int time)
 
 static void add_bright_spark(int x, int y, int vx, int vy, int time)
 {
-	return;
-	/* add_generic_object(x, y, vx, vy, spark_move, bright_spark_draw,
-		YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time); */
+	if (randomn(100) < 20)
+	add_generic_object(x, y, vx, vy, spark_move, bright_spark_draw,
+		YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
 }
 
 static void add_spark(int x, int y, int vx, int vy, int time)
 {
-	return;
-#if 0
-	if (brightsparks)
+	if (brightsparks && randomn(100) < 20) 
 		add_generic_object(x, y, vx, vy, spark_move, bright_spark_draw,
 			YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
-	else
+	else if (randomn(100) < 20)
 		add_generic_object(x, y, vx, vy, spark_move, spark_draw,
 			YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
-#endif
 }
 
 static void add_pixie_dust(int x, int y, int vx, int vy, int time)
