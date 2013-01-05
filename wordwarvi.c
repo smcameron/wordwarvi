@@ -8080,6 +8080,7 @@ static inline void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_corre
 	int radarx, radary;
 	int x1, x2, y1, y2; 
 
+	return;
 	if (!o->radar_image)
 		return;
 
@@ -10433,6 +10434,8 @@ void draw_radar(GtkWidget *w)
 	int xoffset, height, width, yoffset; 
 	int x1, y1, x2, y2;
 	char statusstr[100]; 
+
+	return;
 
 	int viewport_left, viewport_right, viewport_top, viewport_bottom;
 	int y_correction;
