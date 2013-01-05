@@ -154,7 +154,7 @@
 			     /* this may adversely affect performance, as this number of x's are */
 			     /* drawn EVERY FRAME when in close proximity to jammer. */
 
-#define FRAME_RATE_HZ 30	/* target frame rate at which gtk callback fires by default */
+#define FRAME_RATE_HZ 20	/* target frame rate at which gtk callback fires by default */
 int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define TERRAIN_LENGTH 1000	/* length, in number of line segments, of terrain */
 #define SCREEN_WIDTH 800        /* window width, in pixels */
@@ -1817,8 +1817,11 @@ typedef void rectangle_drawing_function(GdkDrawable *drawable,
 
 typedef void explosion_function(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
 typedef void add_spark_function(int x, int y, int vx, int vy, int time);
+void gdk_draw_line_count(GdkDrawable *drawable,
+	GdkGC *gc, gint x1, gint y1, gint x2, gint y2);
 
-line_drawing_function *current_draw_line = gdk_draw_line;
+unsigned long total_line_count = 0;
+line_drawing_function *current_draw_line = gdk_draw_line_count;
 rectangle_drawing_function *current_draw_rectangle = gdk_draw_rectangle;
 bright_line_drawing_function *current_bright_line = NULL;
 explosion_function *explosion = NULL;
@@ -1841,6 +1844,13 @@ float xscale_screen;
 float yscale_screen;
 int real_screen_width;
 int real_screen_height;
+
+void gdk_draw_line_count(GdkDrawable *drawable,
+	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
+{
+	total_line_count++;	
+	gdk_draw_line(drawable, gc, x1, y1, x2, y2);
+}
 
 void scaled_line(GdkDrawable *drawable,
 	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
@@ -8403,18 +8413,22 @@ static void add_laserbolt(int x, int y, int vx, int vy, int color, int time)
 
 static void add_bright_spark(int x, int y, int vx, int vy, int time)
 {
-	add_generic_object(x, y, vx, vy, spark_move, bright_spark_draw,
-		YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
+	return;
+	/* add_generic_object(x, y, vx, vy, spark_move, bright_spark_draw,
+		YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time); */
 }
 
 static void add_spark(int x, int y, int vx, int vy, int time)
 {
+	return;
+#if 0
 	if (brightsparks)
 		add_generic_object(x, y, vx, vy, spark_move, bright_spark_draw,
 			YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
 	else
 		add_generic_object(x, y, vx, vy, spark_move, spark_draw,
 			YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
+#endif
 }
 
 static void add_pixie_dust(int x, int y, int vx, int vy, int time)
@@ -10594,7 +10608,7 @@ static gint main_da_configure(GtkWidget *w,
 	xscale_screen = (float) real_screen_width / (float) SCREEN_WIDTH;
 	yscale_screen = (float) real_screen_height / (float) SCREEN_HEIGHT;
 	if (real_screen_width == 800 && real_screen_height == 600) {
-		current_draw_line = gdk_draw_line;
+		current_draw_line = gdk_draw_line_count;
 		current_draw_rectangle = gdk_draw_rectangle;
 		current_bright_line = unscaled_bright_line;
 	} else {
@@ -11149,6 +11163,9 @@ void really_quit()
 	printf("%d frames / %d seconds, %g frames/sec\n", 
 		nframes, (int) (end_time.tv_sec - start_time.tv_sec),
 		(0.0 + nframes) / (0.0 + end_time.tv_sec - start_time.tv_sec));
+	printf("Total lines = %lu, lines/sec = %lf\n", total_line_count,
+			 (double) total_line_count /
+			(double) end_time.tv_sec - start_time.tv_sec);
 	destroy_event();
 }
 
@@ -13470,7 +13487,7 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 		rc = sscanf(s, "set height=%d\n", &h);
 		if (rc == 1) {
 			real_screen_height = 600;
-			current_draw_line = gdk_draw_line;
+			current_draw_line = gdk_draw_line_count;
 			current_draw_rectangle = gdk_draw_rectangle;
 			current_bright_line = unscaled_bright_line;
 			if (h >= 100 && h <= 2000) {
@@ -13483,7 +13500,7 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 					" using 800.\n", lineno);
 				real_screen_width = 800;
 				real_screen_height = 600;
-				current_draw_line = gdk_draw_line;
+				current_draw_line = gdk_draw_line_count;
 				current_draw_rectangle = gdk_draw_rectangle;
 				current_bright_line = unscaled_bright_line;
 			}
@@ -13492,7 +13509,7 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 		rc = sscanf(s, "set width=%d\n", &w);
 		if (rc == 1) {
 			real_screen_width = 800;
-			current_draw_line = gdk_draw_line;
+			current_draw_line = gdk_draw_line_count;
 			current_draw_rectangle = gdk_draw_rectangle;
 				current_bright_line = unscaled_bright_line;
 			if (w >= 100 && w <= 3000) {
@@ -13505,7 +13522,7 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 					", using 800.\n", lineno);
 				real_screen_width = 800;
 				real_screen_height = 600;
-				current_draw_line = gdk_draw_line;
+				current_draw_line = gdk_draw_line_count;
 				current_draw_rectangle = gdk_draw_rectangle;
 				current_bright_line = unscaled_bright_line;
 			}
@@ -13757,7 +13774,7 @@ int main(int argc, char *argv[])
 				break;
 			case 4: /* width */
 				real_screen_width = 800;
-				current_draw_line = gdk_draw_line;
+				current_draw_line = gdk_draw_line_count;
 				current_draw_rectangle = gdk_draw_rectangle;
 				current_bright_line = unscaled_bright_line;
 				n = sscanf(optarg, "%d", &real_screen_width);
@@ -13765,7 +13782,7 @@ int main(int argc, char *argv[])
 					fprintf(stderr, "wordwarvi: Bad width argument"
 						" '%s', using 800.\n", optarg);
 					real_screen_width = 800;
-					current_draw_line = gdk_draw_line;
+					current_draw_line = gdk_draw_line_count;
 					current_draw_rectangle = gdk_draw_rectangle;
 					current_bright_line = unscaled_bright_line;
 					break;
@@ -13779,14 +13796,14 @@ int main(int argc, char *argv[])
 						" '%s', using 800.\n", optarg);
 					real_screen_width = 800;
 					real_screen_height = 600;
-					current_draw_line = gdk_draw_line;
+					current_draw_line = gdk_draw_line_count;
 					current_draw_rectangle = gdk_draw_rectangle;
 					current_bright_line = unscaled_bright_line;
 				}
 				break;	
 			case 5: /* height */
 				real_screen_height = 600;
-				current_draw_line = gdk_draw_line;
+				current_draw_line = gdk_draw_line_count;
 				current_draw_rectangle = gdk_draw_rectangle;
 				current_bright_line = unscaled_bright_line;
 				n = sscanf(optarg, "%d", &real_screen_height);
@@ -13794,7 +13811,7 @@ int main(int argc, char *argv[])
 					fprintf(stderr, "wordwarvi: Bad height argument"
 						" '%s', using 600.\n", optarg);
 					real_screen_height = 600;
-					current_draw_line = gdk_draw_line;
+					current_draw_line = gdk_draw_line_count;
 					current_draw_rectangle = gdk_draw_rectangle;
 					current_bright_line = unscaled_bright_line;
 					break;
@@ -13808,7 +13825,7 @@ int main(int argc, char *argv[])
 						" '%s', using 800.\n", optarg);
 					real_screen_width = 800;
 					real_screen_height = 600;
-					current_draw_line = gdk_draw_line;
+					current_draw_line = gdk_draw_line_count;
 					current_draw_rectangle = gdk_draw_rectangle;
 					current_bright_line = unscaled_bright_line;
 				}
@@ -14117,7 +14134,7 @@ int main(int argc, char *argv[])
 
 	gtk_window_get_size(GTK_WINDOW (window), &real_screen_width, &real_screen_height);
 	if (real_screen_width == 800 && real_screen_height == 600) {
-		current_draw_line = gdk_draw_line;
+		current_draw_line = gdk_draw_line_count;
 		current_draw_rectangle = gdk_draw_rectangle;
 		current_bright_line = unscaled_bright_line;
 	} else {
