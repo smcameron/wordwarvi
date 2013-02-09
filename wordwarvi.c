@@ -77,7 +77,7 @@
 #define LASERRIGHT 0.97
 #define LASERWIDTH (LASERRIGHT - LASERLEFT)
 #define LASERHEIGHT (LASERBOTTOM - LASERTOP)
-#define LASERFRAMERATE (30)
+#define LASERFRAMERATE (20)
 /* end openlase related defines */
 
 #ifndef M_PI
@@ -1865,7 +1865,7 @@ void openlase_drawline(int x1, int y1, int x2, int y2)
 	b1 = ((float) y1 / (float) real_screen_height) * LASERHEIGHT;
 	b2 = ((float) y2 / (float) real_screen_height) * LASERHEIGHT;
 
-	// olLine(a1, b1, a2, b2, C_GREY(50));
+	olLine(a1, b1, a2, b2, C_WHITE);
 }
 
 void openlase_renderframe(void)
@@ -1873,8 +1873,6 @@ void openlase_renderframe(void)
 	olLoadIdentity();
 	olTranslate(-1,1);
 	olScale(2,-2);
-	olLine(LASERLEFT, LASERTOP, LASERBOTTOM, LASERRIGHT, C_GREY(50));
-	olLine(0.0, 0.0, 1.0, 1.0, C_GREY(50));
 	(void) olRenderFrame(LASERFRAMERATE);
 }
 
