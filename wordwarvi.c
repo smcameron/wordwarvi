@@ -64,10 +64,21 @@
 #include "wwvi_font.h"
 #include "version.h"
 #include "stamp.h"
+#include "libol.h"
 
 #ifndef DATADIR
 #define DATADIR ""
 #endif
+
+/* openlase related defines */
+#define LASERTOP 0.03
+#define LASERBOTTOM 0.97
+#define LASERLEFT 0.03
+#define LASERRIGHT 0.97
+#define LASERWIDTH (LASERRIGHT - LASERLEFT)
+#define LASERHEIGHT (LASERBOTTOM - LASERTOP)
+#define LASERFRAMERATE (30)
+/* end openlase related defines */
 
 #ifndef M_PI
 #define M_PI  (3.14159265)
@@ -1845,17 +1856,42 @@ float yscale_screen;
 int real_screen_width;
 int real_screen_height;
 
+void openlase_drawline(int x1, int y1, int x2, int y2)
+{
+	float a1, b1, a2, b2;
+
+	a1 = ((float) x1 / (float) real_screen_width) * LASERWIDTH;
+	a2 = ((float) x2 / (float) real_screen_width) * LASERWIDTH;
+	b1 = ((float) y1 / (float) real_screen_height) * LASERHEIGHT;
+	b2 = ((float) y2 / (float) real_screen_height) * LASERHEIGHT;
+
+	// olLine(a1, b1, a2, b2, C_GREY(50));
+}
+
+void openlase_renderframe(void)
+{
+	olLoadIdentity();
+	olTranslate(-1,1);
+	olScale(2,-2);
+	olLine(LASERLEFT, LASERTOP, LASERBOTTOM, LASERRIGHT, C_GREY(50));
+	olLine(0.0, 0.0, 1.0, 1.0, C_GREY(50));
+	(void) olRenderFrame(LASERFRAMERATE);
+}
+
 void gdk_draw_line_count(GdkDrawable *drawable,
 	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
 {
 	total_line_count++;	
 	gdk_draw_line(drawable, gc, x1, y1, x2, y2);
+	openlase_drawline(x1, y1, x2, y2);
 }
 
 void scaled_line(GdkDrawable *drawable,
 	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
 {
 	gdk_draw_line(drawable, gc, x1*xscale_screen, y1*yscale_screen,
+		x2*xscale_screen, y2*yscale_screen);
+	openlase_drawline(x1*xscale_screen, y1*yscale_screen,
 		x2*xscale_screen, y2*yscale_screen);
 }
 
@@ -10770,6 +10806,7 @@ static void do_game_pause(void)
 		/* redraw. Need this for the "Time warp activated."      */
 		/* message to appear in the radar screen. */
 		gtk_widget_queue_draw(main_da);
+		openlase_renderframe();
 	}
 }
 
@@ -10787,6 +10824,7 @@ static void do_game_pause_help(void)
 		/* redraw. Need this for the "Time warp activated."      */
 		/* message to appear in the radar screen. */
 		gtk_widget_queue_draw(main_da);
+		openlase_renderframe();
 	}
 }
 
@@ -10840,6 +10878,7 @@ static void destroy_event(void)
 {
     /* g_print ("Bye bye.\n"); */
 	resume_screensaver(window);
+	olShutdown();
 	exit(1); /* bad form to call exit here... */
 }
 
@@ -11183,6 +11222,7 @@ gint advance_game(__attribute__((unused)) gpointer data)
 			deal_with_keyboard();
 			gdk_threads_enter();
 			gtk_widget_queue_draw(main_da);
+			openlase_renderframe();
 			nframes++;
 			gdk_threads_leave();
 		}
@@ -11197,6 +11237,7 @@ gint advance_game(__attribute__((unused)) gpointer data)
 	if (in_the_process_of_quitting) {
 		gdk_threads_enter();
 		gtk_widget_queue_draw(main_da);
+		openlase_renderframe();
 		nframes++;
 		gdk_threads_leave();
 		if (final_quit_selection)
@@ -11246,6 +11287,7 @@ gint advance_game(__attribute__((unused)) gpointer data)
 			wwviaudio_add_sound(MISSILE_LOCK_SIREN_SOUND);
 	}
 	gtk_widget_queue_draw(main_da);
+	openlase_renderframe();
 	nframes++;
 	/* printf("ndead=%d, nalive=%d\n", ndead, nalive);*/
 	gdk_threads_leave();
@@ -13713,6 +13755,35 @@ void check_for_screensaver()
 	/* impractical) */
 }
 
+static int setup_openlase(void)
+{
+	OLRenderParams params;
+
+	memset(&params, 0, sizeof params);
+	params.rate = 48000;
+	params.on_speed = 2.0/100.0;
+	params.off_speed = 2.0/20.0;
+	params.start_wait = 12;
+	params.start_dwell = 3;
+	params.curve_dwell = 0;
+	params.corner_dwell = 12;
+	params.curve_angle = cosf(30.0*(M_PI/180.0)); // 30 deg
+	params.end_dwell = 3;
+	params.end_wait = 10;
+	params.snap = 1/100000.0;
+	params.render_flags = RENDER_GRAYSCALE;
+
+	if (olInit(3, 60000) < 0) {
+		fprintf(stderr, "Failed to initialized openlase\n");
+		return -1;
+	}
+	olSetRenderParams(&params);
+
+	/* window is now 0,0 - 1,1 with y increasing down, x increasing right */
+
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	/* GtkWidget is the storage type for widgets */
@@ -13729,6 +13800,8 @@ int main(int argc, char *argv[])
 
 	check_xmastime();
 
+	setup_openlase();
+	
 	init_highscores();
 	high_score_file_descriptor = open_high_score_file_and_lose_permissions();
 
@@ -14178,6 +14251,7 @@ int main(int argc, char *argv[])
      * mouse event). */
     gtk_main ();
 
+    olShutdown();
     wwviaudio_stop_portaudio();
     free_debris_forms();
 	close_joystick();

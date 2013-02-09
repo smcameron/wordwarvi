@@ -85,7 +85,7 @@ wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} wwviaudio.o wwvi_font.o \
 		wwvi_font.o \
 		${OGGOBJ} \
 		wwviaudio.o \
-		wordwarvi.c -o wordwarvi -lm ${SNDLIBS} \
+		wordwarvi.c -o wordwarvi -L. -lopenlase -lm ${SNDLIBS} \
 		`pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0 gthread-2.0`
 	/bin/rm stamp.h
 
