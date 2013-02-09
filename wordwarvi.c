@@ -10792,6 +10792,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	if (game_pause_help)
 		draw_help_screen(w);
 
+	openlase_renderframe();
 	return 0;
 }
 static void do_game_pause(void)
@@ -10806,7 +10807,6 @@ static void do_game_pause(void)
 		/* redraw. Need this for the "Time warp activated."      */
 		/* message to appear in the radar screen. */
 		gtk_widget_queue_draw(main_da);
-		openlase_renderframe();
 	}
 }
 
@@ -10824,7 +10824,6 @@ static void do_game_pause_help(void)
 		/* redraw. Need this for the "Time warp activated."      */
 		/* message to appear in the radar screen. */
 		gtk_widget_queue_draw(main_da);
-		openlase_renderframe();
 	}
 }
 
@@ -11222,7 +11221,6 @@ gint advance_game(__attribute__((unused)) gpointer data)
 			deal_with_keyboard();
 			gdk_threads_enter();
 			gtk_widget_queue_draw(main_da);
-			openlase_renderframe();
 			nframes++;
 			gdk_threads_leave();
 		}
@@ -11237,7 +11235,6 @@ gint advance_game(__attribute__((unused)) gpointer data)
 	if (in_the_process_of_quitting) {
 		gdk_threads_enter();
 		gtk_widget_queue_draw(main_da);
-		openlase_renderframe();
 		nframes++;
 		gdk_threads_leave();
 		if (final_quit_selection)
@@ -11287,7 +11284,6 @@ gint advance_game(__attribute__((unused)) gpointer data)
 			wwviaudio_add_sound(MISSILE_LOCK_SIREN_SOUND);
 	}
 	gtk_widget_queue_draw(main_da);
-	openlase_renderframe();
 	nframes++;
 	/* printf("ndead=%d, nalive=%d\n", ndead, nalive);*/
 	gdk_threads_leave();
