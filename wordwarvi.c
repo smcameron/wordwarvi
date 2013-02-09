@@ -5331,7 +5331,7 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 	int i, countdir;
 	double scale, scalefactor;
 
-	if (player->tsd.epd.count == 0) /* normal case, just draw the player normally. */
+	if (1 || player->tsd.epd.count == 0) /* normal case, just draw the player normally. */
 		draw_generic(o, w);
 	else {
 		/* this is the insanity that makes the player "zoom" into the game */
