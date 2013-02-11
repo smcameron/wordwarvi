@@ -1856,6 +1856,9 @@ float yscale_screen;
 int real_screen_width;
 int real_screen_height;
 
+static int last_x = -1;
+static int last_y = -1;
+
 void openlase_drawline(int x1, int y1, int x2, int y2)
 {
 	float a1, b1, a2, b2;
@@ -1865,14 +1868,29 @@ void openlase_drawline(int x1, int y1, int x2, int y2)
 	b1 = ((float) y1 / (float) real_screen_height) * LASERHEIGHT;
 	b2 = ((float) y2 / (float) real_screen_height) * LASERHEIGHT;
 
-	olLine(a1, b1, a2, b2, C_WHITE);
+	if ( last_x == -1 ) {
+		olVertex(a1,b1,C_WHITE);
+	}
+	else if ( last_x != x1 || last_y != y1 ) {
+		// last line doesn't connect so jump with black line
+		olVertex(a1,b1,C_BLACK);
+	}
+	olVertex(a2, b2, C_WHITE);
+	last_x = x2;
+        last_y = y2;
 }
 
-void openlase_renderframe(void)
+void openlase_startframe(void)
 {
 	olLoadIdentity();
 	olTranslate(-1,1);
 	olScale(2,-2);
+	olBegin(OL_LINESTRIP);
+}
+
+void openlase_renderframe(void)
+{
+	olEnd();
 	(void) olRenderFrame(LASERFRAMERATE);
 }
 
@@ -10718,6 +10736,8 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		do_newhighscore(w, event, p);
 		return 0;
 	}
+
+	openlase_startframe();
 
 	sx1 = game_state.x - 20;
 	sx2 = game_state.x + SCREEN_WIDTH + 20;
