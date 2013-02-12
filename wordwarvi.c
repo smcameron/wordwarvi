@@ -1874,12 +1874,15 @@ void openlase_drawline(int x1, int y1, int x2, int y2)
 	b2 = ((float) y2 / (float) real_screen_height) * LASERHEIGHT;
 
 	if ( last_x == -1 ) {
+		olBegin(OL_LINESTRIP);
 		olVertex(a1,b1,C_WHITE);
-	}
-	else if ( last_x != x1 || last_y != y1 ) {
-		// last line doesn't connect so jump with black line
-		olVertex(a1,b1,C_BLACK);
-		++openlase_line_count;
+	} else {
+		/* if last line doesn't connect start new linestrip */
+		if ( last_x != x1 || last_y != y1 ) {
+			olEnd();
+			olBegin(OL_LINESTRIP);
+			olVertex(a1,b1,C_WHITE);
+		}
 	}
 	olVertex(a2, b2, C_WHITE);
 	last_x = x2;
@@ -1892,7 +1895,6 @@ void openlase_startframe(void)
 	olLoadIdentity();
 	olTranslate(-1,1);
 	olScale(2,-2);
-	olBegin(OL_LINESTRIP);
 
 	last_x = -1;
 	last_y = -1;
