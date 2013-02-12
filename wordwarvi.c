@@ -78,7 +78,7 @@
 #define LASERWIDTH (LASERRIGHT - LASERLEFT)
 #define LASERHEIGHT (LASERBOTTOM - LASERTOP)
 #define LASERFRAMERATE (1000)
-#define LASERMAXLINES 500
+#define LASERMAXLINES 300
 /* end openlase related defines */
 
 #ifndef M_PI
