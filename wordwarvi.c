@@ -77,7 +77,8 @@
 #define LASERRIGHT 0.97
 #define LASERWIDTH (LASERRIGHT - LASERLEFT)
 #define LASERHEIGHT (LASERBOTTOM - LASERTOP)
-#define LASERFRAMERATE (20)
+#define LASERFRAMERATE (1000)
+#define LASERMAXLINES 500
 /* end openlase related defines */
 
 #ifndef M_PI
@@ -1858,10 +1859,14 @@ int real_screen_height;
 
 static int last_x = -1;
 static int last_y = -1;
+static int openlase_line_count = 0;
 
 void openlase_drawline(int x1, int y1, int x2, int y2)
 {
 	float a1, b1, a2, b2;
+
+	if ( openlase_line_count > LASERMAXLINES ) 
+		return;
 
 	a1 = ((float) x1 / (float) real_screen_width) * LASERWIDTH;
 	a2 = ((float) x2 / (float) real_screen_width) * LASERWIDTH;
@@ -1874,10 +1879,12 @@ void openlase_drawline(int x1, int y1, int x2, int y2)
 	else if ( last_x != x1 || last_y != y1 ) {
 		// last line doesn't connect so jump with black line
 		olVertex(a1,b1,C_BLACK);
+		++openlase_line_count;
 	}
 	olVertex(a2, b2, C_WHITE);
 	last_x = x2;
         last_y = y2;
+	++openlase_line_count;
 }
 
 void openlase_startframe(void)
@@ -1886,6 +1893,10 @@ void openlase_startframe(void)
 	olTranslate(-1,1);
 	olScale(2,-2);
 	olBegin(OL_LINESTRIP);
+
+	last_x = -1;
+	last_y = -1;
+	openlase_line_count = 0;
 }
 
 void openlase_renderframe(void)
@@ -13780,7 +13791,7 @@ static int setup_openlase(void)
 	params.start_wait = 12;
 	params.start_dwell = 3;
 	params.curve_dwell = 0;
-	params.corner_dwell = 12;
+	params.corner_dwell = 6;
 	params.curve_angle = cosf(30.0*(M_PI/180.0)); // 30 deg
 	params.end_dwell = 3;
 	params.end_wait = 10;
