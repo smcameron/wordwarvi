@@ -3526,7 +3526,7 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 		default: /* constant color */
 			break;
 		}
-	
+#ifndef OPENLASE
 		if (thickness > 0) {
 			wwvi_draw_line(w->window, gc, x1-thickness, y1, x2-thickness, y2); 
 			wwvi_draw_line(w->window, gc, x1+thickness, y1, x2+thickness, y2); 
@@ -3535,6 +3535,7 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 			if (i & 0x01) 
 				thickness--;
 		} else 
+#endif
 			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
 		x1 = x2;
 		y1 = y2;
