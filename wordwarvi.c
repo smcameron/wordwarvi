@@ -13838,11 +13838,11 @@ static int setup_openlase(void)
 	params.start_dwell = 2;
 	params.curve_dwell = 0;
 	params.corner_dwell = 5;
-	params.curve_angle = cosf(30.0*(M_PI/180.0)); // 30 deg
+	params.curve_angle = cosf(30.0*(M_PI/180.0)); /* 30 deg */
 	params.end_dwell = 2;
 	params.end_wait = 6;
 	params.snap = 1/100000.0;
-	params.render_flags = RENDER_GRAYSCALE; // | RENDER_NOREORDER;
+	params.render_flags = RENDER_GRAYSCALE; /* | RENDER_NOREORDER; */
 
 	if (olInit(3, 60000) < 0) {
 		fprintf(stderr, "Failed to initialized openlase\n");
