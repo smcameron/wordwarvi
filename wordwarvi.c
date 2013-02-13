@@ -10222,7 +10222,9 @@ static void do_newhighscore(GtkWidget *w,
 	/* Draw the high score message */
 	gdk_gc_set_foreground(gc, &huex[WHITE]);
 	rainbow_abs_xy_draw_string(w, "New High Score!", BIG_FONT, 100, 70);
+#ifndef OPENLASE
 	rainbow_abs_xy_draw_string(w, "New High Score!", BIG_FONT, 101, 71);
+#endif
 	if (!finished)
 		rainbow_abs_xy_draw_string(w, "Enter your initials:", SMALL_FONT, 240, 135);
 
@@ -10233,7 +10235,9 @@ static void do_newhighscore(GtkWidget *w,
 		message[1] = '\0';
 		x = 60 + ((i+3)%9)*80;
 		rainbow_abs_xy_draw_string(w, message, BIG_FONT, x, y);
+#ifndef OPENLASE
 		rainbow_abs_xy_draw_string(w, message, BIG_FONT, x+1, y+1);
+#endif
 		wwvi_draw_line(w->window, gc, x-25, y+25, x+55, y+25);
 	}
 
@@ -10246,7 +10250,9 @@ static void do_newhighscore(GtkWidget *w,
 			if ((i%9) == 0)
 				y += 100;
 			rainbow_abs_xy_draw_string(w, message, BIG_FONT, 60 + (i%9)*80, y);
+#ifndef OPENLASE
 			rainbow_abs_xy_draw_string(w, message, BIG_FONT, 1+60 + (i%9)*80, y+1);
+#endif
 			if (i == highscore_letter) {
 				x = 60 + (i%9)*80;
 				wwvi_draw_line(w->window, gc, x-25, y-65, x-25, y+25);
@@ -10263,7 +10269,9 @@ static void do_newhighscore(GtkWidget *w,
 		len = strlen(message);
 		x = (SCREEN_WIDTH/2) - ((len * 2 * (font_scale[BIG_FONT] + letter_spacing[BIG_FONT])))/2;
 		rainbow_abs_xy_draw_string(w, message, BIG_FONT, x, y);
+#ifndef OPENLASE
 		rainbow_abs_xy_draw_string(w, message, BIG_FONT, x+1, y+1);
+#endif
 	}
 
 	if (highscore_letter == 26 && !finished) {
