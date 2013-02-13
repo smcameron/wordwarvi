@@ -7031,7 +7031,7 @@ void airship_draw(struct game_obj_t *o, GtkWidget *w)
 		draw_generic(o, w);
 	else
 		draw_scaled_generic(o, w, 1.0, 1.0 + 0.01 * o->tsd.airship.pressure);
-
+#ifndef OPENLASE
 	/* the -90 and -130 were arrived at empirically, as were the dimensions */
 	/* of the text field.  The commented out code below with 0123456... is */
 	/* part of the testing done to figure that out. */
@@ -7060,7 +7060,7 @@ void airship_draw(struct game_obj_t *o, GtkWidget *w)
 		if (blimp_message[o->tsd.airship.bannerline] == NULL)
 			o->tsd.airship.bannerline = 0;
 	}
-
+#endif
 }
 
 void worm_draw(struct game_obj_t *o, GtkWidget *w)
