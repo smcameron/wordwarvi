@@ -64,7 +64,9 @@
 #include "wwvi_font.h"
 #include "version.h"
 #include "stamp.h"
+#ifdef OPENLASE
 #include "libol.h"
+#endif
 
 #ifndef DATADIR
 #define DATADIR ""
@@ -1857,11 +1859,14 @@ float yscale_screen;
 int real_screen_width;
 int real_screen_height;
 
+#ifdef OPENLASE
 static int last_x = -1;
 static int last_y = -1;
 static int openlase_line_count = 0;
+#endif
 
-void openlase_drawline(int x1, int y1, int x2, int y2)
+#ifdef OPENLASE
+static void openlase_drawline(int x1, int y1, int x2, int y2)
 {
 	float a1, b1, a2, b2;
 
@@ -1889,9 +1894,13 @@ void openlase_drawline(int x1, int y1, int x2, int y2)
         last_y = y2;
 	++openlase_line_count;
 }
+#else
+#define openlase_drawline(a, b, c, d)
+#endif
 
-void openlase_startframe(void)
+static inline void openlase_startframe(void)
 {
+#ifdef OPENLASE
 	olLoadIdentity();
 	olTranslate(-1,1);
 	olScale(2,-2);
@@ -1899,12 +1908,22 @@ void openlase_startframe(void)
 	last_x = -1;
 	last_y = -1;
 	openlase_line_count = 0;
+#endif
 }
 
-void openlase_renderframe(void)
+static inline void openlase_renderframe(void)
 {
+#ifdef OPENLASE
 	olEnd();
 	(void) olRenderFrame(LASERFRAMERATE);
+#endif
+}
+
+static void openlase_shutdown(void)
+{
+#ifdef OPENLASE
+    olShutdown();
+#endif
 }
 
 void gdk_draw_line_count(GdkDrawable *drawable,
@@ -10492,13 +10511,12 @@ char spinner[] = "||||////----\\\\\\\\";
 char radar_msg1[] = "  Sirius Cybernetics Corp. RADAR -- firmware v. 1.05 (bootleg)";
 char radar_msg2[] = "  Fly Safe!!! Fly Siriusly Safe!!!";
 
-void draw_radar(GtkWidget *w)
+static void draw_radar(GtkWidget *w)
 {
+#ifndef OPENLASE
 	int xoffset, height, width, yoffset; 
 	int x1, y1, x2, y2;
 	char statusstr[100]; 
-
-	return;
 
 	int viewport_left, viewport_right, viewport_top, viewport_bottom;
 	int y_correction;
@@ -10590,7 +10608,6 @@ void draw_radar(GtkWidget *w)
 		wwvi_draw_line(w->window, gc, viewport_left, viewport_bottom, viewport_right, viewport_bottom);
 	#endif
 	}
-
 #endif
 
 	if (game_state.corrosive_atmosphere && game_state.radar_state == RADAR_RUNNING && credits > 0) {
@@ -10650,6 +10667,7 @@ void draw_radar(GtkWidget *w)
 		if (game_state.radar_state == RADAR_RUNNING)
 			wwviaudio_add_sound(RADAR_READY);
 	}
+#endif /* ndef OPENLASE */
 }
 
 /* call back for configure_event (for window resize) */
@@ -10906,9 +10924,8 @@ void resume_screensaver(
  * in this example. More on callbacks below. */
 static void destroy_event(void) 
 {
-    /* g_print ("Bye bye.\n"); */
 	resume_screensaver(window);
-	olShutdown();
+	openlase_shutdown();
 	exit(1); /* bad form to call exit here... */
 }
 
@@ -13784,6 +13801,7 @@ void check_for_screensaver()
 
 static int setup_openlase(void)
 {
+#ifdef OPENLASE
 	OLRenderParams params;
 
 	memset(&params, 0, sizeof params);
@@ -13807,7 +13825,7 @@ static int setup_openlase(void)
 	olSetRenderParams(&params);
 
 	/* window is now 0,0 - 1,1 with y increasing down, x increasing right */
-
+#endif
 	return 0;
 }
 
@@ -14278,7 +14296,7 @@ int main(int argc, char *argv[])
      * mouse event). */
     gtk_main ();
 
-    olShutdown();
+    openlase_shutdown();
     wwviaudio_stop_portaudio();
     free_debris_forms();
 	close_joystick();

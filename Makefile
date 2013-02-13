@@ -24,7 +24,7 @@ endif
 ifeq (${OPENLASE},1)
 OPENLASELIB=-lopenlase
 OPENLASECFLAG=-DOPENLASE
-OPENLASELIBDIR=.
+OPENLASELIBDIR=-L.
 else
 OPENLASELIB=
 OPENLASECFLAG=
@@ -95,7 +95,7 @@ wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} wwviaudio.o wwvi_font.o \
 		wwvi_font.o \
 		${OGGOBJ} \
 		wwviaudio.o \
-		wordwarvi.c -o wordwarvi -L${OPENLASELIBDIR} ${OPENLASELIB} -lm ${SNDLIBS} \
+		wordwarvi.c -o wordwarvi ${OPENLASELIBDIR} ${OPENLASELIB} -lm ${SNDLIBS} \
 		`pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0 gthread-2.0`
 	/bin/rm stamp.h
 
