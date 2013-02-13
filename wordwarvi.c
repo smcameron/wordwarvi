@@ -1970,6 +1970,7 @@ void thick_scaled_line(GdkDrawable *drawable,
 	gdk_draw_line(drawable, gc, sx1,sy1,sx2,sy2);
 	gdk_draw_line(drawable, gc, sx1-dx,sy1-dy,sx2-dx,sy2-dy);
 	gdk_draw_line(drawable, gc, sx1+dx,sy1+dy,sx2+dx,sy2+dy);
+	openlase_drawline(sx1, sy1, sx2, sy2);
 }
 
 void scaled_rectangle(GdkDrawable *drawable,
@@ -2001,6 +2002,7 @@ void scaled_bright_line(GdkDrawable *drawable,
 	gdk_gc_set_foreground(gc, &huex[color]);
 	gdk_draw_line(drawable, gc, sx1-dx,sy1-dy,sx2-dx,sy2-dy);
 	gdk_draw_line(drawable, gc, sx1+dx,sy1+dy,sx2+dx,sy2+dy);
+	openlase_drawline(x1, y1, x2, y2);
 }
 
 void unscaled_bright_line(GdkDrawable *drawable,
@@ -2021,6 +2023,7 @@ void unscaled_bright_line(GdkDrawable *drawable,
 	gdk_gc_set_foreground(gc, &huex[color]);
 	gdk_draw_line(drawable, gc, x1-dx,y1-dy,x2-dx,y2-dy);
 	gdk_draw_line(drawable, gc, x1+dx,y1+dy,x2+dx,y2+dy);
+	openlase_drawline(x1, y1, x2, y2);
 }
 
 void crazy_line(GdkDrawable *drawable,
