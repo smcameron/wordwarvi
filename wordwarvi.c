@@ -1504,15 +1504,17 @@ struct my_point_t rocket_points[] = {
 };
 
 struct my_point_t bridge_points[] = {  /* square with an x through it, 8x8 */
-	{ -4, -4 },
 	{ -4, 4 },
-	{ 4, 4 },
 	{ -4, -4 },
 	{ 4, -4 },
+	{ 4, 4 },
+#ifndef OPENLASE
 	{ -4, 4 },
+	{ 4, -4 },
 	{ LINE_BREAK, LINE_BREAK },
-	{ 4, -4 },
+	{ -4, -4 },
 	{ 4, 4 },
+#endif
 };
 
 struct my_point_t jet_points[] = {
