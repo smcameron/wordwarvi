@@ -1867,6 +1867,9 @@ int real_screen_height;
 static int last_x = -1;
 static int last_y = -1;
 static int openlase_line_count = 0;
+#define DEBRIS_AMOUNT 3
+#else
+#define DEBRIS_AMOUNT 16
 #endif
 
 #ifdef OPENLASE
@@ -5917,7 +5920,11 @@ void bridge_move(struct game_obj_t *o) /* move bridge pieces when hit by bomb */
 			kill_object(o);	
 		}
 		/* flying debris will throw sparks for 4 seconds or until it hits the ground. */
+#ifdef OPENLASE
+		if (o->alive > frame_rate_hz*4 || o->y < deepest-2 && randomn(100) < 10)
+#else
 		if (o->alive > frame_rate_hz*4 || o->y < deepest-2) 
+#endif
 			explode(o->x, o->y, 0, 0, 16, 3, 10);
 	}		
 
@@ -8769,7 +8776,7 @@ static void spray_debris(int x, int y, int vx, int vy, int r, struct game_obj_t 
 	int i, z; 
 	struct game_obj_t *o;
 
-	for (i=0;i<=16;i++) {
+	for (i = 0; i <= DEBRIS_AMOUNT; i++) {
 		z = find_free_obj();
 		if (z < 0)
 			return;
