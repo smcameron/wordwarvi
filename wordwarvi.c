@@ -10339,7 +10339,11 @@ void init_intermission_star(struct intermission_star *star)
 
 void update_intermission_starfield(GtkWidget *w)
 {
+#ifdef OPENLASE
+#define INTERMISSION_STARS 20
+#else
 #define INTERMISSION_STARS 300
+#endif
 	static int initialized = 0;
 	static struct intermission_star star[INTERMISSION_STARS];
 	int x, y, x2, y2, i;
@@ -10793,12 +10797,17 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	/* int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;*/
 
 	if (timer_event == START_INTERMISSION_EVENT) {
+		openlase_startframe();
 		do_intermission(w, event, p);
+		openlase_renderframe();
 		return 0;
 	}
 
 	if (timer_event == NEW_HIGH_SCORE_EVENT) {
+		openlase_startframe();
 		do_newhighscore(w, event, p);
+		openlase_renderframe();
+		return 0;
 		return 0;
 	}
 
