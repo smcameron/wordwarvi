@@ -21,6 +21,16 @@ SNDFLAGS=-DWWVIAUDIO_STUBS_ONLY
 OGGOBJ=
 endif
 
+ifeq (${OPENLASE},1)
+OPENLASELIB=-lopenlase
+OPENLASECFLAG=-DOPENLASE
+OPENLASELIBDIR=.
+else
+OPENLASELIB=
+OPENLASECFLAG=
+OPENLASELIBDIR=
+endif
+
 CC ?= gcc
 BUILD_CC ?= gcc
 
@@ -79,13 +89,13 @@ stamp:	stamp.c
 wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} wwviaudio.o wwvi_font.o \
 		Makefile version.h stamp levels.h rumble.h
 	./stamp > stamp.h
-	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} ${SCREENSAVERFLAG} -pthread ${WARNFLAG}  ${DEFINES} \
+	$(CC) ${DEBUG} ${OPENLASECFLAG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} ${SCREENSAVERFLAG} -pthread ${WARNFLAG}  ${DEFINES} \
 		joystick.o \
 		rumble.o \
 		wwvi_font.o \
 		${OGGOBJ} \
 		wwviaudio.o \
-		wordwarvi.c -o wordwarvi -L. -lopenlase -lm ${SNDLIBS} \
+		wordwarvi.c -o wordwarvi -L${OPENLASELIBDIR} ${OPENLASELIB} -lm ${SNDLIBS} \
 		`pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0 gthread-2.0`
 	/bin/rm stamp.h
 
