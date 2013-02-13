@@ -1887,7 +1887,24 @@ static void openlase_rectangle(int x, int y, int width, int height)
 	a2 = a1 + ((float) width / (float) real_screen_width) * LASERWIDTH;
 	b2 = b1 + ((float) height / (float) real_screen_height) * LASERHEIGHT;
 
-	olRect(a1, b1, a2, b2, C_WHITE);
+	if ( last_x == -1 ) {
+		olBegin(OL_LINESTRIP);
+		olVertex(a1,b1,C_WHITE);
+	} else {
+		/* if last line doesn't connect start new linestrip */
+		if ( last_x != x || last_y != y ) {
+			olEnd();
+			olBegin(OL_LINESTRIP);
+			olVertex(a1, b1, C_WHITE);
+		}
+	}
+	olVertex(a1, b2, C_WHITE);
+	olVertex(a2, b2, C_WHITE);
+	olVertex(a2, b1, C_WHITE);
+	olVertex(a1, b1, C_WHITE);
+	last_x = x + width;
+        last_y = y + height;
+	openlase_line_count += 4;
 }
 
 static void openlase_drawline(int x1, int y1, int x2, int y2)
@@ -1994,7 +2011,8 @@ void thick_scaled_line(GdkDrawable *drawable,
 void scaled_rectangle(GdkDrawable *drawable,
 	GdkGC *gc, gboolean filled, gint x, gint y, gint width, gint height)
 {
-	openlase_rectangle(x, y, width, height); 
+	openlase_rectangle(x * xscale_screen, y * yscale_screen,
+				width * xscale_screen, height * yscale_screen); 
 	gdk_draw_rectangle(drawable, gc, filled, x*xscale_screen, y*yscale_screen,
 		width*xscale_screen, height*yscale_screen);
 }
