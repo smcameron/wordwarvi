@@ -1875,6 +1875,21 @@ static int openlase_line_count = 0;
 #endif
 
 #ifdef OPENLASE
+static void openlase_rectangle(int x, int y, int width, int height)
+{
+	float a1, b1, a2, b2;
+
+	if ( openlase_line_count > LASERMAXLINES ) 
+		return;
+
+	a1 = ((float) x / (float) real_screen_width) * LASERWIDTH;
+	b1 = ((float) y / (float) real_screen_height) * LASERHEIGHT;
+	a2 = a1 + ((float) width / (float) real_screen_width) * LASERWIDTH;
+	b2 = b1 + ((float) height / (float) real_screen_height) * LASERHEIGHT;
+
+	olRect(a1, b1, a2, b2, C_WHITE);
+}
+
 static void openlase_drawline(int x1, int y1, int x2, int y2)
 {
 	float a1, b1, a2, b2;
@@ -1905,6 +1920,7 @@ static void openlase_drawline(int x1, int y1, int x2, int y2)
 }
 #else
 #define openlase_drawline(a, b, c, d)
+#define openlase_rectangle(a, b, c, d)
 #endif
 
 static inline void openlase_startframe(void)
@@ -1978,6 +1994,7 @@ void thick_scaled_line(GdkDrawable *drawable,
 void scaled_rectangle(GdkDrawable *drawable,
 	GdkGC *gc, gboolean filled, gint x, gint y, gint width, gint height)
 {
+	openlase_rectangle(x, y, width, height); 
 	gdk_draw_rectangle(drawable, gc, filled, x*xscale_screen, y*yscale_screen,
 		width*xscale_screen, height*yscale_screen);
 }
