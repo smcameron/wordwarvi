@@ -7959,12 +7959,14 @@ void truss_draw(struct game_obj_t *o, GtkWidget *w)
 	x4 = x + o->tsd.truss.bottom_width / 2; /* bottom right corner */
 	y4 = y + o->tsd.truss.height / 2;
 
+	wwvi_draw_line(w->window, gc, x3, y3, x1, y1);
 	wwvi_draw_line(w->window, gc, x1, y1, x2, y2);
-	wwvi_draw_line(w->window, gc, x1, y1, x3, y3);
-	wwvi_draw_line(w->window, gc, x1, y1, x4, y4);
 	wwvi_draw_line(w->window, gc, x2, y2, x4, y4);
+	wwvi_draw_line(w->window, gc, x4, y4, x1, y1);
+#ifndef OPENLASE
 	wwvi_draw_line(w->window, gc, x2, y2, x3, y3);
 	wwvi_draw_line(w->window, gc, x3, y3, x4, y4);
+#endif
 }
 
 void tesla_tower_draw(struct game_obj_t *o, GtkWidget *w)
