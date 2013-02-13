@@ -72,6 +72,7 @@
 #define DATADIR ""
 #endif
 
+#ifdef OPENLASE
 /* openlase related defines */
 #define LASERTOP 0.03
 #define LASERBOTTOM 0.97
@@ -81,7 +82,7 @@
 #define LASERHEIGHT (LASERBOTTOM - LASERTOP)
 #define LASERFRAMERATE (1000)
 #define LASERMAXLINES 300
-/* end openlase related defines */
+#endif
 
 #ifndef M_PI
 #define M_PI  (3.14159265)
@@ -167,8 +168,11 @@
 #define MAX_RADAR_NOISE 2000 /* maximum number of noise pixels placed by radar jammers, increasing */
 			     /* this may adversely affect performance, as this number of x's are */
 			     /* drawn EVERY FRAME when in close proximity to jammer. */
-
+#ifdef OPENLASE
 #define FRAME_RATE_HZ 20	/* target frame rate at which gtk callback fires by default */
+#else
+#define FRAME_RATE_HZ 30	/* target frame rate at which gtk callback fires by default */
+#endif
 int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define TERRAIN_LENGTH 1000	/* length, in number of line segments, of terrain */
 #define SCREEN_WIDTH 800        /* window width, in pixels */
@@ -2475,8 +2479,11 @@ GtkWidget *window = NULL; /* main window */
 
 #define STAR_SHIFT 3
 #define NSTARS 600 
-// int number_of_stars = 150;
+#ifdef OPENLASE
 int number_of_stars = 20;
+#else
+int number_of_stars = 150;
+#endif
 int starshift = STAR_SHIFT; 
 struct star_t {
 	short x; 
@@ -5380,8 +5387,11 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 
 	int i, countdir;
 	double scale, scalefactor;
-
-	if (1 || player->tsd.epd.count == 0) /* normal case, just draw the player normally. */
+#ifndef OPENLASE
+	if (player->tsd.epd.count == 0) /* normal case, just draw the player normally. */
+#else
+	if (1)
+#endif
 		draw_generic(o, w);
 	else {
 		/* this is the insanity that makes the player "zoom" into the game */
@@ -8499,17 +8509,26 @@ static void add_laserbolt(int x, int y, int vx, int vy, int color, int time)
 
 static void add_bright_spark(int x, int y, int vx, int vy, int time)
 {
+#ifdef OPENLASE
 	if (randomn(100) < 20)
+#endif
 	add_generic_object(x, y, vx, vy, spark_move, bright_spark_draw,
 		YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
 }
 
 static void add_spark(int x, int y, int vx, int vy, int time)
 {
+#ifndef OPENLASE
+	if (brightsparks) 
+#else
 	if (brightsparks && randomn(100) < 20) 
+#endif
 		add_generic_object(x, y, vx, vy, spark_move, bright_spark_draw,
 			YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
-	else if (randomn(100) < 20)
+	else
+#ifdef OPENLASE
+		if (randomn(100) < 20)
+#endif
 		add_generic_object(x, y, vx, vy, spark_move, spark_draw,
 			YELLOW, &spark_vect, 0, OBJ_TYPE_SPARK, time);
 }
