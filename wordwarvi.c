@@ -1869,7 +1869,7 @@ int real_screen_height;
 static int last_x = -1;
 static int last_y = -1;
 static int openlase_line_count = 0;
-#if OPENLASECOLOR
+#ifndef OPENLASEGRAYSCALE
 static int openlase_color = 0;
 
 void gdk_gc_set_foreground_hook(GdkGC *gc, const GdkColor *color)
@@ -1882,7 +1882,7 @@ void gdk_gc_set_foreground_hook(GdkGC *gc, const GdkColor *color)
 #define gdk_gc_set_foreground(x, y) gdk_gc_set_foreground_hook(x, y)
 #else
 static int openlase_color = C_WHITE;
-#endif /* OPENLASECOLOR */
+#endif /* not OPENLASEGRAYSCALE */
 
 #define DEBRIS_AMOUNT 3
 #else
@@ -8240,7 +8240,7 @@ static inline void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_corre
 	int radarx, radary;
 	int x1, x2, y1, y2; 
 
-	return;
+#ifndef OPENLASE
 	if (!o->radar_image)
 		return;
 
@@ -8334,6 +8334,7 @@ static inline void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_corre
 				break;
 		}
 	}
+#endif
 }
 
 static inline int is_off_screen(struct game_obj_t *o)
