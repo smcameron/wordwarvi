@@ -1869,6 +1869,17 @@ int real_screen_height;
 static int last_x = -1;
 static int last_y = -1;
 static int openlase_line_count = 0;
+static int openlase_color = 0;
+
+void gdk_gc_set_foreground_hook( GdkGC *gc, const GdkColor *color ) {
+	gdk_gc_set_foreground( gc, color );
+
+	openlase_color = ((color->blue)>>8) +
+			 (((color->green)>>8)<<8) +
+			 (((color->red)>>8)<<16);
+}
+#define gdk_gc_set_foreground(x,y) gdk_gc_set_foreground_hook(x,y)
+
 #define DEBRIS_AMOUNT 3
 #else
 #define DEBRIS_AMOUNT 16
@@ -1889,19 +1900,19 @@ static void openlase_rectangle(int x, int y, int width, int height)
 
 	if ( last_x == -1 ) {
 		olBegin(OL_LINESTRIP);
-		olVertex(a1,b1,C_WHITE);
+		olVertex(a1,b1,openlase_color);
 	} else {
 		/* if last line doesn't connect start new linestrip */
 		if ( last_x != x || last_y != y ) {
 			olEnd();
 			olBegin(OL_LINESTRIP);
-			olVertex(a1, b1, C_WHITE);
+			olVertex(a1, b1, openlase_color);
 		}
 	}
-	olVertex(a1, b2, C_WHITE);
-	olVertex(a2, b2, C_WHITE);
-	olVertex(a2, b1, C_WHITE);
-	olVertex(a1, b1, C_WHITE);
+	olVertex(a1, b2, openlase_color);
+	olVertex(a2, b2, openlase_color);
+	olVertex(a2, b1, openlase_color);
+	olVertex(a1, b1, openlase_color);
 	last_x = x + width;
         last_y = y + height;
 	openlase_line_count += 4;
@@ -1921,16 +1932,16 @@ static void openlase_drawline(int x1, int y1, int x2, int y2)
 
 	if ( last_x == -1 ) {
 		olBegin(OL_LINESTRIP);
-		olVertex(a1,b1,C_WHITE);
+		olVertex(a1,b1,openlase_color);
 	} else {
 		/* if last line doesn't connect start new linestrip */
 		if ( last_x != x1 || last_y != y1 ) {
 			olEnd();
 			olBegin(OL_LINESTRIP);
-			olVertex(a1,b1,C_WHITE);
+			olVertex(a1,b1,openlase_color);
 		}
 	}
-	olVertex(a2, b2, C_WHITE);
+	olVertex(a2, b2, openlase_color);
 	last_x = x2;
         last_y = y2;
 	++openlase_line_count;
