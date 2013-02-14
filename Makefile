@@ -21,7 +21,21 @@ SNDFLAGS=-DWWVIAUDIO_STUBS_ONLY
 OGGOBJ=
 endif
 
+# "make OPENLASE=1" to compile support for openlase laser projector
+# NOTE: this will cut a lot of standard stuff out of wordwarvi
+# for performance reasons, and cut the frame rate to 20 fps,
+# as openlase rendering is slow
+#
+# "make OPENLASE=1 OPENLASEGRAYSCALE=1" to compile for openlase
+# but monochromatic, in case you don't have an RGB capable
+# laser projector.
+#
 ifeq (${OPENLASE},1)
+ifeq (${OPENLASEGRAYSCALE},1)
+OPENLASECFLAG=-DOPENLASE -DOPENLASECOLOR=0
+else
+OPENLASECFLAG=-DOPENLASE -DOPENLASECOLOR=1
+endif
 OPENLASELIB=-lopenlase
 OPENLASECFLAG=-DOPENLASE
 OPENLASELIBDIR=-L.

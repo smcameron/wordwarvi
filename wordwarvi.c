@@ -1869,6 +1869,7 @@ int real_screen_height;
 static int last_x = -1;
 static int last_y = -1;
 static int openlase_line_count = 0;
+#if OPENLASECOLOR
 static int openlase_color = 0;
 
 void gdk_gc_set_foreground_hook(GdkGC *gc, const GdkColor *color)
@@ -1879,6 +1880,9 @@ void gdk_gc_set_foreground_hook(GdkGC *gc, const GdkColor *color)
 			 (((color->red) >> 8)<< 16);
 }
 #define gdk_gc_set_foreground(x, y) gdk_gc_set_foreground_hook(x, y)
+#else
+static int openlase_color = C_WHITE;
+#endif /* OPENLASECOLOR */
 
 #define DEBRIS_AMOUNT 3
 #else
