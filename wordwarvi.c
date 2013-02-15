@@ -1503,7 +1503,12 @@ struct my_point_t rocket_points[] = {
 	{ 2, 3}, 
 };
 
+#ifdef OPENLASE
+#define BRIDGE_SIZE 20 
+#else
 #define BRIDGE_SIZE 8 
+#endif
+
 #define BRIDGEOFF (BRIDGE_SIZE / 2)
 
 struct my_point_t bridge_points[] = {  /* square with an x through it, 8x8 */
