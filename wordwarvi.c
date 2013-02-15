@@ -1503,17 +1503,20 @@ struct my_point_t rocket_points[] = {
 	{ 2, 3}, 
 };
 
+#define BRIDGE_SIZE 8 
+#define BRIDGEOFF (BRIDGE_SIZE / 2)
+
 struct my_point_t bridge_points[] = {  /* square with an x through it, 8x8 */
-	{ -4, 4 },
-	{ -4, -4 },
-	{ 4, -4 },
-	{ 4, 4 },
+	{ -BRIDGEOFF, BRIDGEOFF },
+	{ -BRIDGEOFF, -BRIDGEOFF },
+	{ BRIDGEOFF, -BRIDGEOFF },
+	{ BRIDGEOFF, BRIDGEOFF },
 #ifndef OPENLASE
-	{ -4, 4 },
-	{ 4, -4 },
+	{ -BRIDGEOFF, BRIDGEOFF },
+	{ BRIDGEOFF, -BRIDGEOFF },
 	{ LINE_BREAK, LINE_BREAK },
-	{ -4, -4 },
-	{ 4, 4 },
+	{ -BRIDGEOFF, -BRIDGEOFF },
+	{ BRIDGEOFF, BRIDGEOFF },
 #endif
 };
 
@@ -9636,7 +9639,7 @@ static void add_bridge_column(struct terrain_t *t,
 
 	do {
 		add_bridge_piece(rx, ry);
-		ry += 8;
+		ry += BRIDGE_SIZE;
 	} while (ry <= terminal_y);
 	return;
 }
@@ -9657,9 +9660,9 @@ static void add_bridge(struct terrain_t *t, int x1, int x2)
 		y = interpolate(x, rx1, ry1, rx2, ry2); 
 		add_bridge_piece(x, y);
 		if ((x % 40) == 32) {
-			add_bridge_column(t, x, y+8, x1, x2);
+			add_bridge_column(t, x, y + BRIDGE_SIZE, x1, x2);
 		}
-		x += 8;
+		x += BRIDGE_SIZE;
 	}
 }
 
