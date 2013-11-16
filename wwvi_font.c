@@ -19,7 +19,11 @@
 
  */
 
+#include <stdlib.h>
+#if !defined(__APPLE__)
+/* Apple gets what it needs for malloc from stdlib.h, */
 #include <malloc.h>
+#endif
 #include <string.h>
 
 #define WWVI_FONT_DEFINE_GLOBALS
