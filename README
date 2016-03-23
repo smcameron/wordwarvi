@@ -3,7 +3,7 @@ To build on linux, FreeBSD, or Mac OSX, just type "make"
 
   You'll need portaudio (v 19, not 18)
   (portaudio-devel rpm packages)
-  and libvorbisfile (vorbis-devel rpm package) to decode the 
+  and libvorbisfile (libvorbis-devel rpm package) to decode the
   included ogg files for sound to work.
   
   See: http://www.portaudio.com/
