@@ -1,4 +1,4 @@
-PREFIX=/usr
+PREFIX?=/usr
 DATADIR=${PREFIX}/share/wordwarvi
 MANDIR?=${PREFIX}/share/man
 MANPAGEDIR=${MANDIR}/man6
