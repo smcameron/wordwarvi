@@ -2950,7 +2950,7 @@ void kgun_move(struct game_obj_t *o)
 {
 	int xdist, ydist;
 	int dx, dy;
-	int x1, y1;
+	int y1;
 	int xi, yi;
 	int adx, ady;
 	int vx, vy;
@@ -2999,7 +2999,6 @@ void kgun_move(struct game_obj_t *o)
 		adx = abs(dx);
 		ady = abs(dy);
 
-		x1 = o->x-5;
 		y1 = o->y+(5*invert);  
 		crossbeam_y = y1 + (20*invert);
 
@@ -3764,7 +3763,7 @@ void octopus_gun_location(struct game_obj_t *parent,
 
 void octopus_move(struct game_obj_t *o)
 {
-	int xdist, ydist;
+	int xdist;
 	int dvx, dvy, tx, ty;
 	int gy, i;
 
@@ -3841,7 +3840,6 @@ void octopus_move(struct game_obj_t *o)
 	/* see if we're close to the player, and if so, and we're not awake, then wake up. */	
 	xdist = abs(o->x - player_target->x);
 	if (xdist < GDB_LAUNCH_DIST) {
-		ydist = o->y - player_target->y;
 #if 1
 		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
 			/* wwviaudio_add_sound(SAM_LAUNCH_SOUND);*/
@@ -4264,7 +4262,7 @@ void pilot_move(struct game_obj_t *o)
 
 void gdb_move(struct game_obj_t *o)
 {
-	int xdist, ydist;
+	int xdist;
 	int dvx, dvy, tx, ty;
 	int gy = 32756; /* big number. */
 
@@ -4348,7 +4346,6 @@ void gdb_move(struct game_obj_t *o)
 	/* launch a missile? */	
 	xdist = abs(o->x - player_target->x);
 	if (xdist < GDB_LAUNCH_DIST) {
-		ydist = o->y - player_target->y;
 		if (randomn(1000) < SAM_LAUNCH_CHANCE && timer >= o->missile_timer) {
 			wwviaudio_add_sound(SAM_LAUNCH_SOUND);
 			add_harpoon(o->x+10, o->y, 0, 0, 300, RED, player_target, o);
@@ -6316,7 +6313,7 @@ void pixie_dust_draw(struct game_obj_t *o, GtkWidget *w)
 
 void laserbolt_draw(struct game_obj_t *o, GtkWidget *w)
 {
-	int x1, y1, x2, y2, dx, dy;
+	int x1, y1, x2, y2;
 
 	/* very much like sparks... */
 	x2 = o->x - game_state.x; 
@@ -6329,8 +6326,6 @@ void laserbolt_draw(struct game_obj_t *o, GtkWidget *w)
 
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
 	y1 = y2 - o->vy;
-	dx = abs(x1-x2);
-	dy = abs(y1-y2);
 
 	wwvi_bright_line(w->window, gc, x1, y1, x2, y2, o->color);
 }
@@ -6363,24 +6358,17 @@ void missile_draw(struct game_obj_t *o, GtkWidget *w)
 
 void harpoon_draw(struct game_obj_t *o, GtkWidget *w)
 {
-	int x1, y1, x2, y2;
+	int x1, y1;
 	int dx, dy;
 
 	/* exactly like missiles, used to have a line back to the gdb which */
 	/* fired the missile... but I didn't really like it, so commented it out. */
 	x1 = o->x - game_state.x;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
-	x2 = o->tsd.harpoon.gdb->x - game_state.x;
-	y2 = o->tsd.harpoon.gdb->y - game_state.y + (SCREEN_HEIGHT/2);  
 	dx = dx_from_vxy(o->vx, o->vy);
 	dy = -dy_from_vxy(o->vx, o->vy);
 	gdk_gc_set_foreground(gc, &huex[o->color]);
 	wwvi_draw_line(w->window, gc, x1, y1, x1+dx, y1+dy); 
-	/* if (o->tsd.harpoon.gdb->alive && o->tsd.harpoon.gdb->otype == OBJ_TYPE_GDB) {
-		x2 = o->tsd.harpoon.gdb->x - game_state.x;
-		y2 = o->tsd.harpoon.gdb->y - game_state.y + (SCREEN_HEIGHT/2);  
-		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
-	} */
 }
 
 void reindeer_move(struct game_obj_t *o)
@@ -9098,8 +9086,7 @@ static void add_big_rockets(struct terrain_t *t, struct level_obj_descriptor_ent
 
 static void add_pilot(int pilotx, int piloty, int pilotvx, int pilotvy) 
 {
-	struct game_obj_t *pilot;
-	pilot = add_generic_object(pilotx, piloty, pilotvx, pilotvy, 
+	(void) add_generic_object(pilotx, piloty, pilotvx, pilotvy, 
 		pilot_move, draw_generic, WHITE, 
 		&jetpilot_vect_left, 1, OBJ_TYPE_JETPILOT, 1);
 }
@@ -10611,7 +10598,7 @@ char radar_msg2[] = "  Fly Safe!!! Fly Siriusly Safe!!!";
 static void draw_radar(GtkWidget *w)
 {
 #ifndef OPENLASE
-	int xoffset, height, width, yoffset; 
+	int xoffset, height, yoffset; 
 	int x1, y1, x2, y2;
 	char statusstr[100]; 
 
@@ -10621,7 +10608,6 @@ static void draw_radar(GtkWidget *w)
 	height = RADAR_HEIGHT;
 	xoffset = RADAR_LEFT_MARGIN;
 	yoffset = RADAR_YMARGIN;
-	width = SCREEN_WIDTH-RADAR_LEFT_MARGIN - RADAR_RIGHT_MARGIN;
 
 	y2 = SCREEN_HEIGHT - yoffset;
 	y1 = y2 - height;
@@ -11352,7 +11338,7 @@ void really_quit()
 	printf("%d frames / %d seconds, %g frames/sec\n", 
 		nframes, (int) (end_time.tv_sec - start_time.tv_sec),
 		(0.0 + nframes) / (0.0 + end_time.tv_sec - start_time.tv_sec));
-	printf("Total lines = %lu, lines/sec = %lf\n", total_line_count,
+	printf("Total lines = %lu, lines/sec = %f\n", total_line_count,
 			 (double) total_line_count /
 			(double) end_time.tv_sec - start_time.tv_sec);
 	destroy_event();
@@ -11363,7 +11349,7 @@ void deal_with_keyboard();
 
 gint advance_game(__attribute__((unused)) gpointer data)
 {
-	int i, ndead, nalive;
+	int i;
 
 
 	if (game_pause == 1) {
@@ -11393,8 +11379,6 @@ gint advance_game(__attribute__((unused)) gpointer data)
 	}
 
 	gdk_threads_enter();
-	ndead = 0;
-	nalive = 0;
 	game_state.x += game_state.vx;
 	game_state.y += game_state.vy; 
 
@@ -11411,16 +11395,6 @@ gint advance_game(__attribute__((unused)) gpointer data)
 		timer_event != NEW_HIGH_SCORE_EVENT) {
 		int temp_highest_obj = 0;
 		for (i=0;i<=highest_object_number;i++) {
-#if 0
-			if (game_state.go[i].alive) {
-				/* printf("%d ", i);*/
-				nalive++;
-			} else {
-				ndead++;
-				clearbit(&free_obj_bitmap[i >> 5], i % 32);
-			}
-#endif
-
 			if (game_state.go[i].alive) {
 				if (game_state.go[i].move != NULL)
 					game_state.go[i].move(&game_state.go[i]);
@@ -11435,7 +11409,6 @@ gint advance_game(__attribute__((unused)) gpointer data)
 	}
 	gtk_widget_queue_draw(main_da);
 	nframes++;
-	/* printf("ndead=%d, nalive=%d\n", ndead, nalive);*/
 	gdk_threads_leave();
 #if 0
 	if (WORLDWIDTH - game_state.x < 100)
@@ -11813,10 +11786,12 @@ void deal_with_joystick()
 	int do_gbomb = 0;
 	int do_thrust = 0;
 	int do_reverse = 0;
+#if 0
 	int do_right = 0;
 	int do_left = 0;
 	int do_up = 0;
 	int do_down = 0;
+#endif
 	int do_suicide = 0;
 
 	int *xaxis = &zero;
@@ -12014,6 +11989,7 @@ void deal_with_joystick()
 			switch(jsbuttonaction[i]) {
 			case keysuicide:
 				do_suicide = 1;
+#if 0
 			case keydown:
 				do_down = 1;
 				break;
@@ -12026,6 +12002,7 @@ void deal_with_joystick()
 			case keyright:
 				do_right = 1;
 				break;
+#endif
 			case keylaser:
 				do_laser = 1;
 				break;
