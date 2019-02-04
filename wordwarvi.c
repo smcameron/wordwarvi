@@ -13358,6 +13358,7 @@ static struct option wordwarvi_options[] = {
 	{ "explosionfactor", 1, NULL, 24 },
 	{ "xmas", 0, NULL, 25 },
 	{ "sphericalexplosions", 0, NULL, 26 },
+	{ "help", 0, NULL, 27 },
 #ifdef LEVELWARP
 	{ "levelwarp", 1, NULL, 15 },
 #endif
@@ -13369,10 +13370,11 @@ void usage()
 	fprintf(stderr, "wordwarvi:  usage:\n");
 	fprintf(stderr, "wordwarvi [options]\n");
 	fprintf(stderr, "Options:\n");
+	fprintf(stderr, "--help            Show this help.\n");
 	fprintf(stderr, "--bw              Render in black and white.\n");
 	fprintf(stderr, "--blueprint       Render in the style of a blueprint.\n");
 	fprintf(stderr, "--brightsparks    Render sparks brighter than usual.\n");
-	fprintf(stderr, "--difficulty      Sets difficulty level: medium, hard, insane, batshit-insane.\n");
+	fprintf(stderr, "--difficulty      Sets difficulty level: easy, medium, hard, insane, batshit-insane.\n");
 	fprintf(stderr, "--explosionfactor Multiplier for number of sparks in explosions.\n");
 	fprintf(stderr, "--framerate n     Attempt to render the game at n frames per second.\n");
 	fprintf(stderr, "--fullscreen      Render the game in full screen mode.\n");
@@ -14164,6 +14166,7 @@ int main(int argc, char *argv[])
 				round_explosions = 0;
 				spherical_explosions = 1;
 				break;
+			case 27:  /* help. */ usage();
 			case '?':usage(); /* exits. */
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
