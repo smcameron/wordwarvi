@@ -114,7 +114,7 @@ int wwviaudio_read_ogg_clip(int clipnum, char *filename)
 	uint64_t nframes;
 	char filebuf[PATH_MAX];
 	struct stat statbuf;
-	int samplesize, sample_rate;
+	int sample_rate;
 	int nchannels;
 	int rc;
 
@@ -149,7 +149,7 @@ int wwviaudio_read_ogg_clip(int clipnum, char *filename)
 		/* overwriting a previously read clip... */
 		free(clip[clipnum].sample);
 
-	rc = ogg_to_pcm(filebuf, &clip[clipnum].sample, &samplesize,
+	rc = ogg_to_pcm(filebuf, &clip[clipnum].sample,
 		&sample_rate, &nchannels, &nframes);
 	if (clip[clipnum].sample == NULL) {
 		printf("Can't get memory for sound data for %llu frames in %s\n",
