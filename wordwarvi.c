@@ -10902,10 +10902,11 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 	gdk_gc_set_foreground(gc, &huex[RED]);
 
 	/* draw "system memory boundaries" (ha!) */
-	if (game_state.x > terrain.x[0] - SCREEN_WIDTH)
+	if (game_state.x > terrain.x[0] - SCREEN_WIDTH && game_state.x < terrain.x[0] + SCREEN_WIDTH)
 		wwvi_draw_line(w->window, gc, terrain.x[0] - game_state.x, 0, 
 			terrain.x[0] - game_state.x, SCREEN_HEIGHT);
-	if (game_state.x > terrain.x[TERRAIN_LENGTH-1] - SCREEN_WIDTH)
+	if (game_state.x > terrain.x[TERRAIN_LENGTH - 1] - SCREEN_WIDTH &&
+		game_state.x < terrain.x[TERRAIN_LENGTH - 1] + SCREEN_WIDTH)
 		wwvi_draw_line(w->window, gc, terrain.x[TERRAIN_LENGTH-1] - game_state.x, 0, 
 			 terrain.x[TERRAIN_LENGTH-1] - game_state.x, SCREEN_HEIGHT); 
 	set_font(SMALL_FONT);
