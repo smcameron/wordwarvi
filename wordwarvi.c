@@ -10365,14 +10365,14 @@ void init_intermission_star(struct intermission_star *star)
 	star->y = (float) randomn(SCREEN_HEIGHT);
 
 	/* cheesy avoid divide by zero. */
-	if (abs(star->x) < 0.00001)
+	if (fabsf(star->x) < 0.00001)
 		star->x += 0.003;
-	if (abs(star->y) < 0.00001)
+	if (fabsf(star->y) < 0.00001)
 		star->y += 0.003;
 
 	dx = star->x - (SCREEN_WIDTH/2);
 	dy = star->y - (SCREEN_HEIGHT/2);
-	if (abs(dx) > abs(dy)) {
+	if (fabsf(dx) > fabsf(dy)) {
 		star->vx = dx / fabsf(dx);
 		star->vy = dy / fabsf(dx); 
 	} else {
