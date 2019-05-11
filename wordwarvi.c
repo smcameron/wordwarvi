@@ -9383,12 +9383,12 @@ int find_free_obj()
 			return i;
 	return -1;
 }
-#endif
 
 static inline void clearbit(unsigned int *value, unsigned char bit)
 {
 	*value &= ~(1 << bit);
 }
+#endif
 
 
 int find_free_obj()
@@ -10373,11 +10373,11 @@ void init_intermission_star(struct intermission_star *star)
 	dx = star->x - (SCREEN_WIDTH/2);
 	dy = star->y - (SCREEN_HEIGHT/2);
 	if (abs(dx) > abs(dy)) {
-		star->vx = dx/abs(dx);
-		star->vy = dy/abs(dx); 
+		star->vx = dx / fabsf(dx);
+		star->vy = dy / fabsf(dx); 
 	} else {
-		star->vx = dx/abs(dy);
-		star->vy = dy/abs(dy); 
+		star->vx = dx / fabsf(dy);
+		star->vy = dy / fabsf(dy); 
 	}
 	star->lx = star->x;
 	star->ly = star->y;
