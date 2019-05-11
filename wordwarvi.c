@@ -14362,12 +14362,16 @@ int main(int argc, char *argv[])
 	}
 
     timer_tag = g_timeout_add(1000 / frame_rate_hz, advance_game, NULL);
+
+#ifndef GLIB_VERSION_2_32
+	/* this is only needed in glibc versions before 2.32 */
     
     /* Apparently (some versions of?) portaudio calls g_thread_init(). */
     /* It may only be called once, and subsequent calls abort, so */
     /* only call it if the thread system is not already initialized. */
     if (!g_thread_supported ()) 
 	g_thread_init(NULL);
+#endif
 
     gdk_threads_init();
 
