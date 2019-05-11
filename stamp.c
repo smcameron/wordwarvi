@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
 	}
 
 	printf("static int builder = %d;\n", uid);
-	printf("static uint64_t builtat = %d;\n", tv.tv_sec);
+	printf("static uint64_t builtat = %ld;\n", tv.tv_sec);
 
 	exit(0);	
 }
