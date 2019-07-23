@@ -3208,7 +3208,7 @@ void big_rocket_move(struct game_obj_t *o)
 	/* see if rocket should launch... */
 	xdist = abs(o->x - player_target->x);
 	if (xdist < BIG_ROCKET_LAUNCH_DIST && o->alive != 2 && randomn(100) < 20) {
-		ydist = o->y - player_target->y;
+		/* ydist = o->y - player_target->y; */
 		/* if (((xdist<<2) <= ydist && ydist > 0)) { */
 			if (o->vy == 0) { /* only add the sound once. */
 				wwviaudio_add_sound(ROCKET_LAUNCH_SOUND);
@@ -3358,7 +3358,6 @@ void fuel_draw(struct game_obj_t *o, GtkWidget *w)
 		
 	/* draw the fuel in the tank. */
 	x1 = o->x - game_state.x - 25;
-	x2 = o->x - game_state.x + 25;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2) + 
 		30 - (45 * o->tsd.fuel.level / FUELTANK_CAPACITY);
 	if (o->tsd.fuel.level > 0) {
@@ -3776,8 +3775,6 @@ void octopus_move(struct game_obj_t *o)
 	if (o->tsd.octopus.awake) {
 		dvx = 0; /* make compiler happy */
 		dvy = 0; /* make compiler happy */
-		tx = o->tsd.octopus.tx;
-		ty = o->tsd.octopus.ty;
 
 		{
 			int angle = ((timer * 3 + o->number*47) % 360);
@@ -7188,8 +7185,6 @@ void worm_move(struct game_obj_t *o)
 			/* trigger short term destination reached code, below. */
 			o->tsd.worm.tx = o->x;
 			o->tsd.worm.ty = o->y;
-			ldx = o->tsd.worm.ltx - o->x;
-			ldy = o->tsd.worm.lty - o->y;
 		}
 
 		/* short term destination reached?  Pick a new one. */
@@ -10197,7 +10192,6 @@ void sort_high_scores()
 	int i, sorted;
 
 	/* simple bubble sort is good enough for 10 items. */
-	sorted = 0;
 	do {
 		sorted = 1;
 		for (i=0;i<MAXHIGHSCORES-1;i++) {
@@ -11777,7 +11771,6 @@ void deal_with_joystick()
 	static int next_joystick_button_timer = 0;
 	int  i;
 	int moved;
-	int zero = 0;
 
 	int do_bomb = 0;
 	int do_droppresent = 0;
@@ -11795,8 +11788,8 @@ void deal_with_joystick()
 #endif
 	int do_suicide = 0;
 
-	int *xaxis = &zero;
-	int *yaxis = &zero;
+	int *xaxis = &jse.stick_x;
+	int *yaxis = &jse.stick_y;
 
 	xaxis = &jse.stick_x;
 	yaxis = &jse.stick_y;
@@ -12639,7 +12632,6 @@ static void draw_help_screen(GtkWidget *w)
 	abs_xy_draw_string(w, "Check http://smcameron.github.com/wordwarvi for updates.", 
 		TINY_FONT, 80, y); 
 
-	y += 20;
 	max_y += 180;
 
 	if (game_state.key_up_pressed  && helpscreen_pixel_row > -40) {
