@@ -154,7 +154,13 @@ tarball:	CHECK_VERSION
 	( cd d; tar cvf ../wordwarvi-${VERSION}.tar ./wordwarvi-${VERSION} )
 	gzip wordwarvi-${VERSION}.tar
 
+scan-build:
+	make clean
+	scan-build -o /tmp/wordwarvi-scan-build-output make CC=clang
+	xdg-open /tmp/wordwarvi-scan-build-output/*/index.html
+
 clean:
 	rm -f ./wordwarvi ./wordwarvi-*.tar.gz wordwarvi.6.gz stamp.h stamp
 	rm -f ./joystick.o  ./ogg_to_pcm.o  ./rumble.o  ./wwviaudio.o ./wwvi_font.o
 	rm -fr ./d
+	rm -fr /tmp/wordwarvi-scan-build-output
