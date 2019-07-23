@@ -9490,7 +9490,7 @@ static void add_building(struct terrain_t *t, int xi)
 	embellish_building(scratch, &npoints);
 
 	building = malloc(sizeof(scratch[0]) * npoints);
-	bvec = malloc(sizeof(bvec));
+	bvec = malloc(sizeof(*bvec));
 	if (building == NULL || bvec == NULL)
 		return;
 
