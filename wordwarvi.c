@@ -14098,6 +14098,10 @@ int main(int argc, char *argv[])
 			case 20:{
 					char starmotion[256];
 					n = sscanf(optarg, "%s", starmotion);
+					if (n != 1) {
+						fprintf(stderr, "Bad starmotion value, will use default value.\n");
+						break;
+					}
 					if (strcmp(starmotion, "astronomically-correct") == 0) {
 						draw_stars = correct_draw_stars;
 						break;
