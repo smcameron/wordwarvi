@@ -3,6 +3,7 @@ BINDIR=${PREFIX}/games
 DATADIR=${PREFIX}/share/wordwarvi
 MANDIR?=${PREFIX}/share/man
 MANPAGEDIR=${MANDIR}/man6
+PKG_CONFIG?=pkg-config
 
 SCREENSAVERFLAG=
 #SCREENSAVERFLAG=-DDO_INHIBIT_SCREENSAVER
@@ -13,8 +14,8 @@ WITHAUDIO=yes
 # WITHAUDIO=no
 
 ifeq (${WITHAUDIO},yes)
-SNDLIBS=`pkg-config --libs portaudio-2.0 vorbisfile`
-SNDFLAGS=-DWITHAUDIOSUPPORT `pkg-config --cflags portaudio-2.0`
+SNDLIBS=`$(PKG_CONFIG) --libs portaudio-2.0 vorbisfile`
+SNDFLAGS=-DWITHAUDIOSUPPORT `$(PKG_CONFIG) --cflags portaudio-2.0`
 OGGOBJ=ogg_to_pcm.o
 else
 SNDLIBS=
@@ -67,13 +68,13 @@ all:	wordwarvi wordwarvi.6.gz
 
 HAS_PORTAUDIO_2_0:
 ifeq (${WITHAUDIO},yes)
-	pkg-config --print-errors --exists portaudio-2.0
+	$(PKG_CONFIG) --print-errors --exists portaudio-2.0
 else
 endif
 
 HAS_VORBISFILE:
 ifeq (${WITHAUDIO},yes)
-	pkg-config --print-errors --exists vorbisfile
+	$(PKG_CONFIG) --print-errors --exists vorbisfile
 else
 endif
 
@@ -81,17 +82,17 @@ joystick.o:	joystick.c joystick.h Makefile
 	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread ${WARNFLAG} -c joystick.c
 
 ogg_to_pcm.o:	ogg_to_pcm.c ogg_to_pcm.h Makefile
-	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `pkg-config --cflags vorbisfile` \
+	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `$(PKG_CONFIG) --cflags vorbisfile` \
 		-pthread ${WARNFLAG} -c ogg_to_pcm.c
 
 wwviaudio.o:	wwviaudio.c wwviaudio.h ogg_to_pcm.h my_point.h Makefile
 	$(CC) ${WARNFLAG} ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} \
 		${DEFINES} \
-		-pthread `pkg-config --cflags vorbisfile` \
+		-pthread `$(PKG_CONFIG) --cflags vorbisfile` \
 		-c wwviaudio.c
 
 rumble.o:	rumble.c rumble.h Makefile
-	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `pkg-config --cflags vorbisfile` \
+	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `$(PKG_CONFIG) --cflags vorbisfile` \
 		-pthread ${WARNFLAG} -c rumble.c
 
 wwvi_font.o:	wwvi_font.c wwvi_font.h my_point.h Makefile
@@ -110,7 +111,7 @@ wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} wwviaudio.o wwvi_font.o \
 		${OGGOBJ} \
 		wwviaudio.o \
 		wordwarvi.c -o wordwarvi ${OPENLASELIBDIR} ${OPENLASELIB} -lm ${SNDLIBS} \
-		`pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0 gthread-2.0`
+		`$(PKG_CONFIG) --cflags gtk+-2.0` `$(PKG_CONFIG) --libs gtk+-2.0 gthread-2.0`
 	/bin/rm stamp.h
 
 wordwarvi.6.gz:	wordwarvi.6
