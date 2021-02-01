@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 		printf("static int builder = 0;\n");
-		printf("static uint64_t builtat = %" PRIu64 "\n", value);
+		printf("static uint64_t builtat = %" PRIu64 ";\n", value);
 		exit(0);
 	}
 
