@@ -60,7 +60,7 @@ CFLAGS ?= -O3 -pedantic
 OPTIMIZE_FLAG = ${CFLAGS} ${CPPFLAGS}
 WARNFLAG=-pedantic -W -Wall
 
-LDFLAGS=${PROFILE_FLAG}
+LDFLAGS += ${PROFILE_FLAG}
 
 DEFINES=${SNDFLAGS} -DDATADIR=\"${DATADIR}/\"
 
@@ -111,7 +111,7 @@ wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} wwviaudio.o wwvi_font.o \
 		${OGGOBJ} \
 		wwviaudio.o \
 		wordwarvi.c -o wordwarvi ${OPENLASELIBDIR} ${OPENLASELIB} -lm ${SNDLIBS} \
-		`$(PKG_CONFIG) --cflags gtk+-2.0` `$(PKG_CONFIG) --libs gtk+-2.0 gthread-2.0`
+		`$(PKG_CONFIG) --cflags gtk+-2.0` `$(PKG_CONFIG) --libs gtk+-2.0 gthread-2.0` ${LDFLAGS}
 	/bin/rm stamp.h
 
 wordwarvi.6.gz:	wordwarvi.6
