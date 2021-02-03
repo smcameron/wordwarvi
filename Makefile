@@ -47,7 +47,7 @@ OPENLASELIBDIR=
 endif
 
 CC ?= gcc
-BUILD_CC ?= gcc
+BUILD_CC ?= ${CC}
 
 # DEBUG=-g
 # DEBUG=
