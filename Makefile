@@ -1,5 +1,5 @@
 PREFIX?=/usr
-BINDIR=${PREFIX}/games
+BINDIR?=${PREFIX}/games
 DATADIR=${PREFIX}/share/wordwarvi
 MANDIR?=${PREFIX}/share/man
 MANPAGEDIR=${MANDIR}/man6
