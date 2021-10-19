@@ -11,9 +11,17 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        include:
+          - withaudio: no
+            packages: "gtk2.0"
+          - withaudio: yes
+            packages: "gtk2.0 libvorbis-dev portaudio19-dev"
+
     steps:
     - uses: actions/checkout@v2
     - name: Install packages
-      run: sudo apt-get update && sudo apt-get install gtk2.0
-    - name: make (no audio)
-      run: make WITHAUDIO=no
+      run: sudo apt-get update && sudo apt-get install ${{ matrix.packages }}
+    - name: make
+      run: make WITHAUDIO=${{ matrix.withaudio }}

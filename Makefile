@@ -15,10 +15,12 @@ WITHAUDIO=yes
 
 ifeq (${WITHAUDIO},yes)
 SNDLIBS=`$(PKG_CONFIG) --libs portaudio-2.0 vorbisfile`
+VORBISLIBS=`$(PKG_CONFIG) --cflags vorbisfile`
 SNDFLAGS=-DWITHAUDIOSUPPORT `$(PKG_CONFIG) --cflags portaudio-2.0`
 OGGOBJ=ogg_to_pcm.o
 else
 SNDLIBS=
+VORBISLIBS=
 SNDFLAGS=-DWWVIAUDIO_STUBS_ONLY
 OGGOBJ=
 endif
@@ -82,17 +84,17 @@ joystick.o:	joystick.c joystick.h Makefile
 	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} -pthread ${WARNFLAG} -c joystick.c
 
 ogg_to_pcm.o:	ogg_to_pcm.c ogg_to_pcm.h Makefile
-	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `$(PKG_CONFIG) --cflags vorbisfile` \
+	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} ${VORBISLIBS} \
 		-pthread ${WARNFLAG} -c ogg_to_pcm.c
 
 wwviaudio.o:	wwviaudio.c wwviaudio.h ogg_to_pcm.h my_point.h Makefile
 	$(CC) ${WARNFLAG} ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} \
 		${DEFINES} \
-		-pthread `$(PKG_CONFIG) --cflags vorbisfile` \
+		-pthread ${VORBISLIBS} \
 		-c wwviaudio.c
 
 rumble.o:	rumble.c rumble.h Makefile
-	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} `$(PKG_CONFIG) --cflags vorbisfile` \
+	$(CC) ${DEBUG} ${PROFILE_FLAG} ${OPTIMIZE_FLAG} ${VORBISLIBS} \
 		-pthread ${WARNFLAG} -c rumble.c
 
 wwvi_font.o:	wwvi_font.c wwvi_font.h my_point.h Makefile
