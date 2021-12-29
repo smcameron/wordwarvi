@@ -4773,7 +4773,8 @@ void present_move(struct game_obj_t *o)
 			game_state.houses_gifted++;
 			add_floater_message(t->x, t->y, "1000");
 			if (game_state.houses_gifted == NHOUSES) {
-				add_floater_message(t->x, t->y + 25, "All Houses visited! +1000000!");
+				add_floater_message(t->x, t->y + 25, "All Houses visited!");
+				add_floater_message(t->x, t->y + 35, "+1000000!");
 				game_state.score += 1000000;
 			}
 			wwviaudio_add_sound(YAY_SANTA);
@@ -4798,7 +4799,8 @@ void present_move(struct game_obj_t *o)
 				t->v = &house_green_vect;
 				add_floater_message(t->x, t->y, "1000");
 				if (game_state.houses_gifted == NHOUSES) {
-					add_floater_message(t->x, t->y + 25, "All Houses visited! +1000000!");
+					add_floater_message(t->x, t->y + 25, "All Houses visited!");
+					add_floater_message(t->x, t->y + 35, "+1000000!");
 					game_state.score += 1000000;
 				}
 				wwviaudio_add_sound(YAY_SANTA);
