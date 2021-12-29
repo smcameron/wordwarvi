@@ -113,7 +113,7 @@ static struct sound_clip *audio_queue = NULL;
 int wwviaudio_read_ogg_clip(int clipnum, char *filename)
 {
 	uint64_t nframes;
-	char filebuf[PATH_MAX];
+	char filebuf[PATH_MAX + 1];
 	struct stat statbuf;
 	int sample_rate;
 	int nchannels;
