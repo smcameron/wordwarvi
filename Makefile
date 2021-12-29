@@ -60,7 +60,7 @@ BUILD_CC ?= ${CC}
 #OPTIMIZE_FLAG=-O3 -pedantic -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security
 CFLAGS ?= -O3 -pedantic
 OPTIMIZE_FLAG = ${CFLAGS} ${CPPFLAGS}
-WARNFLAG=-pedantic -W -Wall
+WARNFLAG=-pedantic -W -Wall -Wextra
 
 LDFLAGS += ${PROFILE_FLAG}
 
