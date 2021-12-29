@@ -5152,6 +5152,7 @@ void gravity_bomb_move(struct game_obj_t *o)
 		switch (t->otype) {
 			case OBJ_TYPE_BRIDGE:
 				t->move = bridge_move;
+				/* FALLTHROUGH */
 			case OBJ_TYPE_SPARK:
 			case OBJ_TYPE_PIXIE_DUST:
 			case OBJ_TYPE_ROCKET:
@@ -5190,6 +5191,7 @@ void gravity_bomb_move(struct game_obj_t *o)
 					t->destroy(t);
 					kill_object(t);
 				}
+				break;
 			}
 			default:
 				break;
@@ -10476,6 +10478,7 @@ static int do_intermission(GtkWidget *w,
 				add_bonus = bonus_points;
 				gameprint(s);
 			}
+			/* FALLTHROUGH */
 		case 10: 
 			gotoxy(5, 10+2);
 			elapsed_secs = game_state.finish_time.tv_sec - game_state.start_time.tv_sec;
@@ -10488,6 +10491,7 @@ static int do_intermission(GtkWidget *w,
 			bonus_points += inc_bonus;	
 			add_bonus = bonus_points;
 			gameprint(s);
+			/* FALLTHROUGH */
 		case 9: 
 			gotoxy(5, 9+2);
 			if (kill_tally[OBJ_TYPE_SAM_STATION] >= level.nsams)
@@ -10499,6 +10503,7 @@ static int do_intermission(GtkWidget *w,
 				kill_tally[OBJ_TYPE_SAM_STATION], level.nsams, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
+			/* FALLTHROUGH */
 		case 8: 
 			gotoxy(5, 8+2);
 			if (kill_tally[OBJ_TYPE_GUN] + kill_tally[OBJ_TYPE_KGUN] >= 
@@ -10511,6 +10516,7 @@ static int do_intermission(GtkWidget *w,
 					level.nflak + level.nkguns, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
+			/* FALLTHROUGH */
 		case 7: 
 			gotoxy(5, 7+2);
 			sprintf(s, "Missiles killed:              %2d    %5d",
@@ -10518,6 +10524,7 @@ static int do_intermission(GtkWidget *w,
 				kill_tally[OBJ_TYPE_HARPOON], 0);
 			bonus_points += inc_bonus;	
 			gameprint(s);
+			/* FALLTHROUGH */
 		case 6: 
 			gotoxy(5, 6+2);
 			if (kill_tally[OBJ_TYPE_ROCKET] >= level.nrockets)
@@ -10528,6 +10535,7 @@ static int do_intermission(GtkWidget *w,
 				kill_tally[OBJ_TYPE_ROCKET], level.nrockets, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
+			/* FALLTHROUGH */
 		case 5: 
 			gotoxy(5, 5+2);
 			if (kill_tally[OBJ_TYPE_OCTOPUS] >= level.noctopi)
@@ -10538,6 +10546,7 @@ static int do_intermission(GtkWidget *w,
 				kill_tally[OBJ_TYPE_OCTOPUS], level.noctopi, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
+			/* FALLTHROUGH */
 		case 4: 
 			gotoxy(5, 4+2);
 			if (kill_tally[OBJ_TYPE_GDB] >= level.ngdbs)
@@ -10548,6 +10557,7 @@ static int do_intermission(GtkWidget *w,
 				kill_tally[OBJ_TYPE_GDB], level.ngdbs, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
+			/* FALLTHROUGH */
 		case 3: 
 			gotoxy(5, 3+2);
 			inc_bonus = kill_tally[OBJ_TYPE_AIRSHIP] * 100;
@@ -10557,6 +10567,7 @@ static int do_intermission(GtkWidget *w,
 				kill_tally[OBJ_TYPE_AIRSHIP], level.nairships, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
+			/* FALLTHROUGH */
 		case 2: 
 			gotoxy(5, 2+2);
 			inc_bonus = game_state.humanoids * 1000;
@@ -10566,6 +10577,7 @@ static int do_intermission(GtkWidget *w,
 				game_state.humanoids, level.nhumanoids, inc_bonus);
 			bonus_points += inc_bonus;	
 			gameprint(s);
+			/* FALLTHROUGH */
 		case 1: 
 			gotoxy(5, 1);
 			sprintf(s, "Node cleared! Total bonus points:  %6d\n", bonus_points);
@@ -11983,6 +11995,7 @@ void deal_with_joystick()
 			switch(jsbuttonaction[i]) {
 			case keysuicide:
 				do_suicide = 1;
+				break;
 #if 0
 			case keydown:
 				do_down = 1;
@@ -14163,8 +14176,10 @@ int main(int argc, char *argv[])
 				round_explosions = 0;
 				spherical_explosions = 1;
 				break;
-			case 27:  /* help. */ usage();
+			case 27:  /* help. */
+				/* FALLTHROUGH */
 			case '?':usage(); /* exits. */
+				break;
 			default:printf("Unexpected return value %d from getopt_long_only()\n", rc);
 				exit(0);
 		}
