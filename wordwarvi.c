@@ -391,7 +391,7 @@ int planet_color[] = {
 int score_table[256]; /* table of scores for each object type. */
 int kill_tally[256];  /* tally of various things killed */
 
-void init_score_table()
+void init_score_table(void)
 {
 	memset(score_table, 0, sizeof(score_table));
 	score_table[OBJ_TYPE_AIRSHIP]		= -5000;
@@ -417,7 +417,7 @@ void init_score_table()
 	score_table[OBJ_TYPE_JETPILOT]		= 300;
 }
 
-void init_kill_tally()
+void init_kill_tally(void)
 {
 	memset(kill_tally, 0, sizeof(kill_tally));
 }
@@ -2123,7 +2123,7 @@ void crazy_rectangle(GdkDrawable *drawable,
 	crazy_line(drawable, gc, x4, y3, x4, y4);
 }
 
-void init_vxy_2_dxy()
+void init_vxy_2_dxy(void)
 {
 	int x, y;
 	double dx, dy, angle;
@@ -2178,7 +2178,7 @@ void gotoxy(int x, int y)
 	cursory = (y+1) * font_scale[current_font]*7;
 }
 
-void cleartext()
+void cleartext(void)
 {
 	ntextlines = 0;
 }
@@ -2554,7 +2554,7 @@ short star_y_offset = 0;
 
 static inline int randomn(int n);
 int want_starfield = 1;
-void init_stars()
+void init_stars(void)
 {
 	int i;
 
@@ -2662,13 +2662,13 @@ int approximate_horizon(int x, int y, int *last_xi)
 	return GROUND_OOPS;
 }
 
-void do_strong_rumble()
+void do_strong_rumble(void)
 {
 	if (credits > 0 && game_state.rumble_wanted)
 		play_rumble_effect(RUMBLE_STRONG_RUMBLE_EFFECT);
 }
 
-void do_weak_rumble()
+void do_weak_rumble(void)
 {
 	if (credits > 0 && game_state.rumble_wanted)
 		play_rumble_effect(RUMBLE_WEAK_RUMBLE_EFFECT);
@@ -2766,7 +2766,7 @@ struct game_obj_t *add_target(struct game_obj_t *o)
 }
 
 /* for debugging... */
-void print_target_list()
+void print_target_list(void)
 {
 	struct game_obj_t *t;
 	printf("Targetlist:\n");
@@ -2853,7 +2853,7 @@ void laserbolt_move(struct game_obj_t *o)
 	age_object(o);
 }
 
-void make_bomb_sound()
+void make_bomb_sound(void)
 {
 	/* Prevent more than two BOMB_IMPACT_SOUNDS from firing off */
 	/* in the same frame because allowing more is too loud. */
@@ -4458,7 +4458,7 @@ void humanoid_move(struct game_obj_t *o)
 		o->counter = 0; /* reset counter if player is far enough away. */
 }
 
-void advance_level();
+void advance_level(void);
 void socket_move(struct game_obj_t *o)
 {
 	int xdist, ydist;
@@ -4527,13 +4527,13 @@ static void kill_and_debris_object(struct game_obj_t *o)
 	kill_object(o);
 }
 
-int find_free_obj();
+int find_free_obj(void);
 
 void laser_move(struct game_obj_t *o);
 void laser_draw(struct game_obj_t *o,  GtkWidget *w);
 void generic_destroy_func(struct game_obj_t *o);
 
-void player_fire_laser()
+void player_fire_laser(void)
 {
 	int i;
 	struct game_obj_t *o, *p;
@@ -5272,7 +5272,7 @@ void chaff_move(struct game_obj_t *o)
 	}
 }
 
-void drop_chaff()
+void drop_chaff(void)
 {
 	int j, i[3];
 	struct game_obj_t *o;
@@ -5317,7 +5317,7 @@ void drop_chaff()
 	   re-aquire the proper target. */
 }
 
-void drop_bomb()
+void drop_bomb(void)
 {
 	int i, j;
 	struct game_obj_t *o;
@@ -5357,7 +5357,7 @@ void drop_bomb()
 	game_state.cmd_multiplier = 1;
 }
 
-void drop_present()
+void drop_present(void)
 {
 	int i, j;
 	static int hohoho_time = 0;
@@ -5401,7 +5401,7 @@ void drop_present()
 	game_state.cmd_multiplier = 1;
 }
 
-void drop_gravity_bomb()
+void drop_gravity_bomb(void)
 {
 	int i, j;
 	struct game_obj_t *o;
@@ -5570,7 +5570,7 @@ void xmas_player_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
-static void add_stone_sound()
+static void add_stone_sound(void)
 {
 	int i;
 
@@ -5578,7 +5578,7 @@ static void add_stone_sound()
 	wwviaudio_add_sound_low_priority(STONEBANG1 + i);
 }
 
-static void add_metal_sound()
+static void add_metal_sound(void)
 {
 	int i;
 
@@ -5587,7 +5587,7 @@ static void add_metal_sound()
 }
 
 #if 0
-static void corrosive_atmosphere_sound()
+static void corrosive_atmosphere_sound(void)
 {
 	static int nexttime = 0;
 
@@ -5599,7 +5599,7 @@ static void corrosive_atmosphere_sound()
 }
 #endif
 
-static void ground_smack_sound()
+static void ground_smack_sound(void)
 {
 	static int nexttime = 0;
 
@@ -5612,7 +5612,7 @@ static void ground_smack_sound()
 }
 
 /* For automatically moving the player in "attract mode." */
-void autopilot()
+void autopilot(void)
 {
 	int i;
 
@@ -5644,7 +5644,7 @@ void autopilot()
 		drop_bomb();
 }
 
-void set_player_vect()
+void set_player_vect(void)
 {
 	if (!xmas_mode) {  
 		player->v = (game_state.direction == 1) ? 
@@ -7358,7 +7358,7 @@ void gunwheel_gun_location(struct game_obj_t *parent,
 	}
 }
 
-void make_gunwheel_sound()
+void make_gunwheel_sound(void)
 {
 	static int time_to_make_sound = 0;
 	if (timer > time_to_make_sound) {
@@ -7608,7 +7608,7 @@ void bright_round_explode(int x, int y, int ivx, int ivy, int v, int nsparks, in
 	vround_explode(x, y, ivx, ivy, v, nsparks, time, add_bright_spark);
 }
 
-void init_object_numbers()
+void init_object_numbers(void)
 {
 	int i;
 	/* every object must known its position in the array, because */
@@ -7645,7 +7645,7 @@ void mirror_points(struct my_vect_obj *points, struct my_vect_obj *mirror)
 
 #define setup_vect(v, a) { v.p = a; v.npoints = ARRAY_SIZE(a); } 
 
-void init_vects()
+void init_vects(void)
 {
 	int i;
 
@@ -8205,7 +8205,7 @@ int xradarnoise[XRADARN];
 int yradarnoise[YRADARN]; 
 int cradarnoise[CRADARN];
 
-void init_radar_noise()
+void init_radar_noise(void)
 {
 	int i;
 
@@ -8797,7 +8797,7 @@ static struct my_vect_obj *init_debris_vect(struct my_vect_obj **v, struct my_po
 	return *v;
 }
 
-static void make_debris_forms()
+static void make_debris_forms(void)
 {
 	int i;
 
@@ -8805,7 +8805,7 @@ static void make_debris_forms()
 		init_debris_vect(&debris_vect[i], &debris_point[i]);
 }
 
-static void free_debris_forms()
+static void free_debris_forms(void)
 {
 	int i;
 
@@ -9374,7 +9374,7 @@ static void embellish_building(struct my_point_t *building, int *npoints)
 }
 
 #if 0
-int find_free_obj()
+int find_free_obj(void)
 {
 	int i;
 	for (i=0;i<MAXOBJS;i++)
@@ -9390,7 +9390,7 @@ static inline void clearbit(unsigned int *value, unsigned char bit)
 #endif
 
 
-int find_free_obj()
+int find_free_obj(void)
 {
 	int i, j, answer;
 	unsigned int block;
@@ -9514,7 +9514,7 @@ static void add_building(struct terrain_t *t, int xi)
 	/* printf("b, x=%d, y=%d\n", x, y); */
 }
 
-void free_buildings()
+void free_buildings(void)
 {
 	int i;
 	for (i=0;i<MAXOBJS;i++) {
@@ -9926,7 +9926,7 @@ static void add_SAMs(struct terrain_t *t, struct level_obj_descriptor_entry *ent
 	}
 }
 
-static void add_reindeer()
+static void add_reindeer(void)
 {
 	int i;
 	struct game_obj_t *o, *previous;
@@ -10159,9 +10159,9 @@ static void add_balloons(struct terrain_t *t, struct level_obj_descriptor_entry 
 }
 
 static void draw_strings(GtkWidget *w);
-void setup_text();
+void setup_text(void);
 
-int they_used_the_source()
+int they_used_the_source(void)
 {
 #ifndef __WIN32__
 	/*
@@ -10190,7 +10190,7 @@ int they_used_the_source()
 #endif
 }
 
-void sort_high_scores()
+void sort_high_scores(void)
 {
 	struct score_data tmp;
 	int i, sorted;
@@ -10221,7 +10221,7 @@ int new_high_score(int newscore)
 	return MAXHIGHSCORES;
 }
 
-void write_out_high_score_file();
+void write_out_high_score_file(void);
 void cancel_sound(int queue_entry);
 static void draw_quit_screen(GtkWidget *w);
 static void do_newhighscore(GtkWidget *w,
@@ -11055,9 +11055,9 @@ static void destroy(__attribute__((unused)) GtkWidget *widget,
     gtk_main_quit ();
 }
 
-void game_ended();
-void start_level();
-void timer_expired()
+void game_ended(void);
+void start_level(void);
+void timer_expired(void)
 {
 	static int game_over_count = 0;
 
@@ -11341,7 +11341,7 @@ void timer_expired()
 	}
 }
 
-void really_quit()
+void really_quit(void)
 {
 	gettimeofday(&end_time, NULL);
 	printf("%d frames / %d seconds, %g frames/sec\n", 
@@ -11353,8 +11353,8 @@ void really_quit()
 	destroy_event();
 }
 
-void deal_with_joystick();
-void deal_with_keyboard();
+void deal_with_joystick(void);
+void deal_with_keyboard(void);
 
 gint advance_game(__attribute__((unused)) gpointer data)
 {
@@ -11428,7 +11428,7 @@ gint advance_game(__attribute__((unused)) gpointer data)
 	return TRUE;
 }
 
-void setup_text()
+void setup_text(void)
 {
 	cleartext();
 	gotoxy(4,1);
@@ -11453,7 +11453,7 @@ void setup_text()
 #endif
 }
 
-void initialize_game_state_new_level()
+void initialize_game_state_new_level(void)
 {
 	game_state.lives = 3;
 	game_state.humanoids = 0;
@@ -11481,7 +11481,7 @@ void initialize_game_state_new_level()
 	game_state.houses_gifted = 0;
 }
 
-void start_level()
+void start_level(void)
 {
 	int i;
 	struct level_obj_descriptor_entry *objdesc;
@@ -11639,7 +11639,7 @@ void start_level()
 
 }
 
-void init_levels_to_beginning()
+void init_levels_to_beginning(void)
 {
 	int i;
 	if (credits <= 0) {
@@ -11666,7 +11666,7 @@ void init_levels_to_beginning()
 #endif
 }
 
-void game_ended()
+void game_ended(void)
 {
 	init_levels_to_beginning();
 	initialize_game_state_new_level();
@@ -11674,7 +11674,7 @@ void game_ended()
 	/* start_level(); */
 }
 
-void advance_level()
+void advance_level(void)
 {
 	srandom(level.random_seed);
 	level.random_seed = random(); /* deterministic */
@@ -11695,7 +11695,7 @@ void advance_level()
 }
 
 
-void insert_quarter()
+void insert_quarter(void)
 {
 	credits++;
 	autopilot_mode = 0;
@@ -11772,7 +11772,7 @@ enum keyaction jsbuttonaction[11] = {
 		keylaser,	 /* button 10 */
 	};
 
-void deal_with_joystick()
+void deal_with_joystick(void)
 {
 	int rc;
 	/* why can I get away with this kind of initializer */
@@ -12145,7 +12145,7 @@ no_credits:
 	}
 }
 
-void deal_with_keyboard()
+void deal_with_keyboard(void)
 {
 	static int lastvy_inc = 0;
 	int moved;
@@ -12685,7 +12685,7 @@ static void draw_help_screen(GtkWidget *w)
 #endif
 }
 
-void init_keymap()
+void init_keymap(void)
 {
 	memset(keymap, 0, sizeof(keymap));
 	memset(ffkeymap, 0, sizeof(ffkeymap));
@@ -13039,7 +13039,7 @@ static gint key_press_cb(__attribute__((unused)) GtkWidget* widget,
 /***********************************************************************/
 
 #ifdef WITHAUDIOSUPPORT
-int init_clips()
+int init_clips(void)
 {
 	printf("Decoding audio data..."); fflush(stdout);
 
@@ -13174,7 +13174,7 @@ int init_clips()
 /* End of AUDIO related code                                     */
 /***********************************************************************/
 
-void setup_rainbow_colors()
+void setup_rainbow_colors(void)
 {
 
 	int i, r, g, b, dr, dg, db, c;
@@ -13237,7 +13237,7 @@ void setup_rainbow_colors()
 	}
 }
 
-void setup_spark_colors()
+void setup_spark_colors(void)
 {
 
 /* Set up an array of colors that fade nicely from bright
@@ -13274,7 +13274,7 @@ void setup_spark_colors()
 	}
 }
 
-void paint_it_black()
+void paint_it_black(void)
 {
 	int i;
 	unsigned int avg;
@@ -13293,7 +13293,7 @@ void paint_it_black()
 	}
 }
 
-void paint_it_blue()
+void paint_it_blue(void)
 {
 	int i;
 	unsigned int avg;
@@ -13312,7 +13312,7 @@ void paint_it_blue()
 	}
 }
 
-void paint_it_green()
+void paint_it_green(void)
 {
 	int i;
 	unsigned int avg;
@@ -13373,7 +13373,7 @@ static struct option wordwarvi_options[] = {
 	{ NULL, 0, NULL, 0 },
 };
 
-void usage()
+void usage(void)
 {
 	fprintf(stderr, "wordwarvi:  usage:\n");
 	fprintf(stderr, "wordwarvi [options]\n");
@@ -13412,7 +13412,7 @@ void usage()
 	exit(1);
 }
 
-void write_out_high_score_file()
+void write_out_high_score_file(void)
 {
 	/* Here's where you'd write out the high_score[] array */
 	/* to the file descriptor high_score_file_descriptor */
@@ -13445,7 +13445,7 @@ void write_out_high_score_file()
 	}
 }
 
-int open_high_score_file_and_lose_permissions()
+int open_high_score_file_and_lose_permissions(void)
 {
 /* Here is where you'd open a high score file,
  * lose any setgid permission you might have to access
@@ -13492,7 +13492,7 @@ int open_high_score_file_and_lose_permissions()
 	return fd;
 }
 
-void init_highscores()
+void init_highscores(void)
 {
 	int i;
 	for (i=0;i<MAXHIGHSCORES;i++) {
@@ -13805,7 +13805,7 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 	fclose(exrcfile);
 }
 
-void check_xmastime()
+void check_xmastime(void)
 {
 	struct timeval tv;
 	struct tm *t;
@@ -13820,7 +13820,7 @@ void check_xmastime()
 	}
 }
 
-void check_for_screensaver()
+void check_for_screensaver(void)
 {
 	static char *cmd = "ps -efa | grep screensaver | grep -v grep >/dev/null 2>&1";
 	if (system(cmd) != 0)

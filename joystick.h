@@ -54,7 +54,7 @@ extern int open_joystick(char *joystick_device, void *window);
 extern int read_joystick_event(struct js_event *jse);
 extern void set_joystick_y_axis(int axis);
 extern void set_joystick_x_axis(int axis);
-extern void close_joystick();
+extern void close_joystick(void);
 extern int get_joystick_status(struct wwvi_js_event *wjse);
 
 #endif

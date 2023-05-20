@@ -147,7 +147,7 @@ void set_joystick_x_axis(int axis)
 	/* fixme: add axis selection */
 }
 
-void close_joystick()
+void close_joystick(void)
 {
 	if(joystick) {
 		IDirectInputDevice2_Unacquire(joystick);
