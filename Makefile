@@ -66,6 +66,8 @@ LDFLAGS += ${PROFILE_FLAG}
 
 DEFINES=${SNDFLAGS} -DDATADIR=\"${DATADIR}/\"
 
+.PHONY: CHECK_VERSION all clean install scan-build tarball uninstall
+
 all:	wordwarvi wordwarvi.6.gz
 
 HAS_PORTAUDIO_2_0:
