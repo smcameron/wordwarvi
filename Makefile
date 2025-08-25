@@ -1,7 +1,8 @@
 PREFIX?=/usr
 BINDIR?=${PREFIX}/games
-DATADIR=${PREFIX}/share/wordwarvi
+DATADIR?=${PREFIX}/share
 MANDIR?=${PREFIX}/share/man
+GAMEDATADIR=${DATADIR}/wordwarvi
 MANPAGEDIR=${MANDIR}/man6
 PKG_CONFIG?=pkg-config
 
@@ -64,7 +65,7 @@ WARNFLAG=-pedantic -W -Wall -Wextra -Wstrict-prototypes
 
 LDFLAGS += ${PROFILE_FLAG}
 
-DEFINES=${SNDFLAGS} -DDATADIR=\"${DATADIR}/\"
+DEFINES=${SNDFLAGS} -DDATADIR=\"$(GAMEDATADIR)/\"
 
 .PHONY: CHECK_VERSION all clean install scan-build tarball uninstall
 
@@ -123,15 +124,15 @@ wordwarvi.6.gz:	wordwarvi.6
 
 install: wordwarvi wordwarvi.6.gz
 	mkdir -p $(DESTDIR)$(BINDIR)
-	mkdir -p $(DESTDIR)$(DATADIR)/sounds
+	mkdir -p $(DESTDIR)$(GAMEDATADIR)/sounds
 	mkdir -p $(DESTDIR)$(MANPAGEDIR)
 	install -p -m 755 wordwarvi $(DESTDIR)$(BINDIR)
-	install -p -m 644 sounds/*.ogg $(DESTDIR)$(DATADIR)/sounds
+	install -p -m 644 sounds/*.ogg $(DESTDIR)$(GAMEDATADIR)/sounds
 	install -p -m 644 wordwarvi.6.gz $(DESTDIR)$(MANPAGEDIR)
 
 uninstall:
 	/bin/rm -f $(DESTDIR)$(BINDIR)/wordwarvi
-	/bin/rm -fr $(DESTDIR)${DATADIR}
+	/bin/rm -fr $(DESTDIR)$(GAMEDATADIR)
 	/bin/rm -f $(DESTDIR)${MANPAGEDIR}/wordwarvi.6.gz
 
 CHECK_VERSION:
