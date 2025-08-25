@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Word War vi
+Comment=Retro-styled side scrolling shoot'em up arcade game
+Exec=wordwarvi
+Icon=wordwarvi
+Categories=Game;
+Terminal=false
+StartupNotify=false
