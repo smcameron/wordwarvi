@@ -129,11 +129,23 @@ install: wordwarvi wordwarvi.6.gz
 	install -p -m 755 wordwarvi $(DESTDIR)$(BINDIR)
 	install -p -m 644 sounds/*.ogg $(DESTDIR)$(GAMEDATADIR)/sounds
 	install -p -m 644 wordwarvi.6.gz $(DESTDIR)$(MANPAGEDIR)
+	install -p -m 644 -D icons/wordwarvi_icon_16x16.png $(DESTDIR)$(DATADIR)/icons/hicolor/16x16/apps/wordwarvi.png
+	install -p -m 644 -D icons/wordwarvi_icon_22x22.png $(DESTDIR)$(DATADIR)/icons/hicolor/22x22/apps/wordwarvi.png
+	install -p -m 644 -D icons/wordwarvi_icon_32x32.png $(DESTDIR)$(DATADIR)/icons/hicolor/32x32/apps/wordwarvi.png
+	install -p -m 644 -D icons/wordwarvi_icon_48x48.png $(DESTDIR)$(DATADIR)/icons/hicolor/48x48/apps/wordwarvi.png
+	install -p -m 644 -D icons/wordwarvi_icon_64x64.png $(DESTDIR)$(DATADIR)/icons/hicolor/64x64/apps/wordwarvi.png
+	install -p -m 644 -D icons/wordwarvi_icon_128x128.png $(DESTDIR)$(DATADIR)/icons/hicolor/128x128/apps/wordwarvi.png
 
 uninstall:
 	/bin/rm -f $(DESTDIR)$(BINDIR)/wordwarvi
 	/bin/rm -fr $(DESTDIR)$(GAMEDATADIR)
 	/bin/rm -f $(DESTDIR)${MANPAGEDIR}/wordwarvi.6.gz
+	/bin/rm -f $(DESTDIR)$(DATADIR)/icons/hicolor/16x16/apps/wordwarvi.png
+	/bin/rm -f $(DESTDIR)$(DATADIR)/icons/hicolor/22x22/apps/wordwarvi.png
+	/bin/rm -f $(DESTDIR)$(DATADIR)/icons/hicolor/32x32/apps/wordwarvi.png
+	/bin/rm -f $(DESTDIR)$(DATADIR)/icons/hicolor/48x48/apps/wordwarvi.png
+	/bin/rm -f $(DESTDIR)$(DATADIR)/icons/hicolor/64x64/apps/wordwarvi.png
+	/bin/rm -f $(DESTDIR)$(DATADIR)/icons/hicolor/128x128/apps/wordwarvi.png
 
 CHECK_VERSION:
 	@echo Checking VERSION string ${VERSION}... 1>&2
