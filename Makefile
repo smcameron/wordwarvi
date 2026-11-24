@@ -15,9 +15,9 @@ WITHAUDIO=yes
 # WITHAUDIO=no
 
 ifeq (${WITHAUDIO},yes)
-SNDLIBS=`$(PKG_CONFIG) --libs portaudio-2.0 vorbisfile`
+SNDLIBS=`$(PKG_CONFIG) --libs vorbisfile`
 VORBISLIBS=`$(PKG_CONFIG) --cflags vorbisfile`
-SNDFLAGS=-DWITHAUDIOSUPPORT `$(PKG_CONFIG) --cflags portaudio-2.0`
+SNDFLAGS=-DWITHAUDIOSUPPORT `$(PKG_CONFIG) --cflags sdl2`
 OGGOBJ=ogg_to_pcm.o
 else
 SNDLIBS=
@@ -70,12 +70,6 @@ DEFINES=${SNDFLAGS} -DDATADIR=\"$(GAMEDATADIR)/\"
 .PHONY: CHECK_VERSION all clean install scan-build tarball uninstall
 
 all:	wordwarvi wordwarvi.6.gz
-
-HAS_PORTAUDIO_2_0:
-ifeq (${WITHAUDIO},yes)
-	$(PKG_CONFIG) --print-errors --exists portaudio-2.0
-else
-endif
 
 HAS_VORBISFILE:
 ifeq (${WITHAUDIO},yes)

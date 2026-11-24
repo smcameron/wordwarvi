@@ -17,7 +17,7 @@ jobs:
           - withaudio: no
             packages: "libsdl2-dev"
           - withaudio: yes
-            packages: "libsdl2-dev libvorbis-dev portaudio19-dev"
+            packages: "libsdl2-dev libvorbis-dev"
 
     steps:
     - uses: actions/checkout@v2

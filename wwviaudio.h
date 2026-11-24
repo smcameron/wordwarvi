@@ -35,20 +35,20 @@
  *             Configuration functions.
  */
 /* Disables the music channel.  Meant to be called prior to
- * wwviaudio_initialize_portaudio
+ * wwviaudio_initialize_audio
  */
 GLOBAL void wwviaudio_set_nomusic(void);
 
 /* Set the audio device number to the given value
  * This is meant to be called prior to calling
- * wwviaudio_initialize_portaudio.  If you don't use
- * this function, portaudio's default device will be
+ * wwviaudio_initialize_audio.  If you don't use
+ * this function, SDL2's default device will be
  * used.  This function provides a way to use a
  * device other than the default
  */
 GLOBAL int wwviaudio_set_sound_device(int device);
 
-/* Initialize portaudio and start the audio engine.
+/* Initialize SDL2 audio and start the audio engine.
  * Space will be allocated to allow for the specified
  * number of concurrently playing sounds.  The 2nd parameter
  * indicates how many different sound clips are to be held
@@ -56,13 +56,13 @@ GLOBAL int wwviaudio_set_sound_device(int device);
  * sounds that it plays, then this would be 5.
  * 0 is returned on success, -1 otherwise.
  */
-GLOBAL int wwviaudio_initialize_portaudio(int maximum_concurrent_sounds,
+GLOBAL int wwviaudio_initialize_audio(int maximum_concurrent_sounds,
 	int maximum_sound_clips);
 
-/* Stop portaudio and the audio engine. Space allocated
+/* Stop SDL2 audio and the audio engine. Space allocated
  * during initialization is freed.
  */
-GLOBAL void wwviaudio_stop_portaudio(void);
+GLOBAL void wwviaudio_stop_audio(void);
 
 /*
  *             Audio data functions
@@ -142,7 +142,7 @@ GLOBAL void wwviaudio_cancel_all_sounds(void);
 /*
 	Example usage, something along these lines:
 
-	if (wwviaudio_initialize_portaudio() != 0)
+	if (wwviaudio_initialize_audio(MAX_CONCURRENT_SOUNDS, NCLIPS) != 0)
 		bail_out_and_die();
 
 	You would probably use #defines or enums rather than bare ints...
@@ -165,7 +165,7 @@ GLOBAL void wwviaudio_cancel_all_sounds(void);
 	}
 	
 	wwviaudio_cancel_all_sounds();
-	wwviaduio_stop_portaudio();
+	wwviaudio_stop_audio();
 */
 #undef GLOBAL
 #endif

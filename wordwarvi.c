@@ -14093,19 +14093,20 @@ int main(int argc, char *argv[])
 	set_joystick_x_axis(game_state.x_joystick_axis);
 	set_joystick_y_axis(game_state.y_joystick_axis);
 
-#ifdef WITHAUDIOSUPPORT
-	if (nomusic)
-		wwviaudio_set_nomusic();
-	wwviaudio_set_sound_device(sound_device);
-	if (wwviaudio_initialize_portaudio(MAX_CONCURRENT_SOUNDS, NCLIPS) != 0)
-		printf("Guess sound's not working...\n");
-	else
-		init_clips();
-#endif
 	if (SDL_Init(SDL_INIT_VIDEO) != 0) {
 		fprintf(stderr, "Unable to initialize SDL: %s\n", SDL_GetError());
 		exit(1);
 	}
+
+#ifdef WITHAUDIOSUPPORT
+	if (nomusic)
+		wwviaudio_set_nomusic();
+	wwviaudio_set_sound_device(sound_device);
+	if (wwviaudio_initialize_audio(MAX_CONCURRENT_SOUNDS, NCLIPS) != 0)
+		printf("Guess sound's not working...\n");
+	else
+		init_clips();
+#endif
 
 	set_rgb_color(&huex[WHITE], 255, 255, 255);
 	set_rgb_color(&huex[BLUE], 0, 0, 255);
@@ -14145,6 +14146,7 @@ int main(int argc, char *argv[])
 		real_screen_width, real_screen_height, window_flags);
 	if (window == NULL) {
 		fprintf(stderr, "Unable to create SDL window: %s\n", SDL_GetError());
+		wwviaudio_stop_audio();
 		SDL_Quit();
 		exit(1);
 	}
@@ -14154,6 +14156,7 @@ int main(int argc, char *argv[])
 		renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
 	if (renderer == NULL) {
 		fprintf(stderr, "Unable to create SDL renderer: %s\n", SDL_GetError());
+		wwviaudio_stop_audio();
 		SDL_DestroyWindow(window);
 		SDL_Quit();
 		exit(1);
@@ -14241,7 +14244,7 @@ int main(int argc, char *argv[])
 
 	resume_screensaver();
 	openlase_shutdown();
-	wwviaudio_stop_portaudio();
+	wwviaudio_stop_audio();
 	free_debris_forms();
 	close_joystick();
 	close_rumble_fd();
