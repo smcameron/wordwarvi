@@ -22,3 +22,12 @@ To build on windows:
 
 If you want to hack on the code, read wordwarvi_hacking.html
 
+To build for WebAssembly (WASM):
+
+  1. Install and activate Emscripten (emsdk), or pass EMCC=/path/to/emcc.
+  2. Run "make wasm" (or "make wasm WITHAUDIO=no" to build without sound).
+  3. Serve the generated wasm/ directory over HTTP, e.g.:
+       python3 -m http.server -d wasm 8000
+     and open http://localhost:8000 in a browser.
+  4. Run "make wasm-clean" to remove generated WASM build artifacts.
+

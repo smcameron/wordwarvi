@@ -67,7 +67,31 @@ LDFLAGS += ${PROFILE_FLAG}
 
 DEFINES=${SNDFLAGS} -DDATADIR=\"$(GAMEDATADIR)/\"
 
-.PHONY: CHECK_VERSION all clean install scan-build tarball uninstall
+EMCC ?= emcc
+WASM_DIR ?= wasm
+WASM_OBJDIR ?= build-wasm
+WASM_CFLAGS ?= -O3 -pedantic
+WASM_COMMON_FLAGS = ${DEBUG} ${WASM_CFLAGS} ${WARNFLAG} -sUSE_SDL=2
+
+ifeq (${WITHAUDIO},yes)
+WASM_SNDFLAGS = -DWITHAUDIOSUPPORT -sUSE_VORBIS=1
+WASM_OGGOBJ = ${WASM_OBJDIR}/ogg_to_pcm.o
+WASM_PRELOAD = --preload-file sounds@/sounds
+WASM_SOUNDS = $(wildcard sounds/*.ogg)
+WASM_MEMFLAGS = -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=134217728
+else
+WASM_SNDFLAGS = -DWWVIAUDIO_STUBS_ONLY
+WASM_OGGOBJ =
+WASM_PRELOAD =
+WASM_SOUNDS =
+WASM_MEMFLAGS = -sALLOW_MEMORY_GROWTH=1
+endif
+
+WASM_DEFINES = ${WASM_SNDFLAGS} -DDATADIR=\"\"
+WASM_OBJS = ${WASM_OBJDIR}/joystick.o ${WASM_OBJDIR}/rumble.o \
+	${WASM_OBJDIR}/wwvi_font.o ${WASM_OGGOBJ} ${WASM_OBJDIR}/wwviaudio.o
+
+.PHONY: CHECK_VERSION all clean install scan-build tarball uninstall wasm wasm-clean
 
 all:	wordwarvi wordwarvi.6.gz
 
@@ -116,6 +140,38 @@ wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} wwviaudio.o wwvi_font.o \
 wordwarvi.6.gz:	wordwarvi.6
 	gzip -c wordwarvi.6 > wordwarvi.6.gz
 
+wasm:	${WASM_DIR}/index.html
+
+${WASM_OBJDIR}:
+	mkdir -p ${WASM_OBJDIR}
+
+${WASM_OBJDIR}/joystick.o:	joystick.c joystick.h compat.h Makefile | ${WASM_OBJDIR}
+	$(EMCC) ${WASM_COMMON_FLAGS} -c joystick.c -o $@
+
+${WASM_OBJDIR}/ogg_to_pcm.o:	ogg_to_pcm.c ogg_to_pcm.h Makefile | ${WASM_OBJDIR}
+	$(EMCC) ${WASM_COMMON_FLAGS} ${WASM_SNDFLAGS} -c ogg_to_pcm.c -o $@
+
+${WASM_OBJDIR}/wwviaudio.o:	wwviaudio.c wwviaudio.h ogg_to_pcm.h my_point.h Makefile | ${WASM_OBJDIR}
+	$(EMCC) ${WASM_COMMON_FLAGS} ${WASM_DEFINES} -c wwviaudio.c -o $@
+
+${WASM_OBJDIR}/rumble.o:	rumble.c rumble.h compat.h Makefile | ${WASM_OBJDIR}
+	$(EMCC) ${WASM_COMMON_FLAGS} -c rumble.c -o $@
+
+${WASM_OBJDIR}/wwvi_font.o:	wwvi_font.c wwvi_font.h my_point.h Makefile | ${WASM_OBJDIR}
+	$(EMCC) ${WASM_COMMON_FLAGS} -c wwvi_font.c -o $@
+
+${WASM_DIR}/index.html:	wordwarvi.c ${WASM_OBJS} wasm_shell.html ${WASM_SOUNDS} \
+		Makefile version.h stamp levels.h rumble.h | ${WASM_OBJDIR}
+	mkdir -p ${WASM_DIR}
+	./stamp > ${WASM_OBJDIR}/stamp.h
+	$(EMCC) ${WASM_COMMON_FLAGS} ${WASM_DEFINES} -I${WASM_OBJDIR} \
+		${WASM_OBJS} wordwarvi.c -o ${WASM_DIR}/index.html \
+		-lm ${WASM_MEMFLAGS} ${WASM_PRELOAD} --shell-file wasm_shell.html
+	/bin/rm ${WASM_OBJDIR}/stamp.h
+
+wasm-clean:
+	rm -fr ./${WASM_DIR} ./${WASM_OBJDIR}
+
 install: wordwarvi wordwarvi.6.gz
 	mkdir -p $(DESTDIR)$(BINDIR)
 	mkdir -p $(DESTDIR)$(DATADIR)/applications
@@ -157,7 +213,7 @@ tarball:	CHECK_VERSION
 	cp Makefile version.h ogg_to_pcm.c ogg_to_pcm.h levels.h rumble.c rumble.h \
 		joystick.c joystick.h changelog.txt wordwarvi.c wordwarvi.6 \
 		wwviaudio.c wwviaudio.h my_point.h wwvi_font.h wwvi_font.c \
-		stamp.c README AUTHORS COPYING \
+		stamp.c README AUTHORS COPYING wasm_shell.html \
 		AAA_HOW_TO_MAKE_NEW_LEVELS.txt \
 		changelog.txt wordwarvi_hacking.html bigrocket.png \
 		d/wordwarvi-${VERSION}
@@ -177,5 +233,5 @@ scan-build:
 clean:
 	rm -f ./wordwarvi ./wordwarvi-*.tar.gz wordwarvi.6.gz stamp.h stamp
 	rm -f ./joystick.o  ./ogg_to_pcm.o  ./rumble.o  ./wwviaudio.o ./wwvi_font.o
-	rm -fr ./d
+	rm -fr ./d ./${WASM_DIR} ./${WASM_OBJDIR}
 	rm -fr /tmp/wordwarvi-scan-build-output
