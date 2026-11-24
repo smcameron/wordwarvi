@@ -101,6 +101,9 @@ kidding.)
 <p>wwviaudio.c and wwviaudio.h define the audio playback engine
 the game uses, as a layer on top of SDL2's audio subsystem.
 
+<p>wasm_shell.html is the custom HTML5 canvas shell template used by
+<code>make wasm</code> when compiling for WebAssembly with Emscripten.
+
 <p>Finally, wordwarvi.c contains the meat of the game.
 
 <a name="main">
@@ -122,10 +125,10 @@ joystick devices, the rumble device, etc.
 <p>Next, the target frame period is computed:
 
 <pre>
-	frame_ms = 1000 / frame_rate_hz;
-	if (frame_ms == 0)
-		frame_ms = 1;
-	next_frame_tick = SDL_GetTicks() + frame_ms;
+	main_loop_frame_ms = 1000 / frame_rate_hz;
+	if (main_loop_frame_ms == 0)
+		main_loop_frame_ms = 1;
+	main_loop_next_frame_tick = SDL_GetTicks() + main_loop_frame_ms;
 </pre>
 
 <p>That sets up a frame interval so <code>advance_game()</code> is called 30 times a
@@ -135,47 +138,42 @@ vi, it is the main game simulation step.
 
 <p>Shortly after this, the main SDL2 event and frame loop begins:
 <pre>
+#ifdef __EMSCRIPTEN__
+	emscripten_set_main_loop(emscripten_main_loop, 0, 1);
+#else
 	while (!quit_requested) {
-		SDL_Event ev;
 		Uint32 now;
 
-		while (SDL_PollEvent(&amp;ev))
-			handle_sdl_event(&amp;ev);
-
+		main_loop_iteration();
 		if (quit_requested)
 			break;
 
 		now = SDL_GetTicks();
-		if (SDL_TICKS_PASSED(now, next_frame_tick)) {
-			advance_game();
-			if (quit_requested)
-				break;
-			/* Avoid spiral of death if e.g. insert_quarter() slept */
-			next_frame_tick += frame_ms;
-			if (SDL_TICKS_PASSED(SDL_GetTicks(), next_frame_tick + frame_ms))
-				next_frame_tick = SDL_GetTicks() + frame_ms;
-		}
-
-		if (need_redraw) {
-			render_frame();
-			need_redraw = 0;
-		}
-
-		now = SDL_GetTicks();
-		if (!SDL_TICKS_PASSED(now, next_frame_tick)) {
-			Uint32 wait_ms = next_frame_tick - now;
+		if (!SDL_TICKS_PASSED(now, main_loop_next_frame_tick)) {
+			Uint32 wait_ms = main_loop_next_frame_tick - now;
 			if (wait_ms &gt; 10)
 				wait_ms = 10;
 			SDL_Delay(wait_ms);
 		}
 	}
+
+	shutdown_game();
+#endif
 </pre>
 
-<p>That loop polls SDL2 for keyboard, window, and quit events, advances the game
-30 times a second, calls <code>render_frame()</code> whenever <code>need_redraw</code>
-is set, and sleeps briefly with <code>SDL_Delay()</code> until the next frame.
-When <code>quit_requested</code> is set, it cleans up audio, joystick, rumble, the
-SDL2 renderer and window, and exits after calling <code>SDL_Quit()</code>.
+<p>Each call to <code>main_loop_iteration()</code> polls SDL2 for keyboard,
+window, and quit events via <code>handle_sdl_event()</code>, calls
+<code>advance_game()</code> 30 times a second, and calls
+<code>render_frame()</code> whenever <code>need_redraw</code> is set.
+On native builds, the <code>while</code> loop drives
+<code>main_loop_iteration()</code> and sleeps briefly with
+<code>SDL_Delay()</code> until the next frame, then calls
+<code>shutdown_game()</code> on exit to clean up audio, joystick, rumble,
+the SDL2 renderer and window, and call <code>SDL_Quit()</code>.
+On Emscripten/WASM builds, <code>emscripten_set_main_loop(emscripten_main_loop, 0, 1)</code>
+hands control to the browser's <code>requestAnimationFrame</code> loop, which
+invokes <code>main_loop_iteration()</code> each frame and cancels the loop
+and calls <code>shutdown_game()</code> when <code>quit_requested</code> is set.
 
 Next, we'd want to look at advance_game().  But before we can understand
 that, we need to know about a few data structures in the game.

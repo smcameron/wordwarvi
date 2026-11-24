@@ -34,7 +34,7 @@
 <!-- tux image -->
 <td valign="bottom"><p aligne="center">
 <img src="index-wwvi_files/tux-large.jpg">
-<br>Linux, FreeBSD, Mac OSX, Windows
+<br>Linux, FreeBSD, Mac OSX, Windows, WebAssembly (WASM)
 </p></td>
 </tr>
 </tbody></table> <!-- header table ends -->
@@ -181,7 +181,12 @@ different Creative Commons licenses
 </p><hr>
 <p><a name="Updates"><b>Updates</b></a>
 </p><ul>
-<li><b> Tue Nov 24, 2026</b> Word War vi has been ported from GTK2 and PortAudio
+<li><b> Tue Nov 24, 2026</b> Added a <a href="https://webassembly.org/">WebAssembly</a>
+(WASM) build target using <a href="https://emscripten.org/">Emscripten</a>, allowing
+Word War vi to be built and run in a web browser (using Emscripten's SDL2 and Vorbis
+ports with preloaded Ogg audio). Run <code>make wasm</code> with Emscripten installed;
+see <a href="#compiling">Compiling</a> for build instructions.
+</li><li><b> Tue Nov 24, 2026</b> Word War vi has been ported from GTK2 and PortAudio
 to <a href="https://www.libsdl.org/">SDL2</a> for windowing, rendering, input,
 and audio. GTK2 and PortAudio are no longer required; building now requires only
 SDL2 (and libvorbisfile for audio support).
@@ -346,7 +351,20 @@ SDL2 is still required for video and input), you can type:
 </pre>
 <p>See the <code>README</code> in the source repository for Windows (MinGW / Code::Blocks)
 build instructions.
-</p><p><b>Notes for FreeBSD Users:</b>  
+</p><p><b>Building for WebAssembly (WASM):</b>
+Word War vi can also be compiled to WebAssembly to run in a web browser using
+<a href="https://emscripten.org/">Emscripten</a> (which supplies the SDL2 and Vorbis
+ports and preloads the <code>sounds/*.ogg</code> files into the virtual filesystem):
+</p><ol>
+<li>Install and activate Emscripten (<code>emsdk</code>), or pass <code>EMCC=/path/to/emcc</code>.
+</li><li>Run <code>make wasm</code> (or <code>make wasm WITHAUDIO=no</code> to build without sound).
+</li><li>Serve the generated <code>wasm/</code> directory over HTTP, for example:
+<pre>python3 -m http.server -d wasm 8000
+</pre>
+and open <code>http://localhost:8000</code> in a browser.
+</li><li>Run <code>make wasm-clean</code> to remove the generated WASM build artifacts.
+</li></ol>
+<p><b>Notes for FreeBSD Users:</b>  
 In v. 0.22, I wrapped the xbox-360 
 controller rumble code
 which relies on /usr/include/linux/input.h with "#ifdef __linux__".
@@ -523,7 +541,7 @@ thanks to the guys that wrote
 <a href="http://www.mega-nerd.com/libsndfile/">libsndfile</a> and 
 <a href="http://www.portaudio.com/">portaudio</a>  
 (Actually, I don't use libsndfile or portaudio anymore, though they were handy 
-for awhile.), and to the <a href="https://www.libsdl.org/">SDL2</a> developers.
+for awhile.), and to the <a href="https://www.libsdl.org/">SDL2</a> and <a href="https://emscripten.org/">Emscripten</a> developers.
 </li><li>Big thanks to the guys
 as <a href="http://xiph.org/">xiph.org</a>, 
 esp. Michael Smith, whose code for decoding ogg files
