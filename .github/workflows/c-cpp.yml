@@ -15,9 +15,9 @@ jobs:
       matrix:
         include:
           - withaudio: no
-            packages: "gtk2.0"
+            packages: "libsdl2-dev"
           - withaudio: yes
-            packages: "gtk2.0 libvorbis-dev portaudio19-dev"
+            packages: "libsdl2-dev libvorbis-dev portaudio19-dev"
 
     steps:
     - uses: actions/checkout@v2

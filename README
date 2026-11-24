@@ -1,7 +1,8 @@
 
 To build on linux, FreeBSD, or Mac OSX, just type "make"
 
-  You'll need portaudio (v 19, not 18)
+  You'll need SDL2 (libsdl2-dev / SDL2-devel),
+  portaudio (v 19, not 18)
   (portaudio-devel rpm packages)
   and libvorbisfile (libvorbis-devel rpm package) to decode the
   included ogg files for sound to work.
@@ -16,8 +17,8 @@ To build on windows:
   2. Download codeblocks ide (nightly build recommended)
   3. Download/clone wordwarvi source
   4. Create win32 folder in wordwarvi source directory.
-  5. Download precompiled gtk (all-in-one bundle) libs,
-     copy include and bin folders into wordwarvi/win32
+  5. Download precompiled SDL2 development libs,
+     copy include and bin/lib folders into wordwarvi/win32
   6. Download precompiled vorbis/ogg libs, copy include
      content into wordwarvi/win32/include and the dlls into
      wordwarvi/win32/bin.
