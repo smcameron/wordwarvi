@@ -20,7 +20,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-#include <gtk/gtk.h>
+#include <SDL.h>
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
@@ -35,12 +35,6 @@
 #else
 #include <winsock2.h> /* htonl */
 #endif /* __WIN32__ */
-
-#include <gdk/gdkkeysyms.h>
-
-#ifdef DO_INHIBIT_SCREENSAVER
-#include <gdk/gdkx.h> /* for GDK_WINDOW_XWINDOW, for inhibiting screensaver. */
-#endif
 
 #include <stdint.h>
 #include <math.h>
@@ -161,9 +155,9 @@
 			     /* this may adversely affect performance, as this number of x's are */
 			     /* drawn EVERY FRAME when in close proximity to jammer. */
 #ifdef OPENLASE
-#define FRAME_RATE_HZ 20	/* target frame rate at which gtk callback fires by default */
+#define FRAME_RATE_HZ 20	/* target frame rate at which game loop runs by default */
 #else
-#define FRAME_RATE_HZ 30	/* target frame rate at which gtk callback fires by default */
+#define FRAME_RATE_HZ 30	/* target frame rate at which game loop runs by default */
 #endif
 int frame_rate_hz = FRAME_RATE_HZ; /* Actual frame rate, user adjustable. */
 #define TERRAIN_LENGTH 1000	/* length, in number of line segments, of terrain */
@@ -366,9 +360,22 @@ int jsfd = -1;
 #define NRAINBOWSTEPS (16)
 #define NRAINBOWCOLORS (NRAINBOWSTEPS*3)
 
-GdkColor huex[NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS]; /* all the colors we have to work with are in here */
-GdkColor *sparkcolor;		/* a pointer into the huex[] array where the spark colors begin */
-GdkColor *rainbow_color;	/* a pointer into the huex[] array where the rainbow colors begin */
+struct wwvi_color {
+	uint16_t red;
+	uint16_t green;
+	uint16_t blue;
+};
+
+struct wwvi_color huex[NCOLORS + NSPARKCOLORS + NRAINBOWCOLORS]; /* all the colors we have to work with are in here */
+struct wwvi_color *sparkcolor;		/* a pointer into the huex[] array where the spark colors begin */
+struct wwvi_color *rainbow_color;	/* a pointer into the huex[] array where the rainbow colors begin */
+
+static void set_rgb_color(struct wwvi_color *c, uint8_t r, uint8_t g, uint8_t b)
+{
+	c->red = ((uint16_t) r << 8) | r;
+	c->green = ((uint16_t) g << 8) | g;
+	c->blue = ((uint16_t) b << 8) | b;
+}
 
 /* cardinal color indexes into huex array */
 #define WHITE 0
@@ -1877,12 +1884,19 @@ static int openlase_color = C_WHITE;
 #define DEBRIS_AMOUNT 16
 #endif
 
-GdkGC *gc = NULL;		/* our graphics context. */
-GtkWidget *main_da;		/* main drawing area. */
+SDL_Window *window = NULL;	/* main window */
+SDL_Renderer *renderer = NULL;	/* main renderer */
+static SDL_Cursor *cross_cursor = NULL;
+static int quit_requested = 0;
+static int need_redraw = 1;
 
 static void wwvi_set_color(int color)
 {
-	gdk_gc_set_foreground(gc, &huex[color]);
+	SDL_SetRenderDrawColor(renderer,
+		huex[color].red >> 8,
+		huex[color].green >> 8,
+		huex[color].blue >> 8,
+		255);
 #if defined(OPENLASE) && !defined(OPENLASEGRAYSCALE)
 	openlase_color = ((huex[color].blue) >> 8) +
 			 (((huex[color].green) >> 8) << 8) +
@@ -1984,22 +1998,35 @@ static void openlase_shutdown(void)
 #endif
 }
 
+static void sdl_draw_rect(int filled, int x, int y, int width, int height)
+{
+	SDL_Rect r;
+	r.x = x;
+	r.y = y;
+	r.w = width;
+	r.h = height;
+	if (filled)
+		SDL_RenderFillRect(renderer, &r);
+	else
+		SDL_RenderDrawRect(renderer, &r);
+}
+
 void unscaled_line(int x1, int y1, int x2, int y2)
 {
 	total_line_count++;	
-	gdk_draw_line(main_da->window, gc, x1, y1, x2, y2);
+	SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
 	openlase_drawline(x1, y1, x2, y2);
 }
 
 void unscaled_rectangle(int filled, int x, int y, int width, int height)
 {
 	openlase_rectangle(x, y, width, height);
-	gdk_draw_rectangle(main_da->window, gc, filled, x, y, width, height);
+	sdl_draw_rect(filled, x, y, width, height);
 }
 
 void scaled_line(int x1, int y1, int x2, int y2)
 {
-	gdk_draw_line(main_da->window, gc, x1*xscale_screen, y1*yscale_screen,
+	SDL_RenderDrawLine(renderer, x1*xscale_screen, y1*yscale_screen,
 		x2*xscale_screen, y2*yscale_screen);
 	openlase_drawline(x1*xscale_screen, y1*yscale_screen,
 		x2*xscale_screen, y2*yscale_screen);
@@ -2021,9 +2048,9 @@ void thick_scaled_line(int x1, int y1, int x2, int y2)
 	sy1 = y1*yscale_screen;	
 	sy2 = y2*yscale_screen;	
 	
-	gdk_draw_line(main_da->window, gc, sx1,sy1,sx2,sy2);
-	gdk_draw_line(main_da->window, gc, sx1-dx,sy1-dy,sx2-dx,sy2-dy);
-	gdk_draw_line(main_da->window, gc, sx1+dx,sy1+dy,sx2+dx,sy2+dy);
+	SDL_RenderDrawLine(renderer, sx1,sy1,sx2,sy2);
+	SDL_RenderDrawLine(renderer, sx1-dx,sy1-dy,sx2-dx,sy2-dy);
+	SDL_RenderDrawLine(renderer, sx1+dx,sy1+dy,sx2+dx,sy2+dy);
 	openlase_drawline(sx1, sy1, sx2, sy2);
 }
 
@@ -2031,7 +2058,7 @@ void scaled_rectangle(int filled, int x, int y, int width, int height)
 {
 	openlase_rectangle(x * xscale_screen, y * yscale_screen,
 				width * xscale_screen, height * yscale_screen); 
-	gdk_draw_rectangle(main_da->window, gc, filled, x*xscale_screen, y*yscale_screen,
+	sdl_draw_rect(filled, x*xscale_screen, y*yscale_screen,
 		width*xscale_screen, height*yscale_screen);
 }
 
@@ -2052,10 +2079,10 @@ void scaled_bright_line(int x1, int y1, int x2, int y2, int color)
 	sy2 = y2*yscale_screen;	
 	
 	wwvi_set_color(WHITE);
-	gdk_draw_line(main_da->window, gc, sx1,sy1,sx2,sy2);
+	SDL_RenderDrawLine(renderer, sx1,sy1,sx2,sy2);
 	wwvi_set_color(color);
-	gdk_draw_line(main_da->window, gc, sx1-dx,sy1-dy,sx2-dx,sy2-dy);
-	gdk_draw_line(main_da->window, gc, sx1+dx,sy1+dy,sx2+dx,sy2+dy);
+	SDL_RenderDrawLine(renderer, sx1-dx,sy1-dy,sx2-dx,sy2-dy);
+	SDL_RenderDrawLine(renderer, sx1+dx,sy1+dy,sx2+dx,sy2+dy);
 	openlase_drawline(x1, y1, x2, y2);
 }
 
@@ -2072,10 +2099,10 @@ void unscaled_bright_line(int x1, int y1, int x2, int y2, int color)
 	}
 	
 	wwvi_set_color(WHITE);
-	gdk_draw_line(main_da->window, gc, x1,y1,x2,y2);
+	SDL_RenderDrawLine(renderer, x1,y1,x2,y2);
 	wwvi_set_color(color);
-	gdk_draw_line(main_da->window, gc, x1-dx,y1-dy,x2-dx,y2-dy);
-	gdk_draw_line(main_da->window, gc, x1+dx,y1+dy,x2+dx,y2+dy);
+	SDL_RenderDrawLine(renderer, x1-dx,y1-dy,x2-dx,y2-dy);
+	SDL_RenderDrawLine(renderer, x1+dx,y1+dy,x2+dx,y2+dy);
 	openlase_drawline(x1, y1, x2, y2);
 }
 
@@ -2091,7 +2118,7 @@ void crazy_line(int x1, int y1, int x2, int y2)
 	x4 = ((x2 - (SCREEN_WIDTH/2)) * sine[angle]) + SCREEN_WIDTH/2;
 	y3 = ((y1 - (SCREEN_HEIGHT/2)) * cosine[angle]) + SCREEN_HEIGHT/2;
 	y4 = ((y2 - (SCREEN_HEIGHT/2)) * cosine[angle]) + SCREEN_HEIGHT/2;
-	gdk_draw_line(main_da->window, gc, x3, y3, x4, y4);
+	SDL_RenderDrawLine(renderer, x3, y3, x4, y4);
 #else
 	double size;
 	size = (timer % 300) + 100;
@@ -2100,7 +2127,7 @@ void crazy_line(int x1, int y1, int x2, int y2)
 	x4 = ((x2 - (SCREEN_WIDTH/2)) / size) + SCREEN_WIDTH/2;
 	y3 = ((y1 - (SCREEN_HEIGHT/2)) / size) + SCREEN_HEIGHT/2;
 	y4 = ((y2 - (SCREEN_HEIGHT/2)) / size) + SCREEN_HEIGHT/2;
-	gdk_draw_line(main_da->window, gc, x3, y3, x4, y4);
+	SDL_RenderDrawLine(renderer, x3, y3, x4, y4);
 #endif
 	/* gdk_draw_line(drawable, gc, x1, y1, x2, y2);	 */
 
@@ -2513,7 +2540,6 @@ struct game_obj_t *player = &game_state.go[0];	/* The player is object zero. */
 struct game_obj_t *player_target;
 int lasthuman = 0;				/* debug code... for 'n' key. */
 
-gint timer_tag;			/* for our gtk 30 times per second timer function */
 int next_quarter_time = -1;	/* Used to limit rate at which quarters can be put in. */
 int next_thunder_time = -1;
 
@@ -2530,7 +2556,6 @@ int want_missile_alarm = 1;
 #ifdef LEVELWARP
 int levelwarp = 1;
 #endif
-GtkWidget *window = NULL; /* main window */
 
 #define STAR_SHIFT 3
 #define NSTARS 600 
@@ -10753,28 +10778,16 @@ static void draw_radar(void)
 #endif /* ndef OPENLASE */
 }
 
-/* call back for configure_event (for window resize) */
-static gint main_da_configure(GtkWidget *w,
-	__attribute__((unused)) GdkEventConfigure *event)
+/* update screen scaling & drawing primitives for window size */
+static void update_screen_size(int width, int height)
 {
-	GdkRectangle cliprect;
-
-	/* first time through, gc is null, because gc can't be set without */
-	/* a window, but, the window isn't there yet until it's shown, but */
-	/* the show generates a configure... chicken and egg.  And we can't */
-	/* proceed without gc != NULL...  but, it's ok, because 1st time thru */
-	/* we already sort of know the drawing area/window size. */
- 
-	if (gc == NULL)
-		return TRUE;
-
-	/* gtk_widget_set_size_request(w, w->allocation.width, w->allocation.height);*/
-	/* gtk_window_get_size(GTK_WINDOW (w), &real_screen_width, &real_screen_height);*/
-	real_screen_width =  w->allocation.width;
-	real_screen_height =  w->allocation.height;
+	if (width <= 0 || height <= 0)
+		return;
+	real_screen_width = width;
+	real_screen_height = height;
 	xscale_screen = (float) real_screen_width / (float) SCREEN_WIDTH;
 	yscale_screen = (float) real_screen_height / (float) SCREEN_HEIGHT;
-	if (real_screen_width == 800 && real_screen_height == 600) {
+	if (real_screen_width == SCREEN_WIDTH && real_screen_height == SCREEN_HEIGHT) {
 		current_draw_line = unscaled_line;
 		current_draw_rectangle = unscaled_rectangle;
 		current_bright_line = unscaled_bright_line;
@@ -10782,16 +10795,9 @@ static gint main_da_configure(GtkWidget *w,
 		current_draw_line = scaled_line;
 		current_draw_rectangle = scaled_rectangle;
 		current_bright_line = scaled_bright_line;
-		if (thicklines)
-			current_draw_line = thick_scaled_line;
 	}
-	gdk_gc_set_clip_origin(gc, 0, 0);
-	cliprect.x = 0;	
-	cliprect.y = 0;	
-	cliprect.width = real_screen_width;	
-	cliprect.height = real_screen_height;	
-	gdk_gc_set_clip_rectangle(gc, &cliprect);
-	return TRUE;
+	if (thicklines)
+		current_draw_line = thick_scaled_line;
 }
 
 static void draw_quit_screen(void)
@@ -10832,30 +10838,31 @@ static void draw_quit_screen(void)
 
 
 static void draw_help_screen(void);
-/* This is the expose function of the main drawing area.  This is */
-/* where everything gets drawn. */
-static int main_da_expose(__attribute__((unused)) GtkWidget *w,
-	__attribute__((unused)) GdkEvent *event,
-	__attribute__((unused)) gpointer p)
+/* This is where everything gets drawn. */
+static void render_frame(void)
 {
 	int i;
 	int sx1, sx2;
 	static int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;
 	/* int last_lowx = 0, last_highx = TERRAIN_LENGTH-1;*/
 
+	wwvi_set_color(BLACK);
+	SDL_RenderClear(renderer);
+
 	if (timer_event == START_INTERMISSION_EVENT) {
 		openlase_startframe();
 		do_intermission();
 		openlase_renderframe();
-		return 0;
+		SDL_RenderPresent(renderer);
+		return;
 	}
 
 	if (timer_event == NEW_HIGH_SCORE_EVENT) {
 		openlase_startframe();
 		do_newhighscore();
 		openlase_renderframe();
-		return 0;
-		return 0;
+		SDL_RenderPresent(renderer);
+		return;
 	}
 
 	openlase_startframe();
@@ -10933,7 +10940,7 @@ static int main_da_expose(__attribute__((unused)) GtkWidget *w,
 		draw_help_screen();
 
 	openlase_renderframe();
-	return 0;
+	SDL_RenderPresent(renderer);
 }
 static void do_game_pause(void)
 {
@@ -10946,7 +10953,7 @@ static void do_game_pause(void)
 		/* Queue a redraw, otherwise, we won't necessarily get a */
 		/* redraw. Need this for the "Time warp activated."      */
 		/* message to appear in the radar screen. */
-		gtk_widget_queue_draw(main_da);
+		need_redraw = 1;
 	}
 }
 
@@ -10963,90 +10970,42 @@ static void do_game_pause_help(void)
 		/* Queue a redraw, otherwise, we won't necessarily get a */
 		/* redraw. Need this for the "Time warp activated."      */
 		/* message to appear in the radar screen. */
-		gtk_widget_queue_draw(main_da);
+		need_redraw = 1;
 	}
 }
 
-void inhibit_screensaver(
-#ifndef DO_INHIBIT_SCREENSAVER
-	__attribute__((unused))
-#endif
-	GtkWidget *widget)
+void inhibit_screensaver(void)
 {
 #ifdef DO_INHIBIT_SCREENSAVER
-	/* This appears not to work on e.g. Fedora Core 5. */
-	/* that is, it inhibits the screensaver, but, the screensaver */
-	/* is never reactivated as it's supposed to be, the xdg-screensaver */
-	/* script seems to be broken, at least on Fedora core 5. */
-	int xwindow_id, rc;
-	char cmd[1024];
-	return;
-
-	xwindow_id = GDK_WINDOW_XWINDOW (GTK_WIDGET (widget)->window);
-
-	sprintf(cmd, "xdg-screensaver suspend 0x%08x > /dev/null 2>&1 &", xwindow_id);
-	rc = system(cmd);
-	printf("%s returns %d\n", cmd, rc);
+	SDL_DisableScreenSaver();
 #endif
 	return;
 }
 
-void resume_screensaver(
-#ifndef DO_INHIBIT_SCREENSAVER
-	__attribute__((unused))
-#endif
-	GtkWidget *widget)
+void resume_screensaver(void)
 {
-#if DO_INHIBIT_SCREENSAVER
-	int xwindow_id, rc;
-	char cmd[1024];
-	return;
-
-	xwindow_id = GDK_WINDOW_XWINDOW (GTK_WIDGET (widget)->window);
-
-	sprintf(cmd, "xdg-screensaver resume 0x%08x > /dev/null 2>&1 &", xwindow_id);
-	rc = system(cmd);
-	printf("%s returns %d\n", cmd, rc);
+#ifdef DO_INHIBIT_SCREENSAVER
+	SDL_EnableScreenSaver();
 #endif
 	return;
 }
 
-/* This is a callback function. The data arguments are ignored
- * in this example. More on callbacks below. */
-static void destroy_event(void) 
+static void print_frame_stats(int include_lines)
 {
-	resume_screensaver(window);
-	openlase_shutdown();
-	exit(1); /* bad form to call exit here... */
-}
+	double elapsed;
 
-static gboolean delete_event(
-	__attribute__((unused)) GtkWidget *widget,
-	__attribute__((unused)) GdkEvent *event,
-	__attribute__((unused)) gpointer data)
-{
-    /* If you return FALSE in the "delete_event" signal handler,
-     * GTK will emit the "destroy" signal. Returning TRUE means
-     * you don't want the window to be destroyed.
-     * This is useful for popping up 'are you sure you want to quit?'
-     * type dialogs. */
-
-    /* g_print ("delete event occurred\n");*/
-
-    /* Change TRUE to FALSE and the main window will be destroyed with
-     * a "delete_event". */
-    gettimeofday(&end_time, NULL);
-    printf("%d frames / %d seconds, %g frames/sec\n", 
-		nframes, (int) (end_time.tv_sec - start_time.tv_sec),
-		(0.0 + nframes) / (0.0 + end_time.tv_sec - start_time.tv_sec));
-    return FALSE;
-}
-
-/* Another callback */
-static void destroy(__attribute__((unused)) GtkWidget *widget,
-		__attribute__((unused)) gpointer data)
-{
-    gtk_main_quit ();
+	gettimeofday(&end_time, NULL);
+	elapsed = (double) (end_time.tv_sec - start_time.tv_sec);
+	if (elapsed > 0.0) {
+		printf("%d frames / %d seconds, %g frames/sec\n",
+			nframes, (int) elapsed,
+			(0.0 + nframes) / elapsed);
+		if (include_lines)
+			printf("Total lines = %lu, lines/sec = %f\n", total_line_count,
+				(double) total_line_count / elapsed);
+	} else {
+		printf("%d frames / 0 seconds\n", nframes);
+	}
 }
 
 void game_ended(void);
@@ -11337,20 +11296,14 @@ void timer_expired(void)
 
 void really_quit(void)
 {
-	gettimeofday(&end_time, NULL);
-	printf("%d frames / %d seconds, %g frames/sec\n", 
-		nframes, (int) (end_time.tv_sec - start_time.tv_sec),
-		(0.0 + nframes) / (0.0 + end_time.tv_sec - start_time.tv_sec));
-	printf("Total lines = %lu, lines/sec = %f\n", total_line_count,
-			 (double) total_line_count /
-			(double) end_time.tv_sec - start_time.tv_sec);
-	destroy_event();
+	print_frame_stats(1);
+	quit_requested = 1;
 }
 
 void deal_with_joystick(void);
 void deal_with_keyboard(void);
 
-gint advance_game(__attribute__((unused)) gpointer data)
+static void advance_game(void)
 {
 	int i;
 
@@ -11358,12 +11311,10 @@ gint advance_game(__attribute__((unused)) gpointer data)
 	if (game_pause == 1) {
 		if (game_pause_help) {
 			deal_with_keyboard();
-			gdk_threads_enter();
-			gtk_widget_queue_draw(main_da);
+			need_redraw = 1;
 			nframes++;
-			gdk_threads_leave();
 		}
-		return TRUE;
+		return;
 	}
 
 	if (jsfd >= 0)
@@ -11372,16 +11323,13 @@ gint advance_game(__attribute__((unused)) gpointer data)
 	deal_with_keyboard();
 
 	if (in_the_process_of_quitting) {
-		gdk_threads_enter();
-		gtk_widget_queue_draw(main_da);
+		need_redraw = 1;
 		nframes++;
-		gdk_threads_leave();
 		if (final_quit_selection)
 			really_quit();
-		return TRUE;
+		return;
 	}
 
-	gdk_threads_enter();
 	game_state.x += game_state.vx;
 	game_state.y += game_state.vy; 
 
@@ -11391,7 +11339,7 @@ gint advance_game(__attribute__((unused)) gpointer data)
 		timer_expired();
 
 	if (timer_event == END_INTERMISSION_EVENT)
-		return TRUE;
+		return;
 
 	game_state.missile_locked = 0;
 	if (timer_event != START_INTERMISSION_EVENT && 
@@ -11410,16 +11358,9 @@ gint advance_game(__attribute__((unused)) gpointer data)
 		if (game_state.missile_locked && timer % 10 == 0 && want_missile_alarm)
 			wwviaudio_add_sound(MISSILE_LOCK_SIREN_SOUND);
 	}
-	gtk_widget_queue_draw(main_da);
+	need_redraw = 1;
 	nframes++;
-	gdk_threads_leave();
-#if 0
-	if (WORLDWIDTH - game_state.x < 100)
-		return FALSE;
-	else
-		return TRUE;
-#endif
-	return TRUE;
+	return;
 }
 
 void setup_text(void)
@@ -12290,150 +12231,145 @@ void deal_with_keyboard(void)
 
 struct keyname_value_entry {
 	char *name;
-	unsigned int value;
+	SDL_Keycode value;
 } keyname_value_map[] = {
-	{ "a", GDK_a }, 
-	{ "b", GDK_b }, 
-	{ "c", GDK_c }, 
-	{ "d", GDK_d }, 
-	{ "e", GDK_e }, 
-	{ "f", GDK_f }, 
-	{ "g", GDK_g }, 
-	{ "h", GDK_h }, 
-	{ "i", GDK_i }, 
-	{ "j", GDK_j }, 
-	{ "k", GDK_k }, 
-	{ "l", GDK_l }, 
-	{ "m", GDK_m }, 
-	{ "n", GDK_n }, 
-	{ "o", GDK_o }, 
-	{ "p", GDK_p }, 
-	{ "q", GDK_q }, 
-	{ "r", GDK_r }, 
-	{ "s", GDK_s }, 
-	{ "t", GDK_t }, 
-	{ "u", GDK_u }, 
-	{ "v", GDK_v }, 
-	{ "w", GDK_w }, 
-	{ "x", GDK_x }, 
-	{ "y", GDK_y }, 
-	{ "z", GDK_z }, 
-	{ "A", GDK_A }, 
-	{ "B", GDK_B }, 
-	{ "C", GDK_C }, 
-	{ "D", GDK_D }, 
-	{ "E", GDK_E }, 
-	{ "F", GDK_F }, 
-	{ "G", GDK_G }, 
-	{ "H", GDK_H }, 
-	{ "I", GDK_I }, 
-	{ "J", GDK_J }, 
-	{ "K", GDK_K }, 
-	{ "L", GDK_L }, 
-	{ "M", GDK_M }, 
-	{ "N", GDK_N }, 
-	{ "O", GDK_O }, 
-	{ "P", GDK_P }, 
-	{ "Q", GDK_Q }, 
-	{ "R", GDK_R }, 
-	{ "S", GDK_S }, 
-	{ "T", GDK_T }, 
-	{ "U", GDK_U }, 
-	{ "V", GDK_V }, 
-	{ "W", GDK_W }, 
-	{ "X", GDK_X }, 
-	{ "Y", GDK_Y }, 
-	{ "Z", GDK_Z }, 
-	{ "0", GDK_0 }, 
-	{ "1", GDK_1 }, 
-	{ "2", GDK_2 }, 
-	{ "3", GDK_3 }, 
-	{ "4", GDK_4 }, 
-	{ "5", GDK_5 }, 
-	{ "6", GDK_6 }, 
-	{ "7", GDK_7 }, 
-	{ "8", GDK_8 }, 
-	{ "9", GDK_9 }, 
-	{ "-", GDK_minus }, 
-	{ "+", GDK_plus }, 
-	{ "=", GDK_equal }, 
-	{ "?", GDK_question }, 
-	{ ".", GDK_period }, 
-	{ ",", GDK_comma }, 
-	{ "<", GDK_less }, 
-	{ ">", GDK_greater }, 
-	{ ":", GDK_colon }, 
-	{ ";", GDK_semicolon }, 
-	{ "@", GDK_at }, 
-	{ "*", GDK_asterisk }, 
-	{ "$", GDK_dollar }, 
-	{ "%", GDK_percent }, 
-	{ "&", GDK_ampersand }, 
-	{ "'", GDK_apostrophe }, 
-	{ "(", GDK_parenleft }, 
-	{ ")", GDK_parenright }, 
-	{ "space", GDK_space }, 
-	{ "enter", GDK_Return }, 
-	{ "return", GDK_Return }, 
-	{ "backspace", GDK_BackSpace }, 
-	{ "delete", GDK_Delete }, 
-	{ "pause", GDK_Pause }, 
-	{ "scrolllock", GDK_Scroll_Lock }, 
-	{ "escape", GDK_Escape }, 
-	{ "sysreq", GDK_Sys_Req }, 
-	{ "left", GDK_Left }, 
-	{ "right", GDK_Right }, 
-	{ "up", GDK_Up }, 
-	{ "down", GDK_Down }, 
-	{ "kp_home", GDK_KP_Home }, 
-	{ "kp_down", GDK_KP_Down }, 
-	{ "kp_up", GDK_KP_Up }, 
-	{ "kp_left", GDK_KP_Left }, 
-	{ "kp_right", GDK_KP_Right }, 
-	{ "kp_end", GDK_KP_End }, 
-	{ "kp_delete", GDK_KP_Delete }, 
-	{ "kp_insert", GDK_KP_Insert }, 
-	{ "home", GDK_Home }, 
-	{ "down", GDK_Down }, 
-	{ "up", GDK_Up }, 
-	{ "left", GDK_Left }, 
-	{ "right", GDK_Right }, 
-	{ "end", GDK_End }, 
-	{ "delete", GDK_Delete }, 
-	{ "insert", GDK_Insert }, 
-	{ "kp_0", GDK_KP_0 }, 
-	{ "kp_1", GDK_KP_1 }, 
-	{ "kp_2", GDK_KP_2 }, 
-	{ "kp_3", GDK_KP_3 }, 
-	{ "kp_4", GDK_KP_4 }, 
-	{ "kp_5", GDK_KP_5 }, 
-	{ "kp_6", GDK_KP_6 }, 
-	{ "kp_7", GDK_KP_7 }, 
-	{ "kp_8", GDK_KP_8 }, 
-	{ "kp_9", GDK_KP_9 }, 
-	{ "f1", GDK_F1 }, 
-	{ "f2", GDK_F2 }, 
-	{ "f3", GDK_F3 }, 
-	{ "f4", GDK_F4 }, 
-	{ "f5", GDK_F5 }, 
-	{ "f6", GDK_F6 }, 
-	{ "f7", GDK_F7 }, 
-	{ "f9", GDK_F9 }, 
-	{ "f9", GDK_F9 }, 
-	{ "f10", GDK_F10 }, 
-	{ "f11", GDK_F11 }, 
-	{ "f12", GDK_F12 }, 
+	{ "a", SDLK_a }, 
+	{ "b", SDLK_b }, 
+	{ "c", SDLK_c }, 
+	{ "d", SDLK_d }, 
+	{ "e", SDLK_e }, 
+	{ "f", SDLK_f }, 
+	{ "g", SDLK_g }, 
+	{ "h", SDLK_h }, 
+	{ "i", SDLK_i }, 
+	{ "j", SDLK_j }, 
+	{ "k", SDLK_k }, 
+	{ "l", SDLK_l }, 
+	{ "m", SDLK_m }, 
+	{ "n", SDLK_n }, 
+	{ "o", SDLK_o }, 
+	{ "p", SDLK_p }, 
+	{ "q", SDLK_q }, 
+	{ "r", SDLK_r }, 
+	{ "s", SDLK_s }, 
+	{ "t", SDLK_t }, 
+	{ "u", SDLK_u }, 
+	{ "v", SDLK_v }, 
+	{ "w", SDLK_w }, 
+	{ "x", SDLK_x }, 
+	{ "y", SDLK_y }, 
+	{ "z", SDLK_z }, 
+	{ "A", SDLK_a }, 
+	{ "B", SDLK_b }, 
+	{ "C", SDLK_c }, 
+	{ "D", SDLK_d }, 
+	{ "E", SDLK_e }, 
+	{ "F", SDLK_f }, 
+	{ "G", SDLK_g }, 
+	{ "H", SDLK_h }, 
+	{ "I", SDLK_i }, 
+	{ "J", SDLK_j }, 
+	{ "K", SDLK_k }, 
+	{ "L", SDLK_l }, 
+	{ "M", SDLK_m }, 
+	{ "N", SDLK_n }, 
+	{ "O", SDLK_o }, 
+	{ "P", SDLK_p }, 
+	{ "Q", SDLK_q }, 
+	{ "R", SDLK_r }, 
+	{ "S", SDLK_s }, 
+	{ "T", SDLK_t }, 
+	{ "U", SDLK_u }, 
+	{ "V", SDLK_v }, 
+	{ "W", SDLK_w }, 
+	{ "X", SDLK_x }, 
+	{ "Y", SDLK_y }, 
+	{ "Z", SDLK_z }, 
+	{ "0", SDLK_0 }, 
+	{ "1", SDLK_1 }, 
+	{ "2", SDLK_2 }, 
+	{ "3", SDLK_3 }, 
+	{ "4", SDLK_4 }, 
+	{ "5", SDLK_5 }, 
+	{ "6", SDLK_6 }, 
+	{ "7", SDLK_7 }, 
+	{ "8", SDLK_8 }, 
+	{ "9", SDLK_9 }, 
+	{ "-", SDLK_MINUS }, 
+	{ "+", SDLK_PLUS }, 
+	{ "=", SDLK_EQUALS }, 
+	{ "?", SDLK_QUESTION }, 
+	{ ".", SDLK_PERIOD }, 
+	{ ",", SDLK_COMMA }, 
+	{ "<", SDLK_LESS }, 
+	{ ">", SDLK_GREATER }, 
+	{ ":", SDLK_COLON }, 
+	{ ";", SDLK_SEMICOLON }, 
+	{ "@", SDLK_AT }, 
+	{ "*", SDLK_ASTERISK }, 
+	{ "$", SDLK_DOLLAR }, 
+	{ "%", SDLK_PERCENT }, 
+	{ "&", SDLK_AMPERSAND }, 
+	{ "'", SDLK_QUOTE }, 
+	{ "(", SDLK_LEFTPAREN }, 
+	{ ")", SDLK_RIGHTPAREN }, 
+	{ "space", SDLK_SPACE }, 
+	{ "enter", SDLK_RETURN }, 
+	{ "return", SDLK_RETURN }, 
+	{ "backspace", SDLK_BACKSPACE }, 
+	{ "delete", SDLK_DELETE }, 
+	{ "pause", SDLK_PAUSE }, 
+	{ "scrolllock", SDLK_SCROLLLOCK }, 
+	{ "escape", SDLK_ESCAPE }, 
+	{ "sysreq", SDLK_SYSREQ }, 
+	{ "left", SDLK_LEFT }, 
+	{ "right", SDLK_RIGHT }, 
+	{ "up", SDLK_UP }, 
+	{ "down", SDLK_DOWN }, 
+	{ "kp_home", SDLK_KP_7 }, 
+	{ "kp_down", SDLK_KP_2 }, 
+	{ "kp_up", SDLK_KP_8 }, 
+	{ "kp_left", SDLK_KP_4 }, 
+	{ "kp_right", SDLK_KP_6 }, 
+	{ "kp_end", SDLK_KP_1 }, 
+	{ "kp_delete", SDLK_KP_PERIOD }, 
+	{ "kp_insert", SDLK_KP_0 }, 
+	{ "home", SDLK_HOME }, 
+	{ "end", SDLK_END }, 
+	{ "insert", SDLK_INSERT }, 
+	{ "kp_0", SDLK_KP_0 }, 
+	{ "kp_1", SDLK_KP_1 }, 
+	{ "kp_2", SDLK_KP_2 }, 
+	{ "kp_3", SDLK_KP_3 }, 
+	{ "kp_4", SDLK_KP_4 }, 
+	{ "kp_5", SDLK_KP_5 }, 
+	{ "kp_6", SDLK_KP_6 }, 
+	{ "kp_7", SDLK_KP_7 }, 
+	{ "kp_8", SDLK_KP_8 }, 
+	{ "kp_9", SDLK_KP_9 }, 
+	{ "f1", SDLK_F1 }, 
+	{ "f2", SDLK_F2 }, 
+	{ "f3", SDLK_F3 }, 
+	{ "f4", SDLK_F4 }, 
+	{ "f5", SDLK_F5 }, 
+	{ "f6", SDLK_F6 }, 
+	{ "f7", SDLK_F7 }, 
+	{ "f8", SDLK_F8 }, 
+	{ "f9", SDLK_F9 }, 
+	{ "f10", SDLK_F10 }, 
+	{ "f11", SDLK_F11 }, 
+	{ "f12", SDLK_F12 }, 
 };
 
 #define MAX_KEYBINDINGS 256
 struct keybinding {
-	unsigned int keyval;
+	SDL_Keycode keyval;
 	enum keyaction action;
 };
 static struct keybinding keybindings[MAX_KEYBINDINGS];
 static int nkeybindings = 0;
 
-static void bind_key(unsigned int keyval, enum keyaction action)
+static void bind_key(SDL_Keycode keyval, enum keyaction action)
 {
 	int i;
 
@@ -12450,7 +12386,7 @@ static void bind_key(unsigned int keyval, enum keyaction action)
 	nkeybindings++;
 }
 
-static enum keyaction lookup_key(unsigned int keyval)
+static enum keyaction lookup_key(SDL_Keycode keyval)
 {
 	int i;
 
@@ -12694,48 +12630,48 @@ void init_keymap(void)
 {
 	nkeybindings = 0;
 
-	bind_key(GDK_j, keydown);
-	bind_key(GDK_Down, keydown);
+	bind_key(SDLK_j, keydown);
+	bind_key(SDLK_DOWN, keydown);
 
-	bind_key(GDK_k, keyup);
-	bind_key(GDK_Up, keyup);
+	bind_key(SDLK_k, keyup);
+	bind_key(SDLK_UP, keyup);
 
-	bind_key(GDK_l, keyright);
-	bind_key(GDK_Right, keyright);
-	bind_key(GDK_period, keyright);
-	bind_key(GDK_greater, keyright);
+	bind_key(SDLK_l, keyright);
+	bind_key(SDLK_RIGHT, keyright);
+	bind_key(SDLK_PERIOD, keyright);
+	bind_key(SDLK_GREATER, keyright);
 
-	bind_key(GDK_h, keyleft);
-	bind_key(GDK_Left, keyleft);
-	bind_key(GDK_comma, keyleft);
-	bind_key(GDK_less, keyleft);
+	bind_key(SDLK_h, keyleft);
+	bind_key(SDLK_LEFT, keyleft);
+	bind_key(SDLK_COMMA, keyleft);
+	bind_key(SDLK_LESS, keyleft);
 
-	bind_key(GDK_space, keylaser);
-	bind_key(GDK_z, keylaser);
+	bind_key(SDLK_SPACE, keylaser);
+	bind_key(SDLK_z, keylaser);
 
-	bind_key(GDK_b, keybomb);
-	bind_key(GDK_v, key_droppresent);
-	bind_key(GDK_g, keygravitybomb);
-	bind_key(GDK_c, keychaff);
-	bind_key(GDK_x, keythrust);
-	bind_key(GDK_p, keypause);
-	bind_key(GDK_F1, keypausehelp);
-	bind_key(GDK_q, keyquarter);
-	bind_key(GDK_m, keymusic);
-	bind_key(GDK_s, keysoundeffects);
-	bind_key(GDK_Escape, keyquit);
-	bind_key(GDK_1, keytogglemissilealarm);
+	bind_key(SDLK_b, keybomb);
+	bind_key(SDLK_v, key_droppresent);
+	bind_key(SDLK_g, keygravitybomb);
+	bind_key(SDLK_c, keychaff);
+	bind_key(SDLK_x, keythrust);
+	bind_key(SDLK_p, keypause);
+	bind_key(SDLK_F1, keypausehelp);
+	bind_key(SDLK_q, keyquarter);
+	bind_key(SDLK_m, keymusic);
+	bind_key(SDLK_s, keysoundeffects);
+	bind_key(SDLK_ESCAPE, keyquit);
+	bind_key(SDLK_1, keytogglemissilealarm);
 
-	bind_key(GDK_2, key2);
-	bind_key(GDK_3, key3);
-	bind_key(GDK_4, key4);
-	bind_key(GDK_5, key5);
-	bind_key(GDK_6, key6);
-	bind_key(GDK_7, key7);
-	bind_key(GDK_8, key8);
-	bind_key(GDK_9, keysuicide);
+	bind_key(SDLK_2, key2);
+	bind_key(SDLK_3, key3);
+	bind_key(SDLK_4, key4);
+	bind_key(SDLK_5, key5);
+	bind_key(SDLK_6, key6);
+	bind_key(SDLK_7, key7);
+	bind_key(SDLK_8, key8);
+	bind_key(SDLK_9, keysuicide);
 
-	bind_key(GDK_F11, keyfullscreen);
+	bind_key(SDLK_F11, keyfullscreen);
 }
 
 int remap_joystick_button(int button, char *actionname)
@@ -12774,84 +12710,70 @@ int remapkey(char *keyname, char *actionname)
 	return 1;
 }
 
-static gint key_release_cb(__attribute__((unused)) GtkWidget* widget,
-	GdkEventKey* event,
-	__attribute__((unused)) gpointer data)
+static void handle_key_release(SDL_Keycode key)
 {
-
 	enum keyaction ka;
 
-	ka = lookup_key(event->keyval);
+	ka = lookup_key(key);
 	last_user_input_time = timer;
 	switch (ka) {
 	case keydown:
 		game_state.key_down_pressed = 0;
-		return TRUE;
+		return;
 	case keyup:
 		game_state.key_up_pressed = 0;
-		return TRUE;
+		return;
 	case keyright:
 		game_state.key_right_pressed = 0;
-		return TRUE;
+		return;
 	case keyleft:
 		game_state.key_left_pressed = 0;
-		return TRUE;
+		return;
 	case keylaser:
 		game_state.key_laser_pressed = 0;
-		return TRUE;
+		return;
 	case keychaff:
 		game_state.key_chaff_pressed = 0;
-		return TRUE;
+		return;
 	case keybomb:
 		game_state.key_bomb_pressed = 0;
-		return TRUE;
+		return;
 	case key_droppresent:
 		game_state.key_present_pressed = 0;
-		return TRUE;
+		return;
 	case keygravitybomb:
 		game_state.key_gbomb_pressed = 0;
-		return TRUE;
+		return;
 	default:
 		break;
 	}
-	return FALSE;
 }
 
 
 
-static gint key_press_cb(__attribute__((unused)) GtkWidget* widget,
-	GdkEventKey* event,
-	__attribute__((unused)) gpointer data)
+static void handle_key_press(SDL_Keycode key, int repeat)
 {
 	enum keyaction ka;
-	/* char *x = (char *) data; */
-#if 0
-	if (event->length > 0)
-		printf("The key event's string is `%s'\n", event->string);
 
-	printf("The name of this keysym is `%s'\n", 
-		gdk_keyval_name(event->keyval));
-#endif
-
-	ka = lookup_key(event->keyval);
+	ka = lookup_key(key);
 
 	last_user_input_time = timer;
 	switch (ka) {
 	case key2:
 			game_state.cmd_multiplier = 2;
-			return TRUE;
+			return;
 	case key3:
 			game_state.cmd_multiplier = 3;
-			return TRUE;
+			return;
 	case key4:
 			game_state.cmd_multiplier = 4;
-			return TRUE;
+			return;
 	case key5:
 			game_state.cmd_multiplier = 5;
-			return TRUE;
+			return;
 	case key6:
 			game_state.cmd_multiplier = 6;
-			return TRUE;
+			return;
 	case key8:
 			player->tsd.epd.count = 50;
 			player->tsd.epd.count2 = 0;
@@ -12861,21 +12783,31 @@ static gint key_press_cb(__attribute__((unused)) GtkWidget* widget,
 			player->tsd.epd.count2 = 50;
 			break;
 	case keysuicide:
+		if (repeat)
+			return;
 		if (credits > 0)
 			game_state.health = -1;
-		return TRUE;
+		return;
 	case keysoundeffects:
+		if (repeat)
+			return;
 		game_state.sound_effects_on = !game_state.sound_effects_on;
 		game_state.sound_effects_manually_turned_off = (!game_state.sound_effects_on);
 		wwviaudio_toggle_sound_effects();
-		return TRUE;
+		return;
 	case keymusic:
+		if (repeat)
+			return;
 		wwviaudio_toggle_music();
-		return TRUE;
+		return;
 	case keytogglemissilealarm:
+		if (repeat)
+			return;
 		want_missile_alarm = !want_missile_alarm;
-		return TRUE;
+		return;
 	case keyquit:
+		if (repeat)
+			return;
 		if (game_pause_help)
 			do_game_pause_help();
 		else {
@@ -12885,111 +12817,74 @@ static gint key_press_cb(__attribute__((unused)) GtkWidget* widget,
 			else
 				wwviaudio_resume_audio();
 		}
-		return TRUE;	
+		return;	
 	case keyquarter:
+		if (repeat)
+			return;
 		insert_quarter();
-		return TRUE;
+		return;
 	case keyfullscreen: {
-			if (fullscreen) {
-				gtk_window_unfullscreen(GTK_WINDOW(window));
-				fullscreen = 0;
-				/* configure_event takes care of resizing drawing area, etc. */
-			} else {
-				gtk_window_fullscreen(GTK_WINDOW(window));
-				fullscreen = 1;
-				/* configure_event takes care of resizing drawing area, etc. */
-			}
+			int w, h;
+			if (repeat)
+				return;
+			fullscreen = !fullscreen;
+			SDL_SetWindowFullscreen(window,
+				fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+			SDL_GetWindowSize(window, &w, &h);
+			update_screen_size(w, h);
+			need_redraw = 1;
 		}
 		break;
 	case keydown:
 		game_state.key_down_pressed = 1;
-#if 0
-		if (player->vy < MAX_VY && game_state.health > 0 && credits > 0)
-			player->vy += 4 * game_state.cmd_multiplier;
-		game_state.cmd_multiplier = 1;
-#endif
-		return TRUE;
+		return;
 	case keyup:
 		game_state.key_up_pressed = 1;
-#if 0
-		if (player->vy > -MAX_VY && game_state.health > 0 && credits > 0)
-			player->vy -= 4 * game_state.cmd_multiplier;
-#endif
-		return TRUE;
-	case keyright: {
+		return;
+	case keyright:
 		game_state.key_right_pressed = 1;
-#if 0
-		int i;
-
-		for (i=0;i<game_state.cmd_multiplier;i++) {
-			if (game_state.health <= 0 || credits <= 0)
-				return TRUE;
-			if (game_state.direction != 1) {
-				game_state.direction = 1;
-				player->vx = player->vx / 2;
-				player->v = &player_vect;
-			} else if (abs(player->vx + game_state.direction) < MAX_VX)
-					player->vx += game_state.direction;
-		}
-		game_state.cmd_multiplier = 1;
-#endif
-		return TRUE;
-	}
-	case keyleft: {
+		return;
+	case keyleft:
 		game_state.key_left_pressed = 1;
-#if 0
-		int i;
-
-		for (i=0;i<game_state.cmd_multiplier;i++) {
-			if (game_state.health <= 0 || credits <= 0)
-				return TRUE;
-			if (game_state.direction != -1) {
-				player->vx = player->vx / 2;
-				game_state.direction = -1;
-				player->v = &left_player_vect;
-			} else if (abs(player->vx + game_state.direction) < MAX_VX)
-					player->vx += game_state.direction;
-		}
-		game_state.cmd_multiplier = 1;
-#endif
-		return TRUE;
-	}
+		return;
 	case keylaser:
 		game_state.key_laser_pressed = 1;
-		return TRUE;
+		return;
 	case keythrust:
 		if (game_state.health <= 0 || credits <= 0)
-			return TRUE;
+			return;
 		if (abs(player->vx + game_state.direction) < MAX_VX)
 			player->vx += game_state.direction;
-		return TRUE;
+		return;
 
 	case keychaff:
 		game_state.key_chaff_pressed = 1;
-		return TRUE;
+		return;
 	case keybomb: 
 		game_state.key_bomb_pressed = 1;
-		return TRUE;
+		return;
 	case key_droppresent: 
 		game_state.key_present_pressed = 1;
-		return TRUE;
+		return;
 	case keygravitybomb: 
 		game_state.key_gbomb_pressed = 1;
-		return TRUE;
+		return;
 	case keypause:
-		/* if (game_state.health <= 0 || credits <= 0)*/
-		/*	return TRUE;*/
+		if (repeat)
+			return;
 		do_game_pause();
-		return TRUE;
+		return;
 
 	case keypausehelp:
+		if (repeat)
+			return;
 		do_game_pause_help();
-		return TRUE;
+		return;
 #if 0
 	/* just for debugging. */
-	case GDK_n:
+	case SDLK_n:
 		if (game_state.health <= 0 || credits <= 0)
-			return TRUE;
+			return;
 		player->x = human[lasthuman]->x;
 		player->y = human[lasthuman]->y - 50;
 		game_state.x = player->x;
@@ -12998,15 +12893,15 @@ static gint key_press_cb(__attribute__((unused)) GtkWidget* widget,
 		if (lasthuman >= level.nhumanoids)
 			lasthuman = 0;
 		break;
-	case GDK_i:
+	case SDLK_i:
 		gettimeofday(&game_state.finish_time, NULL);
 		timer_event = START_INTERMISSION_EVENT;
 		next_timer = timer + 1;
-		return TRUE;
-	case GDK_R:
+		return;
+	case SDLK_r:
 		start_level();
 		break;
-	case GDK_A:
+	case SDLK_a:
 		advance_level();
 		break;
 /* The above just for testing */
@@ -13014,16 +12909,33 @@ static gint key_press_cb(__attribute__((unused)) GtkWidget* widget,
 	default:
 		break;
 	}
+}
 
-#if 0
-	printf("Keypress: GDK_%s\n", gdk_keyval_name(event->keyval));
-	if (gdk_keyval_is_lower(event->keyval)) {
-		printf("A non-uppercase key was pressed.\n");
-	} else if (gdk_keyval_is_upper(event->keyval)) {
-		printf("An uppercase letter was pressed.\n");
+static void handle_sdl_event(const SDL_Event *ev)
+{
+	switch (ev->type) {
+	case SDL_QUIT:
+		print_frame_stats(0);
+		quit_requested = 1;
+		break;
+	case SDL_KEYDOWN:
+		handle_key_press(ev->key.keysym.sym, ev->key.repeat);
+		break;
+	case SDL_KEYUP:
+		handle_key_release(ev->key.keysym.sym);
+		break;
+	case SDL_WINDOWEVENT:
+		if (ev->window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
+		    ev->window.event == SDL_WINDOWEVENT_RESIZED) {
+			update_screen_size(ev->window.data1, ev->window.data2);
+			need_redraw = 1;
+		} else if (ev->window.event == SDL_WINDOWEVENT_EXPOSED) {
+			need_redraw = 1;
+		}
+		break;
+	default:
+		break;
 	}
-#endif
-	return FALSE;
 }
 
 /***********************************************************************/
@@ -13251,7 +13163,6 @@ void setup_spark_colors(void)
 		sparkcolor[i].red = (unsigned short) r;
 		sparkcolor[i].green = (unsigned short) g;
 		sparkcolor[i].blue = (unsigned short) b;
-		sparkcolor[i].pixel = 0;
 
 		r += dr;
 		g += dg;
@@ -13503,12 +13414,11 @@ void init_highscores(void)
 	highscore[2].score = 2043000;
 }
 
-void set_cursor(GtkWidget *window)
+static void set_cursor(void)
 {
-	GdkCursor* cursor;
-	cursor = gdk_cursor_new(GDK_CROSS);
-	gdk_window_set_cursor(window->window, cursor);
-	gdk_cursor_destroy(cursor);
+	cross_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
+	if (cross_cursor != NULL)
+		SDL_SetCursor(cross_cursor);
 }
 
 char *trim_whitespace(char *s)
@@ -13912,14 +13822,13 @@ static int setup_openlase(void)
 
 int main(int argc, char *argv[])
 {
-	/* GtkWidget is the storage type for widgets */
-	GtkWidget *vbox;
-	GdkRectangle cliprect;
-	int i;
 	int blueprint = 0;
 	int retrogreen = 0;
 	int opt;
 	char joystick_device[PATH_MAX+1];
+	Uint32 window_flags;
+	Uint32 frame_ms;
+	Uint32 next_frame_tick;
 
 	struct timeval tm;
 	char difficulty[256];
@@ -14193,19 +14102,21 @@ int main(int argc, char *argv[])
 	else
 		init_clips();
 #endif
-	gtk_set_locale();
-	gtk_init (&argc, &argv);
-   
-	gdk_color_parse("white", &huex[WHITE]);
-	gdk_color_parse("blue", &huex[BLUE]);
-	gdk_color_parse("black", &huex[BLACK]);
-	gdk_color_parse("green", &huex[GREEN]);
-	gdk_color_parse("darkgreen", &huex[DARKGREEN]);
-	gdk_color_parse("yellow", &huex[YELLOW]);
-	gdk_color_parse("red", &huex[RED]);
-	gdk_color_parse("orange", &huex[ORANGE]);
-	gdk_color_parse("cyan", &huex[CYAN]);
-	gdk_color_parse("MAGENTA", &huex[MAGENTA]);
+	if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+		fprintf(stderr, "Unable to initialize SDL: %s\n", SDL_GetError());
+		exit(1);
+	}
+
+	set_rgb_color(&huex[WHITE], 255, 255, 255);
+	set_rgb_color(&huex[BLUE], 0, 0, 255);
+	set_rgb_color(&huex[BLACK], 0, 0, 0);
+	set_rgb_color(&huex[GREEN], 0, 255, 0);
+	set_rgb_color(&huex[DARKGREEN], 0, 100, 0);
+	set_rgb_color(&huex[YELLOW], 255, 255, 0);
+	set_rgb_color(&huex[RED], 255, 0, 0);
+	set_rgb_color(&huex[ORANGE], 255, 165, 0);
+	set_rgb_color(&huex[CYAN], 0, 255, 255);
+	set_rgb_color(&huex[MAGENTA], 255, 0, 255);
 
 	/* Set up the spark colors. */
 	setup_spark_colors();
@@ -14225,82 +14136,33 @@ int main(int argc, char *argv[])
 		}
 	} 
 
-    /* create a new window */
-    window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+	window_flags = SDL_WINDOW_RESIZABLE;
+	if (fullscreen)
+		window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 
-
-	if (fullscreen) {
-		/* This overrides --width and --height options */
-		GdkScreen* screen = NULL;
-
-		screen = gtk_window_get_screen(GTK_WINDOW(window));
-
-		gtk_window_fullscreen(GTK_WINDOW (window));
-		gtk_window_set_decorated( GTK_WINDOW (window), FALSE); 
-
-		real_screen_width = gdk_screen_get_width(screen);
-		real_screen_height = gdk_screen_get_height(screen);
-
-		current_draw_line = scaled_line;
-		current_draw_rectangle = scaled_rectangle;
-		current_bright_line = scaled_bright_line;
+	window = SDL_CreateWindow("Word War vi",
+		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+		real_screen_width, real_screen_height, window_flags);
+	if (window == NULL) {
+		fprintf(stderr, "Unable to create SDL window: %s\n", SDL_GetError());
+		SDL_Quit();
+		exit(1);
 	}
-	xscale_screen = (float) real_screen_width / (float) SCREEN_WIDTH;
-	yscale_screen = (float) real_screen_height / (float) SCREEN_HEIGHT;
-    
-    /* When the window is given the "delete_event" signal (this is given
-     * by the window manager, usually by the "close" option, or on the
-     * titlebar), we ask it to call the delete_event () function
-     * as defined above. The data passed to the callback
-     * function is NULL and is ignored in the callback function. */
-    g_signal_connect (G_OBJECT (window), "delete_event",
-		      G_CALLBACK (delete_event), NULL);
-    
-    /* Here we connect the "destroy" event to a signal handler.  
-     * This event occurs when we call gtk_widget_destroy() on the window,
-     * or if we return FALSE in the "delete_event" callback. */
-    g_signal_connect (G_OBJECT (window), "destroy",
-		      G_CALLBACK (destroy), NULL);
-   
-#if 0 
-	/* Sets the border width of the window. */
-	if (!fullscreen)
-		/* this throws off gtk_window_get_size to see what size*/
-		/* we ACTUALLY got, so, don't do it.*/
-		gtk_container_set_border_width (GTK_CONTAINER (window), 10);
-	else
-		gtk_container_set_border_width (GTK_CONTAINER (window), 0);
-#endif
-	gtk_container_set_border_width (GTK_CONTAINER (window), 0);
-   
-	vbox = gtk_vbox_new(FALSE, 0); 
-	main_da = gtk_drawing_area_new();
-	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &huex[WHITE]);
-	/* gtk_widget_set_size_request(main_da, real_screen_width, real_screen_height);*/
 
-	g_signal_connect(G_OBJECT (main_da), "expose_event", G_CALLBACK (main_da_expose), NULL);
-	g_signal_connect(G_OBJECT (main_da), "configure_event", G_CALLBACK (main_da_configure), NULL);
+	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+	if (renderer == NULL)
+		renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+	if (renderer == NULL) {
+		fprintf(stderr, "Unable to create SDL renderer: %s\n", SDL_GetError());
+		SDL_DestroyWindow(window);
+		SDL_Quit();
+		exit(1);
+	}
 
-	gtk_container_add (GTK_CONTAINER (window), vbox);
-	gtk_box_pack_start(GTK_BOX (vbox), main_da, TRUE /* expand */, TRUE /* fill */, 0);
-   
 	init_score_table(); 
 	init_vects();
 	init_vxy_2_dxy();
 	init_object_numbers();
-	
-	g_signal_connect(G_OBJECT (window), "key_press_event",
-		G_CALLBACK (key_press_cb), "window");
-	g_signal_connect(G_OBJECT (window), "key_release_event",
-		G_CALLBACK (key_release_cb), "window");
-
-
-	/* print_target_list();*/
-
-	for (i=0;i<NCOLORS+NSPARKCOLORS + NRAINBOWCOLORS;i++)
-		gdk_colormap_alloc_color(gtk_widget_get_colormap(main_da), &huex[i], FALSE, FALSE);
-	gtk_widget_modify_bg(main_da, GTK_STATE_NORMAL, &huex[BLACK]);
-
 
 	make_debris_forms();
 	init_levels_to_beginning();
@@ -14311,50 +14173,18 @@ int main(int argc, char *argv[])
 	wwviaudio_resume_sound_effects();
 	start_level();
 
-	gtk_window_set_default_size(GTK_WINDOW(window), real_screen_width, real_screen_height);
+	set_cursor();
+	inhibit_screensaver();
 
-	gtk_widget_show (vbox);
-	gtk_widget_show (main_da);
-    
-	/* and the window */
-	gtk_widget_show (window);
-	set_cursor(window);
-	
-	inhibit_screensaver(window);
-
-	jsfd = open_joystick(joystick_device, window->window);
+	jsfd = open_joystick(joystick_device, window);
 	if (jsfd < 0) {
 		printf("No joystick...\n");
 	} else
 		check_for_screensaver();
 
-	gc = gdk_gc_new(GTK_WIDGET(main_da)->window);
-	wwvi_set_color(BLUE);
+	SDL_GetWindowSize(window, &real_screen_width, &real_screen_height);
+	update_screen_size(real_screen_width, real_screen_height);
 	wwvi_set_color(WHITE);
-
-	gdk_gc_set_clip_origin(gc, 0, 0);
-	cliprect.x = 0;	
-	cliprect.y = 0;	
-	cliprect.width = real_screen_width;	
-	cliprect.height = real_screen_height;	
-	gdk_gc_set_clip_rectangle(gc, &cliprect);
-
-	gtk_window_get_size(GTK_WINDOW (window), &real_screen_width, &real_screen_height);
-	if (real_screen_width == 800 && real_screen_height == 600) {
-		current_draw_line = unscaled_line;
-		current_draw_rectangle = unscaled_rectangle;
-		current_bright_line = unscaled_bright_line;
-	} else {
-		current_draw_line = scaled_line;
-		current_draw_rectangle = scaled_rectangle;
-		current_bright_line = scaled_bright_line;
-	}
-	xscale_screen = (float) real_screen_width / (float) SCREEN_WIDTH;
-	yscale_screen = (float) real_screen_height / (float) SCREEN_HEIGHT;
-
-
-	if (thicklines)
-		current_draw_line = thick_scaled_line;
 
 	explosion = explode;
 	bright_explosion = bright_explode;
@@ -14367,32 +14197,59 @@ int main(int argc, char *argv[])
 		explosion = sphere_explode;
 	}
 
-    timer_tag = g_timeout_add(1000 / frame_rate_hz, advance_game, NULL);
+	frame_ms = 1000 / frame_rate_hz;
+	if (frame_ms == 0)
+		frame_ms = 1;
+	next_frame_tick = SDL_GetTicks() + frame_ms;
 
-#ifndef GLIB_VERSION_2_32
-	/* this is only needed in glibc versions before 2.32 */
-    
-    /* Apparently (some versions of?) portaudio calls g_thread_init(). */
-    /* It may only be called once, and subsequent calls abort, so */
-    /* only call it if the thread system is not already initialized. */
-    if (!g_thread_supported ()) 
-	g_thread_init(NULL);
-#endif
+	gettimeofday(&start_time, NULL);
 
-    gdk_threads_init();
+	while (!quit_requested) {
+		SDL_Event ev;
+		Uint32 now;
 
-    gettimeofday(&start_time, NULL);
+		while (SDL_PollEvent(&ev))
+			handle_sdl_event(&ev);
 
-    /* All GTK applications must have a gtk_main(). Control ends here
-     * and waits for an event to occur (like a key press or
-     * mouse event). */
-    gtk_main ();
+		if (quit_requested)
+			break;
 
-    openlase_shutdown();
-    wwviaudio_stop_portaudio();
-    free_debris_forms();
+		now = SDL_GetTicks();
+		if (SDL_TICKS_PASSED(now, next_frame_tick)) {
+			advance_game();
+			if (quit_requested)
+				break;
+			/* Avoid spiral of death if e.g. insert_quarter() slept */
+			next_frame_tick += frame_ms;
+			if (SDL_TICKS_PASSED(SDL_GetTicks(), next_frame_tick + frame_ms))
+				next_frame_tick = SDL_GetTicks() + frame_ms;
+		}
+
+		if (need_redraw) {
+			render_frame();
+			need_redraw = 0;
+		}
+
+		now = SDL_GetTicks();
+		if (!SDL_TICKS_PASSED(now, next_frame_tick)) {
+			Uint32 wait_ms = next_frame_tick - now;
+			if (wait_ms > 10)
+				wait_ms = 10;
+			SDL_Delay(wait_ms);
+		}
+	}
+
+	resume_screensaver();
+	openlase_shutdown();
+	wwviaudio_stop_portaudio();
+	free_debris_forms();
 	close_joystick();
 	close_rumble_fd();
+	if (cross_cursor != NULL)
+		SDL_FreeCursor(cross_cursor);
+	SDL_DestroyRenderer(renderer);
+	SDL_DestroyWindow(window);
+	SDL_Quit();
 
-    return 0;
+	return 0;
 }

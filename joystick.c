@@ -28,7 +28,8 @@
 #include <dinput.h>
 
 /* window handle */
-#include <gdk/gdkwin32.h>
+#include <SDL.h>
+#include <SDL_syswm.h>
 
 /* joystick axes limits */
 #define MIN_AXIS -32767
@@ -87,7 +88,7 @@ BOOL CALLBACK EnumObjectsCallback(const DIDEVICEOBJECTINSTANCE *devobj, VOID *ct
 	return DIENUM_CONTINUE;
 }
 
-int open_joystick(char *joystick_device, GdkWindow *window)
+int open_joystick(char *joystick_device, void *window)
 {
 	HINSTANCE hi = 0;
 	HRESULT hr = 0;
@@ -117,7 +118,12 @@ int open_joystick(char *joystick_device, GdkWindow *window)
 
 	/* set the cooperative level */
 #ifdef __WIN32__
-	hwin = GDK_WINDOW_HWND(window);
+	{
+		SDL_SysWMinfo wmInfo;
+		SDL_VERSION(&wmInfo.version);
+		if (window && SDL_GetWindowWMInfo((SDL_Window *)window, &wmInfo))
+			hwin = wmInfo.info.win.window;
+	}
 #endif
 	hr = IDirectInputDevice2_SetCooperativeLevel(joystick, hwin, DISCL_EXCLUSIVE | DISCL_FOREGROUND);
 	if(FAILED(hr))

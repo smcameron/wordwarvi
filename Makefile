@@ -116,7 +116,7 @@ wordwarvi:	wordwarvi.c joystick.o rumble.o ${OGGOBJ} wwviaudio.o wwvi_font.o \
 		${OGGOBJ} \
 		wwviaudio.o \
 		wordwarvi.c -o wordwarvi ${OPENLASELIBDIR} ${OPENLASELIB} -lm ${SNDLIBS} \
-		`$(PKG_CONFIG) --cflags gtk+-2.0` `$(PKG_CONFIG) --libs gtk+-2.0 gthread-2.0` ${LDFLAGS}
+		`$(PKG_CONFIG) --cflags sdl2` `$(PKG_CONFIG) --libs sdl2` ${LDFLAGS}
 	/bin/rm stamp.h
 
 wordwarvi.6.gz:	wordwarvi.6
