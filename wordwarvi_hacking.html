@@ -10,7 +10,7 @@
 <li><a href="#main">A first look at the code: main() in wordwarvi.c</a></li>
 <li><a href="#data">Some important data structures and variables</a></li>
 <li><a href="#advance_game">advance_game(), called once per frame.</a></li>
-<li><a href="#expose">main_da_expose(), called once per frame to redraw the screen.</a></li>
+<li><a href="#expose">render_frame(), called once per frame to redraw the screen.</a></li>
 <li><a href="#enemy">How to add a new kind of enemy</a></li>
 <li><a href="#sound">Adding new sounds</a></li>
 <li><a href="#patches">Making and submitting patches</a></li>
@@ -99,7 +99,7 @@ kidding.)
 <p>version.h just contains the version number of the game.
 
 <p>wwviaudio.c and wwviaudio.h define the audio playback engine
-the game uses, as a layer on top of portaudio.
+the game uses, as a layer on top of SDL2's audio subsystem.
 
 <p>Finally, wordwarvi.c contains the meat of the game.
 
@@ -112,31 +112,70 @@ browse the word war vi source code via your
 browser as well.</a>).
 
 <p>At first, there's just a bunch of initializing of variables, 
-parsing commandline options and the .exrc config file, setting
-upt portaudio, reading in audio data, a bunch of gtk/gdk stuff
-to set up the main window, colors, callbacks, opening up
-joystick devices, the rumble device, etc.k
+parsing commandline options and the .exrc config file, initializing
+SDL2 (<code>SDL_Init(SDL_INIT_VIDEO)</code>), setting up SDL2 audio via
+<code>wwviaudio_initialize_audio()</code>, reading in audio data, creating
+the SDL2 window and renderer (<code>SDL_CreateWindow()</code> and
+<code>SDL_CreateRenderer()</code>), setting up colors, opening up
+joystick devices, the rumble device, etc.
 
-An important line of code is this one:
+<p>Next, the target frame period is computed:
 
 <pre>
-	timer_tag = g_timeout_add(1000 / frame_rate_hz, advance_game, NULL);
+	frame_ms = 1000 / frame_rate_hz;
+	if (frame_ms == 0)
+		frame_ms = 1;
+	next_frame_tick = SDL_GetTicks() + frame_ms;
 </pre>
 
-That sets up a timer which calls the function advance_game 30 times a
-second (or at some other rate if frame_rate_hz is changed from its
-default value.)  The advance_game() function is the heart of Word War
-vi, it is the main game loop.
+<p>That sets up a frame interval so <code>advance_game()</code> is called 30 times a
+second (or at some other rate if <code>frame_rate_hz</code> is changed from its
+default value).  The <code>advance_game()</code> function is the heart of Word War
+vi, it is the main game simulation step.
 
-Shortly after this timer is set up, this line of code occurs:
+<p>Shortly after this, the main SDL2 event and frame loop begins:
 <pre>
-	gtk_main ();
+	while (!quit_requested) {
+		SDL_Event ev;
+		Uint32 now;
+
+		while (SDL_PollEvent(&amp;ev))
+			handle_sdl_event(&amp;ev);
+
+		if (quit_requested)
+			break;
+
+		now = SDL_GetTicks();
+		if (SDL_TICKS_PASSED(now, next_frame_tick)) {
+			advance_game();
+			if (quit_requested)
+				break;
+			/* Avoid spiral of death if e.g. insert_quarter() slept */
+			next_frame_tick += frame_ms;
+			if (SDL_TICKS_PASSED(SDL_GetTicks(), next_frame_tick + frame_ms))
+				next_frame_tick = SDL_GetTicks() + frame_ms;
+		}
+
+		if (need_redraw) {
+			render_frame();
+			need_redraw = 0;
+		}
+
+		now = SDL_GetTicks();
+		if (!SDL_TICKS_PASSED(now, next_frame_tick)) {
+			Uint32 wait_ms = next_frame_tick - now;
+			if (wait_ms &gt; 10)
+				wait_ms = 10;
+			SDL_Delay(wait_ms);
+		}
+	}
 </pre>
 
-That is gtk's main loop.  It gathers events from the keyboard and mouse,
-and dispatches them to whatever callbacks are registered.  It also
-dispatches the timer to advance_game 30 times a second.  It doesn't
-return right away, but only when the program is exiting.
+<p>That loop polls SDL2 for keyboard, window, and quit events, advances the game
+30 times a second, calls <code>render_frame()</code> whenever <code>need_redraw</code>
+is set, and sleeps briefly with <code>SDL_Delay()</code> until the next frame.
+When <code>quit_requested</code> is set, it cleans up audio, joystick, rumble, the
+SDL2 renderer and window, and exits after calling <code>SDL_Quit()</code>.
 
 Next, we'd want to look at advance_game().  But before we can understand
 that, we need to know about a few data structures in the game.
@@ -335,7 +374,7 @@ what type of object it is, whether it should be on the target list, whether
 (and maybe how long) it should live, etc.
 
 <p>Now we're ready to look at the advance_game() function, which gets called
-by the timer we set up 30 times a second.
+by the main loop 30 times a second.
 
 <a name="advance_game">
 <h2>advance_game(), called once per frame.</h2></a>
@@ -356,34 +395,23 @@ myself.  The gist of this advance_game function is as follows:
 <li>Check for joystick input
 <li>Check for keyboard input (these need elaborating, but not just now.)
 <li>For each object in the game, if it's alive, move it.
-<li>Tell gtk to draw the screen (this triggers a call to 
-our function, main_da_expose(), which draws a frame.  main_da_expose
-is short for "main drawing area expose", and is the function which
-gets called with the main drawing area (you can think of this as our
-window) gets an "expose" event from gtk.  The expose event happens
-because a) some part of the window which was previously covered
-(by another window) became uncovered, or more likely, b) some part
-of the window has actively been changed, and the program has instructed
-gtk to generate an expose event to get this change onscreen.  The
-calling of all the objects "move" functions was what is considered
-"actively changing" the window, and we tell gtk to generate the
-expose event by calling gtk_widget_queue_draw(main_da) in advance_game
-after moving all the objects.
+<li>Set <code>need_redraw = 1</code> so the main loop calls
+<code>render_frame()</code> to draw the updated frame via SDL2.
 </ul>
 
-<a name="expose">
-<h2>main_da_expose(), called once per frame to redraw the screen.</h2></a>
-<p>This function gets called whenever an "expose" event to the drawing
-area in the main window comes in.  That "expose" event gets triggered
-30 times a second, because it's triggered at the end of advance_game
-by an explicit call to gtk_widget_queue_draw().
-
-<p>This function draws the terrain, and the "boundaries" on the
-left, top, and right sides of the game area (if they're on screen)
+<a name="expose"></a>
+<a name="render_frame">
+<h2>render_frame(), called once per frame to redraw the screen.</h2></a>
+<p>This function is called from the main loop whenever <code>need_redraw</code>
+is set (30 times a second after <code>advance_game()</code>, or when SDL2
+delivers a window expose or resize event).  It clears the screen with
+<code>SDL_RenderClear()</code>, draws the terrain, and the "boundaries" on the
+left, top, and right sides of the game area (if they're on screen),
 then draws the star field (calls draw_stars), and then
 calls <b>draw_objs</b> to draw all the objects.  Then it calls draw_radar
 (which only draws the borders of the radar).  Then, it draws the
-help screen or quit screen if either of those are active.
+help screen or quit screen if either of those are active, and presents
+the rendered frame with <code>SDL_RenderPresent()</code>.
 
 <p>The <b>draw_objs</b> function loops through all the objects in the game,
 and if the object is alive, it draws it on the radar if it's the

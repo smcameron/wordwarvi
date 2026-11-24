@@ -179,13 +179,17 @@ different Creative Commons licenses
 </p></td></tr>
 </tbody></table>
 </p><hr>
-<p><a name="Updates"><b>Updates</b>
-</a></p><ul><a name="Updates">
-</a><li><a name="Updates"><b> Thu Jun  9 04:39:33 UTC 2011, New version 1.00</b> Not much has changed.
+<p><a name="Updates"><b>Updates</b></a>
+</p><ul>
+<li><b> Tue Nov 24, 2026</b> Word War vi has been ported from GTK2 and PortAudio
+to <a href="https://www.libsdl.org/">SDL2</a> for windowing, rendering, input,
+and audio. GTK2 and PortAudio are no longer required; building now requires only
+SDL2 (and libvorbisfile for audio support).
+</li><li><b> Thu Jun  9 04:39:33 UTC 2011, New version 1.00</b> Not much has changed.
 The biggest change is to the makefile, to allow cross compilation
 (thanks to Denis Carikli).
 This means that
-</a><a href="http://boards.openpandora.org/index.php?/topic/2978-word-war-vi/">
+<a href="http://boards.openpandora.org/index.php?/topic/2978-word-war-vi/">
 Word War vi now runs on the OpenPandora</a>.
 Also round explosions are now the default.
 </li><li><b> Sun Jan 18 12:30:21 CST 2009, New version 0.25 -- here is the <a href="http://wordwarvi.cvs.sourceforge.net/viewvc/wordwarvi/wordwarvi/changelog.txt?revision=1.22&amp;view=markup">change log</a></b>
@@ -322,76 +326,26 @@ better than what's in the tarballs.
 </pre>
 <a name="compiling"></a>
 <p><b>Compiling the game</b>
-</p><p>Compiling is easy, after checking out from 
-CVS as above, just type "make."  You'll need the
-gnome libraries and header files, which you likely already
-have.
-</p><p>You may need to set a couple environment variables:
-</p><pre>export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
-export LD_LIBRARY_PATH=/usr/local/lib
-</pre>
-<p>(I have that in my ~/.login, so I tend to forget about them.)
-</p><p><b>You'll also need <del> 
-<a href="http://www.mega-nerd.com/libsndfile/">libsndfile</a></del> (not needed since 0.09)
-<a href="http://xiph.org/downloads/">libvorbisfile</a> (needed since 0.09. 
-It's in the libvorbis rpm on redhat based distros, and the vorbisfile 
-package for debian based systems, iirc).
-
-</b></p><p><b><b>Portaudio:</b> You will need the 
-<a href="http://www.portaudio.com/">portaudio</a>
-library.  You will need version 19, not version 18.</b>, 
-which there's a good chance you don't already have.
-These are easily compiled and installed via the traditional
-"./configure", "make", and (as root) "make install"
-commands.  Version 18 is <em>five years</em> old, yet this seems
-to be what debian and gentoo linux distros have by default.
-You need portaudio v. 19.  portaudio v. 18 <em>will not</em> work.  
-
-</p><p>I'm told that on Ubuntu, you can install the portaudio19-dev
-package, and that this will solve the portaudio problem without
-you having to compile it yourself.  I noticed that there are some <a href="http://www.savvyadmin.com/word-war-vi-in-ubuntu/">instructions
-for compiling Word War vi for Ubuntu users here.</a>  (Thanks
-<a href="http://www.savvyadmin.com/">Savvy Admin!</a>)
-
-</p><p>If you're
-on a distro which uses portaudio v. 18 by default, and you find you need to
-compile portaudio19  yourself, you may wish to configure
-v. 19 to install in /usr/local so as not to conflict, and break 
-default apps which depend on v. 18, and use the LD_LIBRARY_PATH
-variable to get wordwarvi to find the new version in /usr/local/lib.
-I'm not going to rewrite wordwarvi to use portaudio v. 18, libao, 
-SDL mixer, pulseaudio, etc., so don't ask.  There are a zillion linux 
-audio libs.  If I was going to allow using another one besides portaudio, 
-it would probably be <a href="http://jackaudio.org/">JACK</a>.  
-But don't count on even that.
-
-</p><p>If you want to compile without the audio libraries
-you can do so by typing:
+</p><p>Compiling is easy: after cloning the repository from GitHub
+(<code>git clone https://github.com/smcameron/wordwarvi.git</code>),
+just <code>cd wordwarvi</code> and type <code>make</code>.
+</p><p>Word War vi has been ported from GTK2 and PortAudio to
+<a href="https://www.libsdl.org/">SDL2</a> (for graphics, input, and audio),
+so GTK2 and PortAudio are no longer required.
+</p><p>You will need:
+</p><ul>
+<li><b>SDL2</b> development libraries and headers
+(<code>libsdl2-dev</code> on Debian/Ubuntu, <code>SDL2-devel</code> on Fedora/RedHat).
+</li><li><b><a href="http://xiph.org/downloads/">libvorbisfile</a></b>
+(needed since 0.09 to decode the included <code>.ogg</code> sound files;
+<code>libvorbis-dev</code> on Debian/Ubuntu, <code>libvorbis-devel</code> on Fedora/RedHat).
+</li></ul>
+<p>If you want to compile without audio support (so <code>libvorbisfile</code> is not needed;
+SDL2 is still required for video and input), you can type:
 </p><pre>make WITHAUDIO=no
 </pre>
-to build without audio support.  (Note, the WITHAUDIO=no seems
-to be broken in  v. 0.09, I screwed up the Makefile.  
-This has been fixed in CVS as of May 5, 2008) 
-<p><del>The CVS code also needs oggdec (from the vorbis-tools 
-package) to decode the .ogg files
-to .wav files, that is, if audio support is enabled (default).</del> 
-Not since v. 0.09.
-</p><p>Other packages you might need:
-</p><ul>
-<li>gtk2-devel
-</li><li>pango-devel
-</li><li>atk-devel
-</li><li>vorbis-tools (for oggdec)
-</li></ul>
-<p>A slackware user writes to tell me that on his system
-another program ("espeak" in his case) uses a different 
-version of portaudio.  He was able to get wordwarvi to 
-peacefully coexist with espeak by configuring the version
-of portaudio that wordwarvi needs to install in /usr/local/lib
-(presumably, with "configure --prefix=/usr/local").  Then,
-presumably, wordwarvi is linked against this via 
-LD_LIBRARY_PATH.
-
+<p>See the <code>README</code> in the source repository for Windows (MinGW / Code::Blocks)
+build instructions.
 </p><p><b>Notes for FreeBSD Users:</b>  
 In v. 0.22, I wrapped the xbox-360 
 controller rumble code
@@ -568,8 +522,8 @@ projects</a>  Also
 thanks to the guys that wrote 
 <a href="http://www.mega-nerd.com/libsndfile/">libsndfile</a> and 
 <a href="http://www.portaudio.com/">portaudio</a>  
-(Actually, I don't use libsndfile anymore, though it was handy 
-for awhile.)
+(Actually, I don't use libsndfile or portaudio anymore, though they were handy 
+for awhile.), and to the <a href="https://www.libsdl.org/">SDL2</a> developers.
 </li><li>Big thanks to the guys
 as <a href="http://xiph.org/">xiph.org</a>, 
 esp. Michael Smith, whose code for decoding ogg files

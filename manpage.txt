@@ -140,11 +140,10 @@ Options:
 	      Does exactly what it sounds like.
 
        --sounddevice n
-	      Use  alternate  sound  device  n,  where	n  is  an integer.  By
-	      default, wordwarvi uses the "default" sound device as  estimated
-	      by  the  PortAudio  library,  which is 0.  You can specify other
-	      numbers if you have other sound cards, or a  multichannel  sound
-	      card.
+              Use alternate sound device n, where n is  an  integer.   By  de‐
+              fault, wordwarvi uses the default sound device selected by SDL2.
+              You  can specify other numbers if you have other sound cards, or
+              a multichannel sound card.
 
        --starmotion x
 	      Controls	how  the  starfield  moves.   Possible values of x are
