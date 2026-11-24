@@ -1871,15 +1871,6 @@ static int last_y = -1;
 static int openlase_line_count = 0;
 #ifndef OPENLASEGRAYSCALE
 static int openlase_color = 0;
-
-void gdk_gc_set_foreground_hook(GdkGC *gc, const GdkColor *color)
-{
-	gdk_gc_set_foreground(gc, color);
-	openlase_color = ((color->blue) >> 8) +
-			 (((color->green) >> 8) << 8) +
-			 (((color->red) >> 8)<< 16);
-}
-#define gdk_gc_set_foreground(x, y) gdk_gc_set_foreground_hook(x, y)
 #else
 static int openlase_color = C_WHITE;
 #endif /* not OPENLASEGRAYSCALE */
@@ -1888,6 +1879,8 @@ static int openlase_color = C_WHITE;
 #else
 #define DEBRIS_AMOUNT 16
 #endif
+
+static void wwvi_set_color(int color);
 
 #ifdef OPENLASE
 static void openlase_rectangle(int x, int y, int width, int height)
@@ -2049,9 +2042,9 @@ void scaled_bright_line(GdkDrawable *drawable,
 	sy1 = y1*yscale_screen;	
 	sy2 = y2*yscale_screen;	
 	
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	gdk_draw_line(drawable, gc, sx1,sy1,sx2,sy2);
-	gdk_gc_set_foreground(gc, &huex[color]);
+	wwvi_set_color(color);
 	gdk_draw_line(drawable, gc, sx1-dx,sy1-dy,sx2-dx,sy2-dy);
 	gdk_draw_line(drawable, gc, sx1+dx,sy1+dy,sx2+dx,sy2+dy);
 	openlase_drawline(x1, y1, x2, y2);
@@ -2070,9 +2063,9 @@ void unscaled_bright_line(GdkDrawable *drawable,
 		dy = 0;
 	}
 	
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	gdk_draw_line(drawable, gc, x1,y1,x2,y2);
-	gdk_gc_set_foreground(gc, &huex[color]);
+	wwvi_set_color(color);
 	gdk_draw_line(drawable, gc, x1-dx,y1-dy,x2-dx,y2-dy);
 	gdk_draw_line(drawable, gc, x1+dx,y1+dy,x2+dx,y2+dy);
 	openlase_drawline(x1, y1, x2, y2);
@@ -2515,6 +2508,16 @@ struct game_obj_t *player_target;
 int lasthuman = 0;				/* debug code... for 'n' key. */
 
 GdkGC *gc = NULL;		/* our graphics context. */
+
+static void wwvi_set_color(int color)
+{
+	gdk_gc_set_foreground(gc, &huex[color]);
+#if defined(OPENLASE) && !defined(OPENLASEGRAYSCALE)
+	openlase_color = ((huex[color].blue) >> 8) +
+			 (((huex[color].green) >> 8) << 8) +
+			 (((huex[color].red) >> 8) << 16);
+#endif
+}
 GtkWidget *main_da;		/* main drawing area. */
 gint timer_tag;			/* for our gtk 30 times per second timer function */
 int next_quarter_time = -1;	/* Used to limit rate at which quarters can be put in. */
@@ -2680,7 +2683,7 @@ void incorrect_draw_stars(GtkWidget *w)
 	short worldx, worldy;
 	short gl, sx, sy;
 
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	for (i=0;i<number_of_stars;i++) {
 		if (randomn(100) < 3)
 			continue;
@@ -2716,7 +2719,7 @@ void correct_draw_stars(GtkWidget *w)
 	short worldx, worldy;
 	short gl, sx, sy;
 
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	for (i=0;i<number_of_stars;i++) {
 		if (randomn(100) < 3)
 			continue;
@@ -3361,7 +3364,7 @@ void fuel_draw(struct game_obj_t *o, GtkWidget *w)
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2) + 
 		30 - (45 * o->tsd.fuel.level / FUELTANK_CAPACITY);
 	if (o->tsd.fuel.level > 0) {
-		gdk_gc_set_foreground(gc, &huex[DARKGREEN]);
+		wwvi_set_color(DARKGREEN);
 		wwvi_draw_rectangle(w->window, gc, TRUE, x1, y1, 50, o->tsd.fuel.level * 45 / FUELTANK_CAPACITY);
 	}
 
@@ -3419,7 +3422,7 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 	/* this is debug code */
 	dist2 = (o->tsd.cron.tx - o->x)* (o->tsd.cron.tx - o->x) + (o->tsd.cron.ty - o->y)* (o->tsd.cron.ty - o->y);
 	if (dist2 < 20000) {
-		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS)]);
+		wwvi_set_color(randomn(NCOLORS+NSPARKCOLORS));
 		x1 = o->x - game_state.x;
 		y1 = o->y + 7 - game_state.y + (SCREEN_HEIGHT/2);  
 		x2 = o->tsd.cron.tx - game_state.x;
@@ -3433,7 +3436,7 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 	x1 = o->x - game_state.x + o->tsd.cron.eyepos;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2) - 5;  
 	x2 = x1 + 3;
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	wwvi_draw_line(w->window, gc, x1, y1, x2, y1); /* draw eye */
 
 	/* move the cron job's eye */
@@ -3479,18 +3482,18 @@ void lightning_draw( GtkWidget *w, int x1, int y1, int x2, int y2)
 
 	/* terminal case, x1, y1, and x2, y2 are very close, just draw a line. */
 	if (dx < 10 && dy < 10) {
-		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		wwvi_set_color(WHITE);
 		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
 		if (dx < dy) {
 			wwvi_draw_line(w->window, gc, x1-1, y1, x2-1, y2); 
 			wwvi_draw_line(w->window, gc, x1+1, y1, x2+1, y2); 
-			gdk_gc_set_foreground(gc, &huex[BLUE]);
+			wwvi_set_color(BLUE);
 			wwvi_draw_line(w->window, gc, x1-2, y1, x2-2, y2); 
 			wwvi_draw_line(w->window, gc, x1+2, y1, x2+2, y2); 
 		} else {
 			wwvi_draw_line(w->window, gc, x1, y1-1, x2, y2-1); 
 			wwvi_draw_line(w->window, gc, x1, y1+1, x2, y2+1); 
-			gdk_gc_set_foreground(gc, &huex[BLUE]);
+			wwvi_set_color(BLUE);
 			wwvi_draw_line(w->window, gc, x1, y1-2, x2, y2-1); 
 			wwvi_draw_line(w->window, gc, x1, y1+2, x2, y2+1); 
 		}
@@ -3530,7 +3533,7 @@ void floating_message_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	/* draw a floating message -- a game object that is text living in game coords. */
 	/* this is for bonus scores, "Help!" and "Woohoo!" messages the .swp files "say." */
-	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_set_color(o->color);
 	xy_draw_string(w, (char *) o->tsd.floating_message.msg, 
 		o->tsd.floating_message.font, o->x, o->y) ;
 }
@@ -3547,7 +3550,7 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 
 	/* draw each tentacle, accumulating relative angles as you go, */
 	/* alternating colors of segments between yellow and blue.  */
-	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_set_color(o->color);
 	x1 = o->x - game_state.x;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 	for (i=0;i<o->tsd.tentacle.nsegs;i++) {
@@ -3562,16 +3565,16 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 		switch (o->tsd.tentacle.color_scheme) {
 		case 0: 
 			if ((i % 2) == 1)
-				gdk_gc_set_foreground(gc, &huex[o->color]);
+				wwvi_set_color(o->color);
 			else
-				gdk_gc_set_foreground(gc, &huex[o->tsd.tentacle.other_color]);
+				wwvi_set_color(o->tsd.tentacle.other_color);
 			break;
 		case 1:
-			gdk_gc_set_foreground(gc, &huex[((1000-i+(timer >> 1)) % NSPARKCOLORS) + NCOLORS]);
+			wwvi_set_color(((1000-i+(timer >> 1)) % NSPARKCOLORS) + NCOLORS);
 			break;
 		case 2:
 			/* gdk_gc_set_foreground(gc, &huex[NCOLORS + NSPARKCOLORS + (i * NRAINBOWCOLORS)/o->tsd.tentacle.nsegs]); */
-			gdk_gc_set_foreground(gc, &huex[NCOLORS + NSPARKCOLORS + (((1000-i+(timer >> 2)) + ((i & 0x01)*4)) % NRAINBOWCOLORS)]);
+			wwvi_set_color(NCOLORS + NSPARKCOLORS + (((1000-i+(timer >> 2)) + ((i & 0x01)*4)) % NRAINBOWCOLORS));
 			break;
 		default: /* constant color */
 			break;
@@ -5471,12 +5474,12 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 		for (i = 0; i<o->tsd.epd.count2; i++) {
 			int j;
 			int x1, y1, x2, y2;
-			gdk_gc_set_foreground(gc, &huex[o->color]);
+			wwvi_set_color(o->color);
 			for (j=0;j<o->v->npoints-1;j++) {
 				if (o->v->p[j+1].x == LINE_BREAK) /* Break in the line segments. */
 					j+=2;
 				if (o->v->p[j].x == COLOR_CHANGE) {
-					gdk_gc_set_foreground(gc, &huex[o->v->p[j].y]);
+					wwvi_set_color(o->v->p[j].y);
 					j+=1;
 				}
 				x1 = o->x + o->v->p[j].x*scale - game_state.x;
@@ -5504,7 +5507,7 @@ void xmas_player_draw(struct game_obj_t *o, GtkWidget *w)
 	if (o->tsd.epd.count == 0) {  /* normal case, just draw the player normally. */
 		draw_generic(o, w);
 		if (o->bullseye != NULL) {
-			gdk_gc_set_foreground(gc, &huex[RED]);
+			wwvi_set_color(RED);
 			x1 = o->x - game_state.x;
 			y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 			x2 = o->bullseye->x - game_state.x;
@@ -5518,11 +5521,11 @@ void xmas_player_draw(struct game_obj_t *o, GtkWidget *w)
 			y1 = o->y - 4 -game_state.y +(SCREEN_HEIGHT/2);  
 			y2 = y1 - 2;  
 			x2 = x1 + game_state.direction;
-			gdk_gc_set_foreground(gc, &huex[WHITE]);
+			wwvi_set_color(WHITE);
 			wwvi_draw_line(w->window, gc, x1, y1, x2, y1); 
 			wwvi_draw_line(w->window, gc, x1, y2, x2, y2); 
 			--y1;
-			gdk_gc_set_foreground(gc, &huex[RED]);
+			wwvi_set_color(RED);
 			wwvi_draw_line(w->window, gc, x1, y1, x2, y1); 
 		}
 	} else {
@@ -5546,12 +5549,12 @@ void xmas_player_draw(struct game_obj_t *o, GtkWidget *w)
 		for (i = 0; i<o->tsd.epd.count2; i++) {
 			int j;
 			int x1, y1, x2, y2;
-			gdk_gc_set_foreground(gc, &huex[o->color]);
+			wwvi_set_color(o->color);
 			for (j=0;j<o->v->npoints-1;j++) {
 				if (o->v->p[j+1].x == LINE_BREAK) /* Break in the line segments. */
 					j+=2;
 				if (o->v->p[j].x == COLOR_CHANGE) {
-					gdk_gc_set_foreground(gc, &huex[o->v->p[j].y]);
+					wwvi_set_color(o->v->p[j].y);
 					j+=1;
 				}
 				x1 = o->x + o->v->p[j].x*scale - game_state.x;
@@ -6025,7 +6028,7 @@ void no_move(__attribute__((unused)) struct game_obj_t *o)
 void laser_draw(struct game_obj_t *o,  GtkWidget *w)
 {
 	int x1, y1, x2;
-	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_set_color(o->color);
 	x1 = o->x - game_state.x;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 
@@ -6036,7 +6039,7 @@ void laser_draw(struct game_obj_t *o,  GtkWidget *w)
 	wwvi_bright_line(w->window, gc, x1, y1, x2, y1, o->color);
 
 #if DEBUG_HITZONE
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	wwvi_draw_line(w->window,gc, x1, y1 - LASER_Y_PROXIMITY, x1, y1 + LASER_Y_PROXIMITY);
 	wwvi_draw_line(w->window,gc, x2, y1 - LASER_Y_PROXIMITY, x2, y1 + LASER_Y_PROXIMITY);
 #endif
@@ -6292,7 +6295,7 @@ void spark_draw(struct game_obj_t *o, GtkWidget *w)
 
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
 	y1 = y2 + o->vy;
-	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_set_color(o->color);
 	wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
 }
 
@@ -6308,7 +6311,7 @@ void pixie_dust_draw(struct game_obj_t *o, GtkWidget *w)
 		return;
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
 	y1 = y2 + randomn(4);
-	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_set_color(o->color);
 	wwvi_draw_line(w->window, gc, x1, y1, x2, y2);
 }
 
@@ -6346,7 +6349,7 @@ void missile_draw(struct game_obj_t *o, GtkWidget *w)
 	rdy = dx / 16;
 	rdx2 = -dy / 4;
 	rdy2 = dx / 4;
-	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_set_color(o->color);
 	if (x1 > 0 && x1+dx*2 > 0 && x1 < SCREEN_WIDTH &&  x1+dx*2 < SCREEN_WIDTH) {
 		wwvi_draw_line(w->window, gc, x1+rdx, y1+rdy, x1+dx*2+rdx, y1+dy*2+rdy); 
 		wwvi_draw_line(w->window, gc, x1-rdx, y1-rdy, x1+dx*2-rdx, y1+dy*2-rdy); 
@@ -6368,7 +6371,7 @@ void harpoon_draw(struct game_obj_t *o, GtkWidget *w)
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 	dx = dx_from_vxy(o->vx, o->vy);
 	dy = -dy_from_vxy(o->vx, o->vy);
-	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_set_color(o->color);
 	wwvi_draw_line(w->window, gc, x1, y1, x1+dx, y1+dy); 
 }
 
@@ -7114,7 +7117,7 @@ void worm_draw(struct game_obj_t *o, GtkWidget *w)
 	y = o->y - game_state.y + (SCREEN_HEIGHT/2);
 	if (o->tsd.worm.parent == NULL) {
 		/* int x3, y3; */
-		gdk_gc_set_foreground(gc, &huex[o->color]);
+		wwvi_set_color(o->color);
 		wwvi_draw_line(w->window, gc, x-2, y, x, y-2); 
 		wwvi_draw_line(w->window, gc, x, y-2, x+2, y); 
 		wwvi_draw_line(w->window, gc, x+2, y, x, y+2); 
@@ -7129,7 +7132,7 @@ void worm_draw(struct game_obj_t *o, GtkWidget *w)
 */
 	} else {
 		color = NCOLORS + NSPARKCOLORS + ((timer + o->tsd.worm.coloroffset) % NRAINBOWCOLORS);
-		gdk_gc_set_foreground(gc, &huex[color]);
+		wwvi_set_color(color);
 		if (o->tsd.worm.child == NULL) {
 			wwvi_draw_line(w->window, gc, x-2, y, x, y-2); 
 			wwvi_draw_line(w->window, gc, x, y-2, x+2, y); 
@@ -7386,7 +7389,7 @@ void gunwheel_draw(struct game_obj_t *o, GtkWidget *w)
 	y1 = y1 - game_state.y + (SCREEN_HEIGHT/2);  
 	y2 = y2 - game_state.y + (SCREEN_HEIGHT/2);  
 
-	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_set_color(o->color);
 
 	wwvi_draw_line(w->window, gc, x1-rx, y1-ry, x2-rx, y2-ry);
 	wwvi_draw_line(w->window, gc, x1+rx, y1+ry, x2+rx, y2+ry);
@@ -7778,7 +7781,7 @@ void draw_abs_scaled_generic(int x, int y,
 			y1 = y + (v->p[j].y * yscale);  
 		}
 		if (v->p[j].x == COLOR_CHANGE) {
-			gdk_gc_set_foreground(gc, &huex[v->p[j].y]);
+			wwvi_set_color(v->p[j].y);
 			j+=1;
 			x1 = x + (v->p[j].x * xscale);
 			y1 = y + (v->p[j].y * yscale);  
@@ -7800,7 +7803,7 @@ void draw_scaled_generic(struct game_obj_t *o, GtkWidget *w, float xscale, float
 {
 	int j;
 	int x1, y1, x2, y2;
-	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_set_color(o->color);
 	x1 = o->x + (o->v->p[0].x * xscale) - game_state.x;
 	y1 = o->y + (o->v->p[0].y * yscale) - game_state.y + (SCREEN_HEIGHT/2);  
 	for (j=0;j<o->v->npoints-1;j++) {
@@ -7810,7 +7813,7 @@ void draw_scaled_generic(struct game_obj_t *o, GtkWidget *w, float xscale, float
 			y1 = o->y + (o->v->p[j].y * yscale) - game_state.y + (SCREEN_HEIGHT/2);  
 		}
 		if (o->v->p[j].x == COLOR_CHANGE) {
-			gdk_gc_set_foreground(gc, &huex[o->v->p[j].y]);
+			wwvi_set_color(o->v->p[j].y);
 			j+=1;
 			x1 = o->x + (o->v->p[j].x * xscale) - game_state.x;
 			y1 = o->y + (o->v->p[j].y * yscale) - game_state.y + (SCREEN_HEIGHT/2);  
@@ -7839,7 +7842,7 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 
 #if DEBUG_HITZONE
 	if (o->ontargetlist) {
-		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		wwvi_set_color(WHITE);
 		x1 = o->x - game_state.x;
 		y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 		if (x1 > 0 && x1 < SCREEN_WIDTH && y1 < SCREEN_HEIGHT && y1 > 0) {
@@ -7850,7 +7853,7 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 		}
 	}
 #endif
-	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_set_color(o->color);
 	x1 = o->x + o->v->p[0].x - game_state.x;
 	y1 = o->y + o->v->p[0].y - game_state.y + (SCREEN_HEIGHT/2);  
 	for (j=0;j<o->v->npoints-1;j++) {
@@ -7860,7 +7863,7 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 			y1 = o->y + o->v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
 		}
 		if (o->v->p[j].x == COLOR_CHANGE) {
-			gdk_gc_set_foreground(gc, &huex[o->v->p[j].y]);
+			wwvi_set_color(o->v->p[j].y);
 			j+=1;
 			x1 = o->x + o->v->p[j].x - game_state.x;
 			y1 = o->y + o->v->p[j].y - game_state.y + (SCREEN_HEIGHT/2);  
@@ -7982,7 +7985,7 @@ void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 void truss_draw(struct game_obj_t *o, GtkWidget *w)
 {
 	int x, y, x1, y1, x2, y2, x3, y3, x4, y4;
-	gdk_gc_set_foreground(gc, &huex[o->color]);
+	wwvi_set_color(o->color);
 
 	x = o->x - game_state.x;
 	y = o->y - game_state.y + (SCREEN_HEIGHT/2);  
@@ -8270,7 +8273,7 @@ static inline void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_corre
 			/* prominent. */
 			if ((timer & 0x04) == 0x04) /* make 'em blink */
 				return;
-			gdk_gc_set_foreground(gc, &huex[o->color]);
+			wwvi_set_color(o->color);
 			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
 			wwvi_draw_line(w->window, gc, x1, y2, x2, y1); 
 			wwvi_draw_line(w->window, gc, x1, y2, x1, y1); 
@@ -8279,7 +8282,7 @@ static inline void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_corre
 			wwvi_draw_line(w->window, gc, x2, y2, x1, y2); 
 			return;
 		}
-		gdk_gc_set_foreground(gc, &huex[o->color]);
+		wwvi_set_color(o->color);
 		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
 		wwvi_draw_line(w->window, gc, x1, y2, x2, y1); 
 	}
@@ -8306,7 +8309,7 @@ static inline void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_corre
 		/* paint the noise... */
 		for (i=0;i<noisecount;i++) {
 			int x1, y1, x2, y2;
-			gdk_gc_set_foreground(gc, &huex[cradarnoise[nc]]);
+			wwvi_set_color(cradarnoise[nc]);
 			x1 = xradarnoise[nx]-1;
 			x2 = xradarnoise[nx]+1;
 			y1 = yradarnoise[ny]-1;
@@ -8347,7 +8350,7 @@ static inline void debug_draw_target_guidelines(GtkWidget *w, struct game_obj_t 
 	/* some code for debugging the target list */
 	if (!o->ontargetlist)
 		return;
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	x1 = o->x - game_state.x;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 	wwvi_draw_line(w->window, gc, x1-5, y1, x1+5, y1);
@@ -8358,7 +8361,7 @@ static inline void debug_display_target_list_count(GtkWidget *w, int total)
 {
 	char count[15];
 	sprintf(count, "TL:%d", total);
-	gdk_gc_set_foreground(gc, &huex[RED]);
+	wwvi_set_color(RED);
 	abs_xy_draw_string(w, count, TINY_FONT, 20, 20);
 } 
 #else
@@ -8454,7 +8457,7 @@ static void draw_strings(GtkWidget *w)
 {
 	int i;
 
-	gdk_gc_set_foreground(gc, &huex[WHITE]); /*&huex[current_color]);*/
+	wwvi_set_color(WHITE); /*&huex[current_color]);*/
 	for (i=0;i<ntextlines;i++) {
 		/* printf("Drawing '%s' color=%d, x=%d, y=%d\n", 
 			textline[i].string, current_color, 
@@ -8514,7 +8517,7 @@ static void rainbow_abs_xy_draw_string(GtkWidget *w, char *s, int font, int x, i
 	for (i=0;s[i];i++) {
 		color = ((((x + deltax*i) * NRAINBOWCOLORS) / (SCREEN_WIDTH*2) + 
 			((y * NRAINBOWCOLORS)/ (SCREEN_HEIGHT*2)) + timer) % NRAINBOWCOLORS) + NCOLORS + NSPARKCOLORS;
-		gdk_gc_set_foreground(gc, &huex[color]);
+		wwvi_set_color(color);
 		abs_xy_draw_letter(w, gamefont[font], s[i], x + deltax*i, y);  
 	}
 }
@@ -10256,7 +10259,7 @@ static void do_newhighscore(GtkWidget *w,
 	}
 
 	/* Draw the high score message */
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	rainbow_abs_xy_draw_string(w, "New High Score!", BIG_FONT, 100, 70);
 #ifndef OPENLASE
 	rainbow_abs_xy_draw_string(w, "New High Score!", BIG_FONT, 101, 71);
@@ -10397,7 +10400,7 @@ void update_intermission_starfield(GtkWidget *w)
 		}		
 		initialized = 1;
 	}
-	gdk_gc_set_foreground(gc, &huex[NCOLORS + NSPARKCOLORS + (((timer >> 2)) % NRAINBOWCOLORS)]);
+	wwvi_set_color(NCOLORS + NSPARKCOLORS + (((timer >> 2)) % NRAINBOWCOLORS));
 	for (i = 0; i < INTERMISSION_STARS; i++) {
 		star[i].lx = star[i].x;
 		star[i].x += star[i].vx;
@@ -10622,7 +10625,7 @@ static void draw_radar(GtkWidget *w)
 	x1 = xoffset;
 	x2 = SCREEN_WIDTH - RADAR_RIGHT_MARGIN;
 
-	gdk_gc_set_foreground(gc, &huex[RED]);
+	wwvi_set_color(RED);
 
 	/* draw radar border */
 	wwvi_draw_line(w->window, gc, x1, y1, x1, y2);
@@ -10631,7 +10634,7 @@ static void draw_radar(GtkWidget *w)
 	wwvi_draw_line(w->window, gc, x2, y1, x1, y1);
 
 	/* draw health bar */
-	gdk_gc_set_foreground(gc, &huex[ORANGE]);
+	wwvi_set_color(ORANGE);
 	if (game_state.health > 0)
 		wwvi_draw_rectangle(w->window, gc, TRUE, RADAR_LEFT_MARGIN, 
 			SCREEN_HEIGHT - RADAR_HEIGHT - RADAR_YMARGIN - 10, 
@@ -10674,7 +10677,7 @@ static void draw_radar(GtkWidget *w)
 		if (viewport_right > x2)
 			viewport_right = x2;
 
-		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		wwvi_set_color(WHITE);
 
 		/* draw upper left corner */
 		wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_left, viewport_top + 5);
@@ -10702,12 +10705,12 @@ static void draw_radar(GtkWidget *w)
 #endif
 
 	if (game_state.corrosive_atmosphere && game_state.radar_state == RADAR_RUNNING && credits > 0) {
-		gdk_gc_set_foreground(gc, &huex[GREEN]);
+		wwvi_set_color(GREEN);
 		abs_xy_draw_string(w, "Corrosive atmosphere detected!  Vacate the area immediately!", 
 			TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2);
 	}
 
-	gdk_gc_set_foreground(gc, &huex[RED]);
+	wwvi_set_color(RED);
 	sprintf(statusstr, "Score:   %7d", game_state.score);
 	abs_xy_draw_string(w, statusstr, TINY_FONT, x2 + 5, y1 + 7);
 	sprintf(statusstr, "Bombs:   %7d", game_state.nbombs);
@@ -10720,7 +10723,7 @@ static void draw_radar(GtkWidget *w)
 	abs_xy_draw_string(w, statusstr, TINY_FONT, x2 + 5, y1 + 63);
 
 	if (game_pause) {
-		gdk_gc_set_foreground(gc, &huex[GREEN]);
+		wwvi_set_color(GREEN);
 
 		/* Remember Parsec on the ti99/4a? */
 		abs_xy_draw_string(w, "Time warp activated.", 
@@ -10731,12 +10734,12 @@ static void draw_radar(GtkWidget *w)
 	if (game_state.radar_state == RADAR_RUNNING) {
 		if ((timer & 0x04) == 0) {
 			if (game_state.missile_locked) {
-				gdk_gc_set_foreground(gc, &huex[RED]);
+				wwvi_set_color(RED);
 				abs_xy_draw_string(w, "***MISSILE LOCK ON DETECTED***", 
 					TINY_FONT, x1 + 210-18, y1 + RADAR_HEIGHT-3);
 			}	
 			if (credits <= 0) {
-				gdk_gc_set_foreground(gc, &huex[GREEN]);
+				wwvi_set_color(GREEN);
 				abs_xy_draw_string(w, "Press 'q' to Insert Quarter and Start Game -- F1 for Help", 
 					TINY_FONT, x1 + 60, y1 + RADAR_HEIGHT-30);
 			}
@@ -10745,12 +10748,12 @@ static void draw_radar(GtkWidget *w)
 	}
 
 	if (game_state.radar_state == RADAR_FRITZED) {
-		gdk_gc_set_foreground(gc, &huex[randomn(NCOLORS+NSPARKCOLORS+NRAINBOWCOLORS)]);
+		wwvi_set_color(randomn(NCOLORS+NSPARKCOLORS+NRAINBOWCOLORS));
 		wwvi_draw_line(w->window, gc, x1, y1 + timer % RADAR_HEIGHT, 
 			x2,  y1 + timer % RADAR_HEIGHT);
 	} else if (game_state.radar_state <= RADAR_BOOTUP) { 
 		/* radar is booting up, display bootup message. */
-		gdk_gc_set_foreground(gc, &huex[GREEN]);
+		wwvi_set_color(GREEN);
 		radar_msg1[0] = spinner[timer % 16];
 		abs_xy_draw_string(w, radar_msg1, TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2-10);
 		abs_xy_draw_string(w, radar_msg2, TINY_FONT, x1 + 80, y1 + RADAR_HEIGHT/2+10);
@@ -10809,30 +10812,30 @@ static void draw_quit_screen(GtkWidget *w)
 
 	quittimer++;
 
-	gdk_gc_set_foreground(gc, &huex[BLACK]);
+	wwvi_set_color(BLACK);
 	wwvi_draw_rectangle(w->window, gc, TRUE, 100, 100, SCREEN_WIDTH-200, SCREEN_HEIGHT-200);
-	gdk_gc_set_foreground(gc, &huex[RED]);
+	wwvi_set_color(RED);
 	wwvi_draw_rectangle(w->window, gc, FALSE, 100, 100, SCREEN_WIDTH-200, SCREEN_HEIGHT-200);
 
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "Quit?", BIG_FONT, 300, 280);
 
 	if (current_quit_selection == 1) {
 		x = 130;
-		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		wwvi_set_color(WHITE);
 	} else {
 		x = 480;
-		gdk_gc_set_foreground(gc, &huex[RED]);
+		wwvi_set_color(RED);
 	}
 	abs_xy_draw_string(w, "Quit Now", SMALL_FONT, 150, 450);
 	if (current_quit_selection == 0)
-		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		wwvi_set_color(WHITE);
 	else
-		gdk_gc_set_foreground(gc, &huex[RED]);
+		wwvi_set_color(RED);
 	abs_xy_draw_string(w, "Don't Quit", SMALL_FONT, 500, 450);
 
 	if ((quittimer & 0x04)) {
-		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		wwvi_set_color(WHITE);
 		wwvi_draw_rectangle(w->window, gc, FALSE, x, 420, 200, 50);
 	}
 }
@@ -10880,7 +10883,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		last_highx++;
 	}
 
-	gdk_gc_set_foreground(gc, &huex[planet_color[level.ground_color]]);
+	wwvi_set_color(planet_color[level.ground_color]);
 	for (i=last_lowx;i<last_highx;i++) {
 #if 0
 		if (terrain.x[i] < sx1 && terrain.x[i+1] < sx1) /* offscreen to the left */
@@ -10907,7 +10910,7 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 		wwvi_draw_line(w->window, gc, terrain.x[i] - game_state.x, terrain.y[i]+(SCREEN_HEIGHT/2) - game_state.y,  
 					 terrain.x[i+1] - game_state.x, terrain.y[i+1]+(SCREEN_HEIGHT/2) - game_state.y);
 	}
-	gdk_gc_set_foreground(gc, &huex[RED]);
+	wwvi_set_color(RED);
 
 	/* draw "system memory boundaries" (ha!) */
 	if (game_state.x > terrain.x[0] - SCREEN_WIDTH && game_state.x < terrain.x[0] + SCREEN_WIDTH)
@@ -12460,9 +12463,9 @@ static void draw_help_screen(GtkWidget *w)
 	int y;
 
 
-	gdk_gc_set_foreground(gc, &huex[BLACK]);
+	wwvi_set_color(BLACK);
 	wwvi_draw_rectangle(w->window, gc, TRUE, 50, 50, SCREEN_WIDTH-100, SCREEN_HEIGHT-100);
-	gdk_gc_set_foreground(gc, &huex[RED]);
+	wwvi_set_color(RED);
 	wwvi_draw_rectangle(w->window, gc, FALSE, 50, 50, SCREEN_WIDTH-100, SCREEN_HEIGHT-100);
 
 	if (helpscreen_pixel_row > -30)
@@ -12474,10 +12477,10 @@ static void draw_help_screen(GtkWidget *w)
 
 
 	y = 90;
-	gdk_gc_set_foreground(gc, &huex[GREEN]);
+	wwvi_set_color(GREEN);
 	abs_xy_draw_string(w, "Object of the game:", SMALL_FONT, 80, y);
 	y += 50;
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "Rescue your four lost .swp files and transport them to the end of", TINY_FONT, 80, y);
 	y += 20;
 	abs_xy_draw_string(w, "the level and take the socket to the next node in the cluster.  Avoid", TINY_FONT, 80, y);
@@ -12487,89 +12490,89 @@ static void draw_help_screen(GtkWidget *w)
 	abs_xy_draw_string(w, "your .swp files.  Use laser fire and bombs to destroy enemy processes.", TINY_FONT, 80, y);
 	y += 50;
 
-	gdk_gc_set_foreground(gc, &huex[GREEN]);
+	wwvi_set_color(GREEN);
 	abs_xy_draw_string(w, "Things you may encounter:", SMALL_FONT, 80, y);
 	/* abs_xy_draw_string(w, "Help?", BIG_FONT, 300, 280);*/
 
 	y += 50;
-	gdk_gc_set_foreground(gc, &huex[GREEN]);
+	wwvi_set_color(GREEN);
 	draw_abs_scaled_generic(80, y, &cron_vect, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "Cron Job", TINY_FONT, 110, y);
-	gdk_gc_set_foreground(gc, &huex[CYAN]);
+	wwvi_set_color(CYAN);
 
 	y += 50;
 	draw_abs_scaled_generic(80, y, &gdb_vect_left, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "gdb", TINY_FONT, 110, y);
-	gdk_gc_set_foreground(gc, &huex[CYAN]);
+	wwvi_set_color(CYAN);
 
 	y += 50;
 	draw_abs_scaled_generic(80, y, &rocket_vect, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "Rocket", TINY_FONT, 110, y);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 
 	y += 50;
 	draw_abs_scaled_generic(80, y, &SAM_station_vect, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "SAM station", TINY_FONT, 110, y);
 
 	y -= 150;
-	gdk_gc_set_foreground(gc, &huex[CYAN]);
+	wwvi_set_color(CYAN);
 	draw_abs_scaled_generic(260, y, &airship_vect, w, 0.1, 0.1);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "EMACS (Stallman's airship)", TINY_FONT, 310, y);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 
 	y += 50;
 	draw_abs_scaled_generic(260, y, &jet_vect, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "Jet", TINY_FONT, 310, y);
-	gdk_gc_set_foreground(gc, &huex[RED]);
+	wwvi_set_color(RED);
 
 	y += 50;
 	draw_abs_scaled_generic(260, y, &kgun_vect, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "Laser turret", TINY_FONT, 310, y);
-	gdk_gc_set_foreground(gc, &huex[CYAN]);
+	wwvi_set_color(CYAN);
 
 	y += 50;
 	draw_abs_scaled_generic(260, y, &balloon_vect, w, 0.2, 0.2);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "fetchmail", TINY_FONT, 310, y);
 	abs_xy_draw_string(w, "(Raymond's Gasbag)", TINY_FONT, 310, 300);
 
 	y -= 150;	
-	gdk_gc_set_foreground(gc, &huex[ORANGE]);
+	wwvi_set_color(ORANGE);
 	draw_abs_scaled_generic(570, y, &fuel_vect, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "Fuel tank", TINY_FONT, 620, y);
-	gdk_gc_set_foreground(gc, &huex[MAGENTA]);
+	wwvi_set_color(MAGENTA);
 
 	y += 50;
 	draw_abs_scaled_generic(570, y, &humanoid_vect, w, 1.0, 1.0);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, ".swp file", TINY_FONT, 620, y);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 
 	y += 50;
 	draw_abs_scaled_generic(570, y, &socket_vect, w, 0.5, 0.5);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "socket", TINY_FONT, 620, y);
-	gdk_gc_set_foreground(gc, &huex[GREEN]);
+	wwvi_set_color(GREEN);
 
 	y += 50;
 	draw_abs_scaled_generic(570, y, &jetpilot_vect_right, w, 1.0, 1.0);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "Jet pilot", TINY_FONT, 620, y);
 
 	y += 50;
 	row = 0;
 	column = 0;
-	gdk_gc_set_foreground(gc, &huex[GREEN]);
+	wwvi_set_color(GREEN);
 	abs_xy_draw_string(w, "Controls:", SMALL_FONT, 80, y);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 
 	y += 50;
 
@@ -12620,16 +12623,16 @@ static void draw_help_screen(GtkWidget *w)
 	max_y = y + row*20 + 30;
 
 	y = max_y + 20;
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 	abs_xy_draw_string(w, "Additionally, you may use a gamepad such as an Xbox 360", TINY_FONT, 80, y);
 	y += 20;
 	abs_xy_draw_string(w, "controller (recommended) or a Logitech Dual Action Rumble.", TINY_FONT, 80, y);
 
 	y += 40;
 
-	gdk_gc_set_foreground(gc, &huex[GREEN]);
+	wwvi_set_color(GREEN);
 	abs_xy_draw_string(w, "About Word War vi:", SMALL_FONT, 80, y);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(WHITE);
 
 	y += 40;
 	abs_xy_draw_string(w, "This is Word War vi version " WORDWARVI_VERSION, 
@@ -12659,27 +12662,27 @@ static void draw_help_screen(GtkWidget *w)
 
 	current_draw_line = old_line_draw; 
 
-	gdk_gc_set_foreground(gc, &huex[RED]);
+	wwvi_set_color(RED);
 	if (helpscreen_pixel_row < (max_y - (SCREEN_HEIGHT-100)))
 		abs_xy_draw_string(w, "-- More Below -- (press 'down' arrow)", TINY_FONT, 80, SCREEN_HEIGHT-65);
 
 #if 0
 	if (current_help_selection == 1) {
 		x = 130;
-		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		wwvi_set_color(WHITE);
 	} else {
 		x = 480;
-		gdk_gc_set_foreground(gc, &huex[RED]);
+		wwvi_set_color(RED);
 	}
 	abs_xy_draw_string(w, "Yes help", SMALL_FONT, 150, 450);
 	if (current_quit_selection == 0)
-		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		wwvi_set_color(WHITE);
 	else
-		gdk_gc_set_foreground(gc, &huex[RED]);
+		wwvi_set_color(RED);
 	abs_xy_draw_string(w, "no help", SMALL_FONT, 500, 450);
 
 	if ((quittimer & 0x04)) {
-		gdk_gc_set_foreground(gc, &huex[WHITE]);
+		wwvi_set_color(WHITE);
 		wwvi_draw_rectangle(w->window, gc, FALSE, x, 420, 200, 50);
 	}
 #endif
@@ -14337,8 +14340,8 @@ int main(int argc, char *argv[])
 		check_for_screensaver();
 
 	gc = gdk_gc_new(GTK_WIDGET(main_da)->window);
-	gdk_gc_set_foreground(gc, &huex[BLUE]);
-	gdk_gc_set_foreground(gc, &huex[WHITE]);
+	wwvi_set_color(BLUE);
+	wwvi_set_color(WHITE);
 
 	gdk_gc_set_clip_origin(gc, 0, 0);
 	cliprect.x = 0;	
