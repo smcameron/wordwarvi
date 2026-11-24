@@ -12425,9 +12425,41 @@ struct keyname_value_entry {
 	{ "f12", GDK_F12 }, 
 };
 
-enum keyaction keymap[256];
-enum keyaction ffkeymap[256];
-unsigned char *keycharmap[256];
+#define MAX_KEYBINDINGS 256
+struct keybinding {
+	unsigned int keyval;
+	enum keyaction action;
+};
+static struct keybinding keybindings[MAX_KEYBINDINGS];
+static int nkeybindings = 0;
+
+static void bind_key(unsigned int keyval, enum keyaction action)
+{
+	int i;
+
+	for (i = 0; i < nkeybindings; i++) {
+		if (keybindings[i].keyval == keyval) {
+			keybindings[i].action = action;
+			return;
+		}
+	}
+	if (action == keynone || nkeybindings >= MAX_KEYBINDINGS)
+		return;
+	keybindings[nkeybindings].keyval = keyval;
+	keybindings[nkeybindings].action = action;
+	nkeybindings++;
+}
+
+static enum keyaction lookup_key(unsigned int keyval)
+{
+	int i;
+
+	for (i = 0; i < nkeybindings; i++) {
+		if (keybindings[i].keyval == keyval)
+			return keybindings[i].action;
+	}
+	return keynone;
+}
 
 static int helpscreen_pixel_row = -40;
 line_drawing_function *old_line_draw;
@@ -12568,13 +12600,13 @@ static void draw_help_screen(void)
 
 	for (k=keydown;k<=key_droppresent;k++) {
 		char str[50];
-		unsigned int i, j, foundit;
+		int i;
+		unsigned int j;
 
-		foundit = 0;
-		for (i=0;i<ARRAY_SIZE(keymap);i++) {
-			if (keymap[i] == k) {
+		for (i=0;i<nkeybindings;i++) {
+			if (keybindings[i].action == k) {
 				for (j=0;j<ARRAY_SIZE(keyname_value_map);j++) {
-					if (keyname_value_map[j].value == i) {
+					if (keyname_value_map[j].value == keybindings[i].keyval) {
 						sprintf(str, "%15s %s", keyactionstring[k],
 							keyname_value_map[j].name);
 
@@ -12584,30 +12616,10 @@ static void draw_help_screen(void)
 							column = 0;
 							row++;
 						}
-						/* foundit = 1;*/
-						/* break;*/
-					}
-				}
-			} else if (ffkeymap[i] == k) {
-				for (j=0;j<ARRAY_SIZE(keyname_value_map);j++) {
-					if ((keyname_value_map[j].value & 0x00ff) == i &&
-						(keyname_value_map[j].value & 0xff00) != 0) {
-						sprintf(str, "%15s %s", keyactionstring[k],
-							keyname_value_map[j].name);
-
-						abs_xy_draw_string(str, TINY_FONT, 80 + 200*column, y + row*20);
-						column++;
-						if (column > 2) {
-							column = 0;
-							row++;
-						}
-						/* foundit = 1;*/
-						/* break;*/
+						break;
 					}
 				}
 			}
-			if (foundit)
-				break;
 		}
 	}
 	max_y = y + row*20 + 30;
@@ -12680,52 +12692,50 @@ static void draw_help_screen(void)
 
 void init_keymap(void)
 {
-	memset(keymap, 0, sizeof(keymap));
-	memset(ffkeymap, 0, sizeof(ffkeymap));
-	memset(keycharmap, 0, sizeof(keycharmap));
+	nkeybindings = 0;
 
-	keymap[GDK_j] = keydown;
-	ffkeymap[GDK_Down & 0x00ff] = keydown;
+	bind_key(GDK_j, keydown);
+	bind_key(GDK_Down, keydown);
 
-	keymap[GDK_k] = keyup;
-	ffkeymap[GDK_Up & 0x00ff] = keyup;
+	bind_key(GDK_k, keyup);
+	bind_key(GDK_Up, keyup);
 
-	keymap[GDK_l] = keyright;
-	ffkeymap[GDK_Right & 0x00ff] = keyright;
-	keymap[GDK_period] = keyright;
-	keymap[GDK_greater] = keyright;
+	bind_key(GDK_l, keyright);
+	bind_key(GDK_Right, keyright);
+	bind_key(GDK_period, keyright);
+	bind_key(GDK_greater, keyright);
 
-	keymap[GDK_h] = keyleft;
-	ffkeymap[GDK_Left & 0x00ff] = keyleft;
-	keymap[GDK_comma] = keyleft;
-	keymap[GDK_less] = keyleft;
+	bind_key(GDK_h, keyleft);
+	bind_key(GDK_Left, keyleft);
+	bind_key(GDK_comma, keyleft);
+	bind_key(GDK_less, keyleft);
 
-	keymap[GDK_space] = keylaser;
-	keymap[GDK_z] = keylaser;
+	bind_key(GDK_space, keylaser);
+	bind_key(GDK_z, keylaser);
 
-	keymap[GDK_b] = keybomb;
-	keymap[GDK_v] = key_droppresent;
-	keymap[GDK_g] = keygravitybomb;
-	keymap[GDK_c] = keychaff;
-	keymap[GDK_x] = keythrust;
-	keymap[GDK_p] = keypause;
-	ffkeymap[GDK_F1 & 0x00ff] = keypausehelp;
-	keymap[GDK_q] = keyquarter;
-	keymap[GDK_m] = keymusic;
-	keymap[GDK_s] = keysoundeffects;
-	ffkeymap[GDK_Escape & 0x00ff] = keyquit;
-	keymap[GDK_1] = keytogglemissilealarm;
+	bind_key(GDK_b, keybomb);
+	bind_key(GDK_v, key_droppresent);
+	bind_key(GDK_g, keygravitybomb);
+	bind_key(GDK_c, keychaff);
+	bind_key(GDK_x, keythrust);
+	bind_key(GDK_p, keypause);
+	bind_key(GDK_F1, keypausehelp);
+	bind_key(GDK_q, keyquarter);
+	bind_key(GDK_m, keymusic);
+	bind_key(GDK_s, keysoundeffects);
+	bind_key(GDK_Escape, keyquit);
+	bind_key(GDK_1, keytogglemissilealarm);
 
-	keymap[GDK_2] = key2;
-	keymap[GDK_3] = key3;
-	keymap[GDK_4] = key4;
-	keymap[GDK_5] = key5;
-	keymap[GDK_6] = key6;
-	keymap[GDK_7] = key7;
-	keymap[GDK_8] = key8;
-	keymap[GDK_9] = keysuicide;
+	bind_key(GDK_2, key2);
+	bind_key(GDK_3, key3);
+	bind_key(GDK_4, key4);
+	bind_key(GDK_5, key5);
+	bind_key(GDK_6, key6);
+	bind_key(GDK_7, key7);
+	bind_key(GDK_8, key8);
+	bind_key(GDK_9, keysuicide);
 
-	ffkeymap[GDK_F11 & 0x00ff] = keyfullscreen;
+	bind_key(GDK_F11, keyfullscreen);
 }
 
 int remap_joystick_button(int button, char *actionname)
@@ -12750,17 +12760,12 @@ int remapkey(char *keyname, char *actionname)
 {
 	enum keyaction i;
 	unsigned int j;
-	int index;
 
 	for (i=keynone;i<=key_droppresent;i++) {
 		if (strcmp(keyactionstring[i], actionname) == 0) {
 			for (j=0;j<ARRAY_SIZE(keyname_value_map);j++) {
 				if (strcmp(keyname_value_map[j].name, keyname) == 0) {
-					if ((keyname_value_map[j].value & 0xff00) != 0) {
-						index = keyname_value_map[j].value & 0x00ff;
-						ffkeymap[index] = i;
-					} else
-						keymap[keyname_value_map[j].value] = i;
+					bind_key(keyname_value_map[j].value, i);
 					return 0;
 				}
 			}
@@ -12776,10 +12781,7 @@ static gint key_release_cb(__attribute__((unused)) GtkWidget* widget,
 
 	enum keyaction ka;
 
-	if ((event->keyval & 0xff00) == 0)
-		ka = keymap[event->keyval];
-	else
-		ka = ffkeymap[event->keyval & 0x00ff];
+	ka = lookup_key(event->keyval);
 	last_user_input_time = timer;
 	switch (ka) {
 	case keydown:
@@ -12831,10 +12833,7 @@ static gint key_press_cb(__attribute__((unused)) GtkWidget* widget,
 		gdk_keyval_name(event->keyval));
 #endif
 
-	if ((event->keyval & 0xff00) == 0)
-		ka = keymap[event->keyval];
-	else
-		ka = ffkeymap[event->keyval & 0x00ff];
+	ka = lookup_key(event->keyval);
 
 	last_user_input_time = timer;
 	switch (ka) {
