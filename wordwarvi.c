@@ -301,6 +301,7 @@ int current_quit_selection = 0;
 int final_quit_selection = 0;
 int attract_mode = 0;		/* is game in attract mode */
 int credits = 0;		/* how many quarters have been put in, but not played? */
+static int coin_insert_delay = 0;	/* frames remaining in post-coin-insert pause */
 int no_colors_any_more = 0;
 /* int toggle = 0;		
 */
@@ -11010,6 +11011,7 @@ static void print_frame_stats(int include_lines)
 
 void game_ended(void);
 void start_level(void);
+void init_levels_to_beginning(void);
 void timer_expired(void)
 {
 	static int game_over_count = 0;
@@ -11330,6 +11332,20 @@ static void advance_game(void)
 		return;
 	}
 
+	if (coin_insert_delay > 0) {
+		coin_insert_delay--;
+		if (coin_insert_delay == 0) {
+			ntextlines = 1;
+			game_ended();
+			init_levels_to_beginning();
+			timer_event = READY_EVENT;
+			next_timer = timer + 1;
+		}
+		need_redraw = 1;
+		nframes++;
+		return;
+	}
+
 	game_state.x += game_state.vx;
 	game_state.y += game_state.vy; 
 
@@ -11641,15 +11657,9 @@ void insert_quarter(void)
 		wwviaudio_resume_sound_effects();
 		wwviaudio_resume_music();
 		wwviaudio_add_sound(INSERT_COIN_SOUND);
-		sleep(2);
-		ntextlines = 1;
-		game_ended();
-		/* initialize_game_state_new_level();
-		init_levels_to_beginning();
-		start_level(); */
-		init_levels_to_beginning();
-		timer_event = READY_EVENT;
-		next_timer = timer+1;
+		coin_insert_delay = 2 * frame_rate_hz;
+		if (coin_insert_delay < 1)
+			coin_insert_delay = 1;
 	} else
 		wwviaudio_add_sound(INSERT_COIN_SOUND);
 	strcpy(textline[CREDITS].string, "");
@@ -11774,6 +11784,9 @@ void deal_with_joystick(void)
 			}
 		return;
 	}
+
+	if (coin_insert_delay > 0)
+		return;
 
 	if (game_pause_help) {
 		return;
@@ -12099,6 +12112,9 @@ void deal_with_keyboard(void)
 			}
 		}
 	}
+
+	if (coin_insert_delay > 0)
+		return;
 
 	if (timer_event == NEW_HIGH_SCORE_EVENT) {
 		moved = 0;
@@ -12851,7 +12867,7 @@ static void handle_key_press(SDL_Keycode key, int repeat)
 		game_state.key_laser_pressed = 1;
 		return;
 	case keythrust:
-		if (game_state.health <= 0 || credits <= 0)
+		if (game_state.health <= 0 || credits <= 0 || coin_insert_delay > 0)
 			return;
 		if (abs(player->vx + game_state.direction) < MAX_VX)
 			player->vx += game_state.direction;
@@ -14222,7 +14238,7 @@ int main(int argc, char *argv[])
 			advance_game();
 			if (quit_requested)
 				break;
-			/* Avoid spiral of death if e.g. insert_quarter() slept */
+			/* Avoid spiral of death if a frame took too long */
 			next_frame_tick += frame_ms;
 			if (SDL_TICKS_PASSED(SDL_GetTicks(), next_frame_tick + frame_ms))
 				next_frame_tick = SDL_GetTicks() + frame_ms;
