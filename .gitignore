@@ -1,3 +1,7 @@
 *.o
 /wasm/
 /build-wasm/
+stamp
+wordwarvi
+wordwarvi.6.gz
+
