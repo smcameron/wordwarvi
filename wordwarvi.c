@@ -1826,23 +1826,20 @@ int high_score_file_descriptor = -1; /* not currently implemented. */
 #define GAME_OVER 1
 #define CREDITS 0
 
-typedef void line_drawing_function(GdkDrawable *drawable,
-	 GdkGC *gc, gint x1, gint y1, gint x2, gint y2);
+typedef void line_drawing_function(int x1, int y1, int x2, int y2);
 
-typedef void bright_line_drawing_function(GdkDrawable *drawable,
-	 GdkGC *gc, gint x1, gint y1, gint x2, gint y2, int color);
+typedef void bright_line_drawing_function(int x1, int y1, int x2, int y2, int color);
 
-typedef void rectangle_drawing_function(GdkDrawable *drawable,
-	GdkGC *gc, gboolean filled, gint x, gint y, gint width, gint height);
+typedef void rectangle_drawing_function(int filled, int x, int y, int width, int height);
 
 typedef void explosion_function(int x, int y, int ivx, int ivy, int v, int nsparks, int time);
 typedef void add_spark_function(int x, int y, int vx, int vy, int time);
-void gdk_draw_line_count(GdkDrawable *drawable,
-	GdkGC *gc, gint x1, gint y1, gint x2, gint y2);
+void unscaled_line(int x1, int y1, int x2, int y2);
+void unscaled_rectangle(int filled, int x, int y, int width, int height);
 
 unsigned long total_line_count = 0;
-line_drawing_function *current_draw_line = gdk_draw_line_count;
-rectangle_drawing_function *current_draw_rectangle = gdk_draw_rectangle;
+line_drawing_function *current_draw_line = unscaled_line;
+rectangle_drawing_function *current_draw_rectangle = unscaled_rectangle;
 bright_line_drawing_function *current_bright_line = NULL;
 explosion_function *explosion = NULL;
 explosion_function *bright_explosion = NULL;
@@ -1880,7 +1877,18 @@ static int openlase_color = C_WHITE;
 #define DEBRIS_AMOUNT 16
 #endif
 
-static void wwvi_set_color(int color);
+GdkGC *gc = NULL;		/* our graphics context. */
+GtkWidget *main_da;		/* main drawing area. */
+
+static void wwvi_set_color(int color)
+{
+	gdk_gc_set_foreground(gc, &huex[color]);
+#if defined(OPENLASE) && !defined(OPENLASEGRAYSCALE)
+	openlase_color = ((huex[color].blue) >> 8) +
+			 (((huex[color].green) >> 8) << 8) +
+			 (((huex[color].red) >> 8) << 16);
+#endif
+}
 
 #ifdef OPENLASE
 static void openlase_rectangle(int x, int y, int width, int height)
@@ -1976,25 +1984,28 @@ static void openlase_shutdown(void)
 #endif
 }
 
-void gdk_draw_line_count(GdkDrawable *drawable,
-	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
+void unscaled_line(int x1, int y1, int x2, int y2)
 {
 	total_line_count++;	
-	gdk_draw_line(drawable, gc, x1, y1, x2, y2);
+	gdk_draw_line(main_da->window, gc, x1, y1, x2, y2);
 	openlase_drawline(x1, y1, x2, y2);
 }
 
-void scaled_line(GdkDrawable *drawable,
-	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
+void unscaled_rectangle(int filled, int x, int y, int width, int height)
 {
-	gdk_draw_line(drawable, gc, x1*xscale_screen, y1*yscale_screen,
+	openlase_rectangle(x, y, width, height);
+	gdk_draw_rectangle(main_da->window, gc, filled, x, y, width, height);
+}
+
+void scaled_line(int x1, int y1, int x2, int y2)
+{
+	gdk_draw_line(main_da->window, gc, x1*xscale_screen, y1*yscale_screen,
 		x2*xscale_screen, y2*yscale_screen);
 	openlase_drawline(x1*xscale_screen, y1*yscale_screen,
 		x2*xscale_screen, y2*yscale_screen);
 }
 
-void thick_scaled_line(GdkDrawable *drawable,
-	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
+void thick_scaled_line(int x1, int y1, int x2, int y2)
 {
 	int sx1,sy1,sx2,sy2,dx,dy;
 
@@ -2010,23 +2021,21 @@ void thick_scaled_line(GdkDrawable *drawable,
 	sy1 = y1*yscale_screen;	
 	sy2 = y2*yscale_screen;	
 	
-	gdk_draw_line(drawable, gc, sx1,sy1,sx2,sy2);
-	gdk_draw_line(drawable, gc, sx1-dx,sy1-dy,sx2-dx,sy2-dy);
-	gdk_draw_line(drawable, gc, sx1+dx,sy1+dy,sx2+dx,sy2+dy);
+	gdk_draw_line(main_da->window, gc, sx1,sy1,sx2,sy2);
+	gdk_draw_line(main_da->window, gc, sx1-dx,sy1-dy,sx2-dx,sy2-dy);
+	gdk_draw_line(main_da->window, gc, sx1+dx,sy1+dy,sx2+dx,sy2+dy);
 	openlase_drawline(sx1, sy1, sx2, sy2);
 }
 
-void scaled_rectangle(GdkDrawable *drawable,
-	GdkGC *gc, gboolean filled, gint x, gint y, gint width, gint height)
+void scaled_rectangle(int filled, int x, int y, int width, int height)
 {
 	openlase_rectangle(x * xscale_screen, y * yscale_screen,
 				width * xscale_screen, height * yscale_screen); 
-	gdk_draw_rectangle(drawable, gc, filled, x*xscale_screen, y*yscale_screen,
+	gdk_draw_rectangle(main_da->window, gc, filled, x*xscale_screen, y*yscale_screen,
 		width*xscale_screen, height*yscale_screen);
 }
 
-void scaled_bright_line(GdkDrawable *drawable,
-	GdkGC *gc, gint x1, gint y1, gint x2, gint y2, int color)
+void scaled_bright_line(int x1, int y1, int x2, int y2, int color)
 {
 	int sx1,sy1,sx2,sy2,dx,dy;
 
@@ -2043,15 +2052,14 @@ void scaled_bright_line(GdkDrawable *drawable,
 	sy2 = y2*yscale_screen;	
 	
 	wwvi_set_color(WHITE);
-	gdk_draw_line(drawable, gc, sx1,sy1,sx2,sy2);
+	gdk_draw_line(main_da->window, gc, sx1,sy1,sx2,sy2);
 	wwvi_set_color(color);
-	gdk_draw_line(drawable, gc, sx1-dx,sy1-dy,sx2-dx,sy2-dy);
-	gdk_draw_line(drawable, gc, sx1+dx,sy1+dy,sx2+dx,sy2+dy);
+	gdk_draw_line(main_da->window, gc, sx1-dx,sy1-dy,sx2-dx,sy2-dy);
+	gdk_draw_line(main_da->window, gc, sx1+dx,sy1+dy,sx2+dx,sy2+dy);
 	openlase_drawline(x1, y1, x2, y2);
 }
 
-void unscaled_bright_line(GdkDrawable *drawable,
-	GdkGC *gc, gint x1, gint y1, gint x2, gint y2, int color)
+void unscaled_bright_line(int x1, int y1, int x2, int y2, int color)
 {
 	int dx,dy;
 
@@ -2064,15 +2072,14 @@ void unscaled_bright_line(GdkDrawable *drawable,
 	}
 	
 	wwvi_set_color(WHITE);
-	gdk_draw_line(drawable, gc, x1,y1,x2,y2);
+	gdk_draw_line(main_da->window, gc, x1,y1,x2,y2);
 	wwvi_set_color(color);
-	gdk_draw_line(drawable, gc, x1-dx,y1-dy,x2-dx,y2-dy);
-	gdk_draw_line(drawable, gc, x1+dx,y1+dy,x2+dx,y2+dy);
+	gdk_draw_line(main_da->window, gc, x1-dx,y1-dy,x2-dx,y2-dy);
+	gdk_draw_line(main_da->window, gc, x1+dx,y1+dy,x2+dx,y2+dy);
 	openlase_drawline(x1, y1, x2, y2);
 }
 
-void crazy_line(GdkDrawable *drawable,
-	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
+void crazy_line(int x1, int y1, int x2, int y2)
 {
 	int angle;
 
@@ -2084,7 +2091,7 @@ void crazy_line(GdkDrawable *drawable,
 	x4 = ((x2 - (SCREEN_WIDTH/2)) * sine[angle]) + SCREEN_WIDTH/2;
 	y3 = ((y1 - (SCREEN_HEIGHT/2)) * cosine[angle]) + SCREEN_HEIGHT/2;
 	y4 = ((y2 - (SCREEN_HEIGHT/2)) * cosine[angle]) + SCREEN_HEIGHT/2;
-	gdk_draw_line(drawable, gc, x3, y3, x4, y4);	
+	gdk_draw_line(main_da->window, gc, x3, y3, x4, y4);
 #else
 	double size;
 	size = (timer % 300) + 100;
@@ -2093,15 +2100,14 @@ void crazy_line(GdkDrawable *drawable,
 	x4 = ((x2 - (SCREEN_WIDTH/2)) / size) + SCREEN_WIDTH/2;
 	y3 = ((y1 - (SCREEN_HEIGHT/2)) / size) + SCREEN_HEIGHT/2;
 	y4 = ((y2 - (SCREEN_HEIGHT/2)) / size) + SCREEN_HEIGHT/2;
-	gdk_draw_line(drawable, gc, x3, y3, x4, y4);	
+	gdk_draw_line(main_da->window, gc, x3, y3, x4, y4);
 #endif
 	/* gdk_draw_line(drawable, gc, x1, y1, x2, y2);	 */
 
 }
 
-void crazy_rectangle(GdkDrawable *drawable,
-	GdkGC *gc, __attribute__((unused)) gboolean filled,
-	gint x, gint y, gint width, gint height)
+void crazy_rectangle(__attribute__((unused)) int filled,
+	int x, int y, int width, int height)
 {
 	int x3, y3, x4, y4;
 
@@ -2110,10 +2116,10 @@ void crazy_rectangle(GdkDrawable *drawable,
 	x4 = x + width;
 	y4 = y + height;
 
-	crazy_line(drawable, gc, x3, y3, x4, y3);
-	crazy_line(drawable, gc, x3, y4, x4, y4);
-	crazy_line(drawable, gc, x3, y3, x3, y4);
-	crazy_line(drawable, gc, x4, y3, x4, y4);
+	crazy_line(x3, y3, x4, y3);
+	crazy_line(x3, y4, x4, y4);
+	crazy_line(x3, y3, x3, y4);
+	crazy_line(x4, y3, x4, y4);
 }
 
 void init_vxy_2_dxy(void)
@@ -2202,7 +2208,7 @@ typedef void (*get_coords_func)(struct game_obj_t *parent, struct game_obj_t *ch
 
 /* some function pointers which game_obj_t's may have */
 typedef void obj_move_func(struct game_obj_t *o);		/* moves and object, called once per frame */
-typedef void obj_draw_func(struct game_obj_t *o, GtkWidget *w); /* draws object, called 1/frame, if onscreen */
+typedef void obj_draw_func(struct game_obj_t *o); /* draws object, called 1/frame, if onscreen */
 typedef void obj_destroy_func(struct game_obj_t *o);		/* called when an object is killed */
 
 /* Various object type specific data structures are defined below. */
@@ -2507,18 +2513,6 @@ struct game_obj_t *player = &game_state.go[0];	/* The player is object zero. */
 struct game_obj_t *player_target;
 int lasthuman = 0;				/* debug code... for 'n' key. */
 
-GdkGC *gc = NULL;		/* our graphics context. */
-
-static void wwvi_set_color(int color)
-{
-	gdk_gc_set_foreground(gc, &huex[color]);
-#if defined(OPENLASE) && !defined(OPENLASEGRAYSCALE)
-	openlase_color = ((huex[color].blue) >> 8) +
-			 (((huex[color].green) >> 8) << 8) +
-			 (((huex[color].red) >> 8) << 16);
-#endif
-}
-GtkWidget *main_da;		/* main drawing area. */
 gint timer_tag;			/* for our gtk 30 times per second timer function */
 int next_quarter_time = -1;	/* Used to limit rate at which quarters can be put in. */
 int next_thunder_time = -1;
@@ -2677,7 +2671,7 @@ void do_weak_rumble(void)
 		play_rumble_effect(RUMBLE_WEAK_RUMBLE_EFFECT);
 }
 
-void incorrect_draw_stars(GtkWidget *w)
+void incorrect_draw_stars(void)
 {
 	short i;
 	short worldx, worldy;
@@ -2701,9 +2695,9 @@ void incorrect_draw_stars(GtkWidget *w)
 		gl = approximate_horizon(worldx, worldy, &star[i].last_xi);
 		if (worldy < gl) {
 			if (star[i].bright && randomn(100) > 10) {
-				wwvi_draw_line(w->window, gc, sx, sy-1, sx+1, sy-1);
+				wwvi_draw_line(sx, sy-1, sx+1, sy-1);
 			}
-			wwvi_draw_line(w->window, gc, sx, sy, sx+1, sy);
+			wwvi_draw_line(sx, sy, sx+1, sy);
 		}
 	}
 	/* move stars */
@@ -2713,7 +2707,7 @@ void incorrect_draw_stars(GtkWidget *w)
 			% (SCREEN_HEIGHT << starshift) + (SCREEN_HEIGHT << starshift);
 }
 
-void correct_draw_stars(GtkWidget *w)
+void correct_draw_stars(void)
 {
 	short i;
 	short worldx, worldy;
@@ -2731,14 +2725,14 @@ void correct_draw_stars(GtkWidget *w)
 		gl = approximate_horizon(worldx, worldy, &star[i].last_xi);
 		if (worldy < gl) {
 			if (star[i].bright && randomn(100) > 10) {
-				wwvi_draw_line(w->window, gc, sx, sy-1, sx+1, sy-1);
+				wwvi_draw_line(sx, sy-1, sx+1, sy-1);
 			}
-			wwvi_draw_line(w->window, gc, sx, sy, sx+1, sy);
+			wwvi_draw_line(sx, sy, sx+1, sy);
 		}
 	}
 }
 
-void (*draw_stars)(GtkWidget *w) = incorrect_draw_stars;
+void (*draw_stars)(void) = incorrect_draw_stars;
 
 
 /* add an object to the list of targets... */
@@ -3348,10 +3342,10 @@ void sam_move(struct game_obj_t *o)
 	}
 }
 
-void draw_generic(struct game_obj_t *o, GtkWidget *w);
-void draw_scaled_generic(struct game_obj_t *o, GtkWidget *w, float xscale, float yscale);
+void draw_generic(struct game_obj_t *o);
+void draw_scaled_generic(struct game_obj_t *o, float xscale, float yscale);
 
-void fuel_draw(struct game_obj_t *o, GtkWidget *w)
+void fuel_draw(struct game_obj_t *o)
 {
 	int x1, y1, x2, y2;
 	int xdist, ydist;
@@ -3365,10 +3359,10 @@ void fuel_draw(struct game_obj_t *o, GtkWidget *w)
 		30 - (45 * o->tsd.fuel.level / FUELTANK_CAPACITY);
 	if (o->tsd.fuel.level > 0) {
 		wwvi_set_color(DARKGREEN);
-		wwvi_draw_rectangle(w->window, gc, TRUE, x1, y1, 50, o->tsd.fuel.level * 45 / FUELTANK_CAPACITY);
+		wwvi_draw_rectangle(1, x1, y1, 50, o->tsd.fuel.level * 45 / FUELTANK_CAPACITY);
 	}
 
-	draw_generic(o, w); /* draw the fuel tank in the usual way... */
+	draw_generic(o); /* draw the fuel tank in the usual way... */
 
 	/* if the player is close, draw a refueling hose... */
 	if (xdist <= HUMANOID_DIST*3 && ydist <= HUMANOID_DIST*5) {
@@ -3376,15 +3370,15 @@ void fuel_draw(struct game_obj_t *o, GtkWidget *w)
 		y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);
 		x2 = player_target->x - game_state.x;
 		y2 = player_target->y - game_state.y + (SCREEN_HEIGHT/2);
-		wwvi_draw_line(w->window, gc, x1, y1, x2, y2);
+		wwvi_draw_line(x1, y1, x2, y2);
 	}
 }
 
 /* draw a radar jammer */
-void jammer_draw(struct game_obj_t *o, GtkWidget *w)
+void jammer_draw(struct game_obj_t *o)
 {
 	int x1, x2, y1, y2, x3, x4, x5;
-	draw_generic(o, w); /* will set the color too. */
+	draw_generic(o); /* will set the color too. */
 
 	/* this draws a sort of spinning rectangular gridded radar dish */
 	o->tsd.jammer.width += o->tsd.jammer.direction;
@@ -3400,23 +3394,23 @@ void jammer_draw(struct game_obj_t *o, GtkWidget *w)
 	x2 = x5 + o->tsd.jammer.width;
 	x3 = x5 - (o->tsd.jammer.width >> 1);
 	x4 = x5 + (o->tsd.jammer.width >> 1);
-	wwvi_draw_line(w->window, gc, x1, y1, x2, y1); 
-	wwvi_draw_line(w->window, gc, x1, y2, x2, y2); 
-	wwvi_draw_line(w->window, gc, x1, y1, x1, y2); 
-	wwvi_draw_line(w->window, gc, x2, y1, x2, y2); 
-	wwvi_draw_line(w->window, gc, x3, y1, x3, y2); 
-	wwvi_draw_line(w->window, gc, x4, y1, x4, y2); 
-	wwvi_draw_line(w->window, gc, x5, y1, x5, y2); 
-	wwvi_draw_line(w->window, gc, x1, y2+4, x2, y2+4); 
-	wwvi_draw_line(w->window, gc, x1, y2+8, x2, y2+8); 
-	wwvi_draw_line(w->window, gc, x1, y2+12, x2, y2+12); 
+	wwvi_draw_line(x1, y1, x2, y1);
+	wwvi_draw_line(x1, y2, x2, y2);
+	wwvi_draw_line(x1, y1, x1, y2);
+	wwvi_draw_line(x2, y1, x2, y2);
+	wwvi_draw_line(x3, y1, x3, y2);
+	wwvi_draw_line(x4, y1, x4, y2);
+	wwvi_draw_line(x5, y1, x5, y2);
+	wwvi_draw_line(x1, y2+4, x2, y2+4);
+	wwvi_draw_line(x1, y2+8, x2, y2+8);
+	wwvi_draw_line(x1, y2+12, x2, y2+12);
 }
 
-void cron_draw(struct game_obj_t *o, GtkWidget *w)
+void cron_draw(struct game_obj_t *o)
 {
 	int x1, y1, x2, y2, gy, xi;
 
-	draw_generic(o, w);
+	draw_generic(o);
 
 #if 0
 	/* this is debug code */
@@ -3428,7 +3422,7 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 		x2 = o->tsd.cron.tx - game_state.x;
 		y2 = o->tsd.cron.ty + 7 - game_state.y + (SCREEN_HEIGHT/2);  
 		if (x1 > 0 && x2 > 0)
-			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+			wwvi_draw_line(x1, y1, x2, y2); 
 	}
 #endif
 
@@ -3437,7 +3431,7 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2) - 5;  
 	x2 = x1 + 3;
 	wwvi_set_color(WHITE);
-	wwvi_draw_line(w->window, gc, x1, y1, x2, y1); /* draw eye */
+	wwvi_draw_line(x1, y1, x2, y1); /* draw eye */
 
 	/* move the cron job's eye */
 	o->tsd.cron.eyepos +=1;
@@ -3454,7 +3448,7 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 			if (xi != -1) {
 				y1 = o->y + 7 - game_state.y + (SCREEN_HEIGHT/2);  
 				y2 = gy + (SCREEN_HEIGHT/2) - game_state.y;
-				wwvi_bright_line(w->window, gc, x1, y1, x2, y2,
+				wwvi_bright_line(x1, y1, x2, y2,
 					randomn(NCOLORS+NSPARKCOLORS+NRAINBOWCOLORS));  /* draw beam. */
 				explode(o->x + o->tsd.cron.beam_pos, gy, 0, 1, 20, 3, 10); /* make sparks. */
 			}
@@ -3462,18 +3456,18 @@ void cron_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
-void gdb_draw(struct game_obj_t *o, GtkWidget *w) /* draw a gdb. */
+void gdb_draw(struct game_obj_t *o) /* draw a gdb. */
 {
 	/* make him point left or right, depending which way he's going. */
 	if (o->vx < 0)		
 		o->v = &gdb_vect_left;
 	else if (o->vx > 0)
 		o->v = &gdb_vect_right;
-	draw_generic(o, w);
+	draw_generic(o);
 }
 
 /* recursive routine to draw a fractal lightning bolt between x1,y1 and x2,y2 */
-void lightning_draw( GtkWidget *w, int x1, int y1, int x2, int y2) 
+void lightning_draw(int x1, int y1, int x2, int y2) 
 {
 	int x3, y3, dx, dy;
 
@@ -3483,19 +3477,19 @@ void lightning_draw( GtkWidget *w, int x1, int y1, int x2, int y2)
 	/* terminal case, x1, y1, and x2, y2 are very close, just draw a line. */
 	if (dx < 10 && dy < 10) {
 		wwvi_set_color(WHITE);
-		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+		wwvi_draw_line(x1, y1, x2, y2); 
 		if (dx < dy) {
-			wwvi_draw_line(w->window, gc, x1-1, y1, x2-1, y2); 
-			wwvi_draw_line(w->window, gc, x1+1, y1, x2+1, y2); 
+			wwvi_draw_line(x1-1, y1, x2-1, y2); 
+			wwvi_draw_line(x1+1, y1, x2+1, y2); 
 			wwvi_set_color(BLUE);
-			wwvi_draw_line(w->window, gc, x1-2, y1, x2-2, y2); 
-			wwvi_draw_line(w->window, gc, x1+2, y1, x2+2, y2); 
+			wwvi_draw_line(x1-2, y1, x2-2, y2); 
+			wwvi_draw_line(x1+2, y1, x2+2, y2); 
 		} else {
-			wwvi_draw_line(w->window, gc, x1, y1-1, x2, y2-1); 
-			wwvi_draw_line(w->window, gc, x1, y1+1, x2, y2+1); 
+			wwvi_draw_line(x1, y1-1, x2, y2-1); 
+			wwvi_draw_line(x1, y1+1, x2, y2+1); 
 			wwvi_set_color(BLUE);
-			wwvi_draw_line(w->window, gc, x1, y1-2, x2, y2-1); 
-			wwvi_draw_line(w->window, gc, x1, y1+2, x2, y2+1); 
+			wwvi_draw_line(x1, y1-2, x2, y2-1); 
+			wwvi_draw_line(x1, y1+2, x2, y2+1); 
 		}
 		return;
 	}
@@ -3523,22 +3517,22 @@ void lightning_draw( GtkWidget *w, int x1, int y1, int x2, int y2)
 	y3 += (int) (0.4 * (randomn(2*dy) - dy)); 
 
 	/* draw lightning between x1,y1 and x3,y3, and between x3,y3, and x2,y2. */
-	lightning_draw(w, x1, y1, x3, y3);	
-	lightning_draw(w, x3, y3, x2, y2);	
+	lightning_draw(x1, y1, x3, y3);	
+	lightning_draw(x3, y3, x2, y2);	
 }
 
 
-static void xy_draw_string(GtkWidget *w, char *s, int font, int x, int y) ;
-void floating_message_draw(struct game_obj_t *o, GtkWidget *w)
+static void xy_draw_string(char *s, int font, int x, int y) ;
+void floating_message_draw(struct game_obj_t *o)
 {
 	/* draw a floating message -- a game object that is text living in game coords. */
 	/* this is for bonus scores, "Help!" and "Woohoo!" messages the .swp files "say." */
 	wwvi_set_color(o->color);
-	xy_draw_string(w, (char *) o->tsd.floating_message.msg, 
+	xy_draw_string((char *) o->tsd.floating_message.msg, 
 		o->tsd.floating_message.font, o->x, o->y) ;
 }
 
-void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
+void tentacle_draw(struct game_obj_t *o)
 {
 	int i;
 	int x1, y1, x2, y2;
@@ -3581,15 +3575,15 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 		}
 #ifndef OPENLASE
 		if (thickness > 0) {
-			wwvi_draw_line(w->window, gc, x1-thickness, y1, x2-thickness, y2); 
-			wwvi_draw_line(w->window, gc, x1+thickness, y1, x2+thickness, y2); 
-			wwvi_draw_line(w->window, gc, x1, y1-thickness, x2, y2-thickness); 
-			wwvi_draw_line(w->window, gc, x1, y1+thickness, x2, y2+thickness); 
+			wwvi_draw_line(x1-thickness, y1, x2-thickness, y2); 
+			wwvi_draw_line(x1+thickness, y1, x2+thickness, y2); 
+			wwvi_draw_line(x1, y1-thickness, x2, y2-thickness); 
+			wwvi_draw_line(x1, y1+thickness, x2, y2+thickness); 
 			if (i & 0x01) 
 				thickness--;
 		} else 
 #endif
-			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+			wwvi_draw_line(x1, y1, x2, y2); 
 		x1 = x2;
 		y1 = y2;
 	}
@@ -3600,7 +3594,7 @@ void tentacle_draw(struct game_obj_t *o, GtkWidget *w)
 		abs(o->x - player_target->x) < 200 && 
 		abs(o->y - player_target->y) < 500) {
 
-		lightning_draw(w, x2, y2, player_target->x - game_state.x, 
+		lightning_draw(x2, y2, player_target->x - game_state.x, 
 			player_target->y - game_state.y + (SCREEN_HEIGHT/2));
 		do_weak_rumble();
 		explode(player_target->x, player_target->y, player_target->vx*1.5, 1, 20, 20, 15);
@@ -4533,7 +4527,7 @@ static void kill_and_debris_object(struct game_obj_t *o)
 int find_free_obj(void);
 
 void laser_move(struct game_obj_t *o);
-void laser_draw(struct game_obj_t *o,  GtkWidget *w);
+void laser_draw(struct game_obj_t *o);
 void generic_destroy_func(struct game_obj_t *o);
 
 void player_fire_laser(void)
@@ -5442,7 +5436,7 @@ void drop_gravity_bomb(void)
 	game_state.cmd_multiplier = 1;
 }
 
-void player_draw(struct game_obj_t *o, GtkWidget *w)
+void player_draw(struct game_obj_t *o)
 {
 
 	int i, countdir;
@@ -5452,7 +5446,7 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 #else
 	if (1)
 #endif
-		draw_generic(o, w);
+		draw_generic(o);
 	else {
 		/* this is the insanity that makes the player "zoom" into the game */
 		/* at the start of levels. */
@@ -5486,7 +5480,7 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 				y1 = o->y + o->v->p[j].y*scale - game_state.y + (SCREEN_HEIGHT/2);  
 				x2 = o->x + o->v->p[j+1].x*scale - game_state.x; 
 				y2 = o->y + o->v->p[j+1].y*scale+(SCREEN_HEIGHT/2) - game_state.y;
-				wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+				wwvi_draw_line(x1, y1, x2, y2); 
 			}
 			scale = scale * scalefactor;
 		}
@@ -5498,14 +5492,14 @@ void player_draw(struct game_obj_t *o, GtkWidget *w)
 	}
 }
 
-void xmas_player_draw(struct game_obj_t *o, GtkWidget *w)
+void xmas_player_draw(struct game_obj_t *o)
 {
 
 	int i, countdir, x1, y1, x2, y2;
 	double scale, scalefactor;
 
 	if (o->tsd.epd.count == 0) {  /* normal case, just draw the player normally. */
-		draw_generic(o, w);
+		draw_generic(o);
 		if (o->bullseye != NULL) {
 			wwvi_set_color(RED);
 			x1 = o->x - game_state.x;
@@ -5513,7 +5507,7 @@ void xmas_player_draw(struct game_obj_t *o, GtkWidget *w)
 			x2 = o->bullseye->x - game_state.x;
 			y2 = o->bullseye->y - game_state.y + (SCREEN_HEIGHT/2);  
 			if (x1 > 0 && x1 < SCREEN_WIDTH && y1 < SCREEN_HEIGHT && y1 > 0) {
-				wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+				wwvi_draw_line(x1, y1, x2, y2); 
 			}
 		}
 		if (o->tsd.reindeer.rudolph && (timer & 0x08)) { /* blink rudolph's nose. */
@@ -5522,11 +5516,11 @@ void xmas_player_draw(struct game_obj_t *o, GtkWidget *w)
 			y2 = y1 - 2;  
 			x2 = x1 + game_state.direction;
 			wwvi_set_color(WHITE);
-			wwvi_draw_line(w->window, gc, x1, y1, x2, y1); 
-			wwvi_draw_line(w->window, gc, x1, y2, x2, y2); 
+			wwvi_draw_line(x1, y1, x2, y1); 
+			wwvi_draw_line(x1, y2, x2, y2); 
 			--y1;
 			wwvi_set_color(RED);
-			wwvi_draw_line(w->window, gc, x1, y1, x2, y1); 
+			wwvi_draw_line(x1, y1, x2, y1); 
 		}
 	} else {
 		/* this is the insanity that makes the player "zoom" into the game */
@@ -5561,7 +5555,7 @@ void xmas_player_draw(struct game_obj_t *o, GtkWidget *w)
 				y1 = o->y + o->v->p[j].y*scale - game_state.y + (SCREEN_HEIGHT/2);  
 				x2 = o->x + o->v->p[j+1].x*scale - game_state.x; 
 				y2 = o->y + o->v->p[j+1].y*scale+(SCREEN_HEIGHT/2) - game_state.y;
-				wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+				wwvi_draw_line(x1, y1, x2, y2); 
 			}
 			scale = scale * scalefactor;
 		}
@@ -5672,7 +5666,7 @@ void set_player_vect(void)
 }
 
 int new_high_score(int newscore);
-void no_draw(struct game_obj_t *o, GtkWidget *w);
+void no_draw(struct game_obj_t *o);
 void player_move(struct game_obj_t *o)
 {
 	int deepest, i;
@@ -6025,7 +6019,7 @@ void no_move(__attribute__((unused)) struct game_obj_t *o)
 	return;
 }
 
-void laser_draw(struct game_obj_t *o,  GtkWidget *w)
+void laser_draw(struct game_obj_t *o)
 {
 	int x1, y1, x2;
 	wwvi_set_color(o->color);
@@ -6036,12 +6030,12 @@ void laser_draw(struct game_obj_t *o,  GtkWidget *w)
 		x2 = x1 - (15) * (21 - o->alive);
 	else
 		x2 = x1 + (15) * (21 - o->alive);
-	wwvi_bright_line(w->window, gc, x1, y1, x2, y1, o->color);
+	wwvi_bright_line(x1, y1, x2, y1, o->color);
 
 #if DEBUG_HITZONE
 	wwvi_set_color(WHITE);
-	wwvi_draw_line(w->window,gc, x1, y1 - LASER_Y_PROXIMITY, x1, y1 + LASER_Y_PROXIMITY);
-	wwvi_draw_line(w->window,gc, x2, y1 - LASER_Y_PROXIMITY, x2, y1 + LASER_Y_PROXIMITY);
+	wwvi_draw_line(x1, y1 - LASER_Y_PROXIMITY, x1, y1 + LASER_Y_PROXIMITY);
+	wwvi_draw_line(x2, y1 - LASER_Y_PROXIMITY, x2, y1 + LASER_Y_PROXIMITY);
 #endif
 }
 
@@ -6262,7 +6256,7 @@ void move_obj(struct game_obj_t *o)
 	o->y += o->vy;
 }
 
-void bright_spark_draw(struct game_obj_t *o, GtkWidget *w)
+void bright_spark_draw(struct game_obj_t *o)
 {
 	int x1, y1, x2, y2;
 
@@ -6277,10 +6271,10 @@ void bright_spark_draw(struct game_obj_t *o, GtkWidget *w)
 
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
 	y1 = y2 + o->vy;
-	wwvi_bright_line(w->window, gc, x1, y1, x2, y2, o->color);
+	wwvi_bright_line(x1, y1, x2, y2, o->color);
 }
 
-void spark_draw(struct game_obj_t *o, GtkWidget *w)
+void spark_draw(struct game_obj_t *o)
 {
 	int x1, y1, x2, y2;
 
@@ -6296,10 +6290,10 @@ void spark_draw(struct game_obj_t *o, GtkWidget *w)
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
 	y1 = y2 + o->vy;
 	wwvi_set_color(o->color);
-	wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+	wwvi_draw_line(x1, y1, x2, y2); 
 }
 
-void pixie_dust_draw(struct game_obj_t *o, GtkWidget *w)
+void pixie_dust_draw(struct game_obj_t *o)
 {
 	int x1, y1, x2, y2;
 
@@ -6312,10 +6306,10 @@ void pixie_dust_draw(struct game_obj_t *o, GtkWidget *w)
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
 	y1 = y2 + randomn(4);
 	wwvi_set_color(o->color);
-	wwvi_draw_line(w->window, gc, x1, y1, x2, y2);
+	wwvi_draw_line(x1, y1, x2, y2);
 }
 
-void laserbolt_draw(struct game_obj_t *o, GtkWidget *w)
+void laserbolt_draw(struct game_obj_t *o)
 {
 	int x1, y1, x2, y2;
 
@@ -6331,10 +6325,10 @@ void laserbolt_draw(struct game_obj_t *o, GtkWidget *w)
 	y2 = o->y + (SCREEN_HEIGHT/2) - game_state.y;
 	y1 = y2 - o->vy;
 
-	wwvi_bright_line(w->window, gc, x1, y1, x2, y2, o->color);
+	wwvi_bright_line(x1, y1, x2, y2, o->color);
 }
 
-void missile_draw(struct game_obj_t *o, GtkWidget *w)
+void missile_draw(struct game_obj_t *o)
 {
 	int x1, y1;
 	int dx, dy;
@@ -6351,16 +6345,16 @@ void missile_draw(struct game_obj_t *o, GtkWidget *w)
 	rdy2 = dx / 4;
 	wwvi_set_color(o->color);
 	if (x1 > 0 && x1+dx*2 > 0 && x1 < SCREEN_WIDTH &&  x1+dx*2 < SCREEN_WIDTH) {
-		wwvi_draw_line(w->window, gc, x1+rdx, y1+rdy, x1+dx*2+rdx, y1+dy*2+rdy); 
-		wwvi_draw_line(w->window, gc, x1-rdx, y1-rdy, x1+dx*2-rdx, y1+dy*2-rdy); 
-		wwvi_draw_line(w->window, gc, x1+dx*2+rdx, y1+dy*2+rdy, x1+dx*2-rdx, y1+dy*2-rdy); 
-		wwvi_draw_line(w->window, gc, x1-rdx2, y1-rdy2, x1+rdx2, y1+rdy2); 
-		wwvi_draw_line(w->window, gc, x1-rdx2, y1-rdy2, x1+(dx/2), y1+(dy/2)); 
-		wwvi_draw_line(w->window, gc, x1+rdx2, y1+rdy2, x1+(dx/2), y1+(dy/2)); 
+		wwvi_draw_line(x1+rdx, y1+rdy, x1+dx*2+rdx, y1+dy*2+rdy); 
+		wwvi_draw_line(x1-rdx, y1-rdy, x1+dx*2-rdx, y1+dy*2-rdy); 
+		wwvi_draw_line(x1+dx*2+rdx, y1+dy*2+rdy, x1+dx*2-rdx, y1+dy*2-rdy); 
+		wwvi_draw_line(x1-rdx2, y1-rdy2, x1+rdx2, y1+rdy2); 
+		wwvi_draw_line(x1-rdx2, y1-rdy2, x1+(dx/2), y1+(dy/2)); 
+		wwvi_draw_line(x1+rdx2, y1+rdy2, x1+(dx/2), y1+(dy/2)); 
 	}
 }
 
-void harpoon_draw(struct game_obj_t *o, GtkWidget *w)
+void harpoon_draw(struct game_obj_t *o)
 {
 	int x1, y1;
 	int dx, dy;
@@ -6372,7 +6366,7 @@ void harpoon_draw(struct game_obj_t *o, GtkWidget *w)
 	dx = dx_from_vxy(o->vx, o->vy);
 	dy = -dy_from_vxy(o->vx, o->vy);
 	wwvi_set_color(o->color);
-	wwvi_draw_line(w->window, gc, x1, y1, x1+dx, y1+dy); 
+	wwvi_draw_line(x1, y1, x1+dx, y1+dy); 
 }
 
 void reindeer_move(struct game_obj_t *o)
@@ -6971,7 +6965,7 @@ void airship_leak_lisp(struct game_obj_t *o)
 	}
 }
 
-static void abs_xy_draw_string(GtkWidget *w, char *s, int font, int x, int y);
+static void abs_xy_draw_string(char *s, int font, int x, int y);
 
 /* this is the text which scrolls up on the side of the blimp. */
 char *blimp_message[] = {
@@ -7068,14 +7062,14 @@ char *blimp_message[] = {
 "",
 NULL, /* mark the end. */
 }; 
-void airship_draw(struct game_obj_t *o, GtkWidget *w)
+void airship_draw(struct game_obj_t *o)
 {
 	int x, y, i, line;
 
 	if (o->tsd.airship.pressure == 0)
-		draw_generic(o, w);
+		draw_generic(o);
 	else
-		draw_scaled_generic(o, w, 1.0, 1.0 + 0.01 * o->tsd.airship.pressure);
+		draw_scaled_generic(o, 1.0, 1.0 + 0.01 * o->tsd.airship.pressure);
 #ifndef OPENLASE
 	/* the -90 and -130 were arrived at empirically, as were the dimensions */
 	/* of the text field.  The commented out code below with 0123456... is */
@@ -7085,7 +7079,7 @@ void airship_draw(struct game_obj_t *o, GtkWidget *w)
 
 	/* 
 	for (i=0;i<7;i++) {
-		abs_xy_draw_string(w, "012345678901234567890123456789", NANO_FONT, x, y);
+		abs_xy_draw_string("012345678901234567890123456789", NANO_FONT, x, y);
 		y = y + 15;
 	} */
 
@@ -7094,7 +7088,7 @@ void airship_draw(struct game_obj_t *o, GtkWidget *w)
 	for (i=0;i<7;i++) {
 		if (blimp_message[line] == NULL)
 			line = 0;
-		abs_xy_draw_string(w, blimp_message[line], NANO_FONT, x, y);
+		abs_xy_draw_string(blimp_message[line], NANO_FONT, x, y);
 		y = y + 15;
 		line++;
 	}
@@ -7108,7 +7102,7 @@ void airship_draw(struct game_obj_t *o, GtkWidget *w)
 #endif
 }
 
-void worm_draw(struct game_obj_t *o, GtkWidget *w)
+void worm_draw(struct game_obj_t *o)
 {
 	int x, y, x2,y2;
 	int color;
@@ -7118,26 +7112,26 @@ void worm_draw(struct game_obj_t *o, GtkWidget *w)
 	if (o->tsd.worm.parent == NULL) {
 		/* int x3, y3; */
 		wwvi_set_color(o->color);
-		wwvi_draw_line(w->window, gc, x-2, y, x, y-2); 
-		wwvi_draw_line(w->window, gc, x, y-2, x+2, y); 
-		wwvi_draw_line(w->window, gc, x+2, y, x, y+2); 
-		wwvi_draw_line(w->window, gc, x, y+2, x-2, y); 
+		wwvi_draw_line(x-2, y, x, y-2); 
+		wwvi_draw_line(x, y-2, x+2, y); 
+		wwvi_draw_line(x+2, y, x, y+2); 
+		wwvi_draw_line(x, y+2, x-2, y); 
 /*
 		x3 = o->tsd.worm.tx - game_state.x;
 		y3 = o->tsd.worm.ty - game_state.y + (SCREEN_HEIGHT/2);
-		wwvi_draw_line(w->window, gc, x, y, x3, y3); 
+		wwvi_draw_line(x, y, x3, y3); 
 		x3 = o->tsd.worm.ltx - game_state.x;
 		y3 = o->tsd.worm.lty - game_state.y + (SCREEN_HEIGHT/2);
-		wwvi_draw_line(w->window, gc, x, y, x3, y3); 
+		wwvi_draw_line(x, y, x3, y3); 
 */
 	} else {
 		color = NCOLORS + NSPARKCOLORS + ((timer + o->tsd.worm.coloroffset) % NRAINBOWCOLORS);
 		wwvi_set_color(color);
 		if (o->tsd.worm.child == NULL) {
-			wwvi_draw_line(w->window, gc, x-2, y, x, y-2); 
-			wwvi_draw_line(w->window, gc, x, y-2, x+2, y); 
-			wwvi_draw_line(w->window, gc, x+2, y, x, y+2); 
-			wwvi_draw_line(w->window, gc, x, y+2, x-2, y); 
+			wwvi_draw_line(x-2, y, x, y-2); 
+			wwvi_draw_line(x, y-2, x+2, y); 
+			wwvi_draw_line(x+2, y, x, y+2); 
+			wwvi_draw_line(x, y+2, x-2, y); 
 		}
 	}
 
@@ -7145,10 +7139,10 @@ void worm_draw(struct game_obj_t *o, GtkWidget *w)
 	if (o->tsd.worm.parent == NULL) {
 		x2 = o->tsd.worm.tx - game_state.x;
 		y2 = o->tsd.worm.ty - game_state.y + (SCREEN_HEIGHT/2);
-		wwvi_draw_line(w->window, gc, x, y, x2, y2);
+		wwvi_draw_line(x, y, x2, y2);
 		x2 = o->tsd.worm.ltx - game_state.x;
 		y2 = o->tsd.worm.lty - game_state.y + (SCREEN_HEIGHT/2);
-		wwvi_draw_line(w->window, gc, x, y, x2, y2);
+		wwvi_draw_line(x, y, x2, y2);
 	} else {
 #endif
 	if (o->tsd.worm.parent != NULL) {
@@ -7162,10 +7156,10 @@ void worm_draw(struct game_obj_t *o, GtkWidget *w)
 
 		x2 = o->tsd.worm.parent->x - game_state.x;
 		y2 = o->tsd.worm.parent->y - game_state.y + (SCREEN_HEIGHT/2);
-		wwvi_draw_line(w->window, gc, x-delta1, y, x2-delta2, y2);
-		wwvi_draw_line(w->window, gc, x+delta1, y, x2+delta2, y2);
-		wwvi_draw_line(w->window, gc, x, y-delta1, x2, y2-delta2);
-		wwvi_draw_line(w->window, gc, x, y+delta1, x2, y2+delta2);
+		wwvi_draw_line(x-delta1, y, x2-delta2, y2);
+		wwvi_draw_line(x+delta1, y, x2+delta2, y2);
+		wwvi_draw_line(x, y-delta1, x2, y2-delta2);
+		wwvi_draw_line(x, y+delta1, x2, y2+delta2);
 	}
 }
 
@@ -7370,7 +7364,7 @@ void make_gunwheel_sound(void)
 	}
 }
 
-void gunwheel_draw(struct game_obj_t *o, GtkWidget *w)
+void gunwheel_draw(struct game_obj_t *o)
 {
 	int angle, x1, y1, x2, y2, rx, ry;
 
@@ -7391,10 +7385,10 @@ void gunwheel_draw(struct game_obj_t *o, GtkWidget *w)
 
 	wwvi_set_color(o->color);
 
-	wwvi_draw_line(w->window, gc, x1-rx, y1-ry, x2-rx, y2-ry);
-	wwvi_draw_line(w->window, gc, x1+rx, y1+ry, x2+rx, y2+ry);
-	wwvi_draw_line(w->window, gc, x1-rx, y1-ry, x1+rx, y1+ry);
-	wwvi_draw_line(w->window, gc, x2-rx, y2-ry, x2+rx, y2+ry);
+	wwvi_draw_line(x1-rx, y1-ry, x2-rx, y2-ry);
+	wwvi_draw_line(x1+rx, y1+ry, x2+rx, y2+ry);
+	wwvi_draw_line(x1-rx, y1-ry, x1+rx, y1+ry);
+	wwvi_draw_line(x2-rx, y2-ry, x2+rx, y2+ry);
 
 	make_gunwheel_sound();
 }
@@ -7761,14 +7755,13 @@ void init_vects(void)
 	set_font(BIG_FONT);
 }
 
-void no_draw(__attribute__((unused)) struct game_obj_t *o,
-	__attribute__((unused)) GtkWidget *w)
+void no_draw(__attribute__((unused)) struct game_obj_t *o)
 {
 	return;
 }
 
-void draw_abs_scaled_generic(int x, int y, 
-	struct my_vect_obj *v, GtkWidget *w, float xscale, float yscale)
+void draw_abs_scaled_generic(int x, int y,
+	struct my_vect_obj *v, float xscale, float yscale)
 {
 	int j;
 	int x1, y1, x2, y2;
@@ -7789,7 +7782,7 @@ void draw_abs_scaled_generic(int x, int y,
 		x2 = x + (v->p[j+1].x * xscale); 
 		y2 = y + (v->p[j+1].y * yscale);
 		if (x1 > 0 && x2 > 0)
-			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+			wwvi_draw_line(x1, y1, x2, y2); 
 		x1 = x2;
 		y1 = y2;
 	}
@@ -7799,7 +7792,7 @@ void draw_abs_scaled_generic(int x, int y,
  * breaks and color changes...   This one scales in x, y.
  * It's used for drawing blimps which are overpressurized.
  */
-void draw_scaled_generic(struct game_obj_t *o, GtkWidget *w, float xscale, float yscale)
+void draw_scaled_generic(struct game_obj_t *o, float xscale, float yscale)
 {
 	int j;
 	int x1, y1, x2, y2;
@@ -7821,7 +7814,7 @@ void draw_scaled_generic(struct game_obj_t *o, GtkWidget *w, float xscale, float
 		x2 = o->x + (o->v->p[j+1].x * xscale) - game_state.x; 
 		y2 = o->y + (o->v->p[j+1].y * yscale) +(SCREEN_HEIGHT/2) - game_state.y;
 		if (x1 > 0 && x2 > 0)
-			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+			wwvi_draw_line(x1, y1, x2, y2); 
 		x1 = x2;
 		y1 = y2;
 	}
@@ -7832,7 +7825,7 @@ void draw_scaled_generic(struct game_obj_t *o, GtkWidget *w, float xscale, float
  * so try to make sure it's fast.  There is an inline version
  * of this in draw_objs(), btw. 
  */
-void draw_generic(struct game_obj_t *o, GtkWidget *w)
+void draw_generic(struct game_obj_t *o)
 {
 	int j;
 	int x1, y1, x2, y2;
@@ -7846,10 +7839,10 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 		x1 = o->x - game_state.x;
 		y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
 		if (x1 > 0 && x1 < SCREEN_WIDTH && y1 < SCREEN_HEIGHT && y1 > 0) {
-			/* wwvi_draw_line(w->window, gc, x1-10, y1, x1+10, y1); */
-			wwvi_draw_line(w->window, gc, x1, y1-10, x1, y1+10); 
-			wwvi_draw_line(w->window, gc, x1-10, y1 + o->above_target_y, x1+10, y1 + o->above_target_y); 
-			wwvi_draw_line(w->window, gc, x1-10, y1 + o->below_target_y, x1+10, y1 + o->below_target_y); 
+			/* wwvi_draw_line(x1-10, y1, x1+10, y1); */
+			wwvi_draw_line(x1, y1-10, x1, y1+10); 
+			wwvi_draw_line(x1-10, y1 + o->above_target_y, x1+10, y1 + o->above_target_y); 
+			wwvi_draw_line(x1-10, y1 + o->below_target_y, x1+10, y1 + o->below_target_y); 
 		}
 	}
 #endif
@@ -7871,7 +7864,7 @@ void draw_generic(struct game_obj_t *o, GtkWidget *w)
 		x2 = o->x + o->v->p[j+1].x - game_state.x; 
 		y2 = o->y + o->v->p[j+1].y+(SCREEN_HEIGHT/2) - game_state.y;
 		if (x1 > 0 && x2 > 0)
-			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+			wwvi_draw_line(x1, y1, x2, y2); 
 		x1 = x2;
 		y1 = y2;
 	}
@@ -7982,7 +7975,7 @@ void truss_cut_loose_whats_below(struct game_obj_t *o, struct game_obj_t *bomb)
 		p->tsd.truss.below = NULL;
 }
 
-void truss_draw(struct game_obj_t *o, GtkWidget *w)
+void truss_draw(struct game_obj_t *o)
 {
 	int x, y, x1, y1, x2, y2, x3, y3, x4, y4;
 	wwvi_set_color(o->color);
@@ -8002,21 +7995,21 @@ void truss_draw(struct game_obj_t *o, GtkWidget *w)
 	x4 = x + o->tsd.truss.bottom_width / 2; /* bottom right corner */
 	y4 = y + o->tsd.truss.height / 2;
 
-	wwvi_draw_line(w->window, gc, x3, y3, x1, y1);
-	wwvi_draw_line(w->window, gc, x1, y1, x2, y2);
-	wwvi_draw_line(w->window, gc, x2, y2, x4, y4);
-	wwvi_draw_line(w->window, gc, x4, y4, x1, y1);
+	wwvi_draw_line(x3, y3, x1, y1);
+	wwvi_draw_line(x1, y1, x2, y2);
+	wwvi_draw_line(x2, y2, x4, y4);
+	wwvi_draw_line(x4, y4, x1, y1);
 #ifndef OPENLASE
-	wwvi_draw_line(w->window, gc, x2, y2, x3, y3);
-	wwvi_draw_line(w->window, gc, x3, y3, x4, y4);
+	wwvi_draw_line(x2, y2, x3, y3);
+	wwvi_draw_line(x3, y3, x4, y4);
 #endif
 }
 
-void tesla_tower_draw(struct game_obj_t *o, GtkWidget *w)
+void tesla_tower_draw(struct game_obj_t *o)
 {
 	int i, x1, y1, x2, y2, x;
 
-	draw_generic(o, w);
+	draw_generic(o);
 
 	x1 = o->x - game_state.x;
 	y1 = o->y + 40 - game_state.y + (SCREEN_HEIGHT/2);
@@ -8026,7 +8019,7 @@ void tesla_tower_draw(struct game_obj_t *o, GtkWidget *w)
 	for (i = 0; i < x; i++) {
 		x2 = o->x + randomn(140)-70 - game_state.x;	
 		y2 = o->y + 40 + randomn(140)-70 - game_state.y + (SCREEN_HEIGHT/2);	
-		lightning_draw(w, x1, y1, x2, y2);
+		lightning_draw(x1, y1, x2, y2);
 	}
 
 	if (!o->tsd.tesla.discharging || !o->tsd.tesla.close_enough)
@@ -8036,11 +8029,11 @@ void tesla_tower_draw(struct game_obj_t *o, GtkWidget *w)
 
 		x2 = o->tsd.tesla.targetx + randomn(40)-20 - game_state.x;	
 		y2 = o->tsd.tesla.targety + randomn(40)-20 - game_state.y + (SCREEN_HEIGHT/2);	
-		lightning_draw(w, x1, y1, x2, y2);
+		lightning_draw(x1, y1, x2, y2);
 	}
 }
 
-void kgun_draw(struct game_obj_t *o, GtkWidget *w)
+void kgun_draw(struct game_obj_t *o)
 {
 	int dx, dy;
 	int x1, y1;
@@ -8054,7 +8047,7 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 	int invert = o->tsd.kgun.invert;
 	int recoilx, recoily;
 
-	draw_generic(o, w);
+	draw_generic(o);
 	/* Find x and y dist to player.... */
 	dx = player_target->x+LASERLEADX*player_target->vx - o->x;
 	dy = player_target->y+LASERLEADY*player_target->vy - (o->y + 20*invert);
@@ -8063,8 +8056,8 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 	y1 = o->y+(5*invert) - game_state.y + (SCREEN_HEIGHT/2);  
 	crossbeam_y = y1 + (20*invert);
 
-	wwvi_draw_line(w->window, gc, x1, y1, x1+5, crossbeam_y); 
-	wwvi_draw_line(w->window, gc, x1+10, y1, x1+6, crossbeam_y);
+	wwvi_draw_line(x1, y1, x1+5, crossbeam_y); 
+	wwvi_draw_line(x1+10, y1, x1+6, crossbeam_y);
 
 	/* We're going to draw a swivelling dual gun turret.  Two */
 	/* guns mounted on a crossbeam that kind of swivel around */
@@ -8155,33 +8148,33 @@ void kgun_draw(struct game_obj_t *o, GtkWidget *w)
 	gunbacky += crossbeam_y + recoily;
 
 	/* draw the crossbeam */	
-	wwvi_draw_line(w->window, gc, crossbeam_x1, crossbeam_y, crossbeam_x2, crossbeam_y);
+	wwvi_draw_line(crossbeam_x1, crossbeam_y, crossbeam_x2, crossbeam_y);
 
 	/* draw the main barrels */
-	wwvi_draw_line(w->window, gc, gunbackx, gunbacky, guntipx, guntipy);
-	wwvi_draw_line(w->window, gc, gunbackx+xoffset, gunbacky, guntipx+xoffset, guntipy);
+	wwvi_draw_line(gunbackx, gunbacky, guntipx, guntipy);
+	wwvi_draw_line(gunbackx+xoffset, gunbacky, guntipx+xoffset, guntipy);
 
 	/* draw the back edges of the gun butts */
-	wwvi_draw_line(w->window, gc, gunbackx-thickxo, gunbacky-thickyo, 
+	wwvi_draw_line(gunbackx-thickxo, gunbacky-thickyo, 
 			gunbackx+thickxo, gunbacky+thickyo);
-	wwvi_draw_line(w->window, gc, gunbackx-thickxo+xoffset, gunbacky-thickyo, 
+	wwvi_draw_line(gunbackx-thickxo+xoffset, gunbacky-thickyo, 
 			gunbackx+thickxo+xoffset, gunbacky+thickyo);
 	/* draw the front edges of the gun butts */
-	wwvi_draw_line(w->window, gc, crossbeam_x1-thickxo+recoilx, crossbeam_y-thickyo+recoily, 
+	wwvi_draw_line(crossbeam_x1-thickxo+recoilx, crossbeam_y-thickyo+recoily, 
 			crossbeam_x1+thickxo+recoilx, crossbeam_y+thickyo+recoily);
-	wwvi_draw_line(w->window, gc, crossbeam_x1-thickxo+xoffset+recoilx, 
+	wwvi_draw_line(crossbeam_x1-thickxo+xoffset+recoilx, 
 			crossbeam_y-thickyo+recoily, 
 			crossbeam_x1+thickxo+xoffset+recoilx, 
 			crossbeam_y+thickyo+recoily);
 
 	/* draw the long sides of the gun butts */
-	wwvi_draw_line(w->window, gc, gunbackx-thickxo, gunbacky-thickyo, 
+	wwvi_draw_line(gunbackx-thickxo, gunbacky-thickyo, 
 			crossbeam_x1-thickxo+recoilx, crossbeam_y-thickyo+recoily);
-	wwvi_draw_line(w->window, gc, gunbackx-thickxo+xoffset, gunbacky-thickyo, 
+	wwvi_draw_line(gunbackx-thickxo+xoffset, gunbacky-thickyo, 
 			crossbeam_x1-thickxo+xoffset+recoilx, crossbeam_y-thickyo+recoily);
-	wwvi_draw_line(w->window, gc, gunbackx+thickxo, gunbacky+thickyo, 
+	wwvi_draw_line(gunbackx+thickxo, gunbacky+thickyo, 
 			crossbeam_x1+thickxo+recoilx, crossbeam_y+thickyo+recoily);
-	wwvi_draw_line(w->window, gc, gunbackx+thickxo+xoffset, gunbacky+thickyo, 
+	wwvi_draw_line(gunbackx+thickxo+xoffset, gunbacky+thickyo, 
 			crossbeam_x1+thickxo+xoffset+recoilx, crossbeam_y+thickyo+recoily);
 	
 }
@@ -8225,7 +8218,7 @@ void init_radar_noise(void)
 	}
 }
 
-static inline void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_correction)
+static inline void draw_on_radar(struct game_obj_t *o, int y_correction)
 {
 	int radarx, radary;
 	int x1, x2, y1, y2; 
@@ -8274,17 +8267,17 @@ static inline void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_corre
 			if ((timer & 0x04) == 0x04) /* make 'em blink */
 				return;
 			wwvi_set_color(o->color);
-			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
-			wwvi_draw_line(w->window, gc, x1, y2, x2, y1); 
-			wwvi_draw_line(w->window, gc, x1, y2, x1, y1); 
-			wwvi_draw_line(w->window, gc, x1, y1, x2, y1); 
-			wwvi_draw_line(w->window, gc, x2, y1, x2, y2); 
-			wwvi_draw_line(w->window, gc, x2, y2, x1, y2); 
+			wwvi_draw_line(x1, y1, x2, y2); 
+			wwvi_draw_line(x1, y2, x2, y1); 
+			wwvi_draw_line(x1, y2, x1, y1); 
+			wwvi_draw_line(x1, y1, x2, y1); 
+			wwvi_draw_line(x2, y1, x2, y2); 
+			wwvi_draw_line(x2, y2, x1, y2); 
 			return;
 		}
 		wwvi_set_color(o->color);
-		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
-		wwvi_draw_line(w->window, gc, x1, y2, x2, y1); 
+		wwvi_draw_line(x1, y1, x2, y2); 
+		wwvi_draw_line(x1, y2, x2, y1); 
 	}
 
 	/* Here's where we put noise on the screen. total_radar_noise */
@@ -8314,8 +8307,8 @@ static inline void draw_on_radar(GtkWidget *w, struct game_obj_t *o, int y_corre
 			x2 = xradarnoise[nx]+1;
 			y1 = yradarnoise[ny]-1;
 			y2 = yradarnoise[ny]+1;
-			wwvi_draw_line(w->window, gc, x1, y1, x2, y2);
-			wwvi_draw_line(w->window, gc, x1, y2, x2, y1);
+			wwvi_draw_line(x1, y1, x2, y2);
+			wwvi_draw_line(x1, y2, x2, y1);
 			nx++; if (nx >= XRADARN) nx = 0;
 			ny++; if (ny >= YRADARN) ny = 0;
 			nc++; if (nc >= CRADARN) nc = 0;
@@ -8343,7 +8336,7 @@ static inline void debug_adjust_target_list_count(struct game_obj_t *o, int *nit
 			(*nitems_on_targetlist)++;
 }
 
-static inline void debug_draw_target_guidelines(GtkWidget *w, struct game_obj_t *o)
+static inline void debug_draw_target_guidelines(struct game_obj_t *o)
 {
 	int x1, y1;
 
@@ -8353,27 +8346,27 @@ static inline void debug_draw_target_guidelines(GtkWidget *w, struct game_obj_t 
 	wwvi_set_color(WHITE);
 	x1 = o->x - game_state.x;
 	y1 = o->y - game_state.y + (SCREEN_HEIGHT/2);  
-	wwvi_draw_line(w->window, gc, x1-5, y1, x1+5, y1);
-	wwvi_draw_line(w->window, gc, x1, y1-5, x1, y1+5);
+	wwvi_draw_line(x1-5, y1, x1+5, y1);
+	wwvi_draw_line(x1, y1-5, x1, y1+5);
 } 
 
-static inline void debug_display_target_list_count(GtkWidget *w, int total)
+static inline void debug_display_target_list_count(int total)
 {
 	char count[15];
 	sprintf(count, "TL:%d", total);
 	wwvi_set_color(RED);
-	abs_xy_draw_string(w, count, TINY_FONT, 20, 20);
+	abs_xy_draw_string(count, TINY_FONT, 20, 20);
 } 
 #else
 #define debug_adjust_target_list_count(x, y)
-#define debug_draw_target_guidelines(x, y)
-#define debug_display_target_list_count(x, y)
+#define debug_draw_target_guidelines(x)
+#define debug_display_target_list_count(x)
 #endif
 
 
 /* This gets called frame_rate_hz times every second (normally 30 times a sec) */
 /* by main_da_expose().  Don't do anything slow in here. */
-void draw_objs(GtkWidget *w)
+void draw_objs(void)
 {
 	int i, radary;
 #ifdef DEBUG_TARGET_LIST
@@ -8393,21 +8386,21 @@ void draw_objs(GtkWidget *w)
 		if (!o->alive)
 			continue; /* skip dead things. */
 
-		draw_on_radar(w, o, radary);
+		draw_on_radar(o, radary);
 
 		if (is_off_screen(o)) /* Don't draw offscreen things. */
 			continue;
 
-		debug_draw_target_guidelines(w, o);
-		o->draw(o, w); /* Call object's specialized drawing function. */
+		debug_draw_target_guidelines(o);
+		o->draw(o); /* Call object's specialized drawing function. */
 	}
-	debug_display_target_list_count(w, nitems_on_targetlist);
+	debug_display_target_list_count(nitems_on_targetlist);
 }
 
 /* This is used by the "attract mode" screen for drawing the letters */
 /* livecursorx, and livecursory are coords of a "cursor" which this */
 /* routine automatically advances. */
-static void draw_letter(GtkWidget *w, struct my_vect_obj **font, unsigned char letter)
+static void draw_letter(struct my_vect_obj **font, unsigned char letter)
 {
 	int i, x1, y1, x2, y2;
 
@@ -8434,8 +8427,8 @@ static void draw_letter(GtkWidget *w, struct my_vect_obj **font, unsigned char l
 		}
 		x2 = livecursorx + font[letter]->p[i+1].x;
 		y2 = livecursory + font[letter]->p[i+1].y;
-		wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
-		/*wwvi_draw_line(w->window, gc, x1-1, y1+1, x2-1, y2+1); */
+		wwvi_draw_line(x1, y1, x2, y2); 
+		/*wwvi_draw_line(x1-1, y1+1, x2-1, y2+1); */
 		x1 = x2;
 		y1 = y2;
 	}
@@ -8443,17 +8436,17 @@ static void draw_letter(GtkWidget *w, struct my_vect_obj **font, unsigned char l
 }
 
 /* Draws a string for the "attract mode", */
-static void draw_string(GtkWidget *w, unsigned char *s) 
+static void draw_string(unsigned char *s) 
 {
 
 	unsigned char *i;
 
 	for (i=s;*i;i++)
-		draw_letter(w, gamefont[current_font], *i);  
+		draw_letter(gamefont[current_font], *i);  
 }
 
 /* draws a bunch of strings for the "attract mode." */
-static void draw_strings(GtkWidget *w)
+static void draw_strings(void)
 {
 	int i;
 
@@ -8465,12 +8458,12 @@ static void draw_strings(GtkWidget *w)
 		livecursorx = textline[i].x;
 		livecursory = textline[i].y;
 		set_font(textline[i].font);
-		draw_string(w, (unsigned char *) textline[i].string);
+		draw_string((unsigned char *) textline[i].string);
 	}
 }
 
 /* Draws a letter in the given font at an absolute x,y coords on the screen. */
-static void abs_xy_draw_letter(GtkWidget *w, struct my_vect_obj **font, 
+static void abs_xy_draw_letter(struct my_vect_obj **font, 
 		unsigned char letter, int x, int y)
 {
 	int i, x1, y1, x2, y2;
@@ -8486,26 +8479,26 @@ static void abs_xy_draw_letter(GtkWidget *w, struct my_vect_obj **font,
 		x2 = x + font[letter]->p[i+1].x;
 		y2 = y + font[letter]->p[i+1].y;
 		if (x1 > 0 && x2 > 0)
-			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
+			wwvi_draw_line(x1, y1, x2, y2); 
 	}
 }
 
 /* Used for floating labels in the game. */
 /* Draws a string at an absolute x,y position on the screen. */ 
-static void abs_xy_draw_string(GtkWidget *w, char *s, int font, int x, int y) 
+static void abs_xy_draw_string(char *s, int font, int x, int y) 
 {
 
 	int i;	
 	int deltax = font_scale[font]*2 + letter_spacing[font];
 
 	for (i=0;s[i];i++)
-		abs_xy_draw_letter(w, gamefont[font], s[i], x + deltax*i, y);  
+		abs_xy_draw_letter(gamefont[font], s[i], x + deltax*i, y);  
 }
 
 /* Used for floating labels in the game. */
 /* Draws a string at an absolute x,y position on the screen. */ 
 /* Exactly like abs_xy_draw_string, but uses rainbow colors. */
-static void rainbow_abs_xy_draw_string(GtkWidget *w, char *s, int font, int x, int y) 
+static void rainbow_abs_xy_draw_string(char *s, int font, int x, int y) 
 {
 
 	int i;	
@@ -8518,13 +8511,13 @@ static void rainbow_abs_xy_draw_string(GtkWidget *w, char *s, int font, int x, i
 		color = ((((x + deltax*i) * NRAINBOWCOLORS) / (SCREEN_WIDTH*2) + 
 			((y * NRAINBOWCOLORS)/ (SCREEN_HEIGHT*2)) + timer) % NRAINBOWCOLORS) + NCOLORS + NSPARKCOLORS;
 		wwvi_set_color(color);
-		abs_xy_draw_letter(w, gamefont[font], s[i], x + deltax*i, y);  
+		abs_xy_draw_letter(gamefont[font], s[i], x + deltax*i, y);  
 	}
 }
 
 
 /* FIXME: what is the difference between thise, and the "abs" versions?  I forget. */
-static void xy_draw_letter(GtkWidget *w, struct my_vect_obj **font, 
+static void xy_draw_letter(struct my_vect_obj **font, 
 		unsigned char letter, int x, int y)
 {
 	int i, x1, y1, x2, y2;
@@ -8540,20 +8533,20 @@ static void xy_draw_letter(GtkWidget *w, struct my_vect_obj **font,
 		x2 = x + font[letter]->p[i+1].x - game_state.x;
 		y2 = y + font[letter]->p[i+1].y - game_state.y + (SCREEN_HEIGHT/2);
 		if (x1 > 0 && x2 > 0)
-			wwvi_draw_line(w->window, gc, x1, y1, x2, y2); 
-		/* wwvi_draw_line(w->window, gc, x1-1, y1+1, x2-1, y2+1); */
+			wwvi_draw_line(x1, y1, x2, y2); 
+		/* wwvi_draw_line(x1-1, y1+1, x2-1, y2+1); */
 	}
 }
 
 /* FIXME, what is the diff between this and the "abs" version? */
-static void xy_draw_string(GtkWidget *w, char *s, int font, int x, int y) 
+static void xy_draw_string(char *s, int font, int x, int y) 
 {
 
 	int i;	
 	int deltax = font_scale[font]*2 + letter_spacing[font];
 
 	for (i=0;s[i];i++)
-		xy_draw_letter(w, gamefont[font], (unsigned char) s[i], x + deltax*i, y);  
+		xy_draw_letter(gamefont[font], (unsigned char) s[i], x + deltax*i, y);  
 }
 
 
@@ -10161,7 +10154,7 @@ static void add_balloons(struct terrain_t *t, struct level_obj_descriptor_entry 
 	}
 }
 
-static void draw_strings(GtkWidget *w);
+static void draw_strings(void);
 void setup_text(void);
 
 int they_used_the_source(void)
@@ -10226,10 +10219,8 @@ int new_high_score(int newscore)
 
 void write_out_high_score_file(void);
 void cancel_sound(int queue_entry);
-static void draw_quit_screen(GtkWidget *w);
-static void do_newhighscore(GtkWidget *w,
-	__attribute__((unused)) GdkEvent *event,
-	__attribute__((unused)) gpointer p)
+static void draw_quit_screen(void);
+static void do_newhighscore(void)
 {
 	int slot;
 	static int highscore_timer = 0;
@@ -10260,12 +10251,12 @@ static void do_newhighscore(GtkWidget *w,
 
 	/* Draw the high score message */
 	wwvi_set_color(WHITE);
-	rainbow_abs_xy_draw_string(w, "New High Score!", BIG_FONT, 100, 70);
+	rainbow_abs_xy_draw_string("New High Score!", BIG_FONT, 100, 70);
 #ifndef OPENLASE
-	rainbow_abs_xy_draw_string(w, "New High Score!", BIG_FONT, 101, 71);
+	rainbow_abs_xy_draw_string("New High Score!", BIG_FONT, 101, 71);
 #endif
 	if (!finished)
-		rainbow_abs_xy_draw_string(w, "Enter your initials:", SMALL_FONT, 240, 135);
+		rainbow_abs_xy_draw_string("Enter your initials:", SMALL_FONT, 240, 135);
 
 	y = 200;
 	/* Print the current set of initials */
@@ -10273,11 +10264,11 @@ static void do_newhighscore(GtkWidget *w,
 		message[0] = highscore_initials[i];
 		message[1] = '\0';
 		x = 60 + ((i+3)%9)*80;
-		rainbow_abs_xy_draw_string(w, message, BIG_FONT, x, y);
+		rainbow_abs_xy_draw_string(message, BIG_FONT, x, y);
 #ifndef OPENLASE
-		rainbow_abs_xy_draw_string(w, message, BIG_FONT, x+1, y+1);
+		rainbow_abs_xy_draw_string(message, BIG_FONT, x+1, y+1);
 #endif
-		wwvi_draw_line(w->window, gc, x-25, y+25, x+55, y+25);
+		wwvi_draw_line(x-25, y+25, x+55, y+25);
 	}
 
 	/* Print the alphabet. */
@@ -10288,38 +10279,38 @@ static void do_newhighscore(GtkWidget *w,
 			message[0] = 'A' + i;
 			if ((i%9) == 0)
 				y += 100;
-			rainbow_abs_xy_draw_string(w, message, BIG_FONT, 60 + (i%9)*80, y);
+			rainbow_abs_xy_draw_string(message, BIG_FONT, 60 + (i%9)*80, y);
 #ifndef OPENLASE
-			rainbow_abs_xy_draw_string(w, message, BIG_FONT, 1+60 + (i%9)*80, y+1);
+			rainbow_abs_xy_draw_string(message, BIG_FONT, 1+60 + (i%9)*80, y+1);
 #endif
 			if (i == highscore_letter) {
 				x = 60 + (i%9)*80;
-				wwvi_draw_line(w->window, gc, x-25, y-65, x-25, y+25);
-				wwvi_draw_line(w->window, gc, x-25, y-65, x+55, y-65);
-				wwvi_draw_line(w->window, gc, x-25, y+25, x+55, y+25);
-				wwvi_draw_line(w->window, gc, x+55, y-65, x+55, y+25);
+				wwvi_draw_line(x-25, y-65, x-25, y+25);
+				wwvi_draw_line(x-25, y-65, x+55, y-65);
+				wwvi_draw_line(x-25, y+25, x+55, y+25);
+				wwvi_draw_line(x+55, y-65, x+55, y+25);
 			}
 		}
-		rainbow_abs_xy_draw_string(w, "Done", SMALL_FONT, 60 + 8*80, 80+100*4);
+		rainbow_abs_xy_draw_string("Done", SMALL_FONT, 60 + 8*80, 80+100*4);
 	} else {
 		int len;
 		y = 300;
 		sprintf(message, "%d", game_state.score);
 		len = strlen(message);
 		x = (SCREEN_WIDTH/2) - ((len * 2 * (font_scale[BIG_FONT] + letter_spacing[BIG_FONT])))/2;
-		rainbow_abs_xy_draw_string(w, message, BIG_FONT, x, y);
+		rainbow_abs_xy_draw_string(message, BIG_FONT, x, y);
 #ifndef OPENLASE
-		rainbow_abs_xy_draw_string(w, message, BIG_FONT, x+1, y+1);
+		rainbow_abs_xy_draw_string(message, BIG_FONT, x+1, y+1);
 #endif
 	}
 
 	if (highscore_letter == 26 && !finished) {
 		x = 60 + 8*80;
 		y = 80+100*4;
-		wwvi_draw_line(w->window, gc, x-25, y-65, x-25, y+25);
-		wwvi_draw_line(w->window, gc, x-25, y-65, x+55, y-65);
-		wwvi_draw_line(w->window, gc, x-25, y+25, x+55, y+25);
-		wwvi_draw_line(w->window, gc, x+55, y-65, x+55, y+25);
+		wwvi_draw_line(x-25, y-65, x-25, y+25);
+		wwvi_draw_line(x-25, y-65, x+55, y-65);
+		wwvi_draw_line(x-25, y+25, x+55, y+25);
+		wwvi_draw_line(x+55, y-65, x+55, y+25);
 	}
 
 	if (highscore_current_initial == 3 && finish_timer == 0) {
@@ -10349,10 +10340,10 @@ static void do_newhighscore(GtkWidget *w,
 	if (finish_timer == 0) {
 		timeleft = (highscore_timer - timer) / frame_rate_hz;
 		sprintf(message, "Time remaining: %d", timeleft);
-		rainbow_abs_xy_draw_string(w, message, SMALL_FONT, 60, 80+100*5);
+		rainbow_abs_xy_draw_string(message, SMALL_FONT, 60, 80+100*5);
 	}
 	if (in_the_process_of_quitting)
-		draw_quit_screen(w);
+		draw_quit_screen();
 }
 
 struct intermission_star {
@@ -10384,7 +10375,7 @@ void init_intermission_star(struct intermission_star *star)
 	star->ly = star->y;
 }
 
-void update_intermission_starfield(GtkWidget *w)
+void update_intermission_starfield(void)
 {
 #ifdef OPENLASE
 #define INTERMISSION_STARS 20
@@ -10415,14 +10406,12 @@ void update_intermission_starfield(GtkWidget *w)
 		y = (int) star[i].y;
 		x2 = (int) star[i].lx;
 		y2 = (int) star[i].ly;
-		wwvi_draw_line(w->window, gc, x, y, x2, y2);
+		wwvi_draw_line(x, y, x2, y2);
 	}
 }
 
 int bonus_points_this_round;
-static int do_intermission(GtkWidget *w,
-	__attribute__((unused)) GdkEvent *event,
-	__attribute__((unused)) gpointer p)
+static int do_intermission(void)
 {
 #define LAST_INTERMISSION_STAGE 12
 	static int intermission_stage = 0;
@@ -10457,7 +10446,7 @@ static int do_intermission(GtkWidget *w,
 	/* printf("timer=%d, timer_event=%d, intermission_timer=%d, stage=%d\n", 
 		timer, timer_event, intermission_timer, intermission_stage); */
 
-	update_intermission_starfield(w);
+	update_intermission_starfield();
 	cleartext();
 	set_font(SMALL_FONT);
 	switch (intermission_stage) {
@@ -10590,7 +10579,7 @@ static int do_intermission(GtkWidget *w,
 			gameprint( s);
 	}
 	if (intermission_stage != LAST_INTERMISSION_STAGE)
-		draw_strings(w);
+		draw_strings();
 	else {
 		game_state.score += add_bonus;
 		printf("added %d points to score --> %d\n", add_bonus, game_state.score);
@@ -10598,7 +10587,7 @@ static int do_intermission(GtkWidget *w,
 	}
 	/* printf("i, timer_event = %d\n", timer_event); */
 	if (in_the_process_of_quitting)
-		draw_quit_screen(w);
+		draw_quit_screen();
 	return 0;
 }
 
@@ -10606,7 +10595,7 @@ char spinner[] = "||||////----\\\\\\\\";
 char radar_msg1[] = "  Sirius Cybernetics Corp. RADAR -- firmware v. 1.05 (bootleg)";
 char radar_msg2[] = "  Fly Safe!!! Fly Siriusly Safe!!!";
 
-static void draw_radar(GtkWidget *w)
+static void draw_radar(void)
 {
 #ifndef OPENLASE
 	int xoffset, height, yoffset; 
@@ -10628,15 +10617,15 @@ static void draw_radar(GtkWidget *w)
 	wwvi_set_color(RED);
 
 	/* draw radar border */
-	wwvi_draw_line(w->window, gc, x1, y1, x1, y2);
-	wwvi_draw_line(w->window, gc, x1, y2, x2, y2);
-	wwvi_draw_line(w->window, gc, x2, y2, x2, y1);
-	wwvi_draw_line(w->window, gc, x2, y1, x1, y1);
+	wwvi_draw_line(x1, y1, x1, y2);
+	wwvi_draw_line(x1, y2, x2, y2);
+	wwvi_draw_line(x2, y2, x2, y1);
+	wwvi_draw_line(x2, y1, x1, y1);
 
 	/* draw health bar */
 	wwvi_set_color(ORANGE);
 	if (game_state.health > 0)
-		wwvi_draw_rectangle(w->window, gc, TRUE, RADAR_LEFT_MARGIN, 
+		wwvi_draw_rectangle(1, RADAR_LEFT_MARGIN, 
 			SCREEN_HEIGHT - RADAR_HEIGHT - RADAR_YMARGIN - 10, 
 			((SCREEN_WIDTH - RADAR_LEFT_MARGIN - RADAR_RIGHT_MARGIN) * game_state.health / game_state.max_player_health), 
 			RADAR_YMARGIN - 5);
@@ -10680,53 +10669,53 @@ static void draw_radar(GtkWidget *w)
 		wwvi_set_color(WHITE);
 
 		/* draw upper left corner */
-		wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_left, viewport_top + 5);
-		wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_left+5, viewport_top);
+		wwvi_draw_line(viewport_left, viewport_top, viewport_left, viewport_top + 5);
+		wwvi_draw_line(viewport_left, viewport_top, viewport_left+5, viewport_top);
 
 		/* draw upper right corner */
-		wwvi_draw_line(w->window, gc, viewport_right, viewport_top, viewport_right, viewport_top + 5);
-		wwvi_draw_line(w->window, gc, viewport_right, viewport_top, viewport_right-5, viewport_top);
+		wwvi_draw_line(viewport_right, viewport_top, viewport_right, viewport_top + 5);
+		wwvi_draw_line(viewport_right, viewport_top, viewport_right-5, viewport_top);
 
 		/* draw lower left corner */
-		wwvi_draw_line(w->window, gc, viewport_left, viewport_bottom, viewport_left, viewport_bottom - 5);
-		wwvi_draw_line(w->window, gc, viewport_left, viewport_bottom, viewport_left+5, viewport_bottom);
+		wwvi_draw_line(viewport_left, viewport_bottom, viewport_left, viewport_bottom - 5);
+		wwvi_draw_line(viewport_left, viewport_bottom, viewport_left+5, viewport_bottom);
 
 		/* draw lower right corner */
-		wwvi_draw_line(w->window, gc, viewport_right, viewport_bottom, viewport_right, viewport_bottom - 5);
-		wwvi_draw_line(w->window, gc, viewport_right, viewport_bottom, viewport_right-5, viewport_bottom);
+		wwvi_draw_line(viewport_right, viewport_bottom, viewport_right, viewport_bottom - 5);
+		wwvi_draw_line(viewport_right, viewport_bottom, viewport_right-5, viewport_bottom);
 
 	#if 0
-		wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_left, viewport_bottom);
-		wwvi_draw_line(w->window, gc, viewport_right, viewport_top, viewport_right, viewport_bottom);
-		wwvi_draw_line(w->window, gc, viewport_left, viewport_top, viewport_right, viewport_top);
-		wwvi_draw_line(w->window, gc, viewport_left, viewport_bottom, viewport_right, viewport_bottom);
+		wwvi_draw_line(viewport_left, viewport_top, viewport_left, viewport_bottom);
+		wwvi_draw_line(viewport_right, viewport_top, viewport_right, viewport_bottom);
+		wwvi_draw_line(viewport_left, viewport_top, viewport_right, viewport_top);
+		wwvi_draw_line(viewport_left, viewport_bottom, viewport_right, viewport_bottom);
 	#endif
 	}
 #endif
 
 	if (game_state.corrosive_atmosphere && game_state.radar_state == RADAR_RUNNING && credits > 0) {
 		wwvi_set_color(GREEN);
-		abs_xy_draw_string(w, "Corrosive atmosphere detected!  Vacate the area immediately!", 
+		abs_xy_draw_string("Corrosive atmosphere detected!  Vacate the area immediately!", 
 			TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2);
 	}
 
 	wwvi_set_color(RED);
 	sprintf(statusstr, "Score:   %7d", game_state.score);
-	abs_xy_draw_string(w, statusstr, TINY_FONT, x2 + 5, y1 + 7);
+	abs_xy_draw_string(statusstr, TINY_FONT, x2 + 5, y1 + 7);
 	sprintf(statusstr, "Bombs:   %7d", game_state.nbombs);
-	abs_xy_draw_string(w, statusstr, TINY_FONT, x2 + 5, y1 + 21);
+	abs_xy_draw_string(statusstr, TINY_FONT, x2 + 5, y1 + 21);
 	sprintf(statusstr, "Lives:   %7d", game_state.lives);
-	abs_xy_draw_string(w, statusstr, TINY_FONT, x2 + 5, y1 + 35);
+	abs_xy_draw_string(statusstr, TINY_FONT, x2 + 5, y1 + 35);
 	sprintf(statusstr, "Credits: %7d", credits);
-	abs_xy_draw_string(w, statusstr, TINY_FONT, x2 + 5, y1 + 49);
+	abs_xy_draw_string(statusstr, TINY_FONT, x2 + 5, y1 + 49);
 	sprintf(statusstr, "Humans:      %d/%d", game_state.humanoids, level.nhumanoids);
-	abs_xy_draw_string(w, statusstr, TINY_FONT, x2 + 5, y1 + 63);
+	abs_xy_draw_string(statusstr, TINY_FONT, x2 + 5, y1 + 63);
 
 	if (game_pause) {
 		wwvi_set_color(GREEN);
 
 		/* Remember Parsec on the ti99/4a? */
-		abs_xy_draw_string(w, "Time warp activated.", 
+		abs_xy_draw_string("Time warp activated.", 
 			TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2-10);
 		return;
 	}
@@ -10735,12 +10724,12 @@ static void draw_radar(GtkWidget *w)
 		if ((timer & 0x04) == 0) {
 			if (game_state.missile_locked) {
 				wwvi_set_color(RED);
-				abs_xy_draw_string(w, "***MISSILE LOCK ON DETECTED***", 
+				abs_xy_draw_string("***MISSILE LOCK ON DETECTED***", 
 					TINY_FONT, x1 + 210-18, y1 + RADAR_HEIGHT-3);
 			}	
 			if (credits <= 0) {
 				wwvi_set_color(GREEN);
-				abs_xy_draw_string(w, "Press 'q' to Insert Quarter and Start Game -- F1 for Help", 
+				abs_xy_draw_string("Press 'q' to Insert Quarter and Start Game -- F1 for Help", 
 					TINY_FONT, x1 + 60, y1 + RADAR_HEIGHT-30);
 			}
 		}
@@ -10749,14 +10738,14 @@ static void draw_radar(GtkWidget *w)
 
 	if (game_state.radar_state == RADAR_FRITZED) {
 		wwvi_set_color(randomn(NCOLORS+NSPARKCOLORS+NRAINBOWCOLORS));
-		wwvi_draw_line(w->window, gc, x1, y1 + timer % RADAR_HEIGHT, 
+		wwvi_draw_line(x1, y1 + timer % RADAR_HEIGHT, 
 			x2,  y1 + timer % RADAR_HEIGHT);
 	} else if (game_state.radar_state <= RADAR_BOOTUP) { 
 		/* radar is booting up, display bootup message. */
 		wwvi_set_color(GREEN);
 		radar_msg1[0] = spinner[timer % 16];
-		abs_xy_draw_string(w, radar_msg1, TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2-10);
-		abs_xy_draw_string(w, radar_msg2, TINY_FONT, x1 + 80, y1 + RADAR_HEIGHT/2+10);
+		abs_xy_draw_string(radar_msg1, TINY_FONT, x1 + 50, y1 + RADAR_HEIGHT/2-10);
+		abs_xy_draw_string(radar_msg2, TINY_FONT, x1 + 80, y1 + RADAR_HEIGHT/2+10);
 		game_state.radar_state --;
 		if (game_state.radar_state == RADAR_RUNNING)
 			wwviaudio_add_sound(RADAR_READY);
@@ -10786,8 +10775,8 @@ static gint main_da_configure(GtkWidget *w,
 	xscale_screen = (float) real_screen_width / (float) SCREEN_WIDTH;
 	yscale_screen = (float) real_screen_height / (float) SCREEN_HEIGHT;
 	if (real_screen_width == 800 && real_screen_height == 600) {
-		current_draw_line = gdk_draw_line_count;
-		current_draw_rectangle = gdk_draw_rectangle;
+		current_draw_line = unscaled_line;
+		current_draw_rectangle = unscaled_rectangle;
 		current_bright_line = unscaled_bright_line;
 	} else {
 		current_draw_line = scaled_line;
@@ -10805,7 +10794,7 @@ static gint main_da_configure(GtkWidget *w,
 	return TRUE;
 }
 
-static void draw_quit_screen(GtkWidget *w)
+static void draw_quit_screen(void)
 {
 	int x;
 	static int quittimer = 0;
@@ -10813,12 +10802,12 @@ static void draw_quit_screen(GtkWidget *w)
 	quittimer++;
 
 	wwvi_set_color(BLACK);
-	wwvi_draw_rectangle(w->window, gc, TRUE, 100, 100, SCREEN_WIDTH-200, SCREEN_HEIGHT-200);
+	wwvi_draw_rectangle(1, 100, 100, SCREEN_WIDTH-200, SCREEN_HEIGHT-200);
 	wwvi_set_color(RED);
-	wwvi_draw_rectangle(w->window, gc, FALSE, 100, 100, SCREEN_WIDTH-200, SCREEN_HEIGHT-200);
+	wwvi_draw_rectangle(0, 100, 100, SCREEN_WIDTH-200, SCREEN_HEIGHT-200);
 
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "Quit?", BIG_FONT, 300, 280);
+	abs_xy_draw_string("Quit?", BIG_FONT, 300, 280);
 
 	if (current_quit_selection == 1) {
 		x = 130;
@@ -10827,25 +10816,27 @@ static void draw_quit_screen(GtkWidget *w)
 		x = 480;
 		wwvi_set_color(RED);
 	}
-	abs_xy_draw_string(w, "Quit Now", SMALL_FONT, 150, 450);
+	abs_xy_draw_string("Quit Now", SMALL_FONT, 150, 450);
 	if (current_quit_selection == 0)
 		wwvi_set_color(WHITE);
 	else
 		wwvi_set_color(RED);
-	abs_xy_draw_string(w, "Don't Quit", SMALL_FONT, 500, 450);
+	abs_xy_draw_string("Don't Quit", SMALL_FONT, 500, 450);
 
 	if ((quittimer & 0x04)) {
 		wwvi_set_color(WHITE);
-		wwvi_draw_rectangle(w->window, gc, FALSE, x, 420, 200, 50);
+		wwvi_draw_rectangle(0, x, 420, 200, 50);
 	}
 }
 
 
 
-static void draw_help_screen(GtkWidget *w);
+static void draw_help_screen(void);
 /* This is the expose function of the main drawing area.  This is */
 /* where everything gets drawn. */
-static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
+static int main_da_expose(__attribute__((unused)) GtkWidget *w,
+	__attribute__((unused)) GdkEvent *event,
+	__attribute__((unused)) gpointer p)
 {
 	int i;
 	int sx1, sx2;
@@ -10854,14 +10845,14 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 
 	if (timer_event == START_INTERMISSION_EVENT) {
 		openlase_startframe();
-		do_intermission(w, event, p);
+		do_intermission();
 		openlase_renderframe();
 		return 0;
 	}
 
 	if (timer_event == NEW_HIGH_SCORE_EVENT) {
 		openlase_startframe();
-		do_newhighscore(w, event, p);
+		do_newhighscore();
 		openlase_renderframe();
 		return 0;
 		return 0;
@@ -10907,39 +10898,39 @@ static int main_da_expose(GtkWidget *w, GdkEvent *event, gpointer p)
 			printf(".\n");
 		}
 #endif
-		wwvi_draw_line(w->window, gc, terrain.x[i] - game_state.x, terrain.y[i]+(SCREEN_HEIGHT/2) - game_state.y,  
+		wwvi_draw_line(terrain.x[i] - game_state.x, terrain.y[i]+(SCREEN_HEIGHT/2) - game_state.y,  
 					 terrain.x[i+1] - game_state.x, terrain.y[i+1]+(SCREEN_HEIGHT/2) - game_state.y);
 	}
 	wwvi_set_color(RED);
 
 	/* draw "system memory boundaries" (ha!) */
 	if (game_state.x > terrain.x[0] - SCREEN_WIDTH && game_state.x < terrain.x[0] + SCREEN_WIDTH)
-		wwvi_draw_line(w->window, gc, terrain.x[0] - game_state.x, 0, 
+		wwvi_draw_line(terrain.x[0] - game_state.x, 0, 
 			terrain.x[0] - game_state.x, SCREEN_HEIGHT);
 	if (game_state.x > terrain.x[TERRAIN_LENGTH - 1] - SCREEN_WIDTH &&
 		game_state.x < terrain.x[TERRAIN_LENGTH - 1] + SCREEN_WIDTH)
-		wwvi_draw_line(w->window, gc, terrain.x[TERRAIN_LENGTH-1] - game_state.x, 0, 
+		wwvi_draw_line(terrain.x[TERRAIN_LENGTH-1] - game_state.x, 0, 
 			 terrain.x[TERRAIN_LENGTH-1] - game_state.x, SCREEN_HEIGHT); 
 	set_font(SMALL_FONT);
 	if (game_state.y < KERNEL_Y_BOUNDARY + SCREEN_HEIGHT) {
-		wwvi_draw_line(w->window, gc, 0, KERNEL_Y_BOUNDARY  - game_state.y + SCREEN_HEIGHT/2, 
+		wwvi_draw_line(0, KERNEL_Y_BOUNDARY  - game_state.y + SCREEN_HEIGHT/2, 
 			SCREEN_WIDTH, KERNEL_Y_BOUNDARY - game_state.y + SCREEN_HEIGHT/2);
 		livecursorx = (SCREEN_WIDTH - abs(game_state.x) % SCREEN_WIDTH);
 		livecursory = KERNEL_Y_BOUNDARY - game_state.y + SCREEN_HEIGHT/2 - 10;
-		draw_string(w, (unsigned char *) "Kernel Space");
+		draw_string((unsigned char *) "Kernel Space");
 	}
 
 	if (want_starfield)
-		draw_stars(w);
-	draw_objs(w);
-	draw_strings(w);
-	draw_radar(w);
+		draw_stars();
+	draw_objs();
+	draw_strings();
+	draw_radar();
 
 	if (in_the_process_of_quitting)
-		draw_quit_screen(w);
+		draw_quit_screen();
 
 	if (game_pause_help)
-		draw_help_screen(w);
+		draw_help_screen();
 
 	openlase_renderframe();
 	return 0;
@@ -12441,8 +12432,7 @@ unsigned char *keycharmap[256];
 static int helpscreen_pixel_row = -40;
 line_drawing_function *old_line_draw;
 
-void draw_line_help(GdkDrawable *drawable,
-	GdkGC *gc, gint x1, gint y1, gint x2, gint y2)
+void draw_line_help(int x1, int y1, int x2, int y2)
 {
 	y1 = y1 - helpscreen_pixel_row;
 	y2 = y2 - helpscreen_pixel_row;
@@ -12452,10 +12442,10 @@ void draw_line_help(GdkDrawable *drawable,
 		x2 < 50 || x2 > SCREEN_WIDTH-100 ||
 		y2 < 100 || y2 > SCREEN_HEIGHT-100) 
 		return;
-	old_line_draw(drawable, gc, x1, y1, x2, y2);
+	old_line_draw(x1, y1, x2, y2);
 }
 
-static void draw_help_screen(GtkWidget *w)
+static void draw_help_screen(void)
 {
 	enum keyaction k;
 	int row, column;
@@ -12464,12 +12454,12 @@ static void draw_help_screen(GtkWidget *w)
 
 
 	wwvi_set_color(BLACK);
-	wwvi_draw_rectangle(w->window, gc, TRUE, 50, 50, SCREEN_WIDTH-100, SCREEN_HEIGHT-100);
+	wwvi_draw_rectangle(1, 50, 50, SCREEN_WIDTH-100, SCREEN_HEIGHT-100);
 	wwvi_set_color(RED);
-	wwvi_draw_rectangle(w->window, gc, FALSE, 50, 50, SCREEN_WIDTH-100, SCREEN_HEIGHT-100);
+	wwvi_draw_rectangle(0, 50, 50, SCREEN_WIDTH-100, SCREEN_HEIGHT-100);
 
 	if (helpscreen_pixel_row > -30)
-		abs_xy_draw_string(w, "-- More Above -- (press 'up' arrow)", TINY_FONT, 80, 70);
+		abs_xy_draw_string("-- More Above -- (press 'up' arrow)", TINY_FONT, 80, 70);
 
 	old_line_draw = current_draw_line; 
 	current_draw_line = draw_line_help; 
@@ -12478,100 +12468,100 @@ static void draw_help_screen(GtkWidget *w)
 
 	y = 90;
 	wwvi_set_color(GREEN);
-	abs_xy_draw_string(w, "Object of the game:", SMALL_FONT, 80, y);
+	abs_xy_draw_string("Object of the game:", SMALL_FONT, 80, y);
 	y += 50;
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "Rescue your four lost .swp files and transport them to the end of", TINY_FONT, 80, y);
+	abs_xy_draw_string("Rescue your four lost .swp files and transport them to the end of", TINY_FONT, 80, y);
 	y += 20;
-	abs_xy_draw_string(w, "the level and take the socket to the next node in the cluster.  Avoid", TINY_FONT, 80, y);
+	abs_xy_draw_string("the level and take the socket to the next node in the cluster.  Avoid", TINY_FONT, 80, y);
 	y += 20;
-	abs_xy_draw_string(w, "OS defenses and watch out for cron jobs which will attempt to destroy", TINY_FONT, 80, y);
+	abs_xy_draw_string("OS defenses and watch out for cron jobs which will attempt to destroy", TINY_FONT, 80, y);
 	y += 20;
-	abs_xy_draw_string(w, "your .swp files.  Use laser fire and bombs to destroy enemy processes.", TINY_FONT, 80, y);
+	abs_xy_draw_string("your .swp files.  Use laser fire and bombs to destroy enemy processes.", TINY_FONT, 80, y);
 	y += 50;
 
 	wwvi_set_color(GREEN);
-	abs_xy_draw_string(w, "Things you may encounter:", SMALL_FONT, 80, y);
-	/* abs_xy_draw_string(w, "Help?", BIG_FONT, 300, 280);*/
+	abs_xy_draw_string("Things you may encounter:", SMALL_FONT, 80, y);
+	/* abs_xy_draw_string("Help?", BIG_FONT, 300, 280);*/
 
 	y += 50;
 	wwvi_set_color(GREEN);
-	draw_abs_scaled_generic(80, y, &cron_vect, w, 0.5, 0.5);
+	draw_abs_scaled_generic(80, y, &cron_vect, 0.5, 0.5);
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "Cron Job", TINY_FONT, 110, y);
+	abs_xy_draw_string("Cron Job", TINY_FONT, 110, y);
 	wwvi_set_color(CYAN);
 
 	y += 50;
-	draw_abs_scaled_generic(80, y, &gdb_vect_left, w, 0.5, 0.5);
+	draw_abs_scaled_generic(80, y, &gdb_vect_left, 0.5, 0.5);
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "gdb", TINY_FONT, 110, y);
+	abs_xy_draw_string("gdb", TINY_FONT, 110, y);
 	wwvi_set_color(CYAN);
 
 	y += 50;
-	draw_abs_scaled_generic(80, y, &rocket_vect, w, 0.5, 0.5);
+	draw_abs_scaled_generic(80, y, &rocket_vect, 0.5, 0.5);
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "Rocket", TINY_FONT, 110, y);
+	abs_xy_draw_string("Rocket", TINY_FONT, 110, y);
 	wwvi_set_color(WHITE);
 
 	y += 50;
-	draw_abs_scaled_generic(80, y, &SAM_station_vect, w, 0.5, 0.5);
+	draw_abs_scaled_generic(80, y, &SAM_station_vect, 0.5, 0.5);
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "SAM station", TINY_FONT, 110, y);
+	abs_xy_draw_string("SAM station", TINY_FONT, 110, y);
 
 	y -= 150;
 	wwvi_set_color(CYAN);
-	draw_abs_scaled_generic(260, y, &airship_vect, w, 0.1, 0.1);
+	draw_abs_scaled_generic(260, y, &airship_vect, 0.1, 0.1);
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "EMACS (Stallman's airship)", TINY_FONT, 310, y);
+	abs_xy_draw_string("EMACS (Stallman's airship)", TINY_FONT, 310, y);
 	wwvi_set_color(WHITE);
 
 	y += 50;
-	draw_abs_scaled_generic(260, y, &jet_vect, w, 0.5, 0.5);
+	draw_abs_scaled_generic(260, y, &jet_vect, 0.5, 0.5);
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "Jet", TINY_FONT, 310, y);
+	abs_xy_draw_string("Jet", TINY_FONT, 310, y);
 	wwvi_set_color(RED);
 
 	y += 50;
-	draw_abs_scaled_generic(260, y, &kgun_vect, w, 0.5, 0.5);
+	draw_abs_scaled_generic(260, y, &kgun_vect, 0.5, 0.5);
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "Laser turret", TINY_FONT, 310, y);
+	abs_xy_draw_string("Laser turret", TINY_FONT, 310, y);
 	wwvi_set_color(CYAN);
 
 	y += 50;
-	draw_abs_scaled_generic(260, y, &balloon_vect, w, 0.2, 0.2);
+	draw_abs_scaled_generic(260, y, &balloon_vect, 0.2, 0.2);
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "fetchmail", TINY_FONT, 310, y);
-	abs_xy_draw_string(w, "(Raymond's Gasbag)", TINY_FONT, 310, 300);
+	abs_xy_draw_string("fetchmail", TINY_FONT, 310, y);
+	abs_xy_draw_string("(Raymond's Gasbag)", TINY_FONT, 310, 300);
 
 	y -= 150;	
 	wwvi_set_color(ORANGE);
-	draw_abs_scaled_generic(570, y, &fuel_vect, w, 0.5, 0.5);
+	draw_abs_scaled_generic(570, y, &fuel_vect, 0.5, 0.5);
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "Fuel tank", TINY_FONT, 620, y);
+	abs_xy_draw_string("Fuel tank", TINY_FONT, 620, y);
 	wwvi_set_color(MAGENTA);
 
 	y += 50;
-	draw_abs_scaled_generic(570, y, &humanoid_vect, w, 1.0, 1.0);
+	draw_abs_scaled_generic(570, y, &humanoid_vect, 1.0, 1.0);
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, ".swp file", TINY_FONT, 620, y);
+	abs_xy_draw_string(".swp file", TINY_FONT, 620, y);
 	wwvi_set_color(WHITE);
 
 	y += 50;
-	draw_abs_scaled_generic(570, y, &socket_vect, w, 0.5, 0.5);
+	draw_abs_scaled_generic(570, y, &socket_vect, 0.5, 0.5);
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "socket", TINY_FONT, 620, y);
+	abs_xy_draw_string("socket", TINY_FONT, 620, y);
 	wwvi_set_color(GREEN);
 
 	y += 50;
-	draw_abs_scaled_generic(570, y, &jetpilot_vect_right, w, 1.0, 1.0);
+	draw_abs_scaled_generic(570, y, &jetpilot_vect_right, 1.0, 1.0);
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "Jet pilot", TINY_FONT, 620, y);
+	abs_xy_draw_string("Jet pilot", TINY_FONT, 620, y);
 
 	y += 50;
 	row = 0;
 	column = 0;
 	wwvi_set_color(GREEN);
-	abs_xy_draw_string(w, "Controls:", SMALL_FONT, 80, y);
+	abs_xy_draw_string("Controls:", SMALL_FONT, 80, y);
 	wwvi_set_color(WHITE);
 
 	y += 50;
@@ -12588,7 +12578,7 @@ static void draw_help_screen(GtkWidget *w)
 						sprintf(str, "%15s %s", keyactionstring[k],
 							keyname_value_map[j].name);
 
-						abs_xy_draw_string(w, str, TINY_FONT, 80 + 200*column, y + row*20);
+						abs_xy_draw_string(str, TINY_FONT, 80 + 200*column, y + row*20);
 						column++;
 						if (column > 2) {
 							column = 0;
@@ -12605,7 +12595,7 @@ static void draw_help_screen(GtkWidget *w)
 						sprintf(str, "%15s %s", keyactionstring[k],
 							keyname_value_map[j].name);
 
-						abs_xy_draw_string(w, str, TINY_FONT, 80 + 200*column, y + row*20);
+						abs_xy_draw_string(str, TINY_FONT, 80 + 200*column, y + row*20);
 						column++;
 						if (column > 2) {
 							column = 0;
@@ -12624,30 +12614,30 @@ static void draw_help_screen(GtkWidget *w)
 
 	y = max_y + 20;
 	wwvi_set_color(WHITE);
-	abs_xy_draw_string(w, "Additionally, you may use a gamepad such as an Xbox 360", TINY_FONT, 80, y);
+	abs_xy_draw_string("Additionally, you may use a gamepad such as an Xbox 360", TINY_FONT, 80, y);
 	y += 20;
-	abs_xy_draw_string(w, "controller (recommended) or a Logitech Dual Action Rumble.", TINY_FONT, 80, y);
+	abs_xy_draw_string("controller (recommended) or a Logitech Dual Action Rumble.", TINY_FONT, 80, y);
 
 	y += 40;
 
 	wwvi_set_color(GREEN);
-	abs_xy_draw_string(w, "About Word War vi:", SMALL_FONT, 80, y);
+	abs_xy_draw_string("About Word War vi:", SMALL_FONT, 80, y);
 	wwvi_set_color(WHITE);
 
 	y += 40;
-	abs_xy_draw_string(w, "This is Word War vi version " WORDWARVI_VERSION, 
+	abs_xy_draw_string("This is Word War vi version " WORDWARVI_VERSION, 
 		TINY_FONT, 80, y); 
 
 	y += 20;
-	abs_xy_draw_string(w, "Be sure to read the wordwarvi man page as well.", 
+	abs_xy_draw_string("Be sure to read the wordwarvi man page as well.", 
 		TINY_FONT, 80, y); 
 
 	y += 20;
-	abs_xy_draw_string(w, "(yes there is a man page.  Type 'man wordwarvi'.)", 
+	abs_xy_draw_string("(yes there is a man page.  Type 'man wordwarvi'.)", 
 		TINY_FONT, 80, y); 
 
 	y += 20;
-	abs_xy_draw_string(w, "Check http://smcameron.github.com/wordwarvi for updates.", 
+	abs_xy_draw_string("Check http://smcameron.github.com/wordwarvi for updates.", 
 		TINY_FONT, 80, y); 
 
 	max_y += 180;
@@ -12664,7 +12654,7 @@ static void draw_help_screen(GtkWidget *w)
 
 	wwvi_set_color(RED);
 	if (helpscreen_pixel_row < (max_y - (SCREEN_HEIGHT-100)))
-		abs_xy_draw_string(w, "-- More Below -- (press 'down' arrow)", TINY_FONT, 80, SCREEN_HEIGHT-65);
+		abs_xy_draw_string("-- More Below -- (press 'down' arrow)", TINY_FONT, 80, SCREEN_HEIGHT-65);
 
 #if 0
 	if (current_help_selection == 1) {
@@ -12674,16 +12664,16 @@ static void draw_help_screen(GtkWidget *w)
 		x = 480;
 		wwvi_set_color(RED);
 	}
-	abs_xy_draw_string(w, "Yes help", SMALL_FONT, 150, 450);
+	abs_xy_draw_string("Yes help", SMALL_FONT, 150, 450);
 	if (current_quit_selection == 0)
 		wwvi_set_color(WHITE);
 	else
 		wwvi_set_color(RED);
-	abs_xy_draw_string(w, "no help", SMALL_FONT, 500, 450);
+	abs_xy_draw_string("no help", SMALL_FONT, 500, 450);
 
 	if ((quittimer & 0x04)) {
 		wwvi_set_color(WHITE);
-		wwvi_draw_rectangle(w->window, gc, FALSE, x, 420, 200, 50);
+		wwvi_draw_rectangle(0, x, 420, 200, 50);
 	}
 #endif
 }
@@ -13666,8 +13656,8 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 		rc = sscanf(s, "set height=%d\n", &h);
 		if (rc == 1) {
 			real_screen_height = 600;
-			current_draw_line = gdk_draw_line_count;
-			current_draw_rectangle = gdk_draw_rectangle;
+			current_draw_line = unscaled_line;
+			current_draw_rectangle = unscaled_rectangle;
 			current_bright_line = unscaled_bright_line;
 			if (h >= 100 && h <= 2000) {
 				real_screen_height = h;
@@ -13679,8 +13669,8 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 					" using 800.\n", lineno);
 				real_screen_width = 800;
 				real_screen_height = 600;
-				current_draw_line = gdk_draw_line_count;
-				current_draw_rectangle = gdk_draw_rectangle;
+				current_draw_line = unscaled_line;
+				current_draw_rectangle = unscaled_rectangle;
 				current_bright_line = unscaled_bright_line;
 			}
 			continue;
@@ -13688,8 +13678,8 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 		rc = sscanf(s, "set width=%d\n", &w);
 		if (rc == 1) {
 			real_screen_width = 800;
-			current_draw_line = gdk_draw_line_count;
-			current_draw_rectangle = gdk_draw_rectangle;
+			current_draw_line = unscaled_line;
+			current_draw_rectangle = unscaled_rectangle;
 				current_bright_line = unscaled_bright_line;
 			if (w >= 100 && w <= 3000) {
 				real_screen_width = w;
@@ -13701,8 +13691,8 @@ void read_exrc_file(int *bw, int *blueprint, int *retrogreen,
 					", using 800.\n", lineno);
 				real_screen_width = 800;
 				real_screen_height = 600;
-				current_draw_line = gdk_draw_line_count;
-				current_draw_rectangle = gdk_draw_rectangle;
+				current_draw_line = unscaled_line;
+				current_draw_rectangle = unscaled_rectangle;
 				current_bright_line = unscaled_bright_line;
 			}
 			continue;
@@ -13985,16 +13975,16 @@ int main(int argc, char *argv[])
 				break;
 			case 4: /* width */
 				real_screen_width = 800;
-				current_draw_line = gdk_draw_line_count;
-				current_draw_rectangle = gdk_draw_rectangle;
+				current_draw_line = unscaled_line;
+				current_draw_rectangle = unscaled_rectangle;
 				current_bright_line = unscaled_bright_line;
 				n = sscanf(optarg, "%d", &real_screen_width);
 				if (n != 1) {
 					fprintf(stderr, "wordwarvi: Bad width argument"
 						" '%s', using 800.\n", optarg);
 					real_screen_width = 800;
-					current_draw_line = gdk_draw_line_count;
-					current_draw_rectangle = gdk_draw_rectangle;
+					current_draw_line = unscaled_line;
+					current_draw_rectangle = unscaled_rectangle;
 					current_bright_line = unscaled_bright_line;
 					break;
 				}
@@ -14007,23 +13997,23 @@ int main(int argc, char *argv[])
 						" '%s', using 800.\n", optarg);
 					real_screen_width = 800;
 					real_screen_height = 600;
-					current_draw_line = gdk_draw_line_count;
-					current_draw_rectangle = gdk_draw_rectangle;
+					current_draw_line = unscaled_line;
+					current_draw_rectangle = unscaled_rectangle;
 					current_bright_line = unscaled_bright_line;
 				}
 				break;	
 			case 5: /* height */
 				real_screen_height = 600;
-				current_draw_line = gdk_draw_line_count;
-				current_draw_rectangle = gdk_draw_rectangle;
+				current_draw_line = unscaled_line;
+				current_draw_rectangle = unscaled_rectangle;
 				current_bright_line = unscaled_bright_line;
 				n = sscanf(optarg, "%d", &real_screen_height);
 				if (n != 1) {
 					fprintf(stderr, "wordwarvi: Bad height argument"
 						" '%s', using 600.\n", optarg);
 					real_screen_height = 600;
-					current_draw_line = gdk_draw_line_count;
-					current_draw_rectangle = gdk_draw_rectangle;
+					current_draw_line = unscaled_line;
+					current_draw_rectangle = unscaled_rectangle;
 					current_bright_line = unscaled_bright_line;
 					break;
 				} 
@@ -14036,8 +14026,8 @@ int main(int argc, char *argv[])
 						" '%s', using 800.\n", optarg);
 					real_screen_width = 800;
 					real_screen_height = 600;
-					current_draw_line = gdk_draw_line_count;
-					current_draw_rectangle = gdk_draw_rectangle;
+					current_draw_line = unscaled_line;
+					current_draw_rectangle = unscaled_rectangle;
 					current_bright_line = unscaled_bright_line;
 				}
 				break;	
@@ -14352,8 +14342,8 @@ int main(int argc, char *argv[])
 
 	gtk_window_get_size(GTK_WINDOW (window), &real_screen_width, &real_screen_height);
 	if (real_screen_width == 800 && real_screen_height == 600) {
-		current_draw_line = gdk_draw_line_count;
-		current_draw_rectangle = gdk_draw_rectangle;
+		current_draw_line = unscaled_line;
+		current_draw_rectangle = unscaled_rectangle;
 		current_bright_line = unscaled_bright_line;
 	} else {
 		current_draw_line = scaled_line;
