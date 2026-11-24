@@ -21,6 +21,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <SDL.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
@@ -1890,6 +1893,8 @@ SDL_Renderer *renderer = NULL;	/* main renderer */
 static SDL_Cursor *cross_cursor = NULL;
 static int quit_requested = 0;
 static int need_redraw = 1;
+static Uint32 main_loop_frame_ms = 40;
+static Uint32 main_loop_next_frame_tick = 0;
 
 static void wwvi_set_color(int color)
 {
@@ -9799,13 +9804,12 @@ static void add_ships(struct terrain_t *t, struct level_obj_descriptor_entry *en
 
 static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *entry)
 {
-	int xi, i, j, k, count;
+	int xi, i, j, k;
 	struct game_obj_t *o;
 	int color_scheme;
 	int other_color;
 	int color;
 
-	count = 0;
 	for (i=0;i<entry->nobjs;i++) {
 		color_scheme = randomn(100) % 4;
 		color = randomn(NCOLORS);
@@ -9820,7 +9824,6 @@ static void add_octopi(struct terrain_t *t, struct level_obj_descriptor_entry *e
 		if (o == NULL)
 			continue;
 		level.noctopi++;
-		count++;
 		o->destroy = octopus_destroy;
 		o->tsd.octopus.awake = 0;
 		o->radar_image = 1;
@@ -13740,6 +13743,9 @@ void check_xmastime(void)
 
 void check_for_screensaver(void)
 {
+#ifdef __EMSCRIPTEN__
+	return;
+#else
 	static char *cmd = "ps -efa | grep screensaver | grep -v grep >/dev/null 2>&1";
 	if (system(cmd) != 0)
 		return;
@@ -13804,6 +13810,7 @@ void check_for_screensaver(void)
 	/* Getting joystick events through X and gtk is probably the */
 	/* correct answer (and currently impossible, AFAICT, or at least very */
 	/* impractical) */
+#endif
 }
 
 static int setup_openlase(void)
@@ -13836,6 +13843,69 @@ static int setup_openlase(void)
 	return 0;
 }
 
+static void shutdown_game(void)
+{
+	resume_screensaver();
+	openlase_shutdown();
+	wwviaudio_stop_audio();
+	free_debris_forms();
+	close_joystick();
+	close_rumble_fd();
+	if (cross_cursor != NULL) {
+		SDL_FreeCursor(cross_cursor);
+		cross_cursor = NULL;
+	}
+	if (renderer != NULL) {
+		SDL_DestroyRenderer(renderer);
+		renderer = NULL;
+	}
+	if (window != NULL) {
+		SDL_DestroyWindow(window);
+		window = NULL;
+	}
+	SDL_Quit();
+}
+
+static void main_loop_iteration(void)
+{
+	SDL_Event ev;
+	Uint32 now;
+
+	while (SDL_PollEvent(&ev))
+		handle_sdl_event(&ev);
+
+	if (quit_requested)
+		return;
+
+	now = SDL_GetTicks();
+	if (SDL_TICKS_PASSED(now, main_loop_next_frame_tick)) {
+		advance_game();
+		if (quit_requested)
+			return;
+		/* Avoid spiral of death if a frame took too long */
+		main_loop_next_frame_tick += main_loop_frame_ms;
+		if (SDL_TICKS_PASSED(SDL_GetTicks(),
+				main_loop_next_frame_tick + main_loop_frame_ms))
+			main_loop_next_frame_tick = SDL_GetTicks() + main_loop_frame_ms;
+	}
+
+	if (need_redraw) {
+		render_frame();
+		need_redraw = 0;
+	}
+}
+
+#ifdef __EMSCRIPTEN__
+static void emscripten_main_loop(void)
+{
+	main_loop_iteration();
+	if (quit_requested) {
+		emscripten_cancel_main_loop();
+		shutdown_game();
+	}
+}
+#endif
+
 int main(int argc, char *argv[])
 {
 	int blueprint = 0;
@@ -13843,8 +13913,6 @@ int main(int argc, char *argv[])
 	int opt;
 	char joystick_device[PATH_MAX+1];
 	Uint32 window_flags;
-	Uint32 frame_ms;
-	Uint32 next_frame_tick;
 
 	struct timeval tm;
 	char difficulty[256];
@@ -14216,59 +14284,34 @@ int main(int argc, char *argv[])
 		explosion = sphere_explode;
 	}
 
-	frame_ms = 1000 / frame_rate_hz;
-	if (frame_ms == 0)
-		frame_ms = 1;
-	next_frame_tick = SDL_GetTicks() + frame_ms;
+	main_loop_frame_ms = 1000 / frame_rate_hz;
+	if (main_loop_frame_ms == 0)
+		main_loop_frame_ms = 1;
+	main_loop_next_frame_tick = SDL_GetTicks() + main_loop_frame_ms;
 
 	gettimeofday(&start_time, NULL);
 
+#ifdef __EMSCRIPTEN__
+	emscripten_set_main_loop(emscripten_main_loop, 0, 1);
+#else
 	while (!quit_requested) {
-		SDL_Event ev;
 		Uint32 now;
 
-		while (SDL_PollEvent(&ev))
-			handle_sdl_event(&ev);
-
+		main_loop_iteration();
 		if (quit_requested)
 			break;
 
 		now = SDL_GetTicks();
-		if (SDL_TICKS_PASSED(now, next_frame_tick)) {
-			advance_game();
-			if (quit_requested)
-				break;
-			/* Avoid spiral of death if a frame took too long */
-			next_frame_tick += frame_ms;
-			if (SDL_TICKS_PASSED(SDL_GetTicks(), next_frame_tick + frame_ms))
-				next_frame_tick = SDL_GetTicks() + frame_ms;
-		}
-
-		if (need_redraw) {
-			render_frame();
-			need_redraw = 0;
-		}
-
-		now = SDL_GetTicks();
-		if (!SDL_TICKS_PASSED(now, next_frame_tick)) {
-			Uint32 wait_ms = next_frame_tick - now;
+		if (!SDL_TICKS_PASSED(now, main_loop_next_frame_tick)) {
+			Uint32 wait_ms = main_loop_next_frame_tick - now;
 			if (wait_ms > 10)
 				wait_ms = 10;
 			SDL_Delay(wait_ms);
 		}
 	}
 
-	resume_screensaver();
-	openlase_shutdown();
-	wwviaudio_stop_audio();
-	free_debris_forms();
-	close_joystick();
-	close_rumble_fd();
-	if (cross_cursor != NULL)
-		SDL_FreeCursor(cross_cursor);
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
-	SDL_Quit();
+	shutdown_game();
+#endif
 
 	return 0;
 }

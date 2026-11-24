@@ -109,6 +109,8 @@ int play_rumble_effect(int effect)
 
 	if (write(event_fd, (const void*) &play, sizeof(play)) == -1)
 		return -1;
+#else
+	(void) effect;
 #endif
 	return 0;
 }
@@ -284,6 +286,7 @@ int get_ready_to_rumble(char *filename)
 
 	return 0;
 #else
+	(void) filename;
 	return -1;
 #endif
 }

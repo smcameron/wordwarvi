@@ -227,6 +227,10 @@ static int joystick_y_axis = 1;
 
 int open_joystick(char *joystick_device, __attribute__((unused)) void *window)
 {
+#ifdef __EMSCRIPTEN__
+	(void) joystick_device;
+	return -1;
+#else
 	if (joystick_device == NULL)
 		joystick_device = JOYSTICK_DEVNAME;
 	joystick_fd = open(joystick_device, JOYSTICK_DEV_OPEN_FLAGS);
@@ -236,6 +240,7 @@ int open_joystick(char *joystick_device, __attribute__((unused)) void *window)
 	/* maybe ioctls to interrogate features here? */
 
 	return joystick_fd;
+#endif
 }
 
 int read_joystick_event(struct js_event *jse)
@@ -255,9 +260,12 @@ int read_joystick_event(struct js_event *jse)
 	return -1;
 }
 
-void close_joystick()
+void close_joystick(void)
 {
-	close(joystick_fd);
+	if (joystick_fd >= 0) {
+		close(joystick_fd);
+		joystick_fd = -1;
+	}
 }
 
 int get_joystick_status(struct wwvi_js_event *wjse)
